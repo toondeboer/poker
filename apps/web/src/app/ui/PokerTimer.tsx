@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useCallback } from "react";
 import {
   Play,
   Pause,
@@ -111,8 +111,8 @@ const PokerTimer: React.FC = () => {
     }
   };
 
-  // Play audio notification
-  const playAudioNotification = () => {
+  // Play audio notification - using useCallback to prevent recreation on every render
+  const playAudioNotification = useCallback(() => {
     if (!audioReady || !audioContextRef.current || !audioBufferRef.current) {
       return;
     }
@@ -137,7 +137,7 @@ const PokerTimer: React.FC = () => {
     } catch (error) {
       console.warn("Audio playback failed:", error);
     }
-  };
+  }, [audioReady]);
 
   // Enhanced speech synthesis for iOS
   const speakAnnouncement = (text: string) => {
@@ -181,28 +181,31 @@ const PokerTimer: React.FC = () => {
     }
   };
 
-  // Show browser notification
-  const showNotification = (title: string, body: string) => {
-    // Only show notifications in standalone mode on iOS or if permission is granted
-    if (isIOS && !isStandalone) {
-      return;
-    }
-
-    if ("Notification" in window && Notification.permission === "granted") {
-      try {
-        new Notification(title, {
-          body: body,
-          icon: "/favicon.ico",
-          badge: "/favicon.ico",
-          tag: "poker-timer",
-          requireInteraction: true,
-          silent: false,
-        });
-      } catch (error) {
-        console.warn("Notification failed:", error);
+  // Show browser notification - using useCallback to prevent recreation on every render
+  const showNotification = useCallback(
+    (title: string, body: string) => {
+      // Only show notifications in standalone mode on iOS or if permission is granted
+      if (isIOS && !isStandalone) {
+        return;
       }
-    }
-  };
+
+      if ("Notification" in window && Notification.permission === "granted") {
+        try {
+          new Notification(title, {
+            body: body,
+            icon: "/favicon.ico",
+            badge: "/favicon.ico",
+            tag: "poker-timer",
+            requireInteraction: true,
+            silent: false,
+          });
+        } catch (error) {
+          console.warn("Notification failed:", error);
+        }
+      }
+    },
+    [isIOS, isStandalone],
+  );
 
   // Timer effect
   useEffect(() => {
@@ -243,7 +246,14 @@ const PokerTimer: React.FC = () => {
       );
       setTimeRemaining(timerDuration);
     }
-  }, [timeRemaining, currentBlindIndex, blindLevels, timerDuration]);
+  }, [
+    timeRemaining,
+    currentBlindIndex,
+    blindLevels,
+    timerDuration,
+    playAudioNotification,
+    showNotification,
+  ]);
 
   const toggleTimer = async () => {
     if (!audioReady) {
@@ -365,8 +375,8 @@ const PokerTimer: React.FC = () => {
           <div className="mb-4 p-3 bg-blue-100 border border-blue-400 rounded-md">
             <div className="text-sm text-blue-800">
               <strong>iOS Tip:</strong> For full functionality including
-              notifications, tap the Share button and select "Add to Home
-              Screen"
+              notifications, tap the Share button and select &ldquo;Add to Home
+              Screen&rdquo;
             </div>
           </div>
         )}
