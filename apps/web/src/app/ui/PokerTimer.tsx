@@ -16,7 +16,7 @@ interface BlindLevel {
 }
 
 const PokerTimer: React.FC = () => {
-  const [timerDuration, setTimerDuration] = useState<number>(8 * 60);
+  const [timerDuration, setTimerDuration] = useState<number>(5);
   const [customMinutes, setCustomMinutes] = useState<number>(15);
   const [customSeconds, setCustomSeconds] = useState<number>(0);
   const [timeRemaining, setTimeRemaining] = useState<number>(timerDuration);
@@ -46,7 +46,6 @@ const PokerTimer: React.FC = () => {
     generateBlindLevels(),
   );
 
-  // iOS Safari "Add to Home Screen" warning
   useEffect(() => {
     const isIos = /iPad|iPhone|iPod/.test(navigator.userAgent);
     const isSafari = /^((?!chrome|android).)*safari/i.test(navigator.userAgent);
@@ -62,7 +61,6 @@ const PokerTimer: React.FC = () => {
     setNotificationPermission(Notification.permission);
   }, []);
 
-  // Timer logic
   useEffect(() => {
     if (isRunning && timeRemaining > 0) {
       intervalRef.current = setInterval(() => {
@@ -71,7 +69,6 @@ const PokerTimer: React.FC = () => {
     } else {
       if (intervalRef.current) clearInterval(intervalRef.current);
     }
-
     return () => {
       if (intervalRef.current) clearInterval(intervalRef.current);
     };
@@ -81,62 +78,114 @@ const PokerTimer: React.FC = () => {
     if (timeRemaining === 0) {
       if (audioRef.current) audioRef.current.play();
 
+      const nextLevel =
+        blindLevels[Math.min(currentBlindIndex + 1, blindLevels.length - 1)];
+
+      const speakAnnouncement = () => {
+        const speak = () => {
+          const utterance = new SpeechSynthesisUtterance(
+            `Timer expired! New blind level: ${nextLevel.small} ${nextLevel.big}`,
+          );
+
+          // Pick a voice explicitly (important for Safari)
+          const voices = window.speechSynthesis.getVoices();
+          const enVoice =
+            voices.find((v) => v.lang.startsWith("en")) || voices[0];
+          if (enVoice) utterance.voice = enVoice;
+
+          window.speechSynthesis.speak(utterance);
+        };
+
+        const ensureVoicesLoaded = () => {
+          const voices = window.speechSynthesis.getVoices();
+          if (voices.length > 0) {
+            speak();
+          } else {
+            // Fallback: poll for voices
+            let tries = 0;
+            const interval = setInterval(() => {
+              const voicesNow = window.speechSynthesis.getVoices();
+              if (voicesNow.length > 0 || tries > 10) {
+                clearInterval(interval);
+                speak();
+              }
+              tries++;
+            }, 100);
+          }
+        };
+
+        ensureVoicesLoaded();
+      };
+
+      if (window.speechSynthesis.getVoices().length === 0) {
+        window.speechSynthesis.onvoiceschanged = () => speakAnnouncement();
+        setTimeout(speakAnnouncement, 500);
+      } else {
+        speakAnnouncement();
+      }
+
       if (notificationPermission === "granted") {
-        const nextLevel =
-          blindLevels[Math.min(currentBlindIndex + 1, blindLevels.length - 1)];
         new Notification("Poker Timer Expired!", {
           body: `New blind level: ${nextLevel.small}/${nextLevel.big}`,
           icon: "/favicon.ico",
         });
       }
 
-      if ("speechSynthesis" in window) {
-        const nextLevel =
-          blindLevels[Math.min(currentBlindIndex + 1, blindLevels.length - 1)];
-        const utterance = new SpeechSynthesisUtterance(
-          `Timer expired! New blind level: ${nextLevel.small} ${nextLevel.big}`,
-        );
-        speechSynthesis.speak(utterance);
-      }
-
-      setCurrentBlindIndex((prevIndex) =>
-        Math.min(prevIndex + 1, blindLevels.length - 1),
+      setCurrentBlindIndex((prev) =>
+        Math.min(prev + 1, blindLevels.length - 1),
       );
       setTimeRemaining(timerDuration);
     }
   }, [timeRemaining]);
 
-  const createBeepSound = () => {
-    const AudioContext =
-      window.AudioContext || (window as any).webkitAudioContext;
-    const audioContext = new AudioContext();
-
-    const oscillator = audioContext.createOscillator();
-    const gainNode = audioContext.createGain();
-
-    oscillator.connect(gainNode);
-    gainNode.connect(audioContext.destination);
-
-    oscillator.frequency.value = 800;
-    oscillator.type = "sine";
-
-    gainNode.gain.setValueAtTime(0.3, audioContext.currentTime);
-    gainNode.gain.exponentialRampToValueAtTime(
-      0.01,
-      audioContext.currentTime + 1,
-    );
-
-    oscillator.start(audioContext.currentTime);
-    oscillator.stop(audioContext.currentTime + 1);
-  };
-
   const toggleTimer = () => {
-    // Create audioRef only on first interaction
     if (audioRef.current === null) {
-      audioRef.current = { play: createBeepSound };
+      audioRef.current = {
+        play: () => {
+          const AudioContext =
+            window.AudioContext || (window as any).webkitAudioContext;
+          const context = new AudioContext();
+          const oscillator = context.createOscillator();
+          const gain = context.createGain();
+
+          oscillator.connect(gain);
+          gain.connect(context.destination);
+
+          oscillator.type = "sine";
+          oscillator.frequency.value = 800;
+          gain.gain.setValueAtTime(0.5, context.currentTime);
+          gain.gain.exponentialRampToValueAtTime(0.01, context.currentTime + 1);
+
+          oscillator.start(context.currentTime);
+          oscillator.stop(context.currentTime + 1);
+        },
+      };
     }
 
-    setIsRunning(!isRunning);
+    if (typeof window.AudioContext !== "undefined") {
+      try {
+        const testCtx = new (window.AudioContext ||
+          (window as any).webkitAudioContext)();
+        if (testCtx.state === "suspended") {
+          testCtx.resume();
+        }
+      } catch (err) {
+        console.warn("Audio resume failed:", err);
+      }
+    }
+
+    if ("Notification" in window && Notification.permission === "default") {
+      Notification.requestPermission().then(setNotificationPermission);
+    }
+
+    if ("speechSynthesis" in window && !(window as any).__speechPrimed) {
+      const utter = new SpeechSynthesisUtterance(" ");
+      utter.volume = 0;
+      speechSynthesis.speak(utter);
+      (window as any).__speechPrimed = true;
+    }
+
+    setIsRunning((prev) => !prev);
   };
 
   const formatTime = (seconds: number): string => {
