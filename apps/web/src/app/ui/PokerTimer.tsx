@@ -1,4 +1,3 @@
-// PokerTimer.tsx
 import React, { useState, useEffect, useRef } from "react";
 import {
   Play,
@@ -26,9 +25,13 @@ const PokerTimer: React.FC = () => {
   const [showBlindSettings, setShowBlindSettings] = useState<boolean>(false);
   const [notificationPermission, setNotificationPermission] =
     useState<NotificationPermission>("default");
+  const [audioReady, setAudioReady] = useState<boolean>(false);
+  const [isIOS, setIsIOS] = useState<boolean>(false);
+  const [isStandalone, setIsStandalone] = useState<boolean>(false);
 
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
-  const audioRef = useRef<{ play: () => void } | null>(null);
+  const audioContextRef = useRef<AudioContext | null>(null);
+  const audioBufferRef = useRef<AudioBuffer | null>(null);
 
   const generateBlindLevels = (): BlindLevel[] => {
     const levels: BlindLevel[] = [];
@@ -46,21 +49,162 @@ const PokerTimer: React.FC = () => {
     generateBlindLevels(),
   );
 
+  // Detect iOS and standalone mode
   useEffect(() => {
-    const isIos = /iPad|iPhone|iPod/.test(navigator.userAgent);
-    const isSafari = /^((?!chrome|android).)*safari/i.test(navigator.userAgent);
-    const isInStandaloneMode =
-      "standalone" in window.navigator && window.navigator["standalone"];
+    const userAgent = navigator.userAgent.toLowerCase();
+    const iosDetected = /ipad|iphone|ipod/.test(userAgent);
+    const standaloneDetected =
+      (window.navigator as any).standalone === true ||
+      window.matchMedia("(display-mode: standalone)").matches;
 
-    if (isIos && isSafari && !isInStandaloneMode) {
-      alert(
-        "To enable notifications on iOS, add this app to your Home Screen and launch it from there.",
-      );
+    setIsIOS(iosDetected);
+    setIsStandalone(standaloneDetected);
+
+    // Check notification permission
+    if ("Notification" in window) {
+      setNotificationPermission(Notification.permission);
     }
-
-    setNotificationPermission(Notification.permission);
   }, []);
 
+  // Initialize audio context and create audio buffer
+  const initializeAudio = async () => {
+    try {
+      // Use webkitAudioContext for iOS Safari compatibility
+      const AudioContextClass =
+        window.AudioContext || (window as any).webkitAudioContext;
+      if (!AudioContextClass) return;
+
+      if (!audioContextRef.current) {
+        audioContextRef.current = new AudioContextClass();
+      }
+
+      const context = audioContextRef.current;
+
+      // Resume context if suspended (required for iOS)
+      if (context.state === "suspended") {
+        await context.resume();
+      }
+
+      // Create a simple beep sound buffer
+      if (!audioBufferRef.current) {
+        const sampleRate = context.sampleRate;
+        const duration = 0.5; // 500ms
+        const buffer = context.createBuffer(
+          1,
+          sampleRate * duration,
+          sampleRate,
+        );
+        const channelData = buffer.getChannelData(0);
+
+        // Generate a beep sound
+        for (let i = 0; i < channelData.length; i++) {
+          const t = i / sampleRate;
+          channelData[i] = Math.sin(2 * Math.PI * 800 * t) * Math.exp(-t * 2);
+        }
+
+        audioBufferRef.current = buffer;
+      }
+
+      setAudioReady(true);
+    } catch (error) {
+      console.warn("Audio initialization failed:", error);
+    }
+  };
+
+  // Play audio notification
+  const playAudioNotification = () => {
+    if (!audioReady || !audioContextRef.current || !audioBufferRef.current) {
+      return;
+    }
+
+    try {
+      const context = audioContextRef.current;
+      const source = context.createBufferSource();
+      const gainNode = context.createGain();
+
+      source.buffer = audioBufferRef.current;
+      source.connect(gainNode);
+      gainNode.connect(context.destination);
+
+      gainNode.gain.setValueAtTime(0.3, context.currentTime);
+      gainNode.gain.exponentialRampToValueAtTime(
+        0.01,
+        context.currentTime + 0.5,
+      );
+
+      source.start(context.currentTime);
+      source.stop(context.currentTime + 0.5);
+    } catch (error) {
+      console.warn("Audio playback failed:", error);
+    }
+  };
+
+  // Enhanced speech synthesis for iOS
+  const speakAnnouncement = (text: string) => {
+    if (!("speechSynthesis" in window)) return;
+
+    // Cancel any ongoing speech
+    window.speechSynthesis.cancel();
+
+    const speak = () => {
+      const utterance = new SpeechSynthesisUtterance(text);
+      utterance.rate = 0.8;
+      utterance.pitch = 1.0;
+      utterance.volume = 0.8;
+
+      // For iOS, we need to select a voice explicitly
+      const voices = window.speechSynthesis.getVoices();
+      const preferredVoice =
+        voices.find(
+          (voice) => voice.lang.startsWith("en") && voice.localService,
+        ) ||
+        voices.find((voice) => voice.lang.startsWith("en")) ||
+        voices[0];
+
+      if (preferredVoice) {
+        utterance.voice = preferredVoice;
+      }
+
+      window.speechSynthesis.speak(utterance);
+    };
+
+    // iOS Safari requires voices to be loaded
+    if (window.speechSynthesis.getVoices().length === 0) {
+      window.speechSynthesis.onvoiceschanged = () => {
+        speak();
+        window.speechSynthesis.onvoiceschanged = null;
+      };
+      // Fallback timeout
+      setTimeout(speak, 100);
+    } else {
+      speak();
+    }
+  };
+
+  // Show browser notification
+  const showNotification = (title: string, body: string) => {
+    // Only show notifications in standalone mode on iOS or if permission is granted
+    if (isIOS && !isStandalone) {
+      return;
+    }
+
+    if ("Notification" in window && Notification.permission === "granted") {
+      try {
+        new Notification(title, {
+          body: body,
+          icon: "/favicon.ico",
+          badge: "/favicon.ico",
+          tag: "poker-timer",
+          requireInteraction: true,
+          silent: false,
+        });
+      } catch (error) {
+        console.warn("Notification failed:", error);
+      }
+    }
+  };
+
+  // Timer effect
   useEffect(() => {
     if (isRunning && timeRemaining > 0) {
       intervalRef.current = setInterval(() => {
@@ -74,115 +218,53 @@ const PokerTimer: React.FC = () => {
     };
   }, [isRunning, timeRemaining]);
 
+  // Handle timer expiration
   useEffect(() => {
     if (timeRemaining === 0) {
-      if (audioRef.current) audioRef.current.play();
-
       const nextLevel =
         blindLevels[Math.min(currentBlindIndex + 1, blindLevels.length - 1)];
+      const announcementText = `Timer expired! New blind level: ${nextLevel.small} ${nextLevel.big}`;
 
-      const speakAnnouncement = () => {
-        const speak = () => {
-          const utterance = new SpeechSynthesisUtterance(
-            `Timer expired! New blind level: ${nextLevel.small} ${nextLevel.big}`,
-          );
+      // Play audio notification
+      playAudioNotification();
 
-          // Pick a voice explicitly (important for Safari)
-          const voices = window.speechSynthesis.getVoices();
-          const enVoice =
-            voices.find((v) => v.lang.startsWith("en")) || voices[0];
-          if (enVoice) utterance.voice = enVoice;
+      // Speak announcement
+      speakAnnouncement(announcementText);
 
-          window.speechSynthesis.speak(utterance);
-        };
+      // Show notification
+      showNotification(
+        "Poker Timer Expired!",
+        `New blind level: ${nextLevel.small}/${nextLevel.big}`,
+      );
 
-        const ensureVoicesLoaded = () => {
-          const voices = window.speechSynthesis.getVoices();
-          if (voices.length > 0) {
-            speak();
-          } else {
-            // Fallback: poll for voices
-            let tries = 0;
-            const interval = setInterval(() => {
-              const voicesNow = window.speechSynthesis.getVoices();
-              if (voicesNow.length > 0 || tries > 10) {
-                clearInterval(interval);
-                speak();
-              }
-              tries++;
-            }, 100);
-          }
-        };
-
-        ensureVoicesLoaded();
-      };
-
-      if (window.speechSynthesis.getVoices().length === 0) {
-        window.speechSynthesis.onvoiceschanged = () => speakAnnouncement();
-        setTimeout(speakAnnouncement, 500);
-      } else {
-        speakAnnouncement();
-      }
-
-      if (notificationPermission === "granted") {
-        new Notification("Poker Timer Expired!", {
-          body: `New blind level: ${nextLevel.small}/${nextLevel.big}`,
-          icon: "/favicon.ico",
-        });
-      }
-
+      // Move to next blind level
       setCurrentBlindIndex((prev) =>
         Math.min(prev + 1, blindLevels.length - 1),
       );
       setTimeRemaining(timerDuration);
     }
-  }, [timeRemaining]);
+  }, [timeRemaining, currentBlindIndex, blindLevels, timerDuration]);
 
-  const toggleTimer = () => {
-    if (audioRef.current === null) {
-      audioRef.current = {
-        play: () => {
-          const AudioContext =
-            window.AudioContext || (window as any).webkitAudioContext;
-          const context = new AudioContext();
-          const oscillator = context.createOscillator();
-          const gain = context.createGain();
-
-          oscillator.connect(gain);
-          gain.connect(context.destination);
-
-          oscillator.type = "sine";
-          oscillator.frequency.value = 800;
-          gain.gain.setValueAtTime(0.5, context.currentTime);
-          gain.gain.exponentialRampToValueAtTime(0.01, context.currentTime + 1);
-
-          oscillator.start(context.currentTime);
-          oscillator.stop(context.currentTime + 1);
-        },
-      };
+  const toggleTimer = async () => {
+    if (!audioReady) {
+      await initializeAudio();
     }
 
-    if (typeof window.AudioContext !== "undefined") {
-      try {
-        const testCtx = new (window.AudioContext ||
-          (window as any).webkitAudioContext)();
-        if (testCtx.state === "suspended") {
-          testCtx.resume();
-        }
-      } catch (err) {
-        console.warn("Audio resume failed:", err);
-      }
-    }
-
+    // Request notification permission if not granted
     if ("Notification" in window && Notification.permission === "default") {
-      Notification.requestPermission().then(setNotificationPermission);
+      const permission = await Notification.requestPermission();
+      setNotificationPermission(permission);
     }
 
-    if ("speechSynthesis" in window && !(window as any).__speechPrimed) {
-      const utter = new SpeechSynthesisUtterance(" ");
-      utter.volume = 0;
-      speechSynthesis.speak(utter);
-      (window as any).__speechPrimed = true;
+    // Prime speech synthesis on iOS
+    if (isIOS && !isRunning) {
+      try {
+        const utterance = new SpeechSynthesisUtterance(" ");
+        utterance.volume = 0;
+        window.speechSynthesis.speak(utterance);
+      } catch (error) {
+        console.warn("Speech synthesis priming failed:", error);
+      }
     }
 
     setIsRunning((prev) => !prev);
@@ -191,9 +273,7 @@ const PokerTimer: React.FC = () => {
   const formatTime = (seconds: number): string => {
     const mins = Math.floor(seconds / 60);
     const secs = seconds % 60;
-    return `${mins.toString().padStart(2, "0")}:${secs
-      .toString()
-      .padStart(2, "0")}`;
+    return `${mins.toString().padStart(2, "0")}:${secs.toString().padStart(2, "0")}`;
   };
 
   const getBackgroundColor = (): string => {
@@ -279,6 +359,17 @@ const PokerTimer: React.FC = () => {
             Level {currentBlindIndex + 1} of {blindLevels.length}
           </div>
         </div>
+
+        {/* iOS Safari PWA Notice */}
+        {isIOS && !isStandalone && (
+          <div className="mb-4 p-3 bg-blue-100 border border-blue-400 rounded-md">
+            <div className="text-sm text-blue-800">
+              <strong>iOS Tip:</strong> For full functionality including
+              notifications, tap the Share button and select "Add to Home
+              Screen"
+            </div>
+          </div>
+        )}
 
         <div className="bg-gray-100 rounded-lg p-4 mb-6 text-center">
           <div className="text-sm text-gray-600 mb-1">Current Blinds</div>
@@ -384,26 +475,27 @@ const PokerTimer: React.FC = () => {
               {showBlindSettings ? "Hide" : "Customize"} Blind Levels
             </button>
 
-            {notificationPermission !== "granted" && (
-              <div className="mt-4 p-3 bg-yellow-100 border border-yellow-400 rounded-md">
-                <div className="flex items-center gap-2 mb-2">
-                  <Bell size={16} />
-                  <span className="text-sm text-yellow-800">
-                    Enable notifications for timer alerts
-                  </span>
+            {(!isIOS || isStandalone) &&
+              notificationPermission !== "granted" && (
+                <div className="mt-4 p-3 bg-yellow-100 border border-yellow-400 rounded-md">
+                  <div className="flex items-center gap-2 mb-2">
+                    <Bell size={16} />
+                    <span className="text-sm text-yellow-800">
+                      Enable notifications for timer alerts
+                    </span>
+                  </div>
+                  <button
+                    onClick={() =>
+                      Notification.requestPermission().then(
+                        setNotificationPermission,
+                      )
+                    }
+                    className="bg-yellow-400 hover:bg-yellow-500 text-white py-1 px-3 rounded text-sm"
+                  >
+                    Enable Notifications
+                  </button>
                 </div>
-                <button
-                  onClick={() =>
-                    Notification.requestPermission().then(
-                      setNotificationPermission,
-                    )
-                  }
-                  className="bg-yellow-400 hover:bg-yellow-500 text-white py-1 px-3 rounded text-sm"
-                >
-                  Enable Notifications
-                </button>
-              </div>
-            )}
+              )}
           </div>
         )}
 
