@@ -1,3 +1,4 @@
+// PokerTimer.tsx
 import React, { useState, useEffect, useRef } from "react";
 import {
   Play,
@@ -15,7 +16,7 @@ interface BlindLevel {
 }
 
 const PokerTimer: React.FC = () => {
-  const [timerDuration, setTimerDuration] = useState<number>(8 * 60); // 8 minutes default
+  const [timerDuration, setTimerDuration] = useState<number>(8 * 60);
   const [customMinutes, setCustomMinutes] = useState<number>(15);
   const [customSeconds, setCustomSeconds] = useState<number>(0);
   const [timeRemaining, setTimeRemaining] = useState<number>(timerDuration);
@@ -27,32 +28,14 @@ const PokerTimer: React.FC = () => {
     useState<NotificationPermission>("default");
 
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
-  const audioRef = useRef<HTMLAudioElement | null>(null);
+  const audioRef = useRef<{ play: () => void } | null>(null);
 
-  // Generate blind levels according to the specified pattern
   const generateBlindLevels = (): BlindLevel[] => {
     const levels: BlindLevel[] = [];
-
-    // 5/10 to 30/60 (increase by 5/10)
-    for (let i = 5; i <= 30; i += 5) {
-      levels.push({ small: i, big: i * 2 });
-    }
-
-    // 40/80 to 100/200 (increase by 10/20)
-    for (let i = 40; i <= 100; i += 10) {
-      levels.push({ small: i, big: i * 2 });
-    }
-
-    // 125/250 onwards (increase by 25/50)
-    for (let i = 125; i <= 250; i += 25) {
-      levels.push({ small: i, big: i * 2 });
-    }
-
-    // 300/600 onwards (increase by 25/50)
-    for (let i = 300; i <= 800; i += 50) {
-      levels.push({ small: i, big: i * 2 });
-    }
-
+    for (let i = 5; i <= 30; i += 5) levels.push({ small: i, big: i * 2 });
+    for (let i = 40; i <= 100; i += 10) levels.push({ small: i, big: i * 2 });
+    for (let i = 125; i <= 250; i += 25) levels.push({ small: i, big: i * 2 });
+    for (let i = 300; i <= 800; i += 50) levels.push({ small: i, big: i * 2 });
     return levels;
   };
 
@@ -63,44 +46,20 @@ const PokerTimer: React.FC = () => {
     generateBlindLevels(),
   );
 
-  // Request notification permission
+  // iOS Safari "Add to Home Screen" warning
   useEffect(() => {
-    if ("Notification" in window) {
-      setNotificationPermission(Notification.permission);
-      if (Notification.permission === "default") {
-        Notification.requestPermission().then((permission) => {
-          setNotificationPermission(permission);
-        });
-      }
-    }
-  }, []);
+    const isIos = /iPad|iPhone|iPod/.test(navigator.userAgent);
+    const isSafari = /^((?!chrome|android).)*safari/i.test(navigator.userAgent);
+    const isInStandaloneMode =
+      "standalone" in window.navigator && window.navigator["standalone"];
 
-  // Create audio context for alarm
-  useEffect(() => {
-    // Create a simple beep sound using Web Audio API
-    const createBeepSound = () => {
-      const audioContext = new (window.AudioContext ||
-        (window as any).webkitAudioContext)();
-      const oscillator = audioContext.createOscillator();
-      const gainNode = audioContext.createGain();
-
-      oscillator.connect(gainNode);
-      gainNode.connect(audioContext.destination);
-
-      oscillator.frequency.value = 800;
-      oscillator.type = "sine";
-
-      gainNode.gain.setValueAtTime(0.3, audioContext.currentTime);
-      gainNode.gain.exponentialRampToValueAtTime(
-        0.01,
-        audioContext.currentTime + 1,
+    if (isIos && isSafari && !isInStandaloneMode) {
+      alert(
+        "To enable notifications on iOS, add this app to your Home Screen and launch it from there.",
       );
+    }
 
-      oscillator.start(audioContext.currentTime);
-      oscillator.stop(audioContext.currentTime + 1);
-    };
-
-    audioRef.current = { play: createBeepSound } as any;
+    setNotificationPermission(Notification.permission);
   }, []);
 
   // Timer logic
@@ -110,26 +69,18 @@ const PokerTimer: React.FC = () => {
         setTimeRemaining((prev) => prev - 1);
       }, 1000);
     } else {
-      if (intervalRef.current) {
-        clearInterval(intervalRef.current);
-      }
+      if (intervalRef.current) clearInterval(intervalRef.current);
     }
 
     return () => {
-      if (intervalRef.current) {
-        clearInterval(intervalRef.current);
-      }
+      if (intervalRef.current) clearInterval(intervalRef.current);
     };
   }, [isRunning, timeRemaining]);
 
   useEffect(() => {
     if (timeRemaining === 0) {
-      // Play alarm sound
-      if (audioRef.current) {
-        audioRef.current.play();
-      }
+      if (audioRef.current) audioRef.current.play();
 
-      // Show notification
       if (notificationPermission === "granted") {
         const nextLevel =
           blindLevels[Math.min(currentBlindIndex + 1, blindLevels.length - 1)];
@@ -139,7 +90,6 @@ const PokerTimer: React.FC = () => {
         });
       }
 
-      // Speak announcement
       if ("speechSynthesis" in window) {
         const nextLevel =
           blindLevels[Math.min(currentBlindIndex + 1, blindLevels.length - 1)];
@@ -149,7 +99,6 @@ const PokerTimer: React.FC = () => {
         speechSynthesis.speak(utterance);
       }
 
-      // Advance to next level and reset timer
       setCurrentBlindIndex((prevIndex) =>
         Math.min(prevIndex + 1, blindLevels.length - 1),
       );
@@ -157,25 +106,53 @@ const PokerTimer: React.FC = () => {
     }
   }, [timeRemaining]);
 
+  const createBeepSound = () => {
+    const AudioContext =
+      window.AudioContext || (window as any).webkitAudioContext;
+    const audioContext = new AudioContext();
+
+    const oscillator = audioContext.createOscillator();
+    const gainNode = audioContext.createGain();
+
+    oscillator.connect(gainNode);
+    gainNode.connect(audioContext.destination);
+
+    oscillator.frequency.value = 800;
+    oscillator.type = "sine";
+
+    gainNode.gain.setValueAtTime(0.3, audioContext.currentTime);
+    gainNode.gain.exponentialRampToValueAtTime(
+      0.01,
+      audioContext.currentTime + 1,
+    );
+
+    oscillator.start(audioContext.currentTime);
+    oscillator.stop(audioContext.currentTime + 1);
+  };
+
+  const toggleTimer = () => {
+    // Create audioRef only on first interaction
+    if (audioRef.current === null) {
+      audioRef.current = { play: createBeepSound };
+    }
+
+    setIsRunning(!isRunning);
+  };
+
   const formatTime = (seconds: number): string => {
     const mins = Math.floor(seconds / 60);
     const secs = seconds % 60;
-    return `${mins.toString().padStart(2, "0")}:${secs.toString().padStart(2, "0")}`;
+    return `${mins.toString().padStart(2, "0")}:${secs
+      .toString()
+      .padStart(2, "0")}`;
   };
 
   const getBackgroundColor = (): string => {
     const progress = (timerDuration - timeRemaining) / timerDuration;
-
-    // Pastel green to pastel red gradient
-    const red = Math.round(144 + (255 - 144) * progress); // From pastel green red component (144) to full red (255)
-    const green = Math.round(238 - (238 - 144) * progress); // From pastel green (238) to pastel red (144)
-    const blue = Math.round(144 - 144 * progress); // From pastel green/red blue component (144) to 0
-
+    const red = Math.round(144 + (255 - 144) * progress);
+    const green = Math.round(238 - (238 - 144) * progress);
+    const blue = Math.round(144 - 144 * progress);
     return `rgb(${red}, ${green}, ${blue})`;
-  };
-
-  const toggleTimer = () => {
-    setIsRunning(!isRunning);
   };
 
   const resetTimer = () => {
@@ -254,7 +231,6 @@ const PokerTimer: React.FC = () => {
           </div>
         </div>
 
-        {/* Current Blind Level */}
         <div className="bg-gray-100 rounded-lg p-4 mb-6 text-center">
           <div className="text-sm text-gray-600 mb-1">Current Blinds</div>
           <div className="text-2xl font-bold text-gray-800">
@@ -267,7 +243,6 @@ const PokerTimer: React.FC = () => {
           )}
         </div>
 
-        {/* Control Buttons */}
         <div className="flex justify-center gap-4 mb-6">
           <button
             onClick={toggleTimer}
@@ -284,9 +259,7 @@ const PokerTimer: React.FC = () => {
           <button
             onClick={() => {
               setShowSettings(!showSettings);
-              if (showSettings) {
-                setShowBlindSettings(false);
-              }
+              if (showSettings) setShowBlindSettings(false);
             }}
             className="bg-green-500 hover:bg-green-600 text-white p-3 rounded-full transition-colors"
           >
@@ -294,7 +267,6 @@ const PokerTimer: React.FC = () => {
           </button>
         </div>
 
-        {/* Blind Level Controls */}
         <div className="flex justify-center gap-4 mb-6">
           <button
             onClick={goToPreviousBlind}
@@ -315,7 +287,6 @@ const PokerTimer: React.FC = () => {
           </button>
         </div>
 
-        {/* Settings Panel */}
         {showSettings && (
           <div className="bg-gray-50 rounded-lg p-4 mb-4">
             <h3 className="text-lg font-semibold mb-4">Timer Settings</h3>
@@ -332,7 +303,7 @@ const PokerTimer: React.FC = () => {
                   onChange={(e) =>
                     setCustomMinutes(parseInt(e.target.value) || 0)
                   }
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md"
                 />
               </div>
               <div className="flex-1">
@@ -347,38 +318,46 @@ const PokerTimer: React.FC = () => {
                   onChange={(e) =>
                     setCustomSeconds(parseInt(e.target.value) || 0)
                   }
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md"
                 />
               </div>
             </div>
             <button
               onClick={applyCustomTimer}
-              className="w-full bg-blue-500 hover:bg-blue-600 text-white py-2 px-4 rounded-md transition-colors mb-4"
+              className="w-full bg-blue-500 hover:bg-blue-600 text-white py-2 px-4 rounded-md mb-4"
             >
               Apply Timer Duration
             </button>
-
             <button
               onClick={() => setShowBlindSettings(!showBlindSettings)}
-              className="w-full bg-purple-500 hover:bg-purple-600 text-white py-2 px-4 rounded-md transition-colors"
+              className="w-full bg-purple-500 hover:bg-purple-600 text-white py-2 px-4 rounded-md"
             >
               {showBlindSettings ? "Hide" : "Customize"} Blind Levels
             </button>
 
             {notificationPermission !== "granted" && (
               <div className="mt-4 p-3 bg-yellow-100 border border-yellow-400 rounded-md">
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2 mb-2">
                   <Bell size={16} />
                   <span className="text-sm text-yellow-800">
                     Enable notifications for timer alerts
                   </span>
                 </div>
+                <button
+                  onClick={() =>
+                    Notification.requestPermission().then(
+                      setNotificationPermission,
+                    )
+                  }
+                  className="bg-yellow-400 hover:bg-yellow-500 text-white py-1 px-3 rounded text-sm"
+                >
+                  Enable Notifications
+                </button>
               </div>
             )}
           </div>
         )}
 
-        {/* Blind Settings Panel */}
         {showBlindSettings && (
           <div className="bg-gray-50 rounded-lg p-4 mb-4 max-h-80 overflow-y-auto">
             <div className="flex justify-between items-center mb-4">
@@ -386,13 +365,13 @@ const PokerTimer: React.FC = () => {
               <div className="flex gap-2">
                 <button
                   onClick={resetToDefaultBlinds}
-                  className="text-xs bg-gray-500 hover:bg-gray-600 text-white px-3 py-1 rounded transition-colors"
+                  className="text-xs bg-gray-500 hover:bg-gray-600 text-white px-3 py-1 rounded"
                 >
                   Reset to Default
                 </button>
                 <button
                   onClick={addBlindLevel}
-                  className="text-xs bg-green-500 hover:bg-green-600 text-white px-3 py-1 rounded transition-colors"
+                  className="text-xs bg-green-500 hover:bg-green-600 text-white px-3 py-1 rounded"
                 >
                   Add Level
                 </button>
@@ -420,8 +399,7 @@ const PokerTimer: React.FC = () => {
                           parseInt(e.target.value) || 1,
                         )
                       }
-                      className="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
-                      placeholder="Small"
+                      className="w-full px-2 py-1 text-sm border border-gray-300 rounded"
                     />
                   </div>
                   <span className="text-sm text-gray-500">/</span>
@@ -437,8 +415,7 @@ const PokerTimer: React.FC = () => {
                           parseInt(e.target.value) || 1,
                         )
                       }
-                      className="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
-                      placeholder="Big"
+                      className="w-full px-2 py-1 text-sm border border-gray-300 rounded"
                     />
                   </div>
                   {customBlindLevels.length > 1 && (
@@ -455,14 +432,13 @@ const PokerTimer: React.FC = () => {
 
             <button
               onClick={applyCustomBlindLevels}
-              className="w-full bg-purple-500 hover:bg-purple-600 text-white py-2 px-4 rounded-md transition-colors"
+              className="w-full bg-purple-500 hover:bg-purple-600 text-white py-2 px-4 rounded"
             >
               Apply Blind Levels
             </button>
           </div>
         )}
 
-        {/* Progress Bar */}
         <div className="w-full bg-gray-200 rounded-full h-2">
           <div
             className="bg-blue-500 h-2 rounded-full transition-all duration-1000"
