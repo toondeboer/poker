@@ -1,27 +1,7 @@
-// next.config.ts
-const withPWA = require("next-pwa")({
-  dest: "public",
-  register: true,
-  skipWaiting: true,
-  // disable: process.env.NODE_ENV === "development", // disable in dev
-  disable: false, // Enable PWA in all environments
-  runtimeCaching: [
-    {
-      urlPattern: /^https?.*/,
-      handler: "NetworkFirst",
-      options: {
-        cacheName: "offlineCache",
-        expiration: {
-          maxEntries: 200,
-          maxAgeSeconds: 30 * 24 * 60 * 60, // 30 days
-        },
-      },
-    },
-  ],
-});
+import type { NextConfig } from "next";
 
-const nextConfig = {
-  reactStrictMode: true,
+const nextConfig: NextConfig = {
+  /* config options here */
 };
 
-module.exports = withPWA(nextConfig);
+export default nextConfig;
