@@ -15,7 +15,7 @@ interface BlindLevel {
 }
 
 const PokerTimer: React.FC = () => {
-  const [timerDuration, setTimerDuration] = useState<number>(5);
+  const [timerDuration, setTimerDuration] = useState<number>(15 * 60);
   const [customMinutes, setCustomMinutes] = useState<number>(15);
   const [customSeconds, setCustomSeconds] = useState<number>(0);
   const [timeRemaining, setTimeRemaining] = useState<number>(timerDuration);
