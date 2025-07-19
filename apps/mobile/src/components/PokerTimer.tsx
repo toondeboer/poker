@@ -1,99 +1,404 @@
 import React from "react";
-import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
-import { Sound, useSounds } from "@/src/hooks/useSounds";
+import {
+  StatusBar,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
+} from "react-native";
+import { LinearGradient } from "expo-linear-gradient";
+import { Ionicons } from "@expo/vector-icons";
 import { useBlinds } from "@/src/contexts/BlindsContext";
-import { Link } from "expo-router";
 import { useTimer } from "@/src/contexts/TimerContext";
-
-function interpolateColor(percent: number) {
-  // percent: 1 (full time) => pastel green, 0 (no time) => pastel red
-  const r = Math.round((255 * (1 - percent) + 255) / 2);
-  const g = Math.round((255 * percent + 255) / 2);
-  const b = Math.round(255 / 2); // blending with white gives a soft yellowish tone
-  return `rgb(${r},${g},${b})`;
-}
+import { useRouter } from "expo-router";
 
 export default function PokerTimer() {
+  const router = useRouter();
   const { currentBlindIndex, blindLevels, increaseBlinds, decreaseBlinds } =
     useBlinds();
-  const { playSound } = useSounds(Sound.ALARM);
   const { timeLeft, timerDuration, paused, togglePause, resetTimer } =
     useTimer();
 
-  const handleIncreaseBlinds = () => {
-    increaseBlinds();
-  };
-
-  const handleDecreaseTimer = () => {
-    decreaseBlinds();
-  };
-
-  // Toggle pause state.
-  const handleTogglePause = async () => {
-    togglePause();
-    if (paused) {
-      await playSound();
-    }
-  };
-
-  // Reset timer to its initial value.
-  const handleResetTimer = async () => {
-    resetTimer();
-    await playSound();
+  // Format time as MM:SS
+  const formatTime = (seconds: number) => {
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return `${mins.toString().padStart(2, "0")}:${secs.toString().padStart(2, "0")}`;
   };
 
   const percent = Math.max(0, timeLeft) / timerDuration;
-  const backgroundColor = interpolateColor(percent);
+
+  // Dynamic background gradient based on time left
+  const getGradientColors = () => {
+    if (percent > 0.6) return ["#34D399", "#10B981"]; // Green
+    if (percent > 0.3) return ["#FBBF24", "#F59E0B"]; // Amber
+    return ["#F87171", "#DC2626"]; // Red
+  };
+
+  const getProgressBarColor = () => {
+    if (percent > 0.6) return "#10B981";
+    if (percent > 0.3) return "#F59E0B";
+    return "#DC2626";
+  };
 
   return (
-    <View style={[styles.container, { backgroundColor }]}>
-      <Text style={styles.text}>
-        Small Blind: {blindLevels[currentBlindIndex].small}
-      </Text>
-      <Text style={styles.text}>
-        Big Blind: {blindLevels[currentBlindIndex].big}
-      </Text>
-      <Text style={styles.timerText}>Time Left: {timeLeft}s</Text>
-      <TouchableOpacity
-        style={styles.button}
-        onPress={() => handleIncreaseBlinds()}
-      >
-        <Text style={styles.buttonText}>Increase Blinds</Text>
-      </TouchableOpacity>
-      <TouchableOpacity style={styles.button} onPress={handleDecreaseTimer}>
-        <Text style={styles.buttonText}>Decrease Blinds</Text>
-      </TouchableOpacity>
-      <TouchableOpacity
-        style={styles.button}
-        onPress={() => handleTogglePause()}
-      >
-        <Text style={styles.buttonText}>
-          {paused ? "Resume" : "Pause"} Timer
-        </Text>
-      </TouchableOpacity>
-      <TouchableOpacity
-        style={styles.button}
-        onPress={() => handleResetTimer()}
-      >
-        <Text style={styles.buttonText}>Reset Timer</Text>
-      </TouchableOpacity>
+    <View style={styles.container}>
+      <StatusBar barStyle="light-content" />
 
-      <Link style={styles.button} href="/settings">
-        <Text style={styles.buttonText}>Settings</Text>
-      </Link>
+      {/* Background Gradient */}
+      <LinearGradient
+        colors={getGradientColors() as any}
+        style={styles.gradientBackground}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+      >
+        <View style={styles.content}>
+          {/* Main Timer Card */}
+          <View style={styles.mainCard}>
+            {/* Timer Display */}
+            <View style={styles.timerSection}>
+              <Text style={styles.timerText}>{formatTime(timeLeft)}</Text>
+              <Text style={styles.levelText}>
+                Level {currentBlindIndex + 1}
+              </Text>
+
+              {/* Progress Bar */}
+              <View style={styles.progressBarContainer}>
+                <View style={styles.progressBarBackground}>
+                  <View
+                    style={[
+                      styles.progressBarFill,
+                      {
+                        width: `${percent * 100}%`,
+                        backgroundColor: getProgressBarColor(),
+                      },
+                    ]}
+                  />
+                </View>
+              </View>
+            </View>
+
+            {/* Current Blinds */}
+            <View style={styles.blindsCard}>
+              <Text style={styles.blindsTitle}>Current Blinds</Text>
+              <View style={styles.blindsRow}>
+                <View style={styles.blindColumn}>
+                  <Text style={styles.blindLabel}>Small Blind</Text>
+                  <Text style={styles.blindValue}>
+                    {blindLevels[currentBlindIndex].small}
+                  </Text>
+                </View>
+                <View style={styles.divider} />
+                <View style={styles.blindColumn}>
+                  <Text style={styles.blindLabel}>Big Blind</Text>
+                  <Text style={styles.blindValue}>
+                    {blindLevels[currentBlindIndex].big}
+                  </Text>
+                </View>
+              </View>
+            </View>
+
+            {/* Next Blinds Preview */}
+            {currentBlindIndex < blindLevels.length - 1 && (
+              <View style={styles.nextBlindsCard}>
+                <Text style={styles.nextBlindsTitle}>Next Level</Text>
+                <View style={styles.nextBlindsRow}>
+                  <Text style={styles.nextBlindsText}>
+                    SB: {blindLevels[currentBlindIndex + 1].small}
+                  </Text>
+                  <Text style={styles.nextBlindsText}>
+                    BB: {blindLevels[currentBlindIndex + 1].big}
+                  </Text>
+                </View>
+              </View>
+            )}
+
+            {/* Timer Controls */}
+            <View style={styles.timerControls}>
+              <TouchableOpacity
+                style={[
+                  styles.primaryButton,
+                  { backgroundColor: paused ? "#10B981" : "#F59E0B" },
+                ]}
+                onPress={togglePause}
+              >
+                <Ionicons
+                  name={paused ? "play" : "pause"}
+                  size={20}
+                  color="white"
+                />
+                <Text style={styles.primaryButtonText}>
+                  {paused ? "Resume" : "Pause"}
+                </Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity style={styles.resetButton} onPress={resetTimer}>
+                <Ionicons name="refresh" size={20} color="white" />
+              </TouchableOpacity>
+            </View>
+
+            {/* Blind Controls */}
+            <View style={styles.blindControls}>
+              <TouchableOpacity
+                style={[
+                  styles.blindButton,
+                  styles.decreaseButton,
+                  currentBlindIndex === 0 && styles.disabledButton,
+                ]}
+                onPress={decreaseBlinds}
+                disabled={currentBlindIndex === 0}
+              >
+                <Ionicons name="chevron-down" size={20} color="white" />
+                <Text style={styles.blindButtonText}>Previous Level</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[
+                  styles.blindButton,
+                  styles.increaseButton,
+                  currentBlindIndex >= blindLevels.length - 1 &&
+                    styles.disabledButton,
+                ]}
+                onPress={increaseBlinds}
+                disabled={currentBlindIndex >= blindLevels.length - 1}
+              >
+                <Ionicons name="chevron-up" size={20} color="white" />
+                <Text style={styles.blindButtonText}>Next Level</Text>
+              </TouchableOpacity>
+            </View>
+
+            {/* Settings Button */}
+            <TouchableOpacity
+              style={styles.settingsButton}
+              onPress={() => router.navigate("/settings")}
+            >
+              <Ionicons name="settings" size={20} color="white" />
+              <Text style={styles.settingsButtonText}>Settings</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </LinearGradient>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, justifyContent: "center", alignItems: "center" },
-  text: { fontSize: 24, margin: 10 },
-  timerText: { fontSize: 20, margin: 10, color: "red" },
-  button: {
-    backgroundColor: "#2196F3",
-    padding: 10,
-    borderRadius: 5,
-    margin: 20,
+  container: {
+    flex: 1,
   },
-  buttonText: { color: "#fff", fontSize: 18 },
+  gradientBackground: {
+    flex: 1,
+    paddingTop: StatusBar.currentHeight || 44,
+  },
+  content: {
+    flex: 1,
+    paddingHorizontal: 24,
+    paddingVertical: 24,
+    justifyContent: "center",
+  },
+  mainCard: {
+    backgroundColor: "rgba(255, 255, 255, 0.95)",
+    borderRadius: 24,
+    padding: 32,
+    marginBottom: 24,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.3,
+    shadowRadius: 20,
+    elevation: 10,
+  },
+
+  // Timer Section
+  timerSection: {
+    alignItems: "center",
+    marginBottom: 32,
+  },
+  timerText: {
+    fontSize: 72,
+    fontWeight: "bold",
+    color: "#1F2937",
+    marginBottom: 8,
+  },
+  levelText: {
+    fontSize: 14,
+    color: "#6B7280",
+    marginBottom: 16,
+  },
+  progressBarContainer: {
+    width: "100%",
+    marginBottom: 8,
+  },
+  progressBarBackground: {
+    width: "100%",
+    height: 12,
+    backgroundColor: "#E5E7EB",
+    borderRadius: 6,
+    overflow: "hidden",
+  },
+  progressBarFill: {
+    height: "100%",
+    borderRadius: 6,
+  },
+
+  // Blinds Section
+  blindsCard: {
+    backgroundColor: "#F9FAFB",
+    borderRadius: 16,
+    padding: 24,
+    marginBottom: 24,
+  },
+  blindsTitle: {
+    fontSize: 18,
+    fontWeight: "600",
+    color: "#374151",
+    textAlign: "center",
+    marginBottom: 12,
+  },
+  blindsRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+  },
+  blindColumn: {
+    alignItems: "center",
+    flex: 1,
+  },
+  divider: {
+    width: 1,
+    height: 48,
+    backgroundColor: "#D1D5DB",
+  },
+  blindLabel: {
+    fontSize: 14,
+    color: "#6B7280",
+    marginBottom: 4,
+  },
+  blindValue: {
+    fontSize: 32,
+    fontWeight: "bold",
+    color: "#2563EB",
+  },
+
+  // Next Blinds
+  nextBlindsCard: {
+    backgroundColor: "#EFF6FF",
+    borderRadius: 16,
+    padding: 16,
+    marginBottom: 24,
+    borderWidth: 2,
+    borderColor: "#DBEAFE",
+  },
+  nextBlindsTitle: {
+    fontSize: 14,
+    fontWeight: "500",
+    color: "#1D4ED8",
+    textAlign: "center",
+    marginBottom: 8,
+  },
+  nextBlindsRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+  },
+  nextBlindsText: {
+    fontSize: 14,
+    color: "#2563EB",
+  },
+
+  // Timer Controls
+  timerControls: {
+    flexDirection: "row",
+    gap: 12,
+    marginBottom: 24,
+  },
+  primaryButton: {
+    flex: 1,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderRadius: 12,
+    gap: 8,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 4,
+    elevation: 5,
+  },
+  primaryButtonText: {
+    color: "white",
+    fontSize: 16,
+    fontWeight: "600",
+  },
+  resetButton: {
+    backgroundColor: "#6B7280",
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderRadius: 12,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 4,
+    elevation: 5,
+  },
+
+  // Blind Controls
+  blindControls: {
+    flexDirection: "row",
+    gap: 12,
+    marginBottom: 24,
+  },
+  blindButton: {
+    flex: 1,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderRadius: 12,
+    gap: 8,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 4,
+    elevation: 5,
+  },
+  decreaseButton: {
+    backgroundColor: "#EF4444",
+  },
+  increaseButton: {
+    backgroundColor: "#3B82F6",
+  },
+  disabledButton: {
+    backgroundColor: "#D1D5DB",
+    shadowOpacity: 0,
+    elevation: 0,
+  },
+  blindButtonText: {
+    color: "white",
+    fontSize: 14,
+    fontWeight: "600",
+  },
+
+  // Settings Button
+  settingsButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "#374151",
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderRadius: 12,
+    gap: 8,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 4,
+    elevation: 5,
+  },
+  settingsButtonText: {
+    color: "white",
+    fontSize: 16,
+    fontWeight: "600",
+  },
 });

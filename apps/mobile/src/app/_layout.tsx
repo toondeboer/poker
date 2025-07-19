@@ -4,8 +4,8 @@ import { BlindsProvider } from "@/src/contexts/BlindsContext";
 
 export default function RootLayout() {
   return (
-    <TimerProvider>
-      <BlindsProvider>
+    <BlindsProvider>
+      <TimerProvider>
         <Stack
           screenOptions={{
             headerStyle: {
@@ -31,7 +31,7 @@ export default function RootLayout() {
             }}
           />
         </Stack>
-      </BlindsProvider>
-    </TimerProvider>
+      </TimerProvider>
+    </BlindsProvider>
   );
 }

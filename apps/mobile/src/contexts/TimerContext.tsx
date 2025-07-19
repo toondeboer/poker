@@ -1,5 +1,6 @@
 import React, { createContext, ReactNode, useEffect, useState } from "react";
-import { Audio } from "expo-av";
+import { Sound, useSounds } from "@/src/hooks/useSounds";
+import { useBlinds } from "@/src/contexts/BlindsContext";
 
 type TimerContextType = {
   timeLeft: number;
@@ -8,16 +9,16 @@ type TimerContextType = {
   paused: boolean;
   togglePause: () => void;
   resetTimer: () => void;
-  setAlarmSound: (sound: Audio.Sound | null) => void;
 };
 
 const TimerContext = createContext<TimerContextType | null>(null);
 
 export function TimerProvider({ children }: Readonly<{ children: ReactNode }>) {
-  const [timerDuration, setTimerDuration] = useState(60);
+  const [timerDuration, setTimerDuration] = useState(5);
   const [timeLeft, setTimeLeft] = useState(timerDuration);
   const [paused, setPaused] = useState(false);
-  const [alarmSound, setAlarmSound] = useState<Audio.Sound | null>(null);
+  const { playSound } = useSounds(Sound.ALARM);
+  const { increaseBlinds } = useBlinds();
 
   const togglePause = () => setPaused((prev) => !prev);
 
@@ -38,9 +39,11 @@ export function TimerProvider({ children }: Readonly<{ children: ReactNode }>) {
 
   useEffect(() => {
     if (timeLeft === 0) {
-      alarmSound?.replayAsync();
+      playSound();
+      increaseBlinds();
+      resetTimer();
     }
-  }, [timeLeft, alarmSound]);
+  }, [timeLeft]);
 
   return (
     <TimerContext
@@ -51,7 +54,6 @@ export function TimerProvider({ children }: Readonly<{ children: ReactNode }>) {
         paused,
         togglePause,
         resetTimer,
-        setAlarmSound,
       }}
     >
       {children}
