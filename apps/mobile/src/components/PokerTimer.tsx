@@ -149,7 +149,7 @@ export default function PokerTimer() {
                 disabled={currentBlindIndex === 0}
               >
                 <Ionicons name="chevron-down" size={20} color="white" />
-                <Text style={styles.blindButtonText}>Previous Level</Text>
+                <Text style={styles.blindButtonText}>Previous</Text>
               </TouchableOpacity>
 
               <TouchableOpacity
@@ -163,7 +163,7 @@ export default function PokerTimer() {
                 disabled={currentBlindIndex >= blindLevels.length - 1}
               >
                 <Ionicons name="chevron-up" size={20} color="white" />
-                <Text style={styles.blindButtonText}>Next Level</Text>
+                <Text style={styles.blindButtonText}>Next</Text>
               </TouchableOpacity>
             </View>
 
