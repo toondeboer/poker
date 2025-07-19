@@ -1,6 +1,6 @@
 import { Stack } from "expo-router";
-import { TimerProvider } from "@/contexts/TimerContext";
-import { BlindsProvider } from "@/contexts/BlindsContext";
+import { TimerProvider } from "@/src/contexts/TimerContext";
+import { BlindsProvider } from "@/src/contexts/BlindsContext";
 
 export default function RootLayout() {
   return (

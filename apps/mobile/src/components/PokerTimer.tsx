@@ -1,9 +1,9 @@
 import React from "react";
 import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
-import { Sound, useSounds } from "@/hooks/useSounds";
-import { useBlinds } from "@/contexts/BlindsContext";
+import { Sound, useSounds } from "@/src/hooks/useSounds";
+import { useBlinds } from "@/src/contexts/BlindsContext";
 import { Link } from "expo-router";
-import { useTimer } from "@/contexts/TimerContext";
+import { useTimer } from "@/src/contexts/TimerContext";
 
 function interpolateColor(percent: number) {
   // percent: 1 (full time) => pastel green, 0 (no time) => pastel red
@@ -14,7 +14,8 @@ function interpolateColor(percent: number) {
 }
 
 export default function PokerTimer() {
-  const { smallBlind, bigBlind, increaseBlinds, decreaseBlinds } = useBlinds();
+  const { currentBlindIndex, blindLevels, increaseBlinds, decreaseBlinds } =
+    useBlinds();
   const { playSound } = useSounds(Sound.ALARM);
   const { timeLeft, timerDuration, paused, togglePause, resetTimer } =
     useTimer();
@@ -46,8 +47,12 @@ export default function PokerTimer() {
 
   return (
     <View style={[styles.container, { backgroundColor }]}>
-      <Text style={styles.text}>Small Blind: {smallBlind}</Text>
-      <Text style={styles.text}>Big Blind: {bigBlind}</Text>
+      <Text style={styles.text}>
+        Small Blind: {blindLevels[currentBlindIndex].small}
+      </Text>
+      <Text style={styles.text}>
+        Big Blind: {blindLevels[currentBlindIndex].big}
+      </Text>
       <Text style={styles.timerText}>Time Left: {timeLeft}s</Text>
       <TouchableOpacity
         style={styles.button}
