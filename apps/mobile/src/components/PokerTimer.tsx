@@ -118,7 +118,13 @@ export default function PokerTimer() {
               <TouchableOpacity
                 style={[
                   styles.primaryButton,
-                  { backgroundColor: paused ? "#10B981" : "#F59E0B" },
+                  {
+                    backgroundColor: paused
+                      ? timerDuration === timeLeft
+                        ? "#7C3AED"
+                        : "#10B981"
+                      : "#F59E0B",
+                  },
                 ]}
                 onPress={togglePause}
               >
@@ -128,7 +134,11 @@ export default function PokerTimer() {
                   color="white"
                 />
                 <Text style={styles.primaryButtonText}>
-                  {paused ? "Resume" : "Pause"}
+                  {paused
+                    ? timerDuration === timeLeft
+                      ? "Start"
+                      : "Resume"
+                    : "Pause"}
                 </Text>
               </TouchableOpacity>
 

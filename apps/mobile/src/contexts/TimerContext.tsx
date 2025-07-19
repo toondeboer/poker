@@ -2,6 +2,8 @@ import React, { createContext, ReactNode, useEffect, useState } from "react";
 import { Sound, useSounds } from "@/src/hooks/useSounds";
 import { useBlinds } from "@/src/contexts/BlindsContext";
 
+const DEFAULT_TIMER_DURATION = 600; // Default timer duration in seconds
+
 type TimerContextType = {
   timeLeft: number;
   timerDuration: number;
@@ -14,9 +16,9 @@ type TimerContextType = {
 const TimerContext = createContext<TimerContextType | null>(null);
 
 export function TimerProvider({ children }: Readonly<{ children: ReactNode }>) {
-  const [timerDuration, setTimerDuration] = useState(5);
+  const [timerDuration, setTimerDuration] = useState(DEFAULT_TIMER_DURATION);
   const [timeLeft, setTimeLeft] = useState(timerDuration);
-  const [paused, setPaused] = useState(false);
+  const [paused, setPaused] = useState(true);
   const { playSound } = useSounds(Sound.ALARM);
   const { increaseBlinds } = useBlinds();
 
