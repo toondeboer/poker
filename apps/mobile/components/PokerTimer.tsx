@@ -1,7 +1,7 @@
 import React from "react";
 import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { Sound, useSounds } from "@/hooks/useSounds";
-import { useBlinds } from "@/hooks/useBlinds";
+import { useBlinds } from "@/contexts/BlindsContext";
 import { Link } from "expo-router";
 import { useTimer } from "@/contexts/TimerContext";
 

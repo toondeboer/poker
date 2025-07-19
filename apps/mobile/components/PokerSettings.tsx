@@ -6,7 +6,7 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
-import { useBlinds } from "@/hooks/useBlinds";
+import { useBlinds } from "@/contexts/BlindsContext";
 import { useTimer } from "@/contexts/TimerContext";
 
 export default function PokerSettings() {

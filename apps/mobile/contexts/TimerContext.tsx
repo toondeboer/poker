@@ -1,10 +1,4 @@
-import React, {
-  createContext,
-  ReactNode,
-  useEffect,
-  useMemo,
-  useState,
-} from "react";
+import React, { createContext, ReactNode, useEffect, useState } from "react";
 import { Audio } from "expo-av";
 
 type TimerContextType = {
@@ -50,18 +44,15 @@ export function TimerProvider({ children }: Readonly<{ children: ReactNode }>) {
 
   return (
     <TimerContext
-      value={useMemo(
-        () => ({
-          timeLeft,
-          timerDuration,
-          setTimerDuration,
-          paused,
-          togglePause,
-          resetTimer,
-          setAlarmSound,
-        }),
-        [timeLeft, timerDuration, paused, alarmSound],
-      )}
+      value={{
+        timeLeft,
+        timerDuration,
+        setTimerDuration,
+        paused,
+        togglePause,
+        resetTimer,
+        setAlarmSound,
+      }}
     >
       {children}
     </TimerContext>
