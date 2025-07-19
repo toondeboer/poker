@@ -1,8 +1,9 @@
 import React from "react";
 import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
-import { useSounds } from "@/hooks/useSounds";
+import { Sound, useSounds } from "@/hooks/useSounds";
 import { useBlinds } from "@/hooks/useBlinds";
-import { useTimer } from "@/hooks/useTimer"; // Adjust the import path as necessary
+import { Link } from "expo-router";
+import { useTimer } from "@/contexts/TimerContext";
 
 function interpolateColor(percent: number) {
   // percent: 1 (full time) => pastel green, 0 (no time) => pastel red
@@ -13,11 +14,10 @@ function interpolateColor(percent: number) {
 }
 
 export default function PokerTimer() {
-  const { smallBlind, bigBlind, increaseBlinds, decreaseBlinds, setBlinds } =
-    useBlinds();
-  const { startSound, pauseSound, resetSound, alarmSound } = useSounds();
-  const { timeLeft, TIMER_DURATION, paused, togglePause, resetTimer } =
-    useTimer(alarmSound);
+  const { smallBlind, bigBlind, increaseBlinds, decreaseBlinds } = useBlinds();
+  const { playSound } = useSounds(Sound.ALARM);
+  const { timeLeft, timerDuration, paused, togglePause, resetTimer } =
+    useTimer();
 
   const handleIncreaseBlinds = () => {
     increaseBlinds();
@@ -31,19 +31,17 @@ export default function PokerTimer() {
   const handleTogglePause = async () => {
     togglePause();
     if (paused) {
-      await startSound?.replayAsync();
-    } else {
-      await pauseSound?.replayAsync();
+      await playSound();
     }
   };
 
   // Reset timer to its initial value.
   const handleResetTimer = async () => {
     resetTimer();
-    await resetSound?.replayAsync();
+    await playSound();
   };
 
-  const percent = Math.max(0, timeLeft) / TIMER_DURATION;
+  const percent = Math.max(0, timeLeft) / timerDuration;
   const backgroundColor = interpolateColor(percent);
 
   return (
@@ -74,6 +72,10 @@ export default function PokerTimer() {
       >
         <Text style={styles.buttonText}>Reset Timer</Text>
       </TouchableOpacity>
+
+      <Link style={styles.button} href="/settings">
+        <Text style={styles.buttonText}>Settings</Text>
+      </Link>
     </View>
   );
 }
