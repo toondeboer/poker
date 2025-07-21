@@ -1,8 +1,9 @@
 import React, { createContext, ReactNode, useEffect, useState } from "react";
 import { Sound, useSounds } from "@/src/hooks/useSounds";
 import { useBlinds } from "@/src/contexts/BlindsContext";
+import { useTimerNotification } from "@/src/hooks/useTimerNotification";
 
-const DEFAULT_TIMER_DURATION = 600; // Default timer duration in seconds
+const DEFAULT_TIMER_DURATION = 5; // Default timer duration in seconds
 
 type TimerContextType = {
   timeLeft: number;
@@ -20,9 +21,19 @@ export function TimerProvider({ children }: Readonly<{ children: ReactNode }>) {
   const [timeLeft, setTimeLeft] = useState(timerDuration);
   const [paused, setPaused] = useState(true);
   const { playSound } = useSounds(Sound.ALARM);
-  const { increaseBlinds } = useBlinds();
+  const { increaseBlinds, currentBlindIndex, blindLevels } = useBlinds();
+  const { scheduleNotification } = useTimerNotification();
 
-  const togglePause = () => setPaused((prev) => !prev);
+  const togglePause = () =>
+    setPaused((prev) => {
+      const isPaused = !prev;
+
+      if (!isPaused) {
+        scheduleNotification(timeLeft, blindLevels[currentBlindIndex + 1]);
+      }
+
+      return isPaused;
+    });
 
   const resetTimer = () => setTimeLeft(timerDuration);
 
