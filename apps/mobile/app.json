@@ -1,6 +1,6 @@
 {
   "expo": {
-    "name": "poker-kit",
+    "name": "Poker Timer",
     "slug": "poker-kit",
     "version": "1.0.0",
     "orientation": "portrait",
@@ -17,8 +17,8 @@
     },
     "android": {
       "adaptiveIcon": {
-        "foregroundImage": "./src/assets/images/adaptive-icon.png",
-        "backgroundColor": "#ffffff"
+        "foregroundImage": "./src/assets/images/icon.png",
+        "backgroundColor": "#1d3b2b"
       },
       "edgeToEdgeEnabled": true
     },
@@ -27,10 +27,10 @@
       [
         "expo-splash-screen",
         {
-          "image": "./src/assets/images/splash-icon.png",
+          "image": "./src/assets/images/icon.png",
           "imageWidth": 200,
           "resizeMode": "contain",
-          "backgroundColor": "#ffffff"
+          "backgroundColor": "#1d3b2b"
         }
       ]
     ],
