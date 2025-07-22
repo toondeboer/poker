@@ -2,8 +2,9 @@ import React, { createContext, ReactNode, useEffect, useState } from "react";
 import { Sound, useSounds } from "@/src/hooks/useSounds";
 import { useBlinds } from "@/src/contexts/BlindsContext";
 import { useTimerNotification } from "@/src/hooks/useTimerNotification";
+import { liveActivityService } from "@/src/services/LiveActivityService";
 
-const DEFAULT_TIMER_DURATION = 5; // Default timer duration in seconds
+const DEFAULT_TIMER_DURATION = 600; // Default timer duration in seconds
 
 type TimerContextType = {
   timeLeft: number;
@@ -30,6 +31,15 @@ export function TimerProvider({ children }: Readonly<{ children: ReactNode }>) {
 
       if (!isPaused) {
         scheduleNotification(timeLeft, blindLevels[currentBlindIndex + 1]);
+        liveActivityService.startActivity("Poker Tournament", {
+          currentBlindLevel: currentBlindIndex,
+          currentSmallBlind: blindLevels[currentBlindIndex].small,
+          currentBigBlind: blindLevels[currentBlindIndex].big,
+          nextSmallBlind: blindLevels[currentBlindIndex + 1]?.small || 0,
+          nextBigBlind: blindLevels[currentBlindIndex + 1]?.big || 0,
+          endTime: new Date(Date.now() + timerDuration * 1000).getTime(),
+          isBreak: false,
+        });
       }
 
       return isPaused;
