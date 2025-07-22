@@ -20,7 +20,8 @@
         "foregroundImage": "./src/assets/images/icon.png",
         "backgroundColor": "#1d3b2b"
       },
-      "edgeToEdgeEnabled": true
+      "edgeToEdgeEnabled": true,
+      "package": "com.toondeboer98.pokerkit"
     },
     "plugins": [
       "expo-router",
