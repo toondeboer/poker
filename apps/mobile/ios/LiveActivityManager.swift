@@ -15,7 +15,7 @@ import ActivityKit
       return nil
     }
     
-    let attributes = PokerTimerWidgetAttributes(tournamentName: "Test")
+    let attributes = PokerTimerWidgetAttributes(tournamentName: data["tournamentName"] as? String ?? "Poker Timer")
     let contentState = PokerTimerWidgetAttributes.ContentState(
       currentBlindLevel: data["currentBlindLevel"] as? Int ?? 0,
       currentSmallBlind: data["currentSmallBlind"] as? Int ?? 0,

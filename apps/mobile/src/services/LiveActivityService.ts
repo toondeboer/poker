@@ -1,18 +1,11 @@
-import { PokerTimerAttributes, PokerTimerState } from "../types/LiveActivity";
+import { PokerTimerState } from "../types/LiveActivity";
 import { LiveActivity } from "../modules/LiveActivityModule";
 
 class LiveActivityService {
   private activityId: string | null = null;
 
-  async startActivity(
-    tournamentName: string,
-    initialState: PokerTimerState,
-  ): Promise<void> {
+  async startActivity(initialState: PokerTimerState): Promise<void> {
     try {
-      const attributes: PokerTimerAttributes = {
-        tournamentName,
-      };
-
       this.activityId = await LiveActivity.startActivity(initialState);
 
       console.log("Live Activity started:", this.activityId);

@@ -31,7 +31,8 @@ export function TimerProvider({ children }: Readonly<{ children: ReactNode }>) {
 
       if (!isPaused) {
         scheduleNotification(timeLeft, blindLevels[currentBlindIndex + 1]);
-        liveActivityService.startActivity("Poker Tournament", {
+        liveActivityService.startActivity({
+          tournamentName: "Poker Timer",
           currentBlindLevel: currentBlindIndex,
           currentSmallBlind: blindLevels[currentBlindIndex].small,
           currentBigBlind: blindLevels[currentBlindIndex].big,

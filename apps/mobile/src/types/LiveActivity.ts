@@ -1,9 +1,5 @@
-// types/LiveActivity.ts
-export interface PokerTimerAttributes {
-  tournamentName: string;
-}
-
 export interface PokerTimerState {
+  tournamentName: string;
   currentBlindLevel: number;
   currentSmallBlind: number;
   currentBigBlind: number;
