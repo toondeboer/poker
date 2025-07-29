@@ -16,8 +16,14 @@ export default function PokerTimer() {
   const router = useRouter();
   const { currentBlindIndex, blindLevels, increaseBlinds, decreaseBlinds } =
     useBlinds();
-  const { timeLeft, timerDuration, paused, togglePause, resetTimer } =
-    useTimer();
+  const {
+    timeLeft,
+    timerDuration,
+    paused,
+    togglePause,
+    resetTimer,
+    isLoading,
+  } = useTimer();
 
   // Format time as MM:SS
   const formatTime = (seconds: number) => {
