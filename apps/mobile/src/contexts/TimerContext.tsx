@@ -80,7 +80,7 @@ export function TimerProvider({ children }: Readonly<{ children: ReactNode }>) {
       const nextBlindLevel = blindLevels[currentBlindIndex + 1];
 
       const activityState = {
-        tournamentName: state.paused ? "Tournament Paused" : "Poker Tournament",
+        tournamentName: "Poker Timer",
         currentBlindLevel: currentBlindIndex + 1, // Display as 1-based
         currentSmallBlind: blindLevels[currentBlindIndex].small,
         currentBigBlind: blindLevels[currentBlindIndex].big,
