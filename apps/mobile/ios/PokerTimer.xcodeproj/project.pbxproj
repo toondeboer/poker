@@ -14,6 +14,7 @@
 		4256589E2E2F6B09009E27A8 /* WidgetKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 4256589D2E2F6B09009E27A8 /* WidgetKit.framework */; };
 		425658A02E2F6B09009E27A8 /* SwiftUI.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 4256589F2E2F6B09009E27A8 /* SwiftUI.framework */; };
 		425658AD2E2F6B0B009E27A8 /* PokerTimerWidgetExtension.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 4256589C2E2F6B09009E27A8 /* PokerTimerWidgetExtension.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+		42A5019D2E3E907600443B03 /* alarm.wav in Resources */ = {isa = PBXBuildFile; fileRef = 42A5019C2E3E907600443B03 /* alarm.wav */; };
 		42D8A4202E316F480019ECE0 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 42D8A41A2E316F480019ECE0 /* Assets.xcassets */; };
 		42D8A4222E316F480019ECE0 /* PokerTimerWidget.swift in Sources */ = {isa = PBXBuildFile; fileRef = 42D8A41C2E316F480019ECE0 /* PokerTimerWidget.swift */; };
 		42D8A4232E316F480019ECE0 /* PokerTimerWidgetAttributes.swift in Sources */ = {isa = PBXBuildFile; fileRef = 42D8A41D2E316F480019ECE0 /* PokerTimerWidgetAttributes.swift */; };
@@ -62,6 +63,7 @@
 		4256589C2E2F6B09009E27A8 /* PokerTimerWidgetExtension.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = PokerTimerWidgetExtension.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 		4256589D2E2F6B09009E27A8 /* WidgetKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = WidgetKit.framework; path = System/Library/Frameworks/WidgetKit.framework; sourceTree = SDKROOT; };
 		4256589F2E2F6B09009E27A8 /* SwiftUI.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = SwiftUI.framework; path = System/Library/Frameworks/SwiftUI.framework; sourceTree = SDKROOT; };
+		42A5019C2E3E907600443B03 /* alarm.wav */ = {isa = PBXFileReference; lastKnownFileType = audio.wav; path = alarm.wav; sourceTree = "<group>"; };
 		42D8A41A2E316F480019ECE0 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		42D8A41B2E316F480019ECE0 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		42D8A41C2E316F480019ECE0 /* PokerTimerWidget.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PokerTimerWidget.swift; sourceTree = "<group>"; };
@@ -189,6 +191,7 @@
 		BB2F792B24A3F905000567C9 /* Supporting */ = {
 			isa = PBXGroup;
 			children = (
+				42A5019C2E3E907600443B03 /* alarm.wav */,
 				BB2F792C24A3F905000567C9 /* Expo.plist */,
 			);
 			name = Supporting;
@@ -292,6 +295,7 @@
 				BB2F792D24A3F905000567C9 /* Expo.plist in Resources */,
 				13B07FBF1A68108700A75B9A /* Images.xcassets in Resources */,
 				3E461D99554A48A4959DE609 /* SplashScreen.storyboard in Resources */,
+				42A5019D2E3E907600443B03 /* alarm.wav in Resources */,
 				449F3E40E9DB884AE2279BDE /* PrivacyInfo.xcprivacy in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -352,9 +356,13 @@
 			inputFileListPaths = (
 				"${PODS_ROOT}/Target Support Files/Pods-PokerTimer/Pods-PokerTimer-resources-${CONFIGURATION}-input-files.xcfilelist",
 			);
+			inputPaths = (
+			);
 			name = "[CP] Copy Pods Resources";
 			outputFileListPaths = (
 				"${PODS_ROOT}/Target Support Files/Pods-PokerTimer/Pods-PokerTimer-resources-${CONFIGURATION}-output-files.xcfilelist",
+			);
+			outputPaths = (
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
@@ -369,9 +377,13 @@
 			inputFileListPaths = (
 				"${PODS_ROOT}/Target Support Files/Pods-PokerTimer/Pods-PokerTimer-frameworks-${CONFIGURATION}-input-files.xcfilelist",
 			);
+			inputPaths = (
+			);
 			name = "[CP] Embed Pods Frameworks";
 			outputFileListPaths = (
 				"${PODS_ROOT}/Target Support Files/Pods-PokerTimer/Pods-PokerTimer-frameworks-${CONFIGURATION}-output-files.xcfilelist",
+			);
+			outputPaths = (
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
@@ -647,10 +659,7 @@
 				LIBRARY_SEARCH_PATHS = "$(SDKROOT)/usr/lib/swift\"$(inherited)\"";
 				MTL_ENABLE_DEBUG_INFO = YES;
 				ONLY_ACTIVE_ARCH = YES;
-				OTHER_LDFLAGS = (
-					"$(inherited)",
-					" ",
-				);
+				OTHER_LDFLAGS = "$(inherited)  ";
 				REACT_NATIVE_PATH = "${PODS_ROOT}/../../node_modules/react-native";
 				SDKROOT = iphoneos;
 				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "$(inherited) DEBUG";
@@ -705,10 +714,7 @@
 				);
 				LIBRARY_SEARCH_PATHS = "$(SDKROOT)/usr/lib/swift\"$(inherited)\"";
 				MTL_ENABLE_DEBUG_INFO = NO;
-				OTHER_LDFLAGS = (
-					"$(inherited)",
-					" ",
-				);
+				OTHER_LDFLAGS = "$(inherited)  ";
 				REACT_NATIVE_PATH = "${PODS_ROOT}/../../node_modules/react-native";
 				SDKROOT = iphoneos;
 				USE_HERMES = true;

@@ -56,6 +56,10 @@
 	<array>
 		<string>$(PRODUCT_BUNDLE_IDENTIFIER).expo.index_route</string>
 	</array>
+	<key>NSUserNotificationAlertStyle</key>
+	<string>alert</string>
+	<key>NSUserNotificationsUsageDescription</key>
+	<string>This app uses notifications to alert you when poker timer rounds are complete.</string>
 	<key>UILaunchStoryboardName</key>
 	<string>SplashScreen</string>
 	<key>UIRequiredDeviceCapabilities</key>
@@ -82,9 +86,5 @@
 	<string>Automatic</string>
 	<key>UIViewControllerBasedStatusBarAppearance</key>
 	<false/>
-   <key>NSUserNotificationsUsageDescription</key>
-   <string>This app uses notifications to alert you when poker timer rounds are complete.</string>
-   <key>NSUserNotificationAlertStyle</key>
-   <string>alert</string>
 </dict>
 </plist>

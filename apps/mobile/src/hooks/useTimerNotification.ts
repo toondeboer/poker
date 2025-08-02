@@ -1,4 +1,4 @@
-// hooks/useTimerNotification.ts
+// src/hooks/useTimerNotification.ts
 import * as Notifications from "expo-notifications";
 import { SchedulableTriggerInputTypes } from "expo-notifications";
 import { BlindLevel } from "@/src/types/BlindLevel";
@@ -6,6 +6,12 @@ import { useEffect, useState } from "react";
 import { Platform } from "react-native";
 
 const NOTIFICATION_CATEGORY = "timerActions";
+
+// Define your custom sounds
+const CUSTOM_SOUNDS = {
+  timer_complete: Platform.OS === "ios" ? "alarm.wav" : "timer_complete",
+  // Add more custom sounds as needed
+} as const;
 
 // Configure how notifications are handled when the app is in foreground
 Notifications.setNotificationHandler({
@@ -60,12 +66,13 @@ export function useTimerNotification() {
 
       // Android-specific channel configuration
       if (Platform.OS === "android") {
-        await Notifications.setNotificationChannelAsync("timer-alerts", {
-          name: "Timer Alerts",
+        // Create multiple channels for different notification types with different sounds
+        await Notifications.setNotificationChannelAsync("timer-complete", {
+          name: "Timer Complete",
           importance: Notifications.AndroidImportance.HIGH,
           vibrationPattern: [0, 250, 250, 250],
           lightColor: "#FF231F7C",
-          sound: "default",
+          sound: CUSTOM_SOUNDS.timer_complete,
           enableVibrate: true,
         });
       }
@@ -98,18 +105,24 @@ export function useTimerNotification() {
         ? `New blind levels: ${newBlindLevel.small} / ${newBlindLevel.big}`
         : "Time is up!";
 
+      // Determine which sound to use
+      const soundToUse = CUSTOM_SOUNDS.timer_complete;
+
+      // Determine which channel to use (Android only)
+      const channelId = "timer-complete";
+
       const newNotificationId = await Notifications.scheduleNotificationAsync({
         content: {
           title: "Poker Timer - Time's Up!",
           body: bodyText,
-          sound: "default",
+          sound: soundToUse,
           categoryIdentifier: NOTIFICATION_CATEGORY,
           data: {
             type: "timer_complete",
             blindLevel: newBlindLevel,
           },
           ...(Platform.OS === "android" && {
-            channelId: "timer-alerts",
+            channelId: channelId,
           }),
         },
         trigger: {
@@ -120,7 +133,7 @@ export function useTimerNotification() {
 
       setNotificationId(newNotificationId);
       console.log(
-        `Notification scheduled for ${seconds} seconds with ID: ${newNotificationId}`,
+        `Notification scheduled for ${seconds} seconds with ID: ${newNotificationId}, sound: ${soundToUse}`,
       );
     } catch (error) {
       console.error("Failed to schedule notification:", error);
