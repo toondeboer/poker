@@ -82,5 +82,11 @@
 	<string>Automatic</string>
 	<key>UIViewControllerBasedStatusBarAppearance</key>
 	<false/>
+   <key>UIBackgroundModes</key>
+   <array>
+       <string>audio</string>
+   </array>
+   <key>NSUserNotificationsUsageDescription</key>
+   <string>This app uses notifications to alert you when poker timer rounds are complete.</string>
 </dict>
 </plist>
