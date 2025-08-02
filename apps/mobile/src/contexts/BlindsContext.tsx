@@ -1,3 +1,4 @@
+// src/contexts/BlindsContext.tsx
 import { createContext, ReactNode, useContext, useState } from "react";
 import { BlindLevel } from "@/src/types/BlindLevel";
 import { generateBlindLevels } from "@/src/util/generateBlinds";

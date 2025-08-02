@@ -26,17 +26,22 @@ export function TimerProvider({ children }: Readonly<{ children: ReactNode }>) {
 
   const appState = useRef(AppState.currentState);
 
-  // Handle timer completion and notifications
+  // Handle timer completion - play sound when app is in foreground
   const handleTimerComplete = async () => {
     try {
-      if (isLoaded) {
+      // Only play sound if app is active (in foreground)
+      if (appState.current === "active" && isLoaded) {
         await playSound();
       } else {
-        console.warn("Sound not loaded, skipping alarm");
+        console.log(
+          "App in background, skipping alarm sound (notification will handle audio)",
+        );
       }
     } catch (error) {
       console.error("Failed to play completion sound:", error);
     }
+
+    console.log("Timer completed - advancing to next blind level");
     increaseBlinds();
   };
 

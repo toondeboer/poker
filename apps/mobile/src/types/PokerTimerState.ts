@@ -1,3 +1,4 @@
+// src/types/PokerTimerState.ts
 export interface PokerTimerState {
   tournamentName?: string;
   currentBlindLevel: number;

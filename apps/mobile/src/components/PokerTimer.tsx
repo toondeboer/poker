@@ -1,3 +1,4 @@
+// src/components/PokerTimer.tsx
 import React from "react";
 import {
   StatusBar,

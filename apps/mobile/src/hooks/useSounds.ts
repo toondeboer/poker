@@ -10,17 +10,17 @@ export const useSounds = (soundType: Sound) => {
   const [sound, setSound] = useState<Audio.Sound | null>(null);
   const [isLoaded, setIsLoaded] = useState(false);
 
-  // Configure audio session
+  // Configure audio session for foreground playback only
   const configureAudio = useCallback(async () => {
     try {
       await Audio.setAudioModeAsync({
         allowsRecordingIOS: false,
         interruptionModeIOS: 1, // INTERRUPTION_MODE_IOS_DO_NOT_MIX
-        playsInSilentModeIOS: true,
+        playsInSilentModeIOS: true, // Play even if device is in silent mode
         shouldDuckAndroid: true,
         interruptionModeAndroid: 1, // INTERRUPTION_MODE_ANDROID_DO_NOT_MIX
         playThroughEarpieceAndroid: false,
-        staysActiveInBackground: true,
+        staysActiveInBackground: false,
       });
     } catch (error) {
       console.warn("Failed to configure audio:", error);
@@ -46,6 +46,7 @@ export const useSounds = (soundType: Sound) => {
 
         setSound(loadedSound);
         setIsLoaded(true);
+        console.log("Sound loaded successfully");
       } catch (error) {
         console.error("Failed to load sound:", error);
         setIsLoaded(false);
@@ -62,7 +63,7 @@ export const useSounds = (soundType: Sound) => {
     };
   }, [soundType, configureAudio]);
 
-  // Function to play the sound
+  // Function to play the sound (foreground only)
   const playSound = useCallback(async () => {
     if (!sound || !isLoaded) {
       console.warn("Sound not loaded, cannot play");
@@ -70,12 +71,13 @@ export const useSounds = (soundType: Sound) => {
     }
 
     try {
-      // Ensure audio is configured
+      // Ensure audio is configured for foreground playback
       await configureAudio();
 
       // Reset to beginning and play
       await sound.setPositionAsync(0);
       await sound.playAsync();
+      console.log("Alarm sound played");
     } catch (error) {
       console.error("Failed to play sound:", error);
     }
@@ -89,6 +91,7 @@ export const useSounds = (soundType: Sound) => {
 
     try {
       await sound.stopAsync();
+      console.log("Sound stopped");
     } catch (error) {
       console.error("Failed to stop sound:", error);
     }
