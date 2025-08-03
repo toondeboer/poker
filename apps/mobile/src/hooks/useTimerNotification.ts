@@ -169,10 +169,6 @@ export function useTimerNotification() {
         });
 
         notifications.push(notificationId);
-        if (i !== numberOfNotifications - 1) {
-          // Schedule auto-dismiss for all but the last notification
-          scheduleDismiss(notificationId, delay + REPEAT_INTERVAL);
-        }
       }
 
       setScheduledNotificationIds(notifications);
@@ -316,19 +312,6 @@ export function useTimerNotification() {
       console.error("Failed to get scheduled notifications:", error);
       return [];
     }
-  };
-
-  const scheduleDismiss = (notificationId: string, delay: number) => {
-    setTimeout(async () => {
-      try {
-        await Notifications.dismissNotificationAsync(notificationId);
-      } catch (e) {
-        console.warn(
-          `Failed to auto-dismiss notification ${notificationId}:`,
-          e,
-        );
-      }
-    }, delay * 1000);
   };
 
   return {
