@@ -57,33 +57,42 @@ class LiveActivityService {
         activityData.timeLeft = state.durationSeconds;
       }
 
-      if (this.activityId) {
-        // Update existing activity
-        await LiveActivity.updateActivity(this.activityId, activityData);
-        console.log("Live Activity updated successfully");
-        return this.activityId;
-      } else {
-        // Start new activity
-        this.activityId = await LiveActivity.startActivity(activityData);
-        if (this.activityId) {
-          console.log("Live Activity started:", this.activityId);
-        } else {
-          console.warn("Failed to start Live Activity - no ID returned");
-        }
-        return this.activityId;
-      }
-    } catch (error) {
-      console.error("Failed to start/update Live Activity:", error);
-
-      // If it's an update error, the activity might have been dismissed
+      // Check if we have an activity ID and if it's still active
       if (this.activityId) {
         const activeActivities = await this.getActiveActivities();
-        if (!activeActivities.includes(this.activityId)) {
+
+        if (activeActivities.includes(this.activityId)) {
+          // Activity still exists, update it
+          try {
+            await LiveActivity.updateActivity(this.activityId, activityData);
+            console.log("Live Activity updated successfully");
+            return this.activityId;
+          } catch (updateError) {
+            console.error("Failed to update Live Activity:", updateError);
+            // If update fails, clear the ID and create a new one
+            this.activityId = null;
+          }
+        } else {
+          // Activity no longer exists, clear the local reference
           console.warn("Activity no longer active, clearing local reference");
           this.activityId = null;
         }
       }
 
+      // If we reach here, we need to create a new activity
+      this.activityId = await LiveActivity.startActivity(activityData);
+      if (this.activityId) {
+        console.log("Live Activity started:", this.activityId);
+        return this.activityId;
+      } else {
+        console.warn("Failed to start Live Activity - no ID returned");
+        return null;
+      }
+    } catch (error) {
+      console.error("Failed to start/update Live Activity:", error);
+
+      // Clear the activity ID on any error to ensure we start fresh next time
+      this.activityId = null;
       return null;
     }
   }
@@ -142,6 +151,33 @@ class LiveActivityService {
       }
     } catch (error) {
       console.warn("Error during cleanup:", error);
+    }
+  }
+
+  // New method to check and sync the current activity state
+  async syncActivityState(): Promise<void> {
+    if (!this.isSupported) return;
+
+    try {
+      const activeActivities = await this.getActiveActivities();
+
+      if (this.activityId && !activeActivities.includes(this.activityId)) {
+        // Our stored activity ID is no longer active
+        console.log("Stored activity ID is no longer active, clearing it");
+        this.activityId = null;
+      } else if (!this.activityId && activeActivities.length > 0) {
+        // We don't have an activity ID but there are active activities
+        // This could happen if the app was restarted while an activity was running
+        console.log("Found active activities but no stored ID, syncing...");
+        // End all active activities except the first one
+        for (let i = 1; i < activeActivities.length; i++) {
+          await LiveActivity.endActivity(activeActivities[i]);
+          console.log(`Ended orphaned activity: ${activeActivities[i]}`);
+        }
+        this.activityId = activeActivities[0]; // Adopt the first one
+      }
+    } catch (error) {
+      console.warn("Error syncing activity state:", error);
     }
   }
 }

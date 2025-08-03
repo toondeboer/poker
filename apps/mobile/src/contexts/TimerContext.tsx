@@ -5,6 +5,7 @@ import { Sound, useSounds } from "@/src/hooks/useSounds";
 import { useBlinds } from "@/src/contexts/BlindsContext";
 import { useTimerNotification } from "@/src/hooks/useTimerNotification";
 import { useTimerEngine } from "@/src/hooks/useTimerEngine";
+import { liveActivityService } from "@/src/services/LiveActivityService";
 
 type TimerContextType = {
   endTime?: number;
@@ -95,6 +96,7 @@ export function TimerProvider({ children }: Readonly<{ children: ReactNode }>) {
       ) {
         // App has come to the foreground, reload timer state
         loadTimerState();
+        liveActivityService.syncActivityState();
       }
       appState.current = nextAppState;
     };
