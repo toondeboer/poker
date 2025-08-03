@@ -14,27 +14,37 @@ const CUSTOM_SOUNDS = {
   // Add more custom sounds as needed
 } as const;
 
-// Configure how notifications are handled when the app is in foreground
-Notifications.setNotificationHandler({
-  handleNotification: async () => ({
-    shouldShowAlert: true,
-    shouldPlaySound: true,
-    shouldSetBadge: false,
-    shouldShowBanner: true,
-    shouldShowList: true,
-  }),
-});
-
 export function useTimerNotification() {
   const [scheduledNotificationIds, setScheduledNotificationIds] = useState<
     string[]
   >([]);
   const [hasPermission, setHasPermission] = useState<boolean>(false);
   const [isContinuousMode, setIsContinuousMode] = useState<boolean>(false);
+  const [appState, setAppState] = useState<string>(AppState.currentState);
+
   const continuousDataRef = useRef<{
     blindLevel?: BlindLevel;
     startTime: number;
   } | null>(null);
+
+  // Configure how notifications are handled when the app is in foreground
+  useEffect(() => {
+    Notifications.setNotificationHandler({
+      handleNotification: async () => {
+        // Only show notifications when app is NOT in foreground
+        const currentAppState = AppState.currentState;
+        const shouldShow = currentAppState !== "active";
+
+        return {
+          shouldShowAlert: shouldShow,
+          shouldPlaySound: shouldShow,
+          shouldSetBadge: false,
+          shouldShowBanner: shouldShow,
+          shouldShowList: shouldShow,
+        };
+      },
+    });
+  }, []);
 
   // Request notification permissions on hook initialization
   useEffect(() => {
@@ -72,6 +82,8 @@ export function useTimerNotification() {
   };
 
   const handleAppStateChange = async (nextAppState: string) => {
+    setAppState(nextAppState);
+
     // If app comes to foreground, clear all notifications
     if (nextAppState === "active") {
       await clearAllNotifications();
@@ -207,6 +219,13 @@ export function useTimerNotification() {
       // Cancel any existing notifications first
       await clearAllNotifications();
 
+      // Check if app is currently in foreground
+      if (AppState.currentState === "active") {
+        console.log(
+          "App is in foreground, notifications will be scheduled but not shown",
+        );
+      }
+
       if (enableContinuous) {
         // Schedule repeating notifications for continuous sound
         await scheduleRepeatingNotifications(seconds, newBlindLevel);
@@ -324,6 +343,8 @@ export function useTimerNotification() {
     hasPermission,
     scheduledNotificationIds,
     isContinuousMode,
+    appState,
+    isAppInForeground: appState === "active",
     // Utility function to check if continuous notifications are active
     isContinuousActive: () =>
       isContinuousMode && scheduledNotificationIds.length > 0,
