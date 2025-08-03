@@ -1,4 +1,4 @@
-package com.toondeboer98.pokerkit
+package com.toondeboer.pokerkit
 import expo.modules.splashscreen.SplashScreenManager
 
 import android.os.Build

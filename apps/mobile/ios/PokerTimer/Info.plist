@@ -29,7 +29,7 @@
 			<string>Editor</string>
 			<key>CFBundleURLSchemes</key>
 			<array>
-				<string>com.toondeboer98.pokerkit</string>
+				<string>com.toondeboer.pokerkit</string>
 			</array>
 		</dict>
 	</array>

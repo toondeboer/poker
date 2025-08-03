@@ -1,4 +1,4 @@
-package com.toondeboer98.pokerkit
+package com.toondeboer.pokerkit
 
 import android.app.Application
 import android.content.res.Configuration
