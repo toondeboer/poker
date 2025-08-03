@@ -12,6 +12,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { useBlinds } from "@/src/contexts/BlindsContext";
 import { useTimer } from "@/src/contexts/TimerContext";
 import { useRouter } from "expo-router";
+import TimerExpirationAlert from "./TimerExpirationAlert";
 
 export default function PokerTimer() {
   const router = useRouter();
@@ -24,6 +25,9 @@ export default function PokerTimer() {
     togglePause,
     resetTimer,
     isLoading,
+    showTimerAlert,
+    dismissTimerAlert,
+    handleNextBlinds,
   } = useTimer();
 
   // Format time as MM:SS
@@ -47,6 +51,12 @@ export default function PokerTimer() {
     if (percent > 0.3) return "#F59E0B";
     return "#DC2626";
   };
+
+  // Get next blind level for alert
+  const nextBlindLevel =
+    currentBlindIndex < blindLevels.length - 1
+      ? blindLevels[currentBlindIndex + 1]
+      : undefined;
 
   return (
     <View style={styles.container}>
@@ -106,15 +116,15 @@ export default function PokerTimer() {
             </View>
 
             {/* Next Blinds Preview */}
-            {currentBlindIndex < blindLevels.length - 1 && (
+            {nextBlindLevel && (
               <View style={styles.nextBlindsCard}>
                 <Text style={styles.nextBlindsTitle}>Next Level</Text>
                 <View style={styles.nextBlindsRow}>
                   <Text style={styles.nextBlindsText}>
-                    SB: {blindLevels[currentBlindIndex + 1].small}
+                    SB: {nextBlindLevel.small}
                   </Text>
                   <Text style={styles.nextBlindsText}>
-                    BB: {blindLevels[currentBlindIndex + 1].big}
+                    BB: {nextBlindLevel.big}
                   </Text>
                 </View>
               </View>
@@ -195,6 +205,15 @@ export default function PokerTimer() {
           </View>
         </View>
       </LinearGradient>
+
+      {/* Timer Expiration Alert */}
+      <TimerExpirationAlert
+        visible={showTimerAlert}
+        currentLevel={currentBlindIndex + 1}
+        nextBlindLevel={nextBlindLevel}
+        onDismiss={dismissTimerAlert}
+        onNextBlinds={handleNextBlinds}
+      />
     </View>
   );
 }

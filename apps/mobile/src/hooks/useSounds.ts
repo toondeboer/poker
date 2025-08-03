@@ -9,6 +9,7 @@ export enum Sound {
 export const useSounds = (soundType: Sound) => {
   const [sound, setSound] = useState<Audio.Sound | null>(null);
   const [isLoaded, setIsLoaded] = useState(false);
+  const [isPlaying, setIsPlaying] = useState(false);
 
   // Configure audio session for foreground playback only
   const configureAudio = useCallback(async () => {
@@ -43,6 +44,13 @@ export const useSounds = (soundType: Sound) => {
             volume: 1.0,
           },
         );
+
+        // Set up playback status update listener
+        loadedSound.setOnPlaybackStatusUpdate((status) => {
+          if (status.isLoaded) {
+            setIsPlaying(status.isPlaying);
+          }
+        });
 
         setSound(loadedSound);
         setIsLoaded(true);
@@ -86,6 +94,7 @@ export const useSounds = (soundType: Sound) => {
   // Function to stop the sound
   const stopSound = useCallback(async () => {
     if (!sound || !isLoaded) {
+      console.warn("Sound not loaded, cannot stop");
       return;
     }
 
@@ -97,10 +106,27 @@ export const useSounds = (soundType: Sound) => {
     }
   }, [sound, isLoaded]);
 
+  // Function to pause the sound
+  const pauseSound = useCallback(async () => {
+    if (!sound || !isLoaded) {
+      console.warn("Sound not loaded, cannot pause");
+      return;
+    }
+
+    try {
+      await sound.pauseAsync();
+      console.log("Sound paused");
+    } catch (error) {
+      console.error("Failed to pause sound:", error);
+    }
+  }, [sound, isLoaded]);
+
   return {
     playSound,
     stopSound,
+    pauseSound,
     isLoaded,
+    isPlaying,
     sound,
   };
 };

@@ -1,5 +1,11 @@
 // src/contexts/TimerContext.tsx
-import React, { createContext, ReactNode, useEffect, useRef } from "react";
+import React, {
+  createContext,
+  ReactNode,
+  useEffect,
+  useRef,
+  useState,
+} from "react";
 import { AppState, AppStateStatus } from "react-native";
 import { Sound, useSounds } from "@/src/hooks/useSounds";
 import { useBlinds } from "@/src/contexts/BlindsContext";
@@ -16,34 +22,47 @@ type TimerContextType = {
   togglePause: () => void;
   resetTimer: () => void;
   isLoading: boolean;
+  // Alert state
+  showTimerAlert: boolean;
+  dismissTimerAlert: () => void;
+  handleNextBlinds: () => void;
 };
 
 const TimerContext = createContext<TimerContextType | null>(null);
 
 export function TimerProvider({ children }: Readonly<{ children: ReactNode }>) {
-  const { playSound, isLoaded } = useSounds(Sound.ALARM);
+  const { playSound, stopSound, isLoaded } = useSounds(Sound.ALARM);
   const { increaseBlinds, currentBlindIndex, blindLevels } = useBlinds();
-  const { scheduleNotification, cancelNotification } = useTimerNotification();
+  const { scheduleNotification, cancelNotification, isAppInForeground } =
+    useTimerNotification();
 
+  const [showTimerAlert, setShowTimerAlert] = useState(false);
   const appState = useRef(AppState.currentState);
+  const alarmPlayingRef = useRef(false);
 
-  // Handle timer completion - play sound when app is in foreground
+  // Handle timer completion
   const handleTimerComplete = async () => {
     try {
-      // Only play sound if app is active (in foreground)
+      // Only play sound and show alert if app is active (in foreground)
       if (appState.current === "active" && isLoaded) {
         await playSound();
+        alarmPlayingRef.current = true;
+        setShowTimerAlert(true);
+        console.log("Timer completed - showing alert and playing alarm");
       } else {
         console.log(
-          "App in background, skipping alarm sound (notification will handle audio)",
+          "App in background, skipping alarm sound and alert (notification will handle audio)",
         );
+        // Auto-advance if in background
+        increaseBlinds();
       }
     } catch (error) {
       console.error("Failed to play completion sound:", error);
+      // Still show alert even if sound fails
+      if (appState.current === "active") {
+        setShowTimerAlert(true);
+      }
     }
-
-    console.log("Timer completed - advancing to next blind level");
-    increaseBlinds();
   };
 
   const handleNotificationScheduling = async (
@@ -85,6 +104,45 @@ export function TimerProvider({ children }: Readonly<{ children: ReactNode }>) {
   const resetTimer = async () => {
     await engineResetTimer();
     await cancelNotification();
+    // Dismiss alert and stop sound if active
+    if (showTimerAlert) {
+      setShowTimerAlert(false);
+      if (alarmPlayingRef.current) {
+        await stopSound();
+        alarmPlayingRef.current = false;
+      }
+    }
+  };
+
+  // Dismiss timer alert (advance to next blind level, keep timer paused, stop sound)
+  const dismissTimerAlert = async () => {
+    setShowTimerAlert(false);
+    if (alarmPlayingRef.current) {
+      await stopSound();
+      alarmPlayingRef.current = false;
+    }
+
+    // Advance to next blind level but keep timer paused
+    increaseBlinds();
+    // Timer will remain paused - user needs to manually start it
+  };
+
+  // Handle next blinds (advance blinds, start new timer, stop sound)
+  const handleNextBlinds = async () => {
+    setShowTimerAlert(false);
+    if (alarmPlayingRef.current) {
+      await stopSound();
+      alarmPlayingRef.current = false;
+    }
+
+    // Advance to next blind level and start timer
+    increaseBlinds();
+
+    // Start the new timer after a short delay to ensure blind level is updated
+    setTimeout(async () => {
+      await engineTogglePause(); // This will start the timer if it's paused
+      await handleNotificationScheduling(false, timerDuration);
+    }, 100);
   };
 
   // Handle app state changes
@@ -98,6 +156,13 @@ export function TimerProvider({ children }: Readonly<{ children: ReactNode }>) {
         loadTimerState();
         liveActivityService.syncActivityState();
       }
+
+      // If app goes to background while alert is showing, auto-dismiss and advance
+      if (nextAppState === "background" && showTimerAlert) {
+        dismissTimerAlert();
+        increaseBlinds();
+      }
+
       appState.current = nextAppState;
     };
 
@@ -106,11 +171,20 @@ export function TimerProvider({ children }: Readonly<{ children: ReactNode }>) {
       handleAppStateChange,
     );
     return () => subscription?.remove();
-  }, [loadTimerState]);
+  }, [loadTimerState, showTimerAlert]);
 
   // Load initial state on mount
   useEffect(() => {
     loadTimerState();
+  }, []);
+
+  // Cleanup sound when component unmounts
+  useEffect(() => {
+    return () => {
+      if (alarmPlayingRef.current) {
+        stopSound();
+      }
+    };
   }, []);
 
   return (
@@ -124,6 +198,9 @@ export function TimerProvider({ children }: Readonly<{ children: ReactNode }>) {
         togglePause,
         resetTimer,
         isLoading,
+        showTimerAlert,
+        dismissTimerAlert,
+        handleNextBlinds,
       }}
     >
       {children}
