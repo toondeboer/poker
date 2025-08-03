@@ -110,10 +110,13 @@ export function useTimerEngine(
     const newPaused = !paused;
 
     if (newPaused) {
+      console.log("Pausing timer at time left:", timeLeft);
       // Pausing the timer
+      // setTimeLeft(calculateTimeLeft(endTime!));
       setEndTime(undefined);
       setPaused(true);
     } else {
+      console.log("Resuming timer with time left:", timeLeft);
       // Resuming the timer
       const newEndTime = Date.now() + timeLeft * 1000;
       setEndTime(newEndTime);
@@ -136,6 +139,7 @@ export function useTimerEngine(
 
     // If timer is paused and we don't have an endTime (truly reset state), update time left
     if (paused && !endTime) {
+      console.log("Setting time left to duration:", duration);
       setTimeLeft(duration);
     }
   };
@@ -197,9 +201,9 @@ export function useTimerEngine(
     }
   }, [endTime, timeLeft, paused, currentBlindIndex, blindLevels, isLoading]);
 
-  // Reset time left when timer duration changes and timer is in reset state
   useEffect(() => {
-    if (paused && endTime === undefined) {
+    if (paused && endTime === undefined && timeLeft > timerDuration) {
+      console.log("Resetting time left to new timer duration:", timerDuration);
       setTimeLeft(timerDuration);
     }
   }, [timerDuration, paused, endTime]);
