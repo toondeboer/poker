@@ -199,7 +199,7 @@ export function useTimerEngine(
     if (!isLoading) {
       updateLiveActivity();
     }
-  }, [endTime, timeLeft, paused, currentBlindIndex, blindLevels, isLoading]);
+  }, [endTime, paused, currentBlindIndex, blindLevels, isLoading]);
 
   useEffect(() => {
     if (paused && endTime === undefined && timeLeft > timerDuration) {

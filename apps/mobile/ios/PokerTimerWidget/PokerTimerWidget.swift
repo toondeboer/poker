@@ -4,7 +4,6 @@
 //
 //  Created by Toon de Boer on 22/07/2025.
 //
-
 import ActivityKit
 import WidgetKit
 import SwiftUI
@@ -27,44 +26,50 @@ struct PokerTimerWidget: Widget {
             Text(
               "\(context.state.currentSmallBlind)/\(context.state.currentBigBlind)"
             )
-            .font(.title2)
+            .font(.title)
             .bold()
+            .foregroundColor(.primary)
           }
         }
                 
         DynamicIslandExpandedRegion(.trailing) {
           VStack(alignment: .trailing, spacing: 2) {
             Text("Next")
-              .font(.caption)
-              .foregroundColor(.secondary)
+              .font(.caption2)
+              .foregroundColor(Color.secondary.opacity(0.7))
             Text(
               "\(context.state.nextSmallBlind)/\(context.state.nextBigBlind)"
             )
-            .font(.title2)
-            .bold()
+            .font(.subheadline)
+            .foregroundColor(.secondary)
           }
         }
                 
         DynamicIslandExpandedRegion(.bottom) {
           HStack {
-            Image(
-              systemName: context.state.paused ? "pause.circle.fill" : "timer"
-            )
-            .foregroundColor(.green)
-                        
-            if context.state.paused {
-              Text("PAUSED")
-                .font(.title3)
-                .bold()
-                .foregroundColor(.orange)
-            } else {
-              Text(
-                timerInterval: Date()...context.state.endTime,
-                countsDown: true
+            // Timer - most prominent element
+            HStack(spacing: 4) {
+              Image(
+                systemName: context.state.paused ? "pause.circle.fill" : "timer"
               )
-              .font(.title3)
-              .bold()
-              .monospacedDigit()
+              .foregroundColor(context.state.paused ? .orange : .green)
+              
+              if context.state.paused {
+                Text(formatTime(context.state.timeLeft))
+                  .font(.title2)
+                  .bold()
+                  .monospacedDigit()
+                  .foregroundColor(.orange)
+              } else {
+                Text(
+                  timerInterval: Date()...context.state.endTime,
+                  countsDown: true
+                )
+                .font(.title2)
+                .bold()
+                .monospacedDigit()
+                .foregroundColor(.primary)
+              }
             }
                         
             Spacer()
@@ -79,7 +84,10 @@ struct PokerTimerWidget: Widget {
           .foregroundColor(.green)
       } compactTrailing: {
         if context.state.paused {
-          Image(systemName: "pause.circle.fill")
+          Text(formatTime(context.state.timeLeft))
+            .font(.caption2)
+            .bold()
+            .monospacedDigit()
             .foregroundColor(.orange)
         } else {
           Text(timerInterval: Date()...context.state.endTime, countsDown: true)
@@ -95,96 +103,104 @@ struct PokerTimerWidget: Widget {
   }
 }
 
-
 struct PokerTimerLiveActivityView: View {
   let context: ActivityViewContext<PokerTimerWidgetAttributes>
     
   var body: some View {
-    VStack(spacing: 12) {
-      // Header
+    VStack(spacing: 8) {
+      // Header with tournament name and level
       HStack {
         Text(context.attributes.tournamentName)
-          .font(.headline)
+          .font(.subheadline)
           .foregroundColor(.primary)
         Spacer()
         Text("Level \(context.state.currentBlindLevel)")
-          .font(.subheadline)
+          .font(.caption)
           .foregroundColor(.secondary)
       }
-            
-      // Blinds or Paused state
-      if context.state.paused {
-        VStack(spacing: 4) {
-          Text("TOURNAMENT PAUSED")
-            .font(.title2)
-            .bold()
-            .foregroundColor(.orange)
-          Text(
-            "Current: \(context.state.currentSmallBlind)/\(context.state.currentBigBlind)"
-          )
-          .font(.subheadline)
-          .foregroundColor(.secondary)
-        }
-      } else {
-        HStack(spacing: 20) {
-          VStack(alignment: .leading, spacing: 4) {
-            Text("Current Blinds")
-              .font(.caption)
-              .foregroundColor(.secondary)
-            Text(
-              "\(context.state.currentSmallBlind)/\(context.state.currentBigBlind)"
-            )
-            .font(.title2)
-            .bold()
-            .foregroundColor(.primary)
-          }
-                    
-          Spacer()
-                    
-          Image(systemName: "arrow.right")
-            .foregroundColor(.secondary)
-                    
-          Spacer()
-                    
-          VStack(alignment: .trailing, spacing: 4) {
-            Text("Next Blinds")
-              .font(.caption)
-              .foregroundColor(.secondary)
-            Text(
-              "\(context.state.nextSmallBlind)/\(context.state.nextBigBlind)"
-            )
-            .font(.title2)
-            .bold()
-            .foregroundColor(.primary)
-          }
-        }
-      }
-            
-      // Timer section
+      
+      // Main timer section - most prominent
       HStack(spacing: 8) {
         Image(systemName: context.state.paused ? "pause.circle.fill" : "timer")
+          .font(.headline)
           .foregroundColor(context.state.paused ? .orange : .green)
-                
+        
         if context.state.paused {
-          Text("Timer Paused")
-            .font(.subheadline)
-            .foregroundColor(.orange)
+          VStack(alignment: .leading, spacing: 1) {
+            Text("PAUSED")
+              .font(.headline)
+              .bold()
+              .foregroundColor(.orange)
+            Text("Time left: \(formatTime(context.state.timeLeft))")
+              .font(.title2)
+              .bold()
+              .monospacedDigit()
+              .foregroundColor(.primary)
+          }
         } else {
-          Text(timerInterval: Date()...context.state.endTime, countsDown: true)
-            .font(.subheadline)
+          VStack(alignment: .leading, spacing: 1) {
+            Text("Time Remaining")
+              .font(.caption2)
+              .foregroundColor(.secondary)
+            Text(
+              timerInterval: Date()...context.state.endTime,
+              countsDown: true
+            )
+            .font(.title)
             .bold()
             .monospacedDigit()
             .foregroundColor(.primary)
+          }
         }
-                
+        
         Spacer()
       }
+      
+      // Blinds section - current more prominent than next
+      HStack(spacing: 12) {
+        // Current blinds - larger and more prominent
+        VStack(alignment: .leading, spacing: 2) {
+          Text("Current Blinds")
+            .font(.caption)
+            .bold()
+            .foregroundColor(.primary)
+          Text(
+            "\(context.state.currentSmallBlind)/\(context.state.currentBigBlind)"
+          )
+          .font(.headline)
+          .bold()
+          .foregroundColor(.primary)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        
+        // Arrow
+        Image(systemName: "arrow.right")
+          .font(.subheadline)
+          .foregroundColor(.secondary)
+        
+        // Next blinds - smaller and less prominent
+        VStack(alignment: .trailing, spacing: 2) {
+          Text("Next")
+            .font(.caption2)
+            .foregroundColor(Color.secondary.opacity(0.7))
+          Text("\(context.state.nextSmallBlind)/\(context.state.nextBigBlind)")
+            .font(.subheadline)
+            .foregroundColor(.secondary)
+        }
+        .frame(maxWidth: .infinity, alignment: .trailing)
+      }
     }
-    .padding(16)
+    .padding(12)
     .background(Color(UIColor.systemBackground))
   }
 }
 
+// Helper function to format time
+func formatTime(_ timeInterval: TimeInterval) -> String {
+  let minutes = Int(timeInterval) / 60
+  let seconds = Int(timeInterval) % 60
+  return String(format: "%d:%02d", minutes, seconds)
+}
 
 #Preview(
   "Live Activity",
@@ -197,6 +213,3 @@ struct PokerTimerLiveActivityView: View {
   PokerTimerWidgetAttributes.ContentState.pausedState
   PokerTimerWidgetAttributes.ContentState.lowTimeState
 }
-
-
-

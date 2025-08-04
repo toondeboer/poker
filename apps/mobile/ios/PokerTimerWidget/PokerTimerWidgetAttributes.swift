@@ -1,10 +1,10 @@
+
 //
 //  PokerTimerAttributes.swift
 //  PokerTimer
 //
 //  Created by Toon de Boer on 22/07/2025.
 //
-
 import Foundation
 import ActivityKit
 
@@ -17,10 +17,10 @@ struct PokerTimerWidgetAttributes: ActivityAttributes {
     var nextBigBlind: Int
     var endTime: Date
     var paused: Bool
+    var timeLeft: TimeInterval  // Added for paused state
         
-    // Remove timeLeft as it's redundant with endTime
     var timeRemaining: TimeInterval {
-      return endTime.timeIntervalSinceNow
+      return paused ? timeLeft : endTime.timeIntervalSinceNow
     }
   }
     
@@ -43,7 +43,8 @@ extension PokerTimerWidgetAttributes.ContentState {
       nextSmallBlind: 150,
       nextBigBlind: 300,
       endTime: Date().addingTimeInterval(3600),
-      paused: false
+      paused: false,
+      timeLeft: 0
     )
   }
     
@@ -55,7 +56,8 @@ extension PokerTimerWidgetAttributes.ContentState {
       nextSmallBlind: 400,
       nextBigBlind: 800,
       endTime: Date().addingTimeInterval(800),
-      paused: true
+      paused: true,
+      timeLeft: 800  // 13 minutes 20 seconds remaining
     )
   }
     
@@ -67,10 +69,8 @@ extension PokerTimerWidgetAttributes.ContentState {
       nextSmallBlind: 1500,
       nextBigBlind: 3000,
       endTime: Date().addingTimeInterval(45),
-      paused: false
+      paused: false,
+      timeLeft: 0
     )
   }
 }
-
-
-

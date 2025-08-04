@@ -31,7 +31,7 @@ export class TimerLiveActivity {
         nextSmallBlind: nextBlindLevel?.small || 0,
         nextBigBlind: nextBlindLevel?.big || 0,
         endTime: state.endTime,
-        durationSeconds: state.paused ? state.timeLeft : undefined,
+        timeLeft: state.paused ? state.timeLeft : undefined,
         paused: state.paused,
       };
 

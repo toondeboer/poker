@@ -7,6 +7,6 @@ export interface PokerTimerState {
   nextSmallBlind: number;
   nextBigBlind: number;
   endTime?: number; // Unix timestamp in milliseconds (JS format)
-  durationSeconds?: number; // How many seconds the timer should run
+  timeLeft?: number; // How many seconds the timer should run
   paused: boolean;
 }

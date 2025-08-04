@@ -53,8 +53,8 @@ class LiveActivityService {
       // Handle timing - convert from JS milliseconds to seconds for Swift
       if (state.endTime && !state.paused) {
         activityData.endTime = Math.floor(state.endTime / 1000);
-      } else if (state.durationSeconds) {
-        activityData.timeLeft = state.durationSeconds;
+      } else if (state.timeLeft) {
+        activityData.timeLeft = state.timeLeft;
       }
 
       // Check if we have an activity ID and if it's still active
