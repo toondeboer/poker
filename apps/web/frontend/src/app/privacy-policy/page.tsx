@@ -172,9 +172,9 @@ const PrivacyPolicy: React.FC<PrivacyPolicyProps> = ({
           <div className="bg-blue-50 p-4 rounded-lg">
             <p className="text-blue-800 font-medium">App Store Services</p>
             <p className="text-blue-700 text-sm mt-1">
-              The only external connection is through your device's app store
-              (Apple App Store/Google Play Store) for app downloads and updates,
-              which are governed by their respective privacy policies.
+              The only external connection is through your device&apos;s app
+              store (Apple App Store/Google Play Store) for app downloads and
+              updates, which are governed by their respective privacy policies.
             </p>
           </div>
         </div>
@@ -268,7 +268,7 @@ const PrivacyPolicy: React.FC<PrivacyPolicyProps> = ({
 
         {/* Privacy Sections */}
         <div className="space-y-8">
-          {sections.map((section, index) => (
+          {sections.map((section) => (
             <div key={section.id} className="bg-white rounded-xl shadow-sm p-8">
               <div className="flex items-center space-x-4 mb-6">
                 <div className="p-2 bg-gray-100 rounded-lg text-gray-600">
@@ -320,7 +320,7 @@ const PrivacyPolicy: React.FC<PrivacyPolicyProps> = ({
               </p>
               <ul className="list-disc list-inside space-y-1 text-sm text-gray-600">
                 <li>Posting the new policy in the app</li>
-                <li>Updating the "Last updated" date</li>
+                <li>Updating the &quot;Last updated&quot; date</li>
                 <li>Sending an in-app notification for significant changes</li>
               </ul>
             </div>
