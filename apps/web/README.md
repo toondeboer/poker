@@ -2,4 +2,7 @@
 
 ## React Next.js frontend
 
-## AWS backend
+Run locally:
+```bash
+    npm run dev
+```
