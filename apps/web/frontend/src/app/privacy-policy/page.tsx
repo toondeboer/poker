@@ -71,22 +71,32 @@ const PrivacyPolicy: React.FC<PrivacyPolicyProps> = ({
     {
       id: "data-usage",
       icon: <Eye className="w-6 h-6" />,
-      title: "How We Use Your Information",
+      title: "How Your Local Data Works",
       content: (
         <div className="space-y-3">
-          <p className="text-gray-600">We use the collected information to:</p>
+          <p className="text-gray-600">
+            Your locally stored information is used only to:
+          </p>
           <ul className="list-disc list-inside space-y-1 text-gray-600">
-            <li>Provide and maintain the poker timer functionality</li>
-            <li>Save your preferences and game settings</li>
-            <li>Improve app performance and user experience</li>
-            <li>Fix bugs and prevent crashes</li>
-            <li>Analyze usage patterns to enhance features</li>
-            <li>Provide customer support when requested</li>
+            <li>Save your timer preferences and settings</li>
+            <li>Remember your custom tournament structures</li>
+            <li>Maintain your sound and notification preferences</li>
+            <li>Provide a personalized poker timing experience</li>
           </ul>
           <div className="bg-blue-50 p-4 rounded-lg border-l-4 border-blue-400">
             <p className="text-blue-800 font-medium">
-              We do not share, sell, or rent your personal information to third
-              parties for marketing purposes.
+              Your data never leaves your device. We have no servers collecting
+              or storing your information.
+            </p>
+          </div>
+          <div className="bg-gray-50 p-4 rounded-lg">
+            <h4 className="font-semibold text-gray-800 mb-2">
+              Complete Privacy
+            </h4>
+            <p className="text-gray-600">
+              Since no data is transmitted or collected, there are no privacy
+              concerns about data sharing, third-party access, or data breaches
+              from our servers.
             </p>
           </div>
         </div>
@@ -95,30 +105,39 @@ const PrivacyPolicy: React.FC<PrivacyPolicyProps> = ({
     {
       id: "data-storage",
       icon: <Smartphone className="w-6 h-6" />,
-      title: "Data Storage and Security",
+      title: "Local Data Storage",
       content: (
         <div className="space-y-4">
           <div>
-            <h4 className="font-semibold text-gray-800 mb-2">Local Storage</h4>
+            <h4 className="font-semibold text-gray-800 mb-2">
+              Device-Only Storage
+            </h4>
             <p className="text-gray-600 mb-2">
-              Most of your data is stored locally on your device, including:
+              All your data is stored exclusively on your device using secure
+              local storage:
             </p>
             <ul className="list-disc list-inside space-y-1 text-gray-600">
               <li>Tournament structures and blind levels</li>
-              <li>Player information and game history</li>
-              <li>App preferences and settings</li>
+              <li>Timer configurations and preferences</li>
+              <li>Sound and notification settings</li>
+              <li>Custom app configurations</li>
             </ul>
           </div>
           <div>
-            <h4 className="font-semibold text-gray-800 mb-2">
-              Security Measures
-            </h4>
+            <h4 className="font-semibold text-gray-800 mb-2">Data Control</h4>
             <ul className="list-disc list-inside space-y-1 text-gray-600">
-              <li>Data encryption in transit and at rest</li>
-              <li>Secure authentication protocols</li>
-              <li>Regular security audits and updates</li>
-              <li>Limited access to personal information</li>
+              <li>You have complete control over your data</li>
+              <li>Data is deleted when you uninstall the app</li>
+              <li>No external backups or cloud storage</li>
+              <li>No data synchronization across devices</li>
             </ul>
+          </div>
+          <div className="bg-yellow-50 p-4 rounded-lg border-l-4 border-yellow-400">
+            <p className="text-yellow-800">
+              <strong>Important:</strong> Since data is stored locally only,
+              uninstalling the app will permanently delete your custom settings
+              and tournament structures.
+            </p>
           </div>
         </div>
       ),
@@ -129,29 +148,35 @@ const PrivacyPolicy: React.FC<PrivacyPolicyProps> = ({
       title: "Third-Party Services",
       content: (
         <div className="space-y-3">
-          <p className="text-gray-600">
-            Our app may use third-party services for:
-          </p>
-          <div className="grid md:grid-cols-2 gap-4">
-            <div className="bg-gray-50 p-4 rounded-lg">
-              <h4 className="font-semibold text-gray-800 mb-2">Analytics</h4>
-              <p className="text-sm text-gray-600">
-                Anonymous usage statistics to improve the app experience
-              </p>
-            </div>
-            <div className="bg-gray-50 p-4 rounded-lg">
-              <h4 className="font-semibold text-gray-800 mb-2">
-                Crash Reporting
-              </h4>
-              <p className="text-sm text-gray-600">
-                Error logs to identify and fix app issues
-              </p>
-            </div>
+          <div className="bg-green-50 p-4 rounded-lg border-l-4 border-green-400">
+            <p className="text-green-800 font-semibold">
+              No Third-Party Data Sharing
+            </p>
+            <p className="text-green-700 mt-1">
+              Poker Blinds Buzzer does not integrate with any third-party
+              analytics, advertising, or data collection services.
+            </p>
           </div>
-          <p className="text-sm text-gray-500 italic">
-            These services have their own privacy policies and may collect
-            additional information.
-          </p>
+          <div>
+            <h4 className="font-semibold text-gray-800 mb-2">
+              What This Means:
+            </h4>
+            <ul className="list-disc list-inside space-y-1 text-gray-600">
+              <li>No analytics tracking (Google Analytics, Firebase, etc.)</li>
+              <li>No advertising networks or ad tracking</li>
+              <li>No crash reporting services</li>
+              <li>No social media integrations</li>
+              <li>No cloud storage or backup services</li>
+            </ul>
+          </div>
+          <div className="bg-blue-50 p-4 rounded-lg">
+            <p className="text-blue-800 font-medium">App Store Services</p>
+            <p className="text-blue-700 text-sm mt-1">
+              The only external connection is through your device's app store
+              (Apple App Store/Google Play Store) for app downloads and updates,
+              which are governed by their respective privacy policies.
+            </p>
+          </div>
         </div>
       ),
     },
@@ -221,10 +246,10 @@ const PrivacyPolicy: React.FC<PrivacyPolicyProps> = ({
 
           <div className="prose prose-gray max-w-none">
             <p className="text-lg text-gray-700 leading-relaxed mb-6">
-              At {companyName}, we respect your privacy and are committed to
-              protecting your personal information. This Privacy Policy explains
-              how we collect, use, and safeguard your information when you use{" "}
-              {appName}.
+              Poker Blinds Buzzer is designed with privacy in mind. We do not
+              collect, store, or transmit any personal data. All your tournament
+              settings, preferences, and configurations are stored locally on
+              your device only.
             </p>
 
             <div className="bg-gradient-to-r from-blue-50 to-indigo-50 p-6 rounded-lg border border-blue-200">
@@ -232,10 +257,10 @@ const PrivacyPolicy: React.FC<PrivacyPolicyProps> = ({
                 Key Privacy Principles
               </h3>
               <ul className="space-y-1 text-blue-800">
-                <li>• Your tournament data stays on your device</li>
-                <li>• We don't sell your personal information</li>
-                <li>• You control your data and privacy settings</li>
-                <li>• Minimal data collection for essential functionality</li>
+                <li>• No data collection or transmission to servers</li>
+                <li>• All your data stays on your device</li>
+                <li>• No third-party tracking or analytics</li>
+                <li>• Complete privacy and offline functionality</li>
               </ul>
             </div>
           </div>
