@@ -9,19 +9,11 @@ import {
   AlertCircle,
 } from "lucide-react";
 
-interface PrivacyPolicyProps {
-  appName?: string;
-  companyName?: string;
-  contactEmail?: string;
-  lastUpdated?: string;
-}
-
-const PrivacyPolicy: React.FC<PrivacyPolicyProps> = ({
-  appName = "Poker Blinds Buzzer",
-  companyName = "Poker Blinds Buzzer",
-  contactEmail = "poker.blinds.buzzer@gmail.com",
-  lastUpdated = "August 2025",
-}) => {
+const PrivacyPolicy: React.FC = () => {
+  const appName = "Poker Blinds Buzzer";
+  const companyName = "Poker Blinds Buzzer";
+  const contactEmail = "poker.blinds.buzzer@gmail.com";
+  const lastUpdated = "August 2025";
   const sections = [
     {
       id: "information-collection",
@@ -268,7 +260,7 @@ const PrivacyPolicy: React.FC<PrivacyPolicyProps> = ({
 
         {/* Privacy Sections */}
         <div className="space-y-8">
-          {sections.map((section) => (
+          {sections.map((section, index) => (
             <div key={section.id} className="bg-white rounded-xl shadow-sm p-8">
               <div className="flex items-center space-x-4 mb-6">
                 <div className="p-2 bg-gray-100 rounded-lg text-gray-600">
