@@ -1,10 +1,8 @@
 // src/hooks/useTimerEngine.ts
 import { useEffect, useRef, useState } from "react";
 import { TimerState, TimerStorage } from "@/src/services/TimerStorage";
-import {
-  BlindLevel,
-  TimerLiveActivity,
-} from "@/src/services/TimerLiveActivity";
+import {BlindLevel} from "@/src/types/BlindLevel";
+import {liveActivityService} from "@/src/services/LiveActivityService";
 
 const DEFAULT_TIMER_DURATION = 600;
 
@@ -14,9 +12,9 @@ export interface TimerEngineCallbacks {
 }
 
 export function useTimerEngine(
-  currentBlindIndex: number,
-  blindLevels: BlindLevel[],
-  callbacks: TimerEngineCallbacks,
+    currentBlindLevel: number,
+    blindLevels: BlindLevel[],
+    callbacks: TimerEngineCallbacks,
 ) {
   const [timerDuration, setTimerDuration] = useState(DEFAULT_TIMER_DURATION);
   const [endTime, setEndTime] = useState<number>();
@@ -34,12 +32,15 @@ export function useTimerEngine(
 
   // Update Live Activity with current state
   const updateLiveActivity = async () => {
-    await TimerLiveActivity.updateLiveActivity({
+    await liveActivityService.startOrUpdateActivity({
       endTime,
       timeLeft,
       paused,
-      currentBlindIndex,
-      blindLevels,
+      currentBlindLevel: currentBlindLevel + 1, // Display as 1-based index
+      currentSmallBlind: blindLevels[currentBlindLevel]?.small || 0,
+      currentBigBlind: blindLevels[currentBlindLevel]?.big || 0,
+      nextSmallBlind: blindLevels[currentBlindLevel + 1]?.small || 0,
+      nextBigBlind: blindLevels[currentBlindLevel + 1]?.big || 0,
     });
   };
 
@@ -199,7 +200,7 @@ export function useTimerEngine(
     if (!isLoading) {
       updateLiveActivity();
     }
-  }, [endTime, paused, currentBlindIndex, blindLevels, isLoading]);
+  }, [endTime, paused, currentBlindLevel, blindLevels, isLoading]);
 
   useEffect(() => {
     if (paused && endTime === undefined && timeLeft > timerDuration) {

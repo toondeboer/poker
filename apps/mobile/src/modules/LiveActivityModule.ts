@@ -1,5 +1,5 @@
 // src/modules/LiveActivityModule.ts
-import { NativeModules } from "react-native";
+import { NativeModules, Platform } from "react-native";
 
 export interface LiveActivityData {
   tournamentName?: string;
@@ -8,7 +8,7 @@ export interface LiveActivityData {
   currentBigBlind: number;
   nextSmallBlind: number;
   nextBigBlind: number;
-  endTime?: number; // Unix timestamp in seconds
+  endTime?: number; // Unix timestamp in milliseconds for iOS, seconds for Android
   timeLeft?: number; // Duration in seconds from now
   paused: boolean;
 }
@@ -21,4 +21,17 @@ interface LiveActivityModule {
   getActiveActivities(): Promise<string[]>;
 }
 
+interface ForegroundServiceModule {
+  startService(data: LiveActivityData): Promise<string>;
+  updateService(data: LiveActivityData): Promise<string>;
+  stopService(): Promise<string>;
+  isServiceSupported(): Promise<boolean>;
+  hasNotificationPermission(): Promise<boolean>;
+  isServiceRunning(): Promise<boolean>;
+}
+
+// Platform-specific exports
 export const LiveActivity: LiveActivityModule = NativeModules.RNLiveActivity;
+export const ForegroundService: ForegroundServiceModule = NativeModules.RNForegroundService;
+
+

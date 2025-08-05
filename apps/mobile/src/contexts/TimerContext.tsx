@@ -6,11 +6,12 @@ import React, {
   useRef,
   useState,
 } from "react";
-import { AppState, AppStateStatus } from "react-native";
+import { AppState, AppStateStatus, Platform } from "react-native";
 import { Sound, useSounds } from "@/src/hooks/useSounds";
 import { useBlinds } from "@/src/contexts/BlindsContext";
 import { useTimerNotification } from "@/src/hooks/useTimerNotification";
 import { useTimerEngine } from "@/src/hooks/useTimerEngine";
+import { useNotificationPermission } from "@/src/hooks/useNotificationPermission";
 import { liveActivityService } from "@/src/services/LiveActivityService";
 
 type TimerContextType = {
@@ -26,6 +27,12 @@ type TimerContextType = {
   showTimerAlert: boolean;
   dismissTimerAlert: () => void;
   handleNextBlinds: () => void;
+  // Permission state
+  hasNotificationPermission: boolean | null;
+  requestNotificationPermission: () => Promise<boolean>;
+  showPermissionAlert: () => void;
+  // Background activity state
+  isBackgroundActivitySupported: boolean;
 };
 
 const TimerContext = createContext<TimerContextType | null>(null);
@@ -37,8 +44,17 @@ export function TimerProvider({ children }: Readonly<{ children: ReactNode }>) {
     useTimerNotification();
 
   const [showTimerAlert, setShowTimerAlert] = useState(false);
+  const [isBackgroundActivitySupported, setIsBackgroundActivitySupported] =
+    useState(false);
   const appState = useRef(AppState.currentState);
   const alarmPlayingRef = useRef(false);
+
+  // Permission handling
+  const {
+    hasPermission: hasNotificationPermission,
+    requestPermission: requestNotificationPermission,
+    showPermissionAlert,
+  } = useNotificationPermission();
 
   // Handle timer completion
   const handleTimerComplete = async () => {
@@ -104,6 +120,8 @@ export function TimerProvider({ children }: Readonly<{ children: ReactNode }>) {
   const resetTimer = async () => {
     await engineResetTimer();
     await cancelNotification();
+    // End background activity when timer is reset
+    await liveActivityService.endActivity();
     // Dismiss alert and stop sound if active
     if (showTimerAlert) {
       setShowTimerAlert(false);
@@ -145,6 +163,27 @@ export function TimerProvider({ children }: Readonly<{ children: ReactNode }>) {
     }, 100);
   };
 
+  // Check if background activities are supported
+  useEffect(() => {
+    const checkBackgroundSupport = async () => {
+      const isSupported = liveActivityService.isDeviceSupported();
+      setIsBackgroundActivitySupported(isSupported);
+
+      if (isSupported && Platform.OS === "android") {
+        // For Android, also check notification permission
+        const hasPermission =
+          await liveActivityService.requestNotificationPermission();
+        if (!hasPermission) {
+          console.warn(
+            "Background activity available but notification permission denied",
+          );
+        }
+      }
+    };
+
+    checkBackgroundSupport();
+  }, []);
+
   // Handle app state changes
   useEffect(() => {
     const handleAppStateChange = (nextAppState: AppStateStatus) => {
@@ -178,12 +217,14 @@ export function TimerProvider({ children }: Readonly<{ children: ReactNode }>) {
     loadTimerState();
   }, []);
 
-  // Cleanup sound when component unmounts
+  // Cleanup on unmount
   useEffect(() => {
     return () => {
       if (alarmPlayingRef.current) {
         stopSound();
       }
+      // End background activity when component unmounts
+      liveActivityService.endActivity();
     };
   }, []);
 
@@ -201,6 +242,10 @@ export function TimerProvider({ children }: Readonly<{ children: ReactNode }>) {
         showTimerAlert,
         dismissTimerAlert,
         handleNextBlinds,
+        hasNotificationPermission,
+        requestNotificationPermission,
+        showPermissionAlert,
+        isBackgroundActivitySupported,
       }}
     >
       {children}
