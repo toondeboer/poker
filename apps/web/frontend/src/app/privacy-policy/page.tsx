@@ -260,7 +260,7 @@ const PrivacyPolicy: React.FC = () => {
 
         {/* Privacy Sections */}
         <div className="space-y-8">
-          {sections.map((section, index) => (
+          {sections.map((section) => (
             <div key={section.id} className="bg-white rounded-xl shadow-sm p-8">
               <div className="flex items-center space-x-4 mb-6">
                 <div className="p-2 bg-gray-100 rounded-lg text-gray-600">
