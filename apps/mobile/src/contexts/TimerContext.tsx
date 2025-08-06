@@ -40,8 +40,7 @@ const TimerContext = createContext<TimerContextType | null>(null);
 export function TimerProvider({ children }: Readonly<{ children: ReactNode }>) {
   const { playSound, stopSound, isLoaded } = useSounds(Sound.ALARM);
   const { increaseBlinds, currentBlindIndex, blindLevels } = useBlinds();
-  const { scheduleNotification, cancelNotification, isAppInForeground } =
-    useTimerNotification();
+  const { scheduleNotification, cancelNotification } = useTimerNotification();
 
   const [showTimerAlert, setShowTimerAlert] = useState(false);
   const [isBackgroundActivitySupported, setIsBackgroundActivitySupported] =

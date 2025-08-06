@@ -32,3 +32,11 @@ To deploy your app to iOS, you need to create a development build. Follow these 
    ```bash
    eas submit -p ios --latest  
    ```
+
+## Local development
+
+### Android
+Create a new `local.properties` file in the `android` directory with the following content:
+
+```properties
+sdk.dir=/Users/your-username/Library/Android/sdk

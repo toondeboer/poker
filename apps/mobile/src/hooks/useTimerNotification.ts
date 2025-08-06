@@ -8,10 +8,9 @@ import { AppState, Platform } from "react-native";
 const NOTIFICATION_CATEGORY = "timerActions";
 const REPEAT_INTERVAL = 8; // Schedule next notification slightly before current one ends
 
-// Define your custom sounds
+// Define your custom sounds - Android needs the file extension removed
 const CUSTOM_SOUNDS = {
-  timer_complete: Platform.OS === "ios" ? "alarm.wav" : "timer_complete",
-  // Add more custom sounds as needed
+  timer_complete: Platform.OS === "ios" ? "alarm.wav" : "alarm", // Remove .wav for Android
 } as const;
 
 export function useTimerNotification() {
@@ -19,8 +18,6 @@ export function useTimerNotification() {
     string[]
   >([]);
   const [hasPermission, setHasPermission] = useState<boolean>(false);
-  const [isContinuousMode, setIsContinuousMode] = useState<boolean>(false);
-  const [appState, setAppState] = useState<string>(AppState.currentState);
 
   const continuousDataRef = useRef<{
     blindLevel?: BlindLevel;
@@ -82,8 +79,6 @@ export function useTimerNotification() {
   };
 
   const handleAppStateChange = async (nextAppState: string) => {
-    setAppState(nextAppState);
-
     // If app comes to foreground, clear all notifications
     if (nextAppState === "active") {
       await clearAllNotifications();
@@ -122,7 +117,7 @@ export function useTimerNotification() {
 
       // Android-specific channel configuration
       if (Platform.OS === "android") {
-        // Create multiple channels for different notification types with different sounds
+        // Create notification channel with custom sound
         await Notifications.setNotificationChannelAsync("timer-complete", {
           name: "Timer Complete",
           importance: Notifications.AndroidImportance.HIGH,
@@ -130,11 +125,74 @@ export function useTimerNotification() {
           lightColor: "#FF231F7C",
           sound: CUSTOM_SOUNDS.timer_complete,
           enableVibrate: true,
+          lockscreenVisibility:
+            Notifications.AndroidNotificationVisibility.PUBLIC,
+          bypassDnd: true, // This helps with alarm-like behavior
+        });
+
+        // Create an alarm-style channel for continuous notifications
+        await Notifications.setNotificationChannelAsync("timer-alarm", {
+          name: "Timer Alarm",
+          importance: Notifications.AndroidImportance.HIGH,
+          vibrationPattern: [0, 500, 200, 500, 200, 500],
+          lightColor: "#FF231F7C",
+          sound: CUSTOM_SOUNDS.timer_complete,
+          enableVibrate: true,
+          lockscreenVisibility:
+            Notifications.AndroidNotificationVisibility.PUBLIC,
+          bypassDnd: true,
+          showBadge: true,
         });
       }
     } catch (error) {
       console.error("Error setting up notifications:", error);
       setHasPermission(false);
+    }
+  };
+
+  // Android Alarm Alternative Function
+  const scheduleAndroidAlarm = async (
+    seconds: number,
+    blindLevel?: BlindLevel,
+  ) => {
+    try {
+      const bodyText = blindLevel
+        ? `New blind levels: ${blindLevel.small} / ${blindLevel.big}`
+        : "Time is up!";
+
+      // Use the alarm-style channel
+      const notificationId = await Notifications.scheduleNotificationAsync({
+        content: {
+          title: "⏰ Poker Timer - ALARM!",
+          body: bodyText,
+          sound: CUSTOM_SOUNDS.timer_complete,
+          priority: Notifications.AndroidNotificationPriority.MAX,
+          categoryIdentifier: NOTIFICATION_CATEGORY,
+          data: {
+            type: "timer_alarm",
+            blindLevel: blindLevel,
+            isAlarm: true,
+          },
+          sticky: true, // Makes notification harder to dismiss
+        },
+        trigger: {
+          type: SchedulableTriggerInputTypes.TIME_INTERVAL,
+          seconds: Math.max(1, Math.floor(seconds)),
+          channelId: "timer-alarm",
+        },
+      });
+
+      setScheduledNotificationIds([notificationId]);
+
+      continuousDataRef.current = {
+        blindLevel,
+        startTime: Date.now(),
+      };
+
+      return notificationId;
+    } catch (error) {
+      console.error("Failed to schedule Android alarm:", error);
+      return null;
     }
   };
 
@@ -149,7 +207,6 @@ export function useTimerNotification() {
       : "Time is up!";
 
     const soundToUse = CUSTOM_SOUNDS.timer_complete;
-    const channelId = "timer-complete";
 
     try {
       // Schedule notifications every REPEAT_INTERVAL seconds for maxDuration
@@ -170,9 +227,6 @@ export function useTimerNotification() {
               sequenceNumber: i + 1,
               isRepeating: true,
             },
-            ...(Platform.OS === "android" && {
-              channelId: channelId,
-            }),
           },
           trigger: {
             type: SchedulableTriggerInputTypes.TIME_INTERVAL,
@@ -182,13 +236,6 @@ export function useTimerNotification() {
 
         notifications.push(notificationId);
       }
-
-      setScheduledNotificationIds(notifications);
-      setIsContinuousMode(true);
-      continuousDataRef.current = {
-        blindLevel,
-        startTime: Date.now(),
-      };
 
       console.log(
         `Scheduled ${notifications.length} repeating notifications starting in ${startDelay} seconds`,
@@ -204,7 +251,6 @@ export function useTimerNotification() {
   const scheduleNotification = async (
     seconds: number,
     newBlindLevel?: BlindLevel,
-    enableContinuous: boolean = true,
   ) => {
     if (!hasPermission) {
       console.warn("No notification permission, attempting to request...");
@@ -226,44 +272,12 @@ export function useTimerNotification() {
         );
       }
 
-      if (enableContinuous) {
-        // Schedule repeating notifications for continuous sound
-        await scheduleRepeatingNotifications(seconds, newBlindLevel);
-      } else {
-        // Schedule single notification (original behavior)
-        const bodyText = newBlindLevel
-          ? `New blind levels: ${newBlindLevel.small} / ${newBlindLevel.big}`
-          : "Time is up!";
-
-        const soundToUse = CUSTOM_SOUNDS.timer_complete;
-        const channelId = "timer-complete";
-
-        const notificationId = await Notifications.scheduleNotificationAsync({
-          content: {
-            title: "Poker Timer - Time's Up!",
-            body: bodyText,
-            sound: soundToUse,
-            categoryIdentifier: NOTIFICATION_CATEGORY,
-            data: {
-              type: "timer_complete",
-              blindLevel: newBlindLevel,
-              isRepeating: false,
-            },
-            ...(Platform.OS === "android" && {
-              channelId: channelId,
-            }),
-          },
-          trigger: {
-            type: SchedulableTriggerInputTypes.TIME_INTERVAL,
-            seconds: Math.max(1, Math.floor(seconds)),
-          },
-        });
-
-        setScheduledNotificationIds([notificationId]);
-        console.log(
-          `Single notification scheduled for ${seconds} seconds with ID: ${notificationId}`,
-        );
+      // Use Android alarm mode if requested and on Android
+      if (Platform.OS === "android") {
+        return await scheduleAndroidAlarm(seconds, newBlindLevel);
       }
+
+      await scheduleRepeatingNotifications(seconds, newBlindLevel);
     } catch (error) {
       console.error("Failed to schedule notification:", error);
     }
@@ -283,7 +297,6 @@ export function useTimerNotification() {
           `Stopped ${scheduledNotificationIds.length} continuous notifications`,
         );
         setScheduledNotificationIds([]);
-        setIsContinuousMode(false);
         continuousDataRef.current = null;
       }
     } catch (error) {
@@ -306,7 +319,6 @@ export function useTimerNotification() {
 
       // Reset local state
       setScheduledNotificationIds([]);
-      setIsContinuousMode(false);
       continuousDataRef.current = null;
 
       console.log("Cleared all scheduled and delivered notifications");
@@ -315,38 +327,8 @@ export function useTimerNotification() {
     }
   };
 
-  // Cancel all scheduled notifications (useful for cleanup)
-  const cancelAllNotifications = async () => {
-    await clearAllNotifications();
-  };
-
-  // Get all scheduled notifications (for debugging)
-  const getScheduledNotifications = async () => {
-    try {
-      const notifications =
-        await Notifications.getAllScheduledNotificationsAsync();
-      console.log("Scheduled notifications:", notifications);
-      return notifications;
-    } catch (error) {
-      console.error("Failed to get scheduled notifications:", error);
-      return [];
-    }
-  };
-
   return {
     scheduleNotification,
     cancelNotification,
-    cancelAllNotifications,
-    clearAllNotifications,
-    stopContinuousNotifications,
-    getScheduledNotifications,
-    hasPermission,
-    scheduledNotificationIds,
-    isContinuousMode,
-    appState,
-    isAppInForeground: appState === "active",
-    // Utility function to check if continuous notifications are active
-    isContinuousActive: () =>
-      isContinuousMode && scheduledNotificationIds.length > 0,
   };
 }
