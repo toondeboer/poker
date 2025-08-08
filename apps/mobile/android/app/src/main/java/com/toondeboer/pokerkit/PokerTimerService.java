@@ -1,5 +1,4 @@
-// android/app/src/main/java/com/yourapp/PokerTimerService.java
-package com.toondeboer.pokerkit; // Replace with your actual package name
+package com.toondeboer.pokerkit;
 
 import android.app.Notification;
 import android.app.NotificationChannel;
@@ -8,8 +7,14 @@ import android.app.PendingIntent;
 import android.app.Service;
 import android.content.Context;
 import android.content.Intent;
+import android.media.AudioAttributes;
+import android.media.MediaPlayer;
+import android.media.RingtoneManager;
+import android.net.Uri;
 import android.os.Build;
 import android.os.IBinder;
+import android.os.VibrationEffect;
+import android.os.Vibrator;
 import androidx.core.app.NotificationCompat;
 import androidx.annotation.Nullable;
 import android.os.Handler;
@@ -17,8 +22,11 @@ import android.os.Looper;
 
 public class PokerTimerService extends Service {
     private static final String CHANNEL_ID = "PokerTimerChannel";
+    private static final String ALERT_CHANNEL_ID = "PokerTimerAlertChannel";
     private static final String CHANNEL_NAME = "Poker Timer";
+    private static final String ALERT_CHANNEL_NAME = "Poker Timer Alerts";
     private static final int NOTIFICATION_ID = 1001;
+    private static final int ALERT_NOTIFICATION_ID = 1002;
 
     // Intent extras
     public static final String EXTRA_TOURNAMENT_NAME = "tournamentName";
@@ -30,15 +38,21 @@ public class PokerTimerService extends Service {
     public static final String EXTRA_END_TIME = "endTime";
     public static final String EXTRA_TIME_LEFT = "timeLeft";
     public static final String EXTRA_PAUSED = "paused";
+    public static final String EXTRA_SHOULD_ALERT_ON_EXPIRY = "shouldAlertOnExpiry";
 
     // Actions
     public static final String ACTION_START = "START_TIMER_SERVICE";
     public static final String ACTION_UPDATE = "UPDATE_TIMER_SERVICE";
     public static final String ACTION_STOP = "STOP_TIMER_SERVICE";
+    public static final String ACTION_DISMISS_ALERT = "DISMISS_ALERT";
 
     private Handler handler;
     private Runnable updateRunnable;
     private NotificationManager notificationManager;
+    private MediaPlayer mediaPlayer;
+    private Vibrator vibrator;
+    private Handler alertHandler;
+    private Runnable alertRunnable;
 
     // Timer state
     private String tournamentName = "Poker Tournament";
@@ -50,13 +64,18 @@ public class PokerTimerService extends Service {
     private long endTime = 0;
     private int timeLeft = 0;
     private boolean paused = true;
+    private boolean shouldAlertOnExpiry = true;
+    private boolean isAlerting = false;
+    private boolean timerExpired = false;
 
     @Override
     public void onCreate() {
         super.onCreate();
         notificationManager = (NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE);
-        createNotificationChannel();
+        vibrator = (Vibrator) getSystemService(Context.VIBRATOR_SERVICE);
+        createNotificationChannels();
         handler = new Handler(Looper.getMainLooper());
+        alertHandler = new Handler(Looper.getMainLooper());
     }
 
     @Override
@@ -70,12 +89,15 @@ public class PokerTimerService extends Service {
                 startTimer();
             } else if (ACTION_STOP.equals(action)) {
                 stopTimer();
+                stopAlert();
                 stopForeground(true);
                 stopSelf();
+            } else if (ACTION_DISMISS_ALERT.equals(action)) {
+                dismissAlert();
             }
         }
 
-        return START_STICKY; // Restart if killed
+        return START_STICKY;
     }
 
     private void updateTimerData(Intent intent) {
@@ -89,11 +111,20 @@ public class PokerTimerService extends Service {
         nextBigBlind = intent.getIntExtra(EXTRA_NEXT_BIG_BLIND, 0);
         endTime = intent.getLongExtra(EXTRA_END_TIME, 0);
         timeLeft = intent.getIntExtra(EXTRA_TIME_LEFT, 0);
-        paused = intent.getBooleanExtra(EXTRA_PAUSED, true);
+        boolean newPaused = intent.getBooleanExtra(EXTRA_PAUSED, true);
+        shouldAlertOnExpiry = intent.getBooleanExtra(EXTRA_SHOULD_ALERT_ON_EXPIRY, true);
+
+        // If timer was unpaused or time updated, reset expired state
+        if (paused && !newPaused || timeLeft > 0) {
+            timerExpired = false;
+            dismissAlert();
+        }
+
+        paused = newPaused;
     }
 
     private void startTimer() {
-        stopTimer(); // Stop any existing timer
+        stopTimer();
 
         if (!paused && endTime > 0) {
             updateRunnable = new Runnable() {
@@ -105,6 +136,12 @@ public class PokerTimerService extends Service {
                     if (newTimeLeft != timeLeft) {
                         timeLeft = newTimeLeft;
                         updateNotification();
+
+                        // Check if timer just expired
+                        if (timeLeft == 0 && !timerExpired && shouldAlertOnExpiry) {
+                            timerExpired = true;
+                            startAlert();
+                        }
                     }
 
                     if (timeLeft > 0) {
@@ -116,6 +153,168 @@ public class PokerTimerService extends Service {
         }
     }
 
+    private void startAlert() {
+        if (isAlerting) return;
+
+        isAlerting = true;
+
+        // Show alert notification
+        showAlertNotification();
+
+        // Start custom sound
+        playAlertSound();
+
+        // Start vibration pattern
+        startVibration();
+
+        // Repeat alert every 5 seconds until dismissed
+        alertRunnable = new Runnable() {
+            @Override
+            public void run() {
+                if (isAlerting) {
+                    playAlertSound();
+                    startVibration();
+                    alertHandler.postDelayed(this, 5000);
+                }
+            }
+        };
+        alertHandler.postDelayed(alertRunnable, 5000);
+    }
+
+    private void playAlertSound() {
+        try {
+            if (mediaPlayer != null) {
+                mediaPlayer.release();
+            }
+
+            // Try to load custom sound from raw resources first
+            Uri soundUri = Uri.parse("android.resource://" + getPackageName() + "/" + R.raw.alarm);
+            mediaPlayer = new MediaPlayer();
+            mediaPlayer.setDataSource(this, soundUri);
+
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+                mediaPlayer.setAudioAttributes(new AudioAttributes.Builder()
+                        .setUsage(AudioAttributes.USAGE_ALARM)
+                        .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
+                        .build());
+            }
+
+            mediaPlayer.setLooping(false);
+            mediaPlayer.prepare();
+            mediaPlayer.start();
+
+        } catch (Exception e) {
+            // Fallback to default notification sound
+            try {
+                if (mediaPlayer != null) {
+                    mediaPlayer.release();
+                }
+                Uri defaultSound = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_ALARM);
+                if (defaultSound == null) {
+                    defaultSound = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION);
+                }
+
+                mediaPlayer = new MediaPlayer();
+                mediaPlayer.setDataSource(this, defaultSound);
+
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+                    mediaPlayer.setAudioAttributes(new AudioAttributes.Builder()
+                            .setUsage(AudioAttributes.USAGE_ALARM)
+                            .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
+                            .build());
+                }
+
+                mediaPlayer.prepare();
+                mediaPlayer.start();
+
+            } catch (Exception fallbackException) {
+                // If all else fails, just vibrate
+                fallbackException.printStackTrace();
+            }
+        }
+    }
+
+    private void startVibration() {
+        if (vibrator != null && vibrator.hasVibrator()) {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                // Vibration pattern: wait 500ms, vibrate 1000ms, wait 500ms, vibrate 1000ms
+                long[] pattern = {500, 1000, 500, 1000};
+                VibrationEffect effect = VibrationEffect.createWaveform(pattern, -1);
+                vibrator.vibrate(effect);
+            } else {
+                long[] pattern = {500, 1000, 500, 1000};
+                vibrator.vibrate(pattern, -1);
+            }
+        }
+    }
+
+    private void showAlertNotification() {
+        Intent dismissIntent = new Intent(this, PokerTimerService.class);
+        dismissIntent.setAction(ACTION_DISMISS_ALERT);
+        PendingIntent dismissPendingIntent = PendingIntent.getService(
+                this,
+                1,
+                dismissIntent,
+                PendingIntent.FLAG_IMMUTABLE
+        );
+
+        Intent openAppIntent = new Intent(this, MainActivity.class);
+        openAppIntent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
+        PendingIntent openAppPendingIntent = PendingIntent.getActivity(
+                this,
+                2,
+                openAppIntent,
+                PendingIntent.FLAG_IMMUTABLE
+        );
+
+        Notification alertNotification = new NotificationCompat.Builder(this, ALERT_CHANNEL_ID)
+                .setContentTitle("Timer Finished!")
+                .setContentText("Level " + currentBlindLevel + " has ended. Time to increase blinds!")
+                .setSmallIcon(R.drawable.splashscreen_logo)
+                .setPriority(NotificationCompat.PRIORITY_HIGH)
+                .setCategory(NotificationCompat.CATEGORY_ALARM)
+                .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
+                .setAutoCancel(false)
+                .setOngoing(true)
+                .setContentIntent(openAppPendingIntent)
+                .addAction(R.drawable.splashscreen_logo, "Dismiss", dismissPendingIntent)
+                .setFullScreenIntent(openAppPendingIntent, true)
+                .build();
+
+        notificationManager.notify(ALERT_NOTIFICATION_ID, alertNotification);
+    }
+
+    private void dismissAlert() {
+        if (!isAlerting) return;
+
+        isAlerting = false;
+
+        // Stop sound
+        if (mediaPlayer != null) {
+            mediaPlayer.stop();
+            mediaPlayer.release();
+            mediaPlayer = null;
+        }
+
+        // Stop vibration
+        if (vibrator != null) {
+            vibrator.cancel();
+        }
+
+        // Stop repeating alerts
+        if (alertRunnable != null) {
+            alertHandler.removeCallbacks(alertRunnable);
+            alertRunnable = null;
+        }
+
+        // Remove alert notification
+        notificationManager.cancel(ALERT_NOTIFICATION_ID);
+    }
+
+    private void stopAlert() {
+        dismissAlert();
+    }
+
     private void stopTimer() {
         if (updateRunnable != null) {
             handler.removeCallbacks(updateRunnable);
@@ -123,8 +322,9 @@ public class PokerTimerService extends Service {
         }
     }
 
-    private void createNotificationChannel() {
+    private void createNotificationChannels() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            // Regular timer channel
             NotificationChannel channel = new NotificationChannel(
                     CHANNEL_ID,
                     CHANNEL_NAME,
@@ -133,6 +333,18 @@ public class PokerTimerService extends Service {
             channel.setDescription("Poker Timer Status");
             channel.setShowBadge(false);
             notificationManager.createNotificationChannel(channel);
+
+            // Alert channel
+            NotificationChannel alertChannel = new NotificationChannel(
+                    ALERT_CHANNEL_ID,
+                    ALERT_CHANNEL_NAME,
+                    NotificationManager.IMPORTANCE_HIGH
+            );
+            alertChannel.setDescription("Poker Timer Alerts");
+            alertChannel.enableVibration(true);
+            alertChannel.setShowBadge(true);
+            alertChannel.setLockscreenVisibility(Notification.VISIBILITY_PUBLIC);
+            notificationManager.createNotificationChannel(alertChannel);
         }
     }
 
@@ -152,7 +364,7 @@ public class PokerTimerService extends Service {
         return new NotificationCompat.Builder(this, CHANNEL_ID)
                 .setContentTitle(title)
                 .setContentText(content)
-                .setSmallIcon(R.drawable.splashscreen_logo) // You'll need to add this icon
+                .setSmallIcon(R.drawable.splashscreen_logo)
                 .setOngoing(true)
                 .setContentIntent(pendingIntent)
                 .setCategory(NotificationCompat.CATEGORY_SERVICE)
@@ -178,6 +390,8 @@ public class PokerTimerService extends Service {
             }
         } else if (timeLeft > 0) {
             content.append(" • ").append(formatTime(timeLeft));
+        } else if (timerExpired) {
+            content.append(" • TIME'S UP!");
         }
 
         if (nextSmallBlind > 0 || nextBigBlind > 0) {
@@ -203,6 +417,7 @@ public class PokerTimerService extends Service {
     public void onDestroy() {
         super.onDestroy();
         stopTimer();
+        stopAlert();
     }
 }
 

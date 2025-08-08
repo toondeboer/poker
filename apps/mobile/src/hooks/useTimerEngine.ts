@@ -1,8 +1,9 @@
 // src/hooks/useTimerEngine.ts
 import { useEffect, useRef, useState } from "react";
 import { TimerState, TimerStorage } from "@/src/services/TimerStorage";
-import {BlindLevel} from "@/src/types/BlindLevel";
-import {liveActivityService} from "@/src/services/LiveActivityService";
+import { BlindLevel } from "@/src/types/BlindLevel";
+import { liveActivityService } from "@/src/services/LiveActivityService";
+import { useAppState } from "@/src/hooks/useAppState";
 
 const DEFAULT_TIMER_DURATION = 600;
 
@@ -12,15 +13,17 @@ export interface TimerEngineCallbacks {
 }
 
 export function useTimerEngine(
-    currentBlindLevel: number,
-    blindLevels: BlindLevel[],
-    callbacks: TimerEngineCallbacks,
+  currentBlindLevel: number,
+  blindLevels: BlindLevel[],
+  callbacks: TimerEngineCallbacks,
 ) {
   const [timerDuration, setTimerDuration] = useState(DEFAULT_TIMER_DURATION);
   const [endTime, setEndTime] = useState<number>();
   const [timeLeft, setTimeLeft] = useState(DEFAULT_TIMER_DURATION);
   const [paused, setPaused] = useState(true);
   const [isLoading, setIsLoading] = useState(true);
+
+  const { isActive } = useAppState();
 
   const intervalRef = useRef<number | null>(null);
 
@@ -31,17 +34,20 @@ export function useTimerEngine(
   };
 
   // Update Live Activity with current state
-  const updateLiveActivity = async () => {
-    await liveActivityService.startOrUpdateActivity({
-      endTime,
-      timeLeft,
-      paused,
-      currentBlindLevel: currentBlindLevel + 1, // Display as 1-based index
-      currentSmallBlind: blindLevels[currentBlindLevel]?.small || 0,
-      currentBigBlind: blindLevels[currentBlindLevel]?.big || 0,
-      nextSmallBlind: blindLevels[currentBlindLevel + 1]?.small || 0,
-      nextBigBlind: blindLevels[currentBlindLevel + 1]?.big || 0,
-    });
+  const updateLiveActivity = async (shouldAlertOnExpiry: boolean) => {
+    await liveActivityService.startOrUpdateActivity(
+      {
+        endTime,
+        timeLeft,
+        paused,
+        currentBlindLevel: currentBlindLevel + 1, // Display as 1-based index
+        currentSmallBlind: blindLevels[currentBlindLevel]?.small || 0,
+        currentBigBlind: blindLevels[currentBlindLevel]?.big || 0,
+        nextSmallBlind: blindLevels[currentBlindLevel + 1]?.small || 0,
+        nextBigBlind: blindLevels[currentBlindLevel + 1]?.big || 0,
+      },
+      shouldAlertOnExpiry,
+    );
   };
 
   // Load timer state from storage
@@ -198,9 +204,17 @@ export function useTimerEngine(
   // Update Live Activity when state changes
   useEffect(() => {
     if (!isLoading) {
-      updateLiveActivity();
+      if (isActive) {
+        console.log("App is active, updating Live Activity");
+        updateLiveActivity(false);
+      } else {
+        console.log(
+          "App is in background, updating Live Activity with alert on expiry",
+        );
+        updateLiveActivity(true);
+      }
     }
-  }, [endTime, paused, currentBlindLevel, blindLevels, isLoading]);
+  }, [endTime, paused, currentBlindLevel, blindLevels, isLoading, isActive]);
 
   useEffect(() => {
     if (paused && endTime === undefined && timeLeft > timerDuration) {

@@ -1,4 +1,4 @@
-// android/app/src/main/java/com/yourapp/ForegroundServicePackage.java
+// android/app/src/main/java/com/toondeboer/pokerkit/ForegroundServicePackage.java
 package com.toondeboer.pokerkit; // Replace with your actual package name
 
 import com.facebook.react.ReactPackage;

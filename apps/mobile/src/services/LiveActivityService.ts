@@ -1,6 +1,11 @@
 // src/services/LiveActivityService.ts
 import { Platform } from "react-native";
-import { LiveActivity, ForegroundService, LiveActivityData } from "../modules/LiveActivityModule";
+import {
+  LiveActivity,
+  ForegroundService,
+  LiveActivityData,
+  LiveActivityDataAndroid,
+} from "../modules/LiveActivityModule";
 import { PokerTimerState } from "@/src/types/PokerTimerState";
 
 class LiveActivityService {
@@ -11,7 +16,7 @@ class LiveActivityService {
   constructor() {
     // Live Activities require iOS 16.1+
     this.isIOSSupported =
-        Platform.OS === "ios" && parseInt(Platform.Version as string, 10) >= 16;
+      Platform.OS === "ios" && parseInt(Platform.Version as string, 10) >= 16;
   }
 
   async isEnabled(): Promise<boolean> {
@@ -29,7 +34,8 @@ class LiveActivityService {
     } else if (Platform.OS === "android") {
       try {
         const isSupported = await ForegroundService.isServiceSupported();
-        const hasPermission = await ForegroundService.hasNotificationPermission();
+        const hasPermission =
+          await ForegroundService.hasNotificationPermission();
         return isSupported && hasPermission;
       } catch (error) {
         console.warn("Error checking Foreground Service status:", error);
@@ -40,18 +46,23 @@ class LiveActivityService {
     return false;
   }
 
-  async startOrUpdateActivity(state: PokerTimerState): Promise<string | null> {
+  async startOrUpdateActivity(
+    state: PokerTimerState,
+    shouldAlertOnExpiry: boolean,
+  ): Promise<string | null> {
     if (Platform.OS === "ios") {
       return this.handleiOSLiveActivity(state);
     } else if (Platform.OS === "android") {
-      return this.handleAndroidForegroundService(state);
+      return this.handleAndroidForegroundService(state, shouldAlertOnExpiry);
     }
 
     console.warn("Platform not supported for background activities");
     return null;
   }
 
-  private async handleiOSLiveActivity(state: PokerTimerState): Promise<string | null> {
+  private async handleiOSLiveActivity(
+    state: PokerTimerState,
+  ): Promise<string | null> {
     if (!this.isIOSSupported) {
       console.warn("Live Activities not supported on this device");
       return null;
@@ -120,7 +131,10 @@ class LiveActivityService {
     }
   }
 
-  private async handleAndroidForegroundService(state: PokerTimerState): Promise<string | null> {
+  private async handleAndroidForegroundService(
+    state: PokerTimerState,
+    shouldAlertOnExpiry: boolean,
+  ): Promise<string | null> {
     try {
       const enabled = await this.isEnabled();
       if (!enabled) {
@@ -129,7 +143,7 @@ class LiveActivityService {
       }
 
       // Convert to the format expected by Android
-      const serviceData: LiveActivityData = {
+      const serviceData: LiveActivityDataAndroid = {
         tournamentName: state.tournamentName || "Poker Tournament",
         currentBlindLevel: state.currentBlindLevel,
         currentSmallBlind: state.currentSmallBlind,
@@ -137,6 +151,7 @@ class LiveActivityService {
         nextSmallBlind: state.nextSmallBlind,
         nextBigBlind: state.nextBigBlind,
         paused: state.paused,
+        shouldAlertOnExpiry,
       };
 
       // Handle timing - Android expects milliseconds for endTime
@@ -224,7 +239,10 @@ class LiveActivityService {
   }
 
   isDeviceSupported(): boolean {
-    return this.isIOSSupported || (Platform.OS === "android" && this.isAndroidSupported);
+    return (
+      this.isIOSSupported ||
+      (Platform.OS === "android" && this.isAndroidSupported)
+    );
   }
 
   // Helper method to clean up any orphaned activities

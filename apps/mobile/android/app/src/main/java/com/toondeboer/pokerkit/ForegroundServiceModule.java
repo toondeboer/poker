@@ -1,4 +1,3 @@
-// android/app/src/main/java/com/toondeboer/pokerkit/ForegroundServiceModule.java
 package com.toondeboer.pokerkit;
 
 import com.facebook.react.bridge.ReactApplicationContext;
@@ -79,6 +78,10 @@ public class ForegroundServiceModule extends ReactContextBaseJavaModule {
                 serviceIntent.putExtra(PokerTimerService.EXTRA_PAUSED,
                         data.getBoolean("paused"));
             }
+            if (data.hasKey("shouldAlertOnExpiry")) {
+                serviceIntent.putExtra(PokerTimerService.EXTRA_SHOULD_ALERT_ON_EXPIRY,
+                        data.getBoolean("shouldAlertOnExpiry"));
+            }
 
             reactContext.startForegroundService(serviceIntent);
             isServiceRunning = true;
@@ -138,6 +141,10 @@ public class ForegroundServiceModule extends ReactContextBaseJavaModule {
                 serviceIntent.putExtra(PokerTimerService.EXTRA_PAUSED,
                         data.getBoolean("paused"));
             }
+            if (data.hasKey("shouldAlertOnExpiry")) {
+                serviceIntent.putExtra(PokerTimerService.EXTRA_SHOULD_ALERT_ON_EXPIRY,
+                        data.getBoolean("shouldAlertOnExpiry"));
+            }
 
             reactContext.startService(serviceIntent);
             promise.resolve("Service updated successfully");
@@ -159,6 +166,20 @@ public class ForegroundServiceModule extends ReactContextBaseJavaModule {
 
         } catch (Exception e) {
             promise.reject("STOP_ERROR", "Failed to stop service: " + e.getMessage());
+        }
+    }
+
+    @ReactMethod
+    public void dismissAlert(Promise promise) {
+        try {
+            Intent serviceIntent = new Intent(reactContext, PokerTimerService.class);
+            serviceIntent.setAction(PokerTimerService.ACTION_DISMISS_ALERT);
+            reactContext.startService(serviceIntent);
+
+            promise.resolve("Alert dismissed successfully");
+
+        } catch (Exception e) {
+            promise.reject("DISMISS_ERROR", "Failed to dismiss alert: " + e.getMessage());
         }
     }
 

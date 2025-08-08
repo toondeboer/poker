@@ -1,5 +1,5 @@
 // src/modules/LiveActivityModule.ts
-import { NativeModules, Platform } from "react-native";
+import { NativeModules } from "react-native";
 
 export interface LiveActivityData {
   tournamentName?: string;
@@ -13,6 +13,10 @@ export interface LiveActivityData {
   paused: boolean;
 }
 
+export interface LiveActivityDataAndroid extends LiveActivityData {
+  shouldAlertOnExpiry: boolean;
+}
+
 interface LiveActivityModule {
   startActivity(data: LiveActivityData): Promise<string | null>;
   updateActivity(activityId: string, data: LiveActivityData): Promise<string>;
@@ -22,8 +26,8 @@ interface LiveActivityModule {
 }
 
 interface ForegroundServiceModule {
-  startService(data: LiveActivityData): Promise<string>;
-  updateService(data: LiveActivityData): Promise<string>;
+  startService(data: LiveActivityDataAndroid): Promise<string>;
+  updateService(data: LiveActivityDataAndroid): Promise<string>;
   stopService(): Promise<string>;
   isServiceSupported(): Promise<boolean>;
   hasNotificationPermission(): Promise<boolean>;
@@ -32,6 +36,5 @@ interface ForegroundServiceModule {
 
 // Platform-specific exports
 export const LiveActivity: LiveActivityModule = NativeModules.RNLiveActivity;
-export const ForegroundService: ForegroundServiceModule = NativeModules.RNForegroundService;
-
-
+export const ForegroundService: ForegroundServiceModule =
+  NativeModules.RNForegroundService;
