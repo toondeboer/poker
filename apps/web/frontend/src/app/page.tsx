@@ -1,7 +1,7 @@
 "use client";
 
-import PokerTimer from "@/app/components/PokerTimer";
+import LandingPage from "@/app/components/LandingPage";
 
 export default function Home() {
-  return <PokerTimer />;
+  return <LandingPage />;
 }
