@@ -6,13 +6,14 @@ import React, {
   useRef,
   useState,
 } from "react";
-import { AppState, AppStateStatus, Platform } from "react-native";
+import { AppStateStatus, Platform } from "react-native";
 import { Sound, useSounds } from "@/src/hooks/useSounds";
 import { useBlinds } from "@/src/contexts/BlindsContext";
 import { useTimerNotification } from "@/src/hooks/useTimerNotification";
 import { useTimerEngine } from "@/src/hooks/useTimerEngine";
 import { useNotificationPermission } from "@/src/hooks/useNotificationPermission";
 import { liveActivityService } from "@/src/services/LiveActivityService";
+import { useAppState } from "@/src/hooks/useAppState";
 
 type TimerContextType = {
   endTime?: number;
@@ -41,11 +42,11 @@ export function TimerProvider({ children }: Readonly<{ children: ReactNode }>) {
   const { playSound, stopSound, isLoaded } = useSounds(Sound.ALARM);
   const { increaseBlinds, currentBlindIndex, blindLevels } = useBlinds();
   const { scheduleNotification, cancelNotification } = useTimerNotification();
+  const { isActive, isBackground, isInactive } = useAppState();
 
   const [showTimerAlert, setShowTimerAlert] = useState(false);
   const [isBackgroundActivitySupported, setIsBackgroundActivitySupported] =
     useState(false);
-  const appState = useRef(AppState.currentState);
   const alarmPlayingRef = useRef(false);
 
   // Permission handling
@@ -59,7 +60,7 @@ export function TimerProvider({ children }: Readonly<{ children: ReactNode }>) {
   const handleTimerComplete = async () => {
     try {
       // Only play sound and show alert if app is active (in foreground)
-      if (appState.current === "active" && isLoaded) {
+      if (isActive && isLoaded) {
         await playSound();
         alarmPlayingRef.current = true;
         setShowTimerAlert(true);
@@ -74,7 +75,7 @@ export function TimerProvider({ children }: Readonly<{ children: ReactNode }>) {
     } catch (error) {
       console.error("Failed to play completion sound:", error);
       // Still show alert even if sound fails
-      if (appState.current === "active") {
+      if (isActive) {
         setShowTimerAlert(true);
       }
     }
@@ -84,6 +85,11 @@ export function TimerProvider({ children }: Readonly<{ children: ReactNode }>) {
     paused: boolean,
     timeLeft: number,
   ) => {
+    if (Platform.OS === "android") {
+      console.log("Not scheduling notifications on Android");
+      return;
+    }
+
     if (paused) {
       await cancelNotification();
     } else {
@@ -185,31 +191,19 @@ export function TimerProvider({ children }: Readonly<{ children: ReactNode }>) {
 
   // Handle app state changes
   useEffect(() => {
-    const handleAppStateChange = (nextAppState: AppStateStatus) => {
-      if (
-        appState.current.match(/inactive|background/) &&
-        nextAppState === "active"
-      ) {
-        // App has come to the foreground, reload timer state
-        loadTimerState();
-        liveActivityService.syncActivityState();
-      }
+    if (isActive) {
+      // App has come to the foreground, reload timer state
+      loadTimerState();
+      liveActivityService.syncActivityState();
+    }
 
-      // If app goes to background while alert is showing, auto-dismiss and advance
-      if (nextAppState === "background" && showTimerAlert) {
-        dismissTimerAlert();
-        increaseBlinds();
-      }
-
-      appState.current = nextAppState;
-    };
-
-    const subscription = AppState.addEventListener(
-      "change",
-      handleAppStateChange,
-    );
-    return () => subscription?.remove();
-  }, [loadTimerState, showTimerAlert]);
+    // If app goes to background while alert is showing, auto-dismiss and advance
+    if ((isBackground || isInactive) && showTimerAlert) {
+      console.log("App is going to background, auto-dismiss timer alert");
+      dismissTimerAlert();
+      increaseBlinds();
+    }
+  }, [isActive, isBackground, isInactive, loadTimerState, showTimerAlert]);
 
   // Load initial state on mount
   useEffect(() => {

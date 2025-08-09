@@ -161,19 +161,18 @@ public class PokerTimerService extends Service {
         // Show alert notification
         showAlertNotification();
 
-        // Start custom sound
-        playAlertSound();
+        // Start infinite sound loop
+        playAlertSoundInfinite();
 
-        // Start vibration pattern
+        // Start vibration pattern (keep existing pattern)
         startVibration();
 
-        // Repeat alert every 5 seconds until dismissed
+        // Optional: Still vibrate every 5 seconds for extra attention
         alertRunnable = new Runnable() {
             @Override
             public void run() {
                 if (isAlerting) {
-                    playAlertSound();
-                    startVibration();
+                    startVibration(); // Just vibrate, sound is already looping
                     alertHandler.postDelayed(this, 5000);
                 }
             }
@@ -181,13 +180,13 @@ public class PokerTimerService extends Service {
         alertHandler.postDelayed(alertRunnable, 5000);
     }
 
-    private void playAlertSound() {
+    private void playAlertSoundInfinite() {
         try {
             if (mediaPlayer != null) {
                 mediaPlayer.release();
             }
 
-            // Try to load custom sound from raw resources first
+            // Try custom sound first
             Uri soundUri = Uri.parse("android.resource://" + getPackageName() + "/" + R.raw.alarm);
             mediaPlayer = new MediaPlayer();
             mediaPlayer.setDataSource(this, soundUri);
@@ -199,16 +198,18 @@ public class PokerTimerService extends Service {
                         .build());
             }
 
-            mediaPlayer.setLooping(false);
+            // KEY CHANGE: Set looping to true for infinite repeat
+            mediaPlayer.setLooping(true);
             mediaPlayer.prepare();
             mediaPlayer.start();
 
         } catch (Exception e) {
-            // Fallback to default notification sound
+            // Fallback to default alarm sound
             try {
                 if (mediaPlayer != null) {
                     mediaPlayer.release();
                 }
+
                 Uri defaultSound = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_ALARM);
                 if (defaultSound == null) {
                     defaultSound = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION);
@@ -224,15 +225,17 @@ public class PokerTimerService extends Service {
                             .build());
                 }
 
+                // KEY CHANGE: Set looping to true for infinite repeat
+                mediaPlayer.setLooping(true);
                 mediaPlayer.prepare();
                 mediaPlayer.start();
 
             } catch (Exception fallbackException) {
-                // If all else fails, just vibrate
                 fallbackException.printStackTrace();
             }
         }
     }
+
 
     private void startVibration() {
         if (vibrator != null && vibrator.hasVibrator()) {
@@ -289,9 +292,11 @@ public class PokerTimerService extends Service {
 
         isAlerting = false;
 
-        // Stop sound
+        // Stop infinite sound loop
         if (mediaPlayer != null) {
-            mediaPlayer.stop();
+            if (mediaPlayer.isPlaying()) {
+                mediaPlayer.stop();
+            }
             mediaPlayer.release();
             mediaPlayer = null;
         }
@@ -301,7 +306,7 @@ public class PokerTimerService extends Service {
             vibrator.cancel();
         }
 
-        // Stop repeating alerts
+        // Stop repeating vibration alerts
         if (alertRunnable != null) {
             alertHandler.removeCallbacks(alertRunnable);
             alertRunnable = null;
@@ -310,7 +315,7 @@ public class PokerTimerService extends Service {
         // Remove alert notification
         notificationManager.cancel(ALERT_NOTIFICATION_ID);
     }
-
+    
     private void stopAlert() {
         dismissAlert();
     }

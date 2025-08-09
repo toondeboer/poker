@@ -3,7 +3,8 @@ import * as Notifications from "expo-notifications";
 import { SchedulableTriggerInputTypes } from "expo-notifications";
 import { BlindLevel } from "@/src/types/BlindLevel";
 import { useEffect, useRef, useState } from "react";
-import { AppState, Platform } from "react-native";
+import { Platform } from "react-native";
+import { useAppState } from "@/src/hooks/useAppState";
 
 const NOTIFICATION_CATEGORY = "timerActions";
 const REPEAT_INTERVAL = 8; // Schedule next notification slightly before current one ends
@@ -19,6 +20,8 @@ export function useTimerNotification() {
   >([]);
   const [hasPermission, setHasPermission] = useState<boolean>(false);
 
+  const { isActive, isBackground, isInactive } = useAppState();
+
   const continuousDataRef = useRef<{
     blindLevel?: BlindLevel;
     startTime: number;
@@ -29,8 +32,7 @@ export function useTimerNotification() {
     Notifications.setNotificationHandler({
       handleNotification: async () => {
         // Only show notifications when app is NOT in foreground
-        const currentAppState = AppState.currentState;
-        const shouldShow = currentAppState !== "active";
+        const shouldShow = isBackground || isInactive;
 
         return {
           shouldShowAlert: shouldShow,
@@ -52,20 +54,20 @@ export function useTimerNotification() {
       handleNotificationResponse,
     );
 
-    // Listen for app state changes to handle background/foreground transitions
-    const appStateSubscription = AppState.addEventListener(
-      "change",
-      handleAppStateChange,
-    );
-
     // Clear notifications when app initially loads
     clearAllNotifications();
 
     return () => {
       subscription.remove();
-      appStateSubscription?.remove();
     };
   }, []);
+
+  useEffect(() => {
+    if (isActive) {
+      // Clear all notifications when app comes to foreground
+      clearAllNotifications();
+    }
+  }, [isActive]);
 
   const handleNotificationResponse = async (
     response: Notifications.NotificationResponse,
@@ -75,13 +77,6 @@ export function useTimerNotification() {
     // If user interacts with a timer notification, stop the continuous notifications
     if (notificationData?.type === "timer_complete") {
       await stopContinuousNotifications();
-    }
-  };
-
-  const handleAppStateChange = async (nextAppState: string) => {
-    // If app comes to foreground, clear all notifications
-    if (nextAppState === "active") {
-      await clearAllNotifications();
     }
   };
 
@@ -155,6 +150,7 @@ export function useTimerNotification() {
     seconds: number,
     blindLevel?: BlindLevel,
   ) => {
+    console.log("Scheduling Android alarm notification...");
     try {
       const bodyText = blindLevel
         ? `New blind levels: ${blindLevel.small} / ${blindLevel.big}`
@@ -264,13 +260,6 @@ export function useTimerNotification() {
     try {
       // Cancel any existing notifications first
       await clearAllNotifications();
-
-      // Check if app is currently in foreground
-      if (AppState.currentState === "active") {
-        console.log(
-          "App is in foreground, notifications will be scheduled but not shown",
-        );
-      }
 
       // Use Android alarm mode if requested and on Android
       if (Platform.OS === "android") {

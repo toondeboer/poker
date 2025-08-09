@@ -16,6 +16,12 @@ export const useAppState = (): AppStateHook => {
 
   useEffect(() => {
     const handleAppStateChange = (nextAppState: AppStateStatus): void => {
+      console.log(
+        "[App State] AppState changed from",
+        appStateRef.current,
+        "to",
+        nextAppState,
+      );
       appStateRef.current = nextAppState;
       setAppState(nextAppState);
     };
