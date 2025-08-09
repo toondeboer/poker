@@ -1,3 +1,4 @@
+// src/util/generateBlinds.ts
 import { BlindLevel } from "@/src/types/BlindLevel";
 
 export const generateBlindLevels = (): BlindLevel[] => {

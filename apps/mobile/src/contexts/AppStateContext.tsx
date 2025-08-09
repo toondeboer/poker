@@ -24,12 +24,7 @@ export function AppStateProvider({
 
   useEffect(() => {
     const subscription = AppState.addEventListener("change", (nextAppState) => {
-      console.log(
-        "[App State Context] AppState changed from",
-        appState,
-        "to",
-        nextAppState,
-      );
+      console.log("[App State] changed to:", nextAppState);
       setAppState(nextAppState);
       setIsActive(nextAppState === "active");
       setIsBackground(nextAppState === "background");

@@ -12,7 +12,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { useBlinds } from "@/src/contexts/BlindsContext";
 import { useTimer } from "@/src/contexts/TimerContext";
 import { useRouter } from "expo-router";
-import TimerExpirationAlert from "./TimerExpirationAlert";
+import { TimerExpirationAlert } from "./TimerExpirationAlert";
 
 export default function PokerTimer() {
   const router = useRouter();

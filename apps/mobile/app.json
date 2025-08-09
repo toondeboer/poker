@@ -2,7 +2,7 @@
   "expo": {
     "name": "Poker Timer",
     "slug": "poker-kit",
-    "scheme": "pokerkit",
+    "scheme": "com.toondeboer.pokerkit",
     "version": "1.0.0",
     "newArchEnabled": true,
     "experiments": {
