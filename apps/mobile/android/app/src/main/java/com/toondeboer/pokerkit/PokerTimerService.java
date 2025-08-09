@@ -32,17 +32,20 @@ public class PokerTimerService extends Service {
     public static final String EXTRA_TIME_LEFT = "timeLeft";
     public static final String EXTRA_PAUSED = "paused";
     public static final String EXTRA_SHOULD_ALERT_ON_EXPIRY = "shouldAlertOnExpiry";
+
     // Actions
     public static final String ACTION_START = "START_TIMER_SERVICE";
     public static final String ACTION_UPDATE = "UPDATE_TIMER_SERVICE";
     public static final String ACTION_STOP = "STOP_TIMER_SERVICE";
     public static final String ACTION_DISMISS_ALERT = "DISMISS_ALERT";
+
     private static final String CHANNEL_ID = "PokerTimerChannel";
     private static final String ALERT_CHANNEL_ID = "PokerTimerAlertChannel";
     private static final String CHANNEL_NAME = "Poker Timer";
     private static final String ALERT_CHANNEL_NAME = "Poker Timer Alerts";
     private static final int NOTIFICATION_ID = 1001;
     private static final int ALERT_NOTIFICATION_ID = 1002;
+
     private Handler handler;
     private Runnable updateRunnable;
     private NotificationManager notificationManager;
@@ -161,7 +164,7 @@ public class PokerTimerService extends Service {
         // Start infinite sound loop
         playAlertSoundInfinite();
 
-        // Start vibration pattern (keep existing pattern)
+        // Start vibration pattern
         startVibration();
 
         // Optional: Still vibrate every 5 seconds for extra attention
@@ -195,7 +198,7 @@ public class PokerTimerService extends Service {
                         .build());
             }
 
-            // KEY CHANGE: Set looping to true for infinite repeat
+            // Set looping to true for infinite repeat
             mediaPlayer.setLooping(true);
             mediaPlayer.prepare();
             mediaPlayer.start();
@@ -222,7 +225,7 @@ public class PokerTimerService extends Service {
                             .build());
                 }
 
-                // KEY CHANGE: Set looping to true for infinite repeat
+                // Set looping to true for infinite repeat
                 mediaPlayer.setLooping(true);
                 mediaPlayer.prepare();
                 mediaPlayer.start();
@@ -241,7 +244,7 @@ public class PokerTimerService extends Service {
                 VibrationEffect effect = VibrationEffect.createWaveform(pattern, -1);
                 vibrator.vibrate(effect);
             } else {
-                long[] pattern = {500, 000, 500, 1000};
+                long[] pattern = {500, 1000, 500, 1000};
                 vibrator.vibrate(pattern, -1);
             }
         }
@@ -257,15 +260,19 @@ public class PokerTimerService extends Service {
                 PendingIntent.FLAG_IMMUTABLE
         );
 
-        // Updated intent to preserve state when opening app
+        // FIXED: Use correct intent flags to bring existing app to foreground
         Intent openAppIntent = new Intent(this, MainActivity.class);
-        openAppIntent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
-        openAppIntent.putExtra("from_foreground_service", true); // Add flag to indicate source
+        openAppIntent.setFlags(
+                Intent.FLAG_ACTIVITY_CLEAR_TOP |
+                        Intent.FLAG_ACTIVITY_SINGLE_TOP |
+                        Intent.FLAG_ACTIVITY_NEW_TASK
+        );
+        // Remove the extra flag that might cause issues
         PendingIntent openAppPendingIntent = PendingIntent.getActivity(
                 this,
                 2,
                 openAppIntent,
-                PendingIntent.FLAG_IMMUTABLE
+                PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE
         );
 
         Notification alertNotification = new NotificationCompat.Builder(this, ALERT_CHANNEL_ID)
@@ -352,15 +359,18 @@ public class PokerTimerService extends Service {
     }
 
     private Notification createNotification() {
-        // Updated intent to preserve state when opening app
+        // FIXED: Use correct intent flags to bring existing app to foreground
         Intent intent = new Intent(this, MainActivity.class);
-        intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
-        intent.putExtra("from_foreground_service", true); // Add flag to indicate source
+        intent.setFlags(
+                Intent.FLAG_ACTIVITY_CLEAR_TOP |
+                        Intent.FLAG_ACTIVITY_SINGLE_TOP |
+                        Intent.FLAG_ACTIVITY_NEW_TASK
+        );
         PendingIntent pendingIntent = PendingIntent.getActivity(
                 this,
                 0,
                 intent,
-                PendingIntent.FLAG_IMMUTABLE
+                PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE
         );
 
         String title = tournamentName;
