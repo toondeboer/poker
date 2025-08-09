@@ -1,3 +1,4 @@
+// src/app/_layout.tsx
 import { Stack } from "expo-router";
 import { TimerProvider } from "@/src/contexts/TimerContext";
 import { BlindsProvider } from "@/src/contexts/BlindsContext";

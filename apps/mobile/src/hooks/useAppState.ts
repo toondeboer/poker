@@ -1,3 +1,4 @@
+// src/hooks/useAppState.ts
 import { useEffect, useRef, useState } from "react";
 import { AppState, AppStateStatus } from "react-native";
 
