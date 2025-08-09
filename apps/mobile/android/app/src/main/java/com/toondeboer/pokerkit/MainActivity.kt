@@ -5,6 +5,7 @@ import expo.modules.splashscreen.SplashScreenManager
 
 import android.os.Build
 import android.os.Bundle
+import android.content.Intent
 
 import com.facebook.react.ReactActivity
 import com.facebook.react.ReactActivityDelegate
@@ -23,6 +24,25 @@ class MainActivity : ReactActivity() {
         SplashScreenManager.registerOnActivity(this)
         // @generated end expo-splashscreen
         super.onCreate(null)
+    }
+
+    override fun onNewIntent(intent: Intent?) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+
+        // Handle intents from foreground service notification
+        intent?.let { handleIntent(it) }
+    }
+
+    private fun handleIntent(intent: Intent) {
+        // Check if this intent came from the foreground service notification
+        val fromService = intent.getBooleanExtra("from_foreground_service", false)
+
+        if (fromService) {
+            println("App opened from foreground service - preserving state")
+            // Don't reset any state - just bring app to foreground
+            // The React Native side will handle state restoration
+        }
     }
 
     /**
@@ -65,3 +85,6 @@ class MainActivity : ReactActivity() {
         super.invokeDefaultOnBackPressed()
     }
 }
+
+
+

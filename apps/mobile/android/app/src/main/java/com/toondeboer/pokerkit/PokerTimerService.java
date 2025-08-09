@@ -21,13 +21,6 @@ import android.os.Handler;
 import android.os.Looper;
 
 public class PokerTimerService extends Service {
-    private static final String CHANNEL_ID = "PokerTimerChannel";
-    private static final String ALERT_CHANNEL_ID = "PokerTimerAlertChannel";
-    private static final String CHANNEL_NAME = "Poker Timer";
-    private static final String ALERT_CHANNEL_NAME = "Poker Timer Alerts";
-    private static final int NOTIFICATION_ID = 1001;
-    private static final int ALERT_NOTIFICATION_ID = 1002;
-
     // Intent extras
     public static final String EXTRA_TOURNAMENT_NAME = "tournamentName";
     public static final String EXTRA_CURRENT_BLIND_LEVEL = "currentBlindLevel";
@@ -39,13 +32,17 @@ public class PokerTimerService extends Service {
     public static final String EXTRA_TIME_LEFT = "timeLeft";
     public static final String EXTRA_PAUSED = "paused";
     public static final String EXTRA_SHOULD_ALERT_ON_EXPIRY = "shouldAlertOnExpiry";
-
     // Actions
     public static final String ACTION_START = "START_TIMER_SERVICE";
     public static final String ACTION_UPDATE = "UPDATE_TIMER_SERVICE";
     public static final String ACTION_STOP = "STOP_TIMER_SERVICE";
     public static final String ACTION_DISMISS_ALERT = "DISMISS_ALERT";
-
+    private static final String CHANNEL_ID = "PokerTimerChannel";
+    private static final String ALERT_CHANNEL_ID = "PokerTimerAlertChannel";
+    private static final String CHANNEL_NAME = "Poker Timer";
+    private static final String ALERT_CHANNEL_NAME = "Poker Timer Alerts";
+    private static final int NOTIFICATION_ID = 1001;
+    private static final int ALERT_NOTIFICATION_ID = 1002;
     private Handler handler;
     private Runnable updateRunnable;
     private NotificationManager notificationManager;
@@ -236,7 +233,6 @@ public class PokerTimerService extends Service {
         }
     }
 
-
     private void startVibration() {
         if (vibrator != null && vibrator.hasVibrator()) {
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
@@ -245,7 +241,7 @@ public class PokerTimerService extends Service {
                 VibrationEffect effect = VibrationEffect.createWaveform(pattern, -1);
                 vibrator.vibrate(effect);
             } else {
-                long[] pattern = {500, 1000, 500, 1000};
+                long[] pattern = {500, 000, 500, 1000};
                 vibrator.vibrate(pattern, -1);
             }
         }
@@ -261,8 +257,10 @@ public class PokerTimerService extends Service {
                 PendingIntent.FLAG_IMMUTABLE
         );
 
+        // Updated intent to preserve state when opening app
         Intent openAppIntent = new Intent(this, MainActivity.class);
         openAppIntent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
+        openAppIntent.putExtra("from_foreground_service", true); // Add flag to indicate source
         PendingIntent openAppPendingIntent = PendingIntent.getActivity(
                 this,
                 2,
@@ -315,7 +313,7 @@ public class PokerTimerService extends Service {
         // Remove alert notification
         notificationManager.cancel(ALERT_NOTIFICATION_ID);
     }
-    
+
     private void stopAlert() {
         dismissAlert();
     }
@@ -354,8 +352,10 @@ public class PokerTimerService extends Service {
     }
 
     private Notification createNotification() {
+        // Updated intent to preserve state when opening app
         Intent intent = new Intent(this, MainActivity.class);
         intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
+        intent.putExtra("from_foreground_service", true); // Add flag to indicate source
         PendingIntent pendingIntent = PendingIntent.getActivity(
                 this,
                 0,
@@ -425,5 +425,6 @@ public class PokerTimerService extends Service {
         stopAlert();
     }
 }
+
 
 

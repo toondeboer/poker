@@ -26,6 +26,7 @@ export function useTimerEngine(
   const { isActive } = useAppState();
 
   const intervalRef = useRef<number | null>(null);
+  const hasHandledTimerCompleteRef = useRef(false); // Track if we've already handled timer completion
 
   // Calculate current time left based on end time
   const calculateTimeLeft = (endTime: number): number => {
@@ -64,20 +65,12 @@ export function useTimerEngine(
         hasExpired = currentTimeLeft === 0;
       }
 
-      if (hasExpired) {
+      if (hasExpired && !hasHandledTimerCompleteRef.current) {
         // Timer expired while app was closed
+        hasHandledTimerCompleteRef.current = true;
         callbacks.onTimerComplete();
 
-        // Reset timer after completion
-        const resetState: TimerState = {
-          endTime: undefined,
-          timerDuration: savedState.timerDuration,
-          paused: true,
-          timeLeft: savedState.timerDuration,
-        };
-
-        await TimerStorage.saveTimerState(resetState);
-
+        // Reset timer after completion but don't save state yet
         setPaused(true);
         setEndTime(undefined);
         setTimeLeft(savedState.timerDuration);
@@ -88,6 +81,9 @@ export function useTimerEngine(
         setEndTime(savedState.endTime);
         setTimeLeft(currentTimeLeft);
         setPaused(savedState.paused);
+
+        // Reset the flag when loading normal state
+        hasHandledTimerCompleteRef.current = false;
       }
     } catch (error) {
       console.error("Failed to load timer state:", error);
@@ -96,6 +92,7 @@ export function useTimerEngine(
       setTimeLeft(DEFAULT_TIMER_DURATION);
       setPaused(true);
       setEndTime(undefined);
+      hasHandledTimerCompleteRef.current = false;
     } finally {
       setIsLoading(false);
     }
@@ -119,7 +116,6 @@ export function useTimerEngine(
     if (newPaused) {
       console.log("Pausing timer at time left:", timeLeft);
       // Pausing the timer
-      // setTimeLeft(calculateTimeLeft(endTime!));
       setEndTime(undefined);
       setPaused(true);
     } else {
@@ -128,6 +124,8 @@ export function useTimerEngine(
       const newEndTime = Date.now() + timeLeft * 1000;
       setEndTime(newEndTime);
       setPaused(false);
+      // Reset completion flag when starting timer
+      hasHandledTimerCompleteRef.current = false;
     }
   };
 
@@ -136,6 +134,7 @@ export function useTimerEngine(
     setPaused(true);
     setEndTime(undefined);
     setTimeLeft(timerDuration);
+    hasHandledTimerCompleteRef.current = false;
 
     await saveCurrentState();
   };
@@ -188,7 +187,13 @@ export function useTimerEngine(
 
   // Handle timer completion
   useEffect(() => {
-    if (timeLeft === 0 && !paused && endTime) {
+    if (
+      timeLeft === 0 &&
+      !paused &&
+      endTime &&
+      !hasHandledTimerCompleteRef.current
+    ) {
+      hasHandledTimerCompleteRef.current = true;
       callbacks.onTimerComplete();
       resetTimer();
     }

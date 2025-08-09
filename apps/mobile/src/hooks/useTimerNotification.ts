@@ -9,9 +9,9 @@ import { useAppState } from "@/src/contexts/AppStateContext";
 const NOTIFICATION_CATEGORY = "timerActions";
 const REPEAT_INTERVAL = 8; // Schedule next notification slightly before current one ends
 
-// Define your custom sounds - Android needs the file extension removed
+// Define your custom sounds - iOS only (Android handled by foreground service)
 const CUSTOM_SOUNDS = {
-  timer_complete: Platform.OS === "ios" ? "alarm.wav" : "alarm", // Remove .wav for Android
+  timer_complete: "alarm.wav",
 } as const;
 
 export function useTimerNotification() {
@@ -27,7 +27,20 @@ export function useTimerNotification() {
     startTime: number;
   } | null>(null);
 
-  // Configure how notifications are handled when the app is in foreground
+  // Early return for Android - notifications handled by foreground service
+  if (Platform.OS === "android") {
+    return {
+      scheduleNotification: async () => {
+        console.log("Android notifications handled by foreground service");
+      },
+      cancelNotification: async () => {
+        console.log("Android notifications handled by foreground service");
+      },
+    };
+  }
+
+  // Configure how notifications are handled when the app is in foreground (iOS only)
+  // eslint-disable-next-line react-hooks/rules-of-hooks
   useEffect(() => {
     Notifications.setNotificationHandler({
       handleNotification: async () => {
@@ -45,7 +58,8 @@ export function useTimerNotification() {
     });
   }, [isActive]);
 
-  // Request notification permissions on hook initialization
+  // Request notification permissions on hook initialization (iOS only)
+  // eslint-disable-next-line react-hooks/rules-of-hooks
   useEffect(() => {
     registerForPushNotificationsAsync();
 
@@ -62,6 +76,7 @@ export function useTimerNotification() {
     };
   }, []);
 
+  // eslint-disable-next-line react-hooks/rules-of-hooks
   useEffect(() => {
     if (isActive) {
       // Clear all notifications when app comes to foreground
@@ -109,86 +124,9 @@ export function useTimerNotification() {
           options: { opensAppToForeground: true },
         },
       ]);
-
-      // Android-specific channel configuration
-      if (Platform.OS === "android") {
-        // Create notification channel with custom sound
-        await Notifications.setNotificationChannelAsync("timer-complete", {
-          name: "Timer Complete",
-          importance: Notifications.AndroidImportance.HIGH,
-          vibrationPattern: [0, 250, 250, 250],
-          lightColor: "#FF231F7C",
-          sound: CUSTOM_SOUNDS.timer_complete,
-          enableVibrate: true,
-          lockscreenVisibility:
-            Notifications.AndroidNotificationVisibility.PUBLIC,
-          bypassDnd: true, // This helps with alarm-like behavior
-        });
-
-        // Create an alarm-style channel for continuous notifications
-        await Notifications.setNotificationChannelAsync("timer-alarm", {
-          name: "Timer Alarm",
-          importance: Notifications.AndroidImportance.HIGH,
-          vibrationPattern: [0, 500, 200, 500, 200, 500],
-          lightColor: "#FF231F7C",
-          sound: CUSTOM_SOUNDS.timer_complete,
-          enableVibrate: true,
-          lockscreenVisibility:
-            Notifications.AndroidNotificationVisibility.PUBLIC,
-          bypassDnd: true,
-          showBadge: true,
-        });
-      }
     } catch (error) {
       console.error("Error setting up notifications:", error);
       setHasPermission(false);
-    }
-  };
-
-  // Android Alarm Alternative Function
-  const scheduleAndroidAlarm = async (
-    seconds: number,
-    blindLevel?: BlindLevel,
-  ) => {
-    console.log("Scheduling Android alarm notification...");
-    try {
-      const bodyText = blindLevel
-        ? `New blind levels: ${blindLevel.small} / ${blindLevel.big}`
-        : "Time is up!";
-
-      // Use the alarm-style channel
-      const notificationId = await Notifications.scheduleNotificationAsync({
-        content: {
-          title: "⏰ Poker Timer - ALARM!",
-          body: bodyText,
-          sound: CUSTOM_SOUNDS.timer_complete,
-          priority: Notifications.AndroidNotificationPriority.MAX,
-          categoryIdentifier: NOTIFICATION_CATEGORY,
-          data: {
-            type: "timer_alarm",
-            blindLevel: blindLevel,
-            isAlarm: true,
-          },
-          sticky: true, // Makes notification harder to dismiss
-        },
-        trigger: {
-          type: SchedulableTriggerInputTypes.TIME_INTERVAL,
-          seconds: Math.max(1, Math.floor(seconds)),
-          channelId: "timer-alarm",
-        },
-      });
-
-      setScheduledNotificationIds([notificationId]);
-
-      continuousDataRef.current = {
-        blindLevel,
-        startTime: Date.now(),
-      };
-
-      return notificationId;
-    } catch (error) {
-      console.error("Failed to schedule Android alarm:", error);
-      return null;
     }
   };
 
@@ -260,11 +198,6 @@ export function useTimerNotification() {
     try {
       // Cancel any existing notifications first
       await clearAllNotifications();
-
-      // Use Android alarm mode if requested and on Android
-      if (Platform.OS === "android") {
-        return await scheduleAndroidAlarm(seconds, newBlindLevel);
-      }
 
       await scheduleRepeatingNotifications(seconds, newBlindLevel);
     } catch (error) {

@@ -6,7 +6,7 @@ import React, {
   useRef,
   useState,
 } from "react";
-import { AppStateStatus, Platform } from "react-native";
+import { Platform } from "react-native";
 import { Sound, useSounds } from "@/src/hooks/useSounds";
 import { useBlinds } from "@/src/contexts/BlindsContext";
 import { useTimerNotification } from "@/src/hooks/useTimerNotification";
@@ -67,7 +67,7 @@ export function TimerProvider({ children }: Readonly<{ children: ReactNode }>) {
         console.log("Timer completed - showing alert and playing alarm");
       } else {
         console.log(
-          "App in background, skipping alarm sound and alert (notification will handle audio)",
+          "App in background, skipping alarm sound and alert (background service will handle audio)",
         );
         // Auto-advance if in background
         increaseBlinds();
@@ -85,8 +85,11 @@ export function TimerProvider({ children }: Readonly<{ children: ReactNode }>) {
     paused: boolean,
     timeLeft: number,
   ) => {
-    if (Platform.OS === "android") {
-      console.log("Not scheduling notifications on Android");
+    // Only handle notifications for iOS
+    if (Platform.OS !== "ios") {
+      console.log(
+        "Skipping notification scheduling on Android - handled by foreground service",
+      );
       return;
     }
 
@@ -117,14 +120,17 @@ export function TimerProvider({ children }: Readonly<{ children: ReactNode }>) {
   const togglePause = async () => {
     const newPaused = !paused; // Calculate before state change
     await engineTogglePause();
-    // Handle notifications after pause state changes
+    // Handle notifications after pause state changes (iOS only)
     await handleNotificationScheduling(newPaused, timeLeft);
   };
 
   // Enhanced reset timer with notification handling
   const resetTimer = async () => {
     await engineResetTimer();
-    await cancelNotification();
+    // Only cancel notifications on iOS
+    if (Platform.OS === "ios") {
+      await cancelNotification();
+    }
     // End background activity when timer is reset
     await liveActivityService.endActivity();
     // Dismiss alert and stop sound if active
@@ -201,7 +207,6 @@ export function TimerProvider({ children }: Readonly<{ children: ReactNode }>) {
     if ((isBackground || isInactive) && showTimerAlert) {
       console.log("App is going to background, auto-dismiss timer alert");
       dismissTimerAlert();
-      increaseBlinds();
     }
   }, [isActive, isBackground, isInactive, loadTimerState, showTimerAlert]);
 

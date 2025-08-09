@@ -1,7 +1,14 @@
 // src/contexts/BlindsContext.tsx
-import { createContext, ReactNode, useContext, useState } from "react";
+import {
+  createContext,
+  ReactNode,
+  useContext,
+  useState,
+  useEffect,
+} from "react";
 import { BlindLevel } from "@/src/types/BlindLevel";
 import { generateBlindLevels } from "@/src/util/generateBlinds";
+import { BlindsStorage } from "@/src/services/BlindsStorage";
 
 type BlindsContextType = {
   blindLevels: BlindLevel[];
@@ -18,6 +25,7 @@ type BlindsContextType = {
   ) => void;
   applyCustomBlindLevels: () => void;
   resetToDefaultBlinds: () => void;
+  isLoading: boolean;
 };
 
 const BlindsContext = createContext<BlindsContextType | null>(null);
@@ -30,13 +38,57 @@ export function BlindsProvider({
   const [customBlindLevels, setCustomBlindLevels] = useState<BlindLevel[]>(
     generateBlindLevels(),
   );
+  const [isLoading, setIsLoading] = useState(true);
+
+  // Load blinds state on mount
+  useEffect(() => {
+    const loadBlindsState = async () => {
+      try {
+        const savedState = await BlindsStorage.loadBlindsState();
+        setCurrentBlindIndex(savedState.currentBlindIndex);
+        setBlindLevels(savedState.blindLevels);
+        setCustomBlindLevels(savedState.customBlindLevels);
+      } catch (error) {
+        console.error("Failed to load blinds state:", error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    loadBlindsState();
+  }, []);
+
+  // Save state whenever it changes
+  useEffect(() => {
+    if (!isLoading) {
+      const saveState = async () => {
+        try {
+          await BlindsStorage.saveBlindsState({
+            currentBlindIndex,
+            blindLevels,
+            customBlindLevels,
+          });
+        } catch (error) {
+          console.error("Failed to save blinds state:", error);
+        }
+      };
+
+      saveState();
+    }
+  }, [currentBlindIndex, blindLevels, customBlindLevels, isLoading]);
 
   const increaseBlinds = () => {
-    setCurrentBlindIndex((prev) => Math.min(prev + 1, blindLevels.length - 1));
+    const newIndex = Math.min(currentBlindIndex + 1, blindLevels.length - 1);
+    setCurrentBlindIndex(newIndex);
+    // Save index immediately
+    BlindsStorage.saveCurrentBlindIndex(newIndex);
   };
 
   const decreaseBlinds = () => {
-    setCurrentBlindIndex((prev) => Math.max(prev - 1, 0));
+    const newIndex = Math.max(currentBlindIndex - 1, 0);
+    setCurrentBlindIndex(newIndex);
+    // Save index immediately
+    BlindsStorage.saveCurrentBlindIndex(newIndex);
   };
 
   const addBlindLevel = () => {
@@ -97,6 +149,7 @@ export function BlindsProvider({
         updateBlindLevel,
         applyCustomBlindLevels,
         resetToDefaultBlinds,
+        isLoading,
       }}
     >
       {children}
