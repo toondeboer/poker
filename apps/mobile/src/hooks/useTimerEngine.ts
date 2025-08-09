@@ -3,7 +3,7 @@ import { useEffect, useRef, useState } from "react";
 import { TimerState, TimerStorage } from "@/src/services/TimerStorage";
 import { BlindLevel } from "@/src/types/BlindLevel";
 import { liveActivityService } from "@/src/services/LiveActivityService";
-import { useAppState } from "@/src/hooks/useAppState";
+import { useAppState } from "@/src/contexts/AppStateContext";
 
 const DEFAULT_TIMER_DURATION = 600;
 

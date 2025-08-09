@@ -29,6 +29,7 @@ interface ForegroundServiceModule {
   startService(data: LiveActivityDataAndroid): Promise<string>;
   updateService(data: LiveActivityDataAndroid): Promise<string>;
   stopService(): Promise<string>;
+  dismissAlert(): Promise<void>;
   isServiceSupported(): Promise<boolean>;
   hasNotificationPermission(): Promise<boolean>;
   isServiceRunning(): Promise<boolean>;

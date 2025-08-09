@@ -4,7 +4,7 @@ import { SchedulableTriggerInputTypes } from "expo-notifications";
 import { BlindLevel } from "@/src/types/BlindLevel";
 import { useEffect, useRef, useState } from "react";
 import { Platform } from "react-native";
-import { useAppState } from "@/src/hooks/useAppState";
+import { useAppState } from "@/src/contexts/AppStateContext";
 
 const NOTIFICATION_CATEGORY = "timerActions";
 const REPEAT_INTERVAL = 8; // Schedule next notification slightly before current one ends
@@ -20,7 +20,7 @@ export function useTimerNotification() {
   >([]);
   const [hasPermission, setHasPermission] = useState<boolean>(false);
 
-  const { isActive, isBackground, isInactive } = useAppState();
+  const { isActive } = useAppState();
 
   const continuousDataRef = useRef<{
     blindLevel?: BlindLevel;
@@ -32,7 +32,7 @@ export function useTimerNotification() {
     Notifications.setNotificationHandler({
       handleNotification: async () => {
         // Only show notifications when app is NOT in foreground
-        const shouldShow = isBackground || isInactive;
+        const shouldShow = !isActive;
 
         return {
           shouldShowAlert: shouldShow,
@@ -43,7 +43,7 @@ export function useTimerNotification() {
         };
       },
     });
-  }, []);
+  }, [isActive]);
 
   // Request notification permissions on hook initialization
   useEffect(() => {

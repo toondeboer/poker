@@ -13,7 +13,7 @@ import { useTimerNotification } from "@/src/hooks/useTimerNotification";
 import { useTimerEngine } from "@/src/hooks/useTimerEngine";
 import { useNotificationPermission } from "@/src/hooks/useNotificationPermission";
 import { liveActivityService } from "@/src/services/LiveActivityService";
-import { useAppState } from "@/src/hooks/useAppState";
+import { useAppState } from "./AppStateContext";
 
 type TimerContextType = {
   endTime?: number;
