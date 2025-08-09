@@ -7,6 +7,7 @@ import android.app.PendingIntent;
 import android.app.Service;
 import android.content.Context;
 import android.content.Intent;
+import android.graphics.Color;
 import android.media.AudioAttributes;
 import android.media.MediaPlayer;
 import android.media.RingtoneManager;
@@ -260,14 +261,12 @@ public class PokerTimerService extends Service {
                 PendingIntent.FLAG_IMMUTABLE
         );
 
-        // FIXED: Use correct intent flags to bring existing app to foreground
         Intent openAppIntent = new Intent(this, MainActivity.class);
         openAppIntent.setFlags(
                 Intent.FLAG_ACTIVITY_CLEAR_TOP |
                         Intent.FLAG_ACTIVITY_SINGLE_TOP |
                         Intent.FLAG_ACTIVITY_NEW_TASK
         );
-        // Remove the extra flag that might cause issues
         PendingIntent openAppPendingIntent = PendingIntent.getActivity(
                 this,
                 2,
@@ -276,17 +275,26 @@ public class PokerTimerService extends Service {
         );
 
         Notification alertNotification = new NotificationCompat.Builder(this, ALERT_CHANNEL_ID)
-                .setContentTitle("Timer Finished!")
-                .setContentText("Level " + currentBlindLevel + " has ended. Time to increase blinds!")
-                .setSmallIcon(R.drawable.splashscreen_logo)
+                .setContentTitle("🎯 Timer Finished!")
+                .setContentText("Level " + currentBlindLevel + " completed • Time to increase blinds!")
+                .setSmallIcon(getNotificationIcon())
                 .setPriority(NotificationCompat.PRIORITY_HIGH)
                 .setCategory(NotificationCompat.CATEGORY_ALARM)
                 .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
                 .setAutoCancel(false)
                 .setOngoing(true)
                 .setContentIntent(openAppPendingIntent)
-                .addAction(R.drawable.splashscreen_logo, "Dismiss", dismissPendingIntent)
+                .addAction(R.drawable.ic_notification_clear, "Dismiss", dismissPendingIntent)
                 .setFullScreenIntent(openAppPendingIntent, true)
+                .setColor(0xFFDC2626) // Red for urgency
+                .setColorized(true)
+                .setDefaults(NotificationCompat.DEFAULT_ALL)
+                .setStyle(new NotificationCompat.BigTextStyle()
+                        .bigText("🚨 Level " + currentBlindLevel + " has ended!\n\n" +
+                                "📊 Current blinds: " + formatBlinds(currentSmallBlind, currentBigBlind) + "\n" +
+                                "⬆️ Next blinds: " + formatBlinds(nextSmallBlind, nextBigBlind) + "\n\n" +
+                                "Tap to return to app and advance to the next level.")
+                        .setBigContentTitle("🎯 Timer Finished!"))
                 .build();
 
         notificationManager.notify(ALERT_NOTIFICATION_ID, alertNotification);
@@ -334,32 +342,43 @@ public class PokerTimerService extends Service {
 
     private void createNotificationChannels() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            // Regular timer channel
+            // Regular timer channel - Modern styling
             NotificationChannel channel = new NotificationChannel(
                     CHANNEL_ID,
                     CHANNEL_NAME,
                     NotificationManager.IMPORTANCE_LOW
             );
-            channel.setDescription("Poker Timer Status");
-            channel.setShowBadge(false);
+            channel.setDescription("Shows poker timer status while app runs in background");
+            channel.setShowBadge(true);
+            channel.setLightColor(Color.BLUE);
+            channel.enableLights(false);
+            channel.enableVibration(false);
+            channel.setLockscreenVisibility(Notification.VISIBILITY_PUBLIC);
             notificationManager.createNotificationChannel(channel);
 
-            // Alert channel
+            // Alert channel - High priority with modern styling
             NotificationChannel alertChannel = new NotificationChannel(
                     ALERT_CHANNEL_ID,
                     ALERT_CHANNEL_NAME,
                     NotificationManager.IMPORTANCE_HIGH
             );
-            alertChannel.setDescription("Poker Timer Alerts");
+            alertChannel.setDescription("Important alerts when timer reaches zero");
             alertChannel.enableVibration(true);
+            alertChannel.enableLights(true);
+            alertChannel.setLightColor(Color.RED);
             alertChannel.setShowBadge(true);
             alertChannel.setLockscreenVisibility(Notification.VISIBILITY_PUBLIC);
+
+            // Set custom vibration pattern
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                alertChannel.setVibrationPattern(new long[]{0, 250, 250, 250});
+            }
+
             notificationManager.createNotificationChannel(alertChannel);
         }
     }
 
     private Notification createNotification() {
-        // FIXED: Use correct intent flags to bring existing app to foreground
         Intent intent = new Intent(this, MainActivity.class);
         intent.setFlags(
                 Intent.FLAG_ACTIVITY_CLEAR_TOP |
@@ -373,19 +392,86 @@ public class PokerTimerService extends Service {
                 PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE
         );
 
-        String title = tournamentName;
+        String title = getModernTitle();
         String content = formatNotificationContent();
+        String bigText = formatBigText();
 
-        return new NotificationCompat.Builder(this, CHANNEL_ID)
+        NotificationCompat.Builder builder = new NotificationCompat.Builder(this, CHANNEL_ID)
                 .setContentTitle(title)
                 .setContentText(content)
-                .setSmallIcon(R.drawable.splashscreen_logo)
+                .setSmallIcon(getNotificationIcon())
                 .setOngoing(true)
                 .setContentIntent(pendingIntent)
                 .setCategory(NotificationCompat.CATEGORY_SERVICE)
                 .setPriority(NotificationCompat.PRIORITY_LOW)
                 .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
-                .build();
+                .setColor(getStatusColor()) // Dynamic color based on state
+                .setColorized(false)
+                .setStyle(new NotificationCompat.BigTextStyle()
+                        .bigText(bigText)
+                        .setBigContentTitle(title))
+                .setShowWhen(false)
+                .setOnlyAlertOnce(true); // Don't repeatedly alert for updates
+
+        // Add custom large icon if available
+        try {
+            builder.setLargeIcon(
+                    android.graphics.BitmapFactory.decodeResource(
+                            getResources(),
+                            R.mipmap.ic_launcher
+                    )
+            );
+        } catch (Exception e) {
+            // No large icon, that's fine
+        }
+
+        return builder.build();
+    }
+
+    private int getStatusColor() {
+        if (timerExpired) {
+            return 0xFFDC2626; // Red for expired
+        } else if (paused) {
+            return 0xFF6B7280; // Gray for paused
+        } else if (timeLeft <= 60) {
+            return 0xFFEA580C; // Orange for low time
+        } else {
+            return 0xFF059669; // Green for active
+        }
+    }
+
+    private int getNotificationIcon() {
+        // Try to use custom poker icons first, fall back gracefully
+        try {
+            // Try poker chip icon first (most thematic)
+            getResources().getDrawable(R.drawable.ic_poker_chip);
+            return R.drawable.ic_poker_chip;
+        } catch (Exception e1) {
+            try {
+                // Try poker timer icon
+                getResources().getDrawable(R.drawable.ic_poker_timer);
+                return R.drawable.ic_poker_timer;
+            } catch (Exception e2) {
+                try {
+                    // Try app launcher icon
+                    getResources().getDrawable(R.mipmap.ic_launcher);
+                    return R.mipmap.ic_launcher;
+                } catch (Exception e3) {
+                    // Fall back to system timer icon
+                    return android.R.drawable.ic_dialog_info;
+                }
+            }
+        }
+    }
+
+    private String getModernTitle() {
+        if (timerExpired) {
+            return "⏰ " + tournamentName + " • TIME'S UP!";
+        } else if (paused) {
+            return "⏸️ " + tournamentName + " • Paused";
+        } else {
+            return "🎯 " + tournamentName + " • Active";
+        }
     }
 
     private void updateNotification() {
@@ -395,25 +481,52 @@ public class PokerTimerService extends Service {
     private String formatNotificationContent() {
         StringBuilder content = new StringBuilder();
 
+        // Main status line
         content.append("Level ").append(currentBlindLevel);
-        content.append(" • ").append(currentSmallBlind).append("/").append(currentBigBlind);
+        content.append(" • ").append(formatBlinds(currentSmallBlind, currentBigBlind));
 
         if (paused) {
-            content.append(" • Paused");
             if (timeLeft > 0) {
-                content.append(" (").append(formatTime(timeLeft)).append(")");
+                content.append(" • ").append(formatTime(timeLeft)).append(" remaining");
             }
         } else if (timeLeft > 0) {
-            content.append(" • ").append(formatTime(timeLeft));
+            content.append(" • ").append(formatTime(timeLeft)).append(" left");
         } else if (timerExpired) {
-            content.append(" • TIME'S UP!");
-        }
-
-        if (nextSmallBlind > 0 || nextBigBlind > 0) {
-            content.append(" → ").append(nextSmallBlind).append("/").append(nextBigBlind);
+            content.append(" • Advance to next level");
         }
 
         return content.toString();
+    }
+
+    private String formatBigText() {
+        StringBuilder bigText = new StringBuilder();
+
+        // Current level info
+        bigText.append("📊 Current Level: ").append(currentBlindLevel).append("\n");
+        bigText.append("💰 Blinds: ").append(formatBlinds(currentSmallBlind, currentBigBlind));
+
+        // Timer info
+        if (paused) {
+            bigText.append("\n⏸️ Status: Paused");
+            if (timeLeft > 0) {
+                bigText.append("\n⏱️ Time Remaining: ").append(formatTime(timeLeft));
+            }
+        } else if (timeLeft > 0) {
+            bigText.append("\n⏱️ Time Left: ").append(formatTime(timeLeft));
+        } else if (timerExpired) {
+            bigText.append("\n🚨 TIME'S UP! Level completed");
+        }
+
+        // Next level info
+        if (nextSmallBlind > 0 || nextBigBlind > 0) {
+            bigText.append("\n⬆️ Next Level: ").append(formatBlinds(nextSmallBlind, nextBigBlind));
+        }
+
+        return bigText.toString();
+    }
+
+    private String formatBlinds(int smallBlind, int bigBlind) {
+        return String.format("%,d/%,d", smallBlind, bigBlind);
     }
 
     private String formatTime(int seconds) {
@@ -435,6 +548,5 @@ public class PokerTimerService extends Service {
         stopAlert();
     }
 }
-
 
 
