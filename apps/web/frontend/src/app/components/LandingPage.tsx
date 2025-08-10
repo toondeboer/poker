@@ -2,7 +2,7 @@ import React, { useState, useEffect } from "react";
 import {
   ChevronDown,
   Clock,
-  Users,
+  Bell,
   Trophy,
   Shield,
   Smartphone,
@@ -302,10 +302,10 @@ const LandingPage: React.FC = () => {
                     "Accurate blind level progression with customizable intervals. Never miss a beat in your tournament structure.",
                 },
                 {
-                  icon: Users,
-                  title: "Player Management",
+                  icon: Bell,
+                  title: "Background Operation",
                   description:
-                    "Track players, eliminations, and seating arrangements. Keep your tournament organized and professional.",
+                    "Works seamlessly in the background, even when your phone is locked. Get alerts and notifications when blind levels change.",
                 },
                 {
                   icon: Trophy,
