@@ -7,17 +7,53 @@ import {
   Shield,
   Smartphone,
   Monitor,
+  LucideIcon,
 } from "lucide-react";
+import Image, { StaticImageData } from "next/image";
 import icon from "../../assets/icon.png";
-import Image from "next/image";
+import screenshot_1 from "../../assets/screenshots/screenshot_1.jpeg";
+import screenshot_2 from "../../assets/screenshots/screenshot_2.jpeg";
+import screenshot_3 from "../../assets/screenshots/screenshot_3.jpeg";
+import screenshot_4 from "../../assets/screenshots/screenshot_4.jpeg";
+import screenshot_5 from "../../assets/screenshots/screenshot_5.jpeg";
+import screenshot_6 from "../../assets/screenshots/screenshot_6.jpeg";
+import screenshot_7 from "../../assets/screenshots/screenshot_7.jpeg";
 
-const LandingPage = () => {
-  const [isMobile, setIsMobile] = useState(false);
-  const [isMenuOpen, setIsMenuOpen] = useState(false);
+const appleAppStoreLink: string =
+  "https://apps.apple.com/nl/app/poker-blinds-buzzer/id6749512168?l=en-GB";
+const googlePlayStoreLink: string = "https://google.com"; // TODO
+
+interface ScreenshotMap {
+  [key: number]: StaticImageData;
+}
+
+// Helper function to get screenshot imports
+const getScreenshotImage = (number: number): StaticImageData => {
+  const screenshots: ScreenshotMap = {
+    1: screenshot_1,
+    2: screenshot_2,
+    3: screenshot_3,
+    4: screenshot_4,
+    5: screenshot_5,
+    6: screenshot_6,
+    7: screenshot_7,
+  };
+  return screenshots[number];
+};
+
+interface Feature {
+  icon: LucideIcon;
+  title: string;
+  description: string;
+}
+
+const LandingPage: React.FC = () => {
+  const [isMobile, setIsMobile] = useState<boolean>(false);
+  const [isMenuOpen, setIsMenuOpen] = useState<boolean>(false);
 
   useEffect(() => {
-    const checkMobile = () => {
-      const userAgent =
+    const checkMobile = (): void => {
+      const userAgent: string =
         navigator.userAgent || navigator.vendor || (window as any).opera;
       setIsMobile(/android|iPad|iPhone|iPod/.test(userAgent.toLowerCase()));
     };
@@ -27,7 +63,7 @@ const LandingPage = () => {
     return () => window.removeEventListener("resize", checkMobile);
   }, []);
 
-  const scrollToSection = (id: any) => {
+  const scrollToSection = (id: string): void => {
     document.getElementById(id)?.scrollIntoView({ behavior: "smooth" });
     setIsMenuOpen(false);
   };
@@ -39,16 +75,11 @@ const LandingPage = () => {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-16">
             <div className="flex items-center space-x-3">
-              <div
-                className="w-10 h-10 rounded-lg flex items-center justify-center"
-                style={{ backgroundColor: "rgb(29, 59, 42)" }}
-              >
-                <Image
-                  src={icon}
-                  alt="Poker Timer Logo"
-                  className="rounded-lg"
-                />
-              </div>
+              <Image
+                src={icon}
+                alt="Poker Timer Logo"
+                className="w-10 h-10 rounded-lg"
+              />
               <span className="text-white font-bold text-xl">
                 Poker Blinds Buzzer
               </span>
@@ -137,12 +168,11 @@ const LandingPage = () => {
       <section className="pt-24 pb-16 px-4 sm:px-6 lg:px-8">
         <div className="max-w-7xl mx-auto">
           <div className="text-center mb-12">
-            <div
+            <Image
+              src={icon}
+              alt="Poker Timer Logo"
               className="w-24 h-24 mx-auto mb-8 rounded-2xl shadow-2xl flex items-center justify-center transform hover:scale-105 transition-transform"
-              style={{ backgroundColor: "rgb(29, 59, 42)" }}
-            >
-              <Image src={icon} alt="Poker Timer Logo" className="rounded-lg" />
-            </div>
+            />
 
             <h1 className="text-5xl md:text-7xl font-bold text-white mb-6 bg-gradient-to-r from-white to-gray-300 bg-clip-text text-transparent">
               Poker Blinds Buzzer
@@ -159,14 +189,14 @@ const LandingPage = () => {
               {isMobile ? (
                 <div className="w-full max-w-sm space-y-4">
                   <a
-                    href="https://apps.apple.com/app/your-poker-timer"
+                    href={appleAppStoreLink}
                     className="flex items-center justify-center w-full px-8 py-4 bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white font-semibold rounded-xl transition-all transform hover:scale-105 shadow-lg"
                   >
                     <Smartphone className="w-6 h-6 mr-3" />
                     Download for iOS
                   </a>
                   <a
-                    href="https://play.google.com/store/apps/details?id=com.yourapp.pokertimer"
+                    href={googlePlayStoreLink}
                     className="flex items-center justify-center w-full px-8 py-4 bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800 text-white font-semibold rounded-xl transition-all transform hover:scale-105 shadow-lg"
                   >
                     <Smartphone className="w-6 h-6 mr-3" />
@@ -176,14 +206,14 @@ const LandingPage = () => {
               ) : (
                 <div className="flex flex-col sm:flex-row gap-4">
                   <a
-                    href="https://apps.apple.com/app/your-poker-timer"
+                    href={appleAppStoreLink}
                     className="flex items-center px-8 py-4 bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white font-semibold rounded-xl transition-all transform hover:scale-105 shadow-lg"
                   >
                     <Smartphone className="w-6 h-6 mr-3" />
                     Download for iOS
                   </a>
                   <a
-                    href="https://play.google.com/store/apps/details?id=com.yourapp.pokertimer"
+                    href={googlePlayStoreLink}
                     className="flex items-center px-8 py-4 bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800 text-white font-semibold rounded-xl transition-all transform hover:scale-105 shadow-lg"
                   >
                     <Smartphone className="w-6 h-6 mr-3" />
@@ -210,17 +240,15 @@ const LandingPage = () => {
             </div>
           </div>
 
-          {/* Hero Image Placeholder */}
-          <div className="relative max-w-4xl mx-auto">
-            <div className="bg-gradient-to-br from-gray-800 to-gray-900 rounded-2xl shadow-2xl p-8 border border-white/10">
-              <div className="text-center text-gray-400">
-                <Monitor className="w-16 h-16 mx-auto mb-4 opacity-50" />
-                <p className="text-lg">
-                  Your app screenshots will be displayed here
-                </p>
-                <p className="text-sm mt-2">
-                  Replace this section with your actual app screenshots
-                </p>
+          {/* Hero Image - Optimized for Portrait Phone Screenshot */}
+          <div className="relative max-w-sm mx-auto">
+            <div className="bg-gradient-to-br from-gray-800 to-gray-900 rounded-2xl shadow-2xl p-4 border border-white/10">
+              <div className="aspect-[9/19.5] overflow-hidden rounded-xl">
+                <Image
+                  src={screenshot_1}
+                  alt="Poker Timer App Screenshot"
+                  className="w-full h-full object-cover"
+                />
               </div>
             </div>
           </div>
@@ -241,51 +269,53 @@ const LandingPage = () => {
           </div>
 
           <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
-            {[
-              {
-                icon: Clock,
-                title: "Precision Timing",
-                description:
-                  "Accurate blind level progression with customizable intervals. Never miss a beat in your tournament structure.",
-              },
-              {
-                icon: Users,
-                title: "Player Management",
-                description:
-                  "Track players, eliminations, and seating arrangements. Keep your tournament organized and professional.",
-              },
-              {
-                icon: Trophy,
-                title: "Tournament Structures",
-                description:
-                  "Pre-built tournament formats or create your own custom structures. From cash games to deep stack tournaments.",
-              },
-              {
-                icon: Shield,
-                title: "Reliable & Offline",
-                description:
-                  "Works without internet connection. Your tournaments won't be interrupted by connectivity issues.",
-              },
-              {
-                icon: Smartphone,
-                title: "Mobile Optimized",
-                description:
-                  "Perfect for mobile devices. Control your tournament from anywhere at the table.",
-              },
-              {
-                icon: Monitor,
-                title: "Display Ready",
-                description:
-                  "Large, clear displays perfect for projecting blinds information to all players.",
-              },
-            ].map((feature, index) => (
+            {(
+              [
+                {
+                  icon: Clock,
+                  title: "Precision Timing",
+                  description:
+                    "Accurate blind level progression with customizable intervals. Never miss a beat in your tournament structure.",
+                },
+                {
+                  icon: Users,
+                  title: "Player Management",
+                  description:
+                    "Track players, eliminations, and seating arrangements. Keep your tournament organized and professional.",
+                },
+                {
+                  icon: Trophy,
+                  title: "Tournament Structures",
+                  description:
+                    "Pre-built tournament formats or create your own custom structures. From cash games to deep stack tournaments.",
+                },
+                {
+                  icon: Shield,
+                  title: "Reliable & Offline",
+                  description:
+                    "Works without internet connection. Your tournaments won't be interrupted by connectivity issues.",
+                },
+                {
+                  icon: Smartphone,
+                  title: "Mobile Optimized",
+                  description:
+                    "Perfect for mobile devices. Control your tournament from anywhere at the table.",
+                },
+                {
+                  icon: Monitor,
+                  title: "Display Ready",
+                  description:
+                    "Large, clear displays perfect for projecting blinds information to all players.",
+                },
+              ] as Feature[]
+            ).map((feature: Feature, index: number) => (
               <div
                 key={index}
                 className="bg-gradient-to-br from-gray-800/50 to-gray-900/50 backdrop-blur-sm rounded-xl p-6 border border-white/10 hover:border-white/20 transition-all transform hover:scale-105"
               >
                 <div
                   className="w-12 h-12 rounded-lg mb-4 flex items-center justify-center"
-                  style={{ backgroundColor: "rgb(198, 72, 57)" }}
+                  style={{ backgroundColor: "#C64839" }}
                 >
                   <feature.icon className="w-6 h-6 text-white" />
                 </div>
@@ -299,7 +329,7 @@ const LandingPage = () => {
         </div>
       </section>
 
-      {/* Screenshots Section */}
+      {/* Screenshots Section - Optimized for Portrait Screenshots */}
       <section
         id="screenshots"
         className="py-20 px-4 sm:px-6 lg:px-8 bg-black/20"
@@ -314,22 +344,22 @@ const LandingPage = () => {
             </p>
           </div>
 
-          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
-            {[1, 2, 3, 4, 5, 6].map((item) => (
-              <div key={item} className="group">
-                <div className="bg-gradient-to-br from-gray-800 to-gray-900 rounded-xl p-8 border border-white/10 hover:border-white/20 transition-all transform group-hover:scale-105">
-                  <div className="aspect-[9/16] bg-gradient-to-br from-gray-700 to-gray-800 rounded-lg flex items-center justify-center">
-                    <div className="text-center text-gray-400">
-                      <Smartphone className="w-12 h-12 mx-auto mb-3 opacity-50" />
-                      <p className="text-sm">Screenshot {item}</p>
-                      <p className="text-xs mt-1">
-                        Replace with actual app screenshots
-                      </p>
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-6">
+            {Array.from({ length: 6 }, (_, index: number) => index + 1).map(
+              (number: number) => (
+                <div key={number} className="group">
+                  <div className="bg-gradient-to-br from-gray-800 to-gray-900 rounded-xl p-3 border border-white/10 hover:border-white/20 transition-all transform group-hover:scale-105">
+                    <div className="aspect-[9/19.5] overflow-hidden rounded-lg">
+                      <Image
+                        src={getScreenshotImage(number + 1)}
+                        alt={`Poker Timer Screenshot ${number + 1}`}
+                        className="w-full h-full object-cover"
+                      />
                     </div>
                   </div>
                 </div>
-              </div>
-            ))}
+              ),
+            )}
           </div>
         </div>
       </section>
@@ -341,13 +371,13 @@ const LandingPage = () => {
             Ready to Elevate Your Poker Game?
           </h2>
           <p className="text-xl text-gray-300 mb-12">
-            Join thousands of players who trust Poker Timer for their
+            Join thousands of players who trust Poker Blinds Buzzer for their
             tournaments
           </p>
 
           <div className="flex flex-col sm:flex-row gap-6 justify-center items-center">
             <a
-              href="https://apps.apple.com/app/your-poker-timer"
+              href={appleAppStoreLink}
               className="group relative overflow-hidden"
             >
               <div className="flex items-center px-8 py-4 bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white font-semibold rounded-xl transition-all transform hover:scale-105 shadow-xl">
@@ -363,7 +393,7 @@ const LandingPage = () => {
             </a>
 
             <a
-              href="https://play.google.com/store/apps/details?id=com.yourapp.pokertimer"
+              href={googlePlayStoreLink}
               className="group relative overflow-hidden"
             >
               <div className="flex items-center px-8 py-4 bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800 text-white font-semibold rounded-xl transition-all transform hover:scale-105 shadow-xl">
@@ -396,24 +426,26 @@ const LandingPage = () => {
             <div className="flex items-center space-x-3">
               <div
                 className="w-10 h-10 rounded-lg flex items-center justify-center"
-                style={{ backgroundColor: "rgb(29, 59, 42)" }}
+                style={{ backgroundColor: "#1D3B2A" }}
               >
                 <Clock className="w-5 h-5 text-white" />
               </div>
               <div>
-                <p className="text-white font-semibold text-sm">Poker Timer</p>
+                <p className="text-white font-semibold text-sm">
+                  Poker Blinds Buzzer
+                </p>
                 <p className="text-white/80 text-xs">Free Download</p>
               </div>
             </div>
             <div className="flex space-x-2">
               <a
-                href="https://apps.apple.com/app/your-poker-timer"
+                href={appleAppStoreLink}
                 className="bg-white/20 hover:bg-white/30 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors"
               >
                 iOS
               </a>
               <a
-                href="https://play.google.com/store/apps/details?id=com.yourapp.pokertimer"
+                href={googlePlayStoreLink}
                 className="bg-white/20 hover:bg-white/30 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors"
               >
                 Android
@@ -428,13 +460,12 @@ const LandingPage = () => {
         <div className="max-w-7xl mx-auto">
           <div className="flex flex-col md:flex-row justify-between items-center">
             <div className="flex items-center space-x-3 mb-4 md:mb-0">
-              <div
-                className="w-8 h-8 rounded-lg flex items-center justify-center"
-                style={{ backgroundColor: "rgb(29, 59, 42)" }}
-              >
-                <Clock className="w-4 h-4 text-white" />
-              </div>
-              <span className="text-white font-bold">Poker Timer</span>
+              <Image
+                src={icon}
+                alt="Poker Timer Logo"
+                className="w-8 h-8 rounded-lg"
+              />
+              <span className="text-white font-bold">Poker Blinds Buzzer</span>
             </div>
 
             <div className="flex flex-col sm:flex-row items-center space-y-2 sm:space-y-0 sm:space-x-6 text-gray-400">
@@ -445,7 +476,7 @@ const LandingPage = () => {
                 Web Demo
               </a>
               <span className="text-sm">
-                © 2025 Poker Timer. All rights reserved.
+                © 2025 Poker Blinds Buzzer. All rights reserved.
               </span>
             </div>
           </div>
@@ -457,7 +488,7 @@ const LandingPage = () => {
         <button
           onClick={() => scrollToSection("features")}
           className="fixed bottom-20 right-4 w-14 h-14 rounded-full shadow-lg flex items-center justify-center z-30 transition-all transform hover:scale-110"
-          style={{ backgroundColor: "rgb(198, 72, 57)" }}
+          style={{ backgroundColor: "#C64839" }}
         >
           <ChevronDown className="w-6 h-6 text-white" />
         </button>
