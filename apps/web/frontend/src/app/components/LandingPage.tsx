@@ -19,9 +19,12 @@ import screenshot_5 from "../../assets/screenshots/screenshot_5.jpeg";
 import screenshot_6 from "../../assets/screenshots/screenshot_6.jpeg";
 import screenshot_7 from "../../assets/screenshots/screenshot_7.jpeg";
 
-const appleAppStoreLink: string =
+const APP_STORE_LINK: string =
   "https://apps.apple.com/nl/app/poker-blinds-buzzer/id6749512168?l=en-GB";
-const googlePlayStoreLink: string = "https://google.com"; // TODO
+const PLAY_STORE_LINK: string = "https://google.com"; // TODO
+
+const PRIVACY_POLICY_LINK = "/privacy-policy";
+const DEMO_LINK = "/demo";
 
 interface ScreenshotMap {
   [key: number]: StaticImageData;
@@ -99,13 +102,13 @@ const LandingPage: React.FC = () => {
                 Screenshots
               </button>
               <a
-                href="/privacy"
+                href={PRIVACY_POLICY_LINK}
                 className="text-gray-300 hover:text-white transition-colors"
               >
-                Privacy
+                Privacy Policy
               </a>
               <a
-                href="/demo"
+                href={DEMO_LINK}
                 className="text-gray-300 hover:text-white transition-colors"
               >
                 Demo
@@ -148,13 +151,13 @@ const LandingPage: React.FC = () => {
                 Screenshots
               </button>
               <a
-                href="/privacy"
+                href={PRIVACY_POLICY_LINK}
                 className="block px-3 py-2 text-gray-300 hover:text-white"
               >
-                Privacy
+                Privacy Policy
               </a>
               <a
-                href="/demo"
+                href={DEMO_LINK}
                 className="block px-3 py-2 text-gray-300 hover:text-white"
               >
                 Demo
@@ -189,7 +192,7 @@ const LandingPage: React.FC = () => {
               {isMobile ? (
                 <div className="w-full max-w-sm space-y-4">
                   <a
-                    href={appleAppStoreLink}
+                    href={APP_STORE_LINK}
                     className="flex items-center justify-center w-full px-8 py-4 bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white font-semibold rounded-xl transition-all transform hover:scale-105 shadow-lg"
                   >
                     <svg
@@ -202,7 +205,7 @@ const LandingPage: React.FC = () => {
                     Download for iOS
                   </a>
                   <a
-                    href={googlePlayStoreLink}
+                    href={PLAY_STORE_LINK}
                     className="flex items-center justify-center w-full px-8 py-4 bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800 text-white font-semibold rounded-xl transition-all transform hover:scale-105 shadow-lg"
                   >
                     <svg
@@ -218,7 +221,7 @@ const LandingPage: React.FC = () => {
               ) : (
                 <div className="flex flex-col sm:flex-row gap-4">
                   <a
-                    href={appleAppStoreLink}
+                    href={APP_STORE_LINK}
                     className="flex items-center px-8 py-4 bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white font-semibold rounded-xl transition-all transform hover:scale-105 shadow-lg"
                   >
                     <svg
@@ -231,7 +234,7 @@ const LandingPage: React.FC = () => {
                     Download for iOS
                   </a>
                   <a
-                    href={googlePlayStoreLink}
+                    href={PLAY_STORE_LINK}
                     className="flex items-center px-8 py-4 bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800 text-white font-semibold rounded-xl transition-all transform hover:scale-105 shadow-lg"
                   >
                     <svg
@@ -249,7 +252,7 @@ const LandingPage: React.FC = () => {
 
             <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">
               <a
-                href="/demo"
+                href={DEMO_LINK}
                 className="flex items-center px-6 py-3 border border-white/20 text-white font-medium rounded-xl hover:bg-white/10 transition-all"
               >
                 <Monitor className="w-5 h-5 mr-2" />
@@ -401,7 +404,7 @@ const LandingPage: React.FC = () => {
 
           <div className="flex flex-col sm:flex-row gap-6 justify-center items-center">
             <a
-              href={appleAppStoreLink}
+              href={APP_STORE_LINK}
               className="group relative overflow-hidden rounded-xl transition-all transform hover:scale-105"
             >
               <div className="flex items-center px-8 py-4 bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white font-semibold rounded-xl shadow-xl">
@@ -417,7 +420,7 @@ const LandingPage: React.FC = () => {
             </a>
 
             <a
-              href={googlePlayStoreLink}
+              href={PLAY_STORE_LINK}
               className="group relative overflow-hidden rounded-xl transition-all transform hover:scale-105"
             >
               <div className="flex items-center px-8 py-4 bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800 text-white font-semibold rounded-xl shadow-xl">
@@ -463,13 +466,13 @@ const LandingPage: React.FC = () => {
             </div>
             <div className="flex space-x-2">
               <a
-                href={appleAppStoreLink}
+                href={APP_STORE_LINK}
                 className="bg-white/20 hover:bg-white/30 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors"
               >
                 iOS
               </a>
               <a
-                href={googlePlayStoreLink}
+                href={PLAY_STORE_LINK}
                 className="bg-white/20 hover:bg-white/30 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors"
               >
                 Android
@@ -493,10 +496,16 @@ const LandingPage: React.FC = () => {
             </div>
 
             <div className="flex flex-col sm:flex-row items-center space-y-2 sm:space-y-0 sm:space-x-6 text-gray-400">
-              <a href="/privacy" className="hover:text-white transition-colors">
+              <a
+                href={PRIVACY_POLICY_LINK}
+                className="hover:text-white transition-colors"
+              >
                 Privacy Policy
               </a>
-              <a href="/demo" className="hover:text-white transition-colors">
+              <a
+                href={DEMO_LINK}
+                className="hover:text-white transition-colors"
+              >
                 Web Demo
               </a>
               <span className="text-sm">
