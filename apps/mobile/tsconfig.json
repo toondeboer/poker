@@ -3,9 +3,9 @@
   "compilerOptions": {
     "strict": true,
     "paths": {
-      "@/*": [
-        "./*"
-      ]
+      "@/*": ["./*"],
+      "@poker/core": ["../../packages/core/src/index.ts"],
+      "@poker/core/*": ["../../packages/core/src/*"]
     }
   },
   "include": [

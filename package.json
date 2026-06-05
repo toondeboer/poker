@@ -1,0 +1,25 @@
+{
+  "name": "poker-monorepo",
+  "version": "0.0.0",
+  "private": true,
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "build": "turbo run build",
+    "lint": "turbo run lint",
+    "typecheck": "turbo run typecheck",
+    "web": "npm run dev --workspace @poker/web",
+    "mobile": "npm run start --workspace @poker/mobile",
+    "ios": "npm run ios --workspace @poker/mobile",
+    "android": "npm run android --workspace @poker/mobile"
+  },
+  "devDependencies": {
+    "turbo": "^2",
+    "typescript": "~5.8.3"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}

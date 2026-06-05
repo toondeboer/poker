@@ -1,7 +1,8 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  /* config options here */
+  // Compile the shared TypeScript package (@poker/core) from source.
+  transpilePackages: ["@poker/core"],
 };
 
 export default nextConfig;
