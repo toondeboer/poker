@@ -1,11 +1,14 @@
 // src/hooks/useTimerEngine.ts
 import { useEffect, useRef, useState } from "react";
+import {
+  BlindLevel,
+  DEFAULT_TIMER_DURATION,
+  calculateTimeLeft,
+  computeEndTime,
+} from "@poker/core";
 import { TimerState, TimerStorage } from "@/src/services/TimerStorage";
-import { BlindLevel } from "@/src/types/BlindLevel";
 import { liveActivityService } from "@/src/services/LiveActivityService";
 import { useAppState } from "@/src/contexts/AppStateContext";
-
-const DEFAULT_TIMER_DURATION = 600;
 
 export interface TimerEngineCallbacks {
   onTimerComplete: () => void;
@@ -25,14 +28,8 @@ export function useTimerEngine(
 
   const { isActive } = useAppState();
 
-  const intervalRef = useRef<number | null>(null);
+  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const hasHandledTimerCompleteRef = useRef(false); // Track if we've already handled timer completion
-
-  // Calculate current time left based on end time
-  const calculateTimeLeft = (endTime: number): number => {
-    const now = Date.now();
-    return Math.max(0, Math.ceil((endTime - now) / 1000));
-  };
 
   // Update Live Activity with current state
   const updateLiveActivity = async (shouldAlertOnExpiry: boolean) => {
@@ -121,7 +118,7 @@ export function useTimerEngine(
     } else {
       console.log("Resuming timer with time left:", timeLeft);
       // Resuming the timer
-      const newEndTime = Date.now() + timeLeft * 1000;
+      const newEndTime = computeEndTime(timeLeft);
       setEndTime(newEndTime);
       setPaused(false);
       // Reset completion flag when starting timer

@@ -6,7 +6,7 @@ import {
   LiveActivityData,
   LiveActivityDataAndroid,
 } from "../modules/LiveActivityModule";
-import { PokerTimerState } from "@/src/types/PokerTimerState";
+import { PokerTimerState } from "@poker/core";
 
 class LiveActivityService {
   private activityId: string | null = null;

@@ -1,7 +1,7 @@
 // src/hooks/useTimerNotification.ts
 import * as Notifications from "expo-notifications";
 import { SchedulableTriggerInputTypes } from "expo-notifications";
-import { BlindLevel } from "@/src/types/BlindLevel";
+import { BlindLevel } from "@poker/core";
 import { useEffect, useRef, useState } from "react";
 import { Platform } from "react-native";
 import { useAppState } from "@/src/contexts/AppStateContext";

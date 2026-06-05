@@ -6,8 +6,15 @@ import {
   useState,
   useEffect,
 } from "react";
-import { BlindLevel } from "@/src/types/BlindLevel";
-import { generateBlindLevels } from "@/src/util/generateBlinds";
+import {
+  BlindLevel,
+  generateBlindLevels,
+  nextBlindIndex,
+  previousBlindIndex,
+  addBlindLevel as appendBlindLevel,
+  removeBlindLevel as deleteBlindLevel,
+  updateBlindLevel as setBlindLevelField,
+} from "@poker/core";
 import { BlindsStorage } from "@/src/services/BlindsStorage";
 
 type BlindsContextType = {
@@ -78,40 +85,25 @@ export function BlindsProvider({
   }, [currentBlindIndex, blindLevels, customBlindLevels, isLoading]);
 
   const increaseBlinds = () => {
-    const newIndex = Math.min(currentBlindIndex + 1, blindLevels.length - 1);
+    const newIndex = nextBlindIndex(currentBlindIndex, blindLevels);
     setCurrentBlindIndex(newIndex);
     // Save index immediately
     BlindsStorage.saveCurrentBlindIndex(newIndex);
   };
 
   const decreaseBlinds = () => {
-    const newIndex = Math.max(currentBlindIndex - 1, 0);
+    const newIndex = previousBlindIndex(currentBlindIndex);
     setCurrentBlindIndex(newIndex);
     // Save index immediately
     BlindsStorage.saveCurrentBlindIndex(newIndex);
   };
 
   const addBlindLevel = () => {
-    setCustomBlindLevels([
-      ...customBlindLevels,
-      {
-        small:
-          customBlindLevels[customBlindLevels.length - 1].small +
-          (customBlindLevels[customBlindLevels.length - 1].small -
-            customBlindLevels[customBlindLevels.length - 2].small),
-        big:
-          customBlindLevels[customBlindLevels.length - 1].big +
-          (customBlindLevels[customBlindLevels.length - 1].big -
-            customBlindLevels[customBlindLevels.length - 2].big),
-      },
-    ]);
+    setCustomBlindLevels(appendBlindLevel(customBlindLevels));
   };
 
   const removeBlindLevel = (index: number) => {
-    if (customBlindLevels.length > 2) {
-      const newLevels = customBlindLevels.filter((_, i) => i !== index);
-      setCustomBlindLevels(newLevels);
-    }
+    setCustomBlindLevels(deleteBlindLevel(customBlindLevels, index));
   };
 
   const updateBlindLevel = (
@@ -119,9 +111,9 @@ export function BlindsProvider({
     field: "small" | "big",
     value: number,
   ) => {
-    const newLevels = [...customBlindLevels];
-    newLevels[index][field] = value;
-    setCustomBlindLevels(newLevels);
+    setCustomBlindLevels(
+      setBlindLevelField(customBlindLevels, index, field, value),
+    );
   };
 
   const applyCustomBlindLevels = () => {
