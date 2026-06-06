@@ -24,7 +24,7 @@ const APP_STORE_LINK: string =
 const PLAY_STORE_LINK: string = "https://google.com"; // TODO
 
 const PRIVACY_POLICY_LINK = "/privacy-policy";
-const DEMO_LINK = "/demo";
+const TIMER_LINK = "/timer";
 
 interface ScreenshotMap {
   [key: number]: StaticImageData;
@@ -108,10 +108,10 @@ const LandingPage: React.FC = () => {
                 Privacy Policy
               </a>
               <a
-                href={DEMO_LINK}
+                href={TIMER_LINK}
                 className="text-gray-300 hover:text-white transition-colors"
               >
-                Demo
+                Web Timer
               </a>
             </div>
 
@@ -157,10 +157,10 @@ const LandingPage: React.FC = () => {
                 Privacy Policy
               </a>
               <a
-                href={DEMO_LINK}
+                href={TIMER_LINK}
                 className="block px-3 py-2 text-gray-300 hover:text-white"
               >
-                Demo
+                Web Timer
               </a>
             </div>
           </div>
@@ -252,11 +252,11 @@ const LandingPage: React.FC = () => {
 
             <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">
               <a
-                href={DEMO_LINK}
+                href={TIMER_LINK}
                 className="flex items-center px-6 py-3 border border-white/20 text-white font-medium rounded-xl hover:bg-white/10 transition-all"
               >
                 <Monitor className="w-5 h-5 mr-2" />
-                Try Web Demo
+                Open Web Timer
               </a>
               <a
                 href="/privacy-policy"
@@ -503,10 +503,10 @@ const LandingPage: React.FC = () => {
                 Privacy Policy
               </a>
               <a
-                href={DEMO_LINK}
+                href={TIMER_LINK}
                 className="hover:text-white transition-colors"
               >
-                Web Demo
+                Web Timer
               </a>
               <span className="text-sm">
                 © 2025 Poker Blinds Buzzer. All rights reserved.

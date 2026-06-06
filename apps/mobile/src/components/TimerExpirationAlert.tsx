@@ -137,7 +137,7 @@ export function TimerExpirationAlert({
 
           {/* Alert Content */}
           <View style={styles.content}>
-            <Text style={styles.title}>Time's Up!</Text>
+            <Text style={styles.title}>Time&apos;s Up!</Text>
             <Text style={styles.subtitle}>Level {currentLevel} Complete</Text>
 
             {nextBlindLevel && (
