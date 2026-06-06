@@ -184,11 +184,6 @@ export function TimerExpirationAlert({
   );
 }
 
-// Optional: Blow Animation Component (you can implement or remove)
-function BlowAnimationView({ style }: { style?: any }) {
-  return <View style={style} />;
-}
-
 const styles = StyleSheet.create({
   backdrop: {
     flex: 1,

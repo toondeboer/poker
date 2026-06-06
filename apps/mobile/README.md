@@ -1,7 +1,7 @@
 # Poker Kit
 
-This is a poker timer app built with Expo Router, TypeScript, and Tailwind CSS. It is designed to help teams manage
-their poker sessions efficiently.
+This is a poker timer app built with Expo Router, React Native, and TypeScript. It is designed to help
+run poker tournaments — track blind levels and time each round.
 
 ## Get started
 

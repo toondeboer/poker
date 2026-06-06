@@ -17,7 +17,6 @@ export {
   addBlindLevel,
   removeBlindLevel,
   updateBlindLevel,
-  defaultBlindLevels,
 } from "./blinds/mutateBlinds";
 
 // Time
