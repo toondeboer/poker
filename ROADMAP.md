@@ -30,7 +30,7 @@ _Last reviewed: 2026-06-07._
 
 | ID | Change | Impact | Risk | Description | Status |
 |----|--------|--------|------|-------------|--------|
-| R10 | Resolve privacy-policy vs Google Analytics contradiction | High | Med | Web loads GA (`G-13MH57QZWG`) on every page while the policy claims "no analytics"; EU publisher, no consent banner. Remove GA or add consent + correct the policy text. **Legal/compliance.** | ⬜ Not started |
+| R10 | Resolve privacy-policy vs Google Analytics contradiction | High | Med | Web loaded GA (`G-13MH57QZWG`) on every page while the policy claimed "no analytics"; EU publisher, no consent banner. Added `AnalyticsConsent` (cookie-consent banner that gates GA loading on opt-in, persisted to `localStorage`) and rewrote the privacy-policy sections to accurately disclose the website's optional, consent-based Google Analytics use vs. the app's true no-analytics behavior. | ✅ Done |
 | R11 | Add CI (typecheck + lint + test) | High | Low | GitHub Actions running the turbo tasks on PRs; locks in the new test net. No CI exists today. | ⬜ Not started |
 | R12 | Fix iOS background-expiry blind advancement | High | High | On reopen, advance the blind level (fast-forward by fully-elapsed rounds) instead of resetting to the same level paused. JS is suspended in the background, so blinds never advance there today. Needs simulator-in-the-loop. | ⬜ Not started |
 | R13 | Android permission diet | Med | Med | Drop `RECORD_AUDIO`, `SYSTEM_ALERT_WINDOW`, `READ/WRITE_EXTERNAL_STORAGE` if unused — Play-review friction + privacy optics. | ⬜ Not started |

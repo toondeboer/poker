@@ -13,7 +13,7 @@ const PrivacyPolicy: React.FC = () => {
   const appName = "Poker Blinds Buzzer";
   const companyName = "Poker Blinds Buzzer";
   const contactEmail = "poker.blinds.buzzer@gmail.com";
-  const lastUpdated = "August 2025";
+  const lastUpdated = "June 2026";
   const sections = [
     {
       id: "information-collection",
@@ -26,14 +26,16 @@ const PrivacyPolicy: React.FC = () => {
               Privacy First Approach
             </p>
             <p className="text-green-700">
-              Poker Blinds Buzzer does not collect, transmit, or store any
-              personal data on external servers. All your information stays on
-              your device.
+              The Poker Blinds Buzzer app does not collect, transmit, or store
+              any personal data on external servers. All your information
+              stays on your device. The only exception is optional, consent-based
+              analytics on this website — see &quot;Website Analytics&quot;
+              below.
             </p>
           </div>
           <div>
             <h4 className="font-semibold text-gray-800 mb-2">
-              We Do NOT Collect:
+              The App Does NOT Collect:
             </h4>
             <ul className="list-disc list-inside space-y-1 text-gray-600">
               <li>Personal information or contact details</li>
@@ -82,15 +84,58 @@ const PrivacyPolicy: React.FC = () => {
             </p>
           </div>
           <div className="bg-gray-50 p-4 rounded-lg">
-            <h4 className="font-semibold text-gray-800 mb-2">
-              Complete Privacy
-            </h4>
+            <h4 className="font-semibold text-gray-800 mb-2">App Privacy</h4>
             <p className="text-gray-600">
-              Since no data is transmitted or collected, there are no privacy
-              concerns about data sharing, third-party access, or data breaches
-              from our servers.
+              Since the app itself transmits or collects no data, there are no
+              privacy concerns about data sharing, third-party access, or data
+              breaches from app servers — we don&apos;t have any.
             </p>
           </div>
+        </div>
+      ),
+    },
+    {
+      id: "website-analytics",
+      icon: <Eye className="w-6 h-6" />,
+      title: "Website Analytics",
+      content: (
+        <div className="space-y-3">
+          <p className="text-gray-600">
+            This website (not the app itself) uses Google Analytics to help us
+            understand how visitors find and use the site — for example, which
+            pages are popular and how people arrive here.
+          </p>
+          <div className="bg-blue-50 p-4 rounded-lg border-l-4 border-blue-400">
+            <p className="text-blue-800 font-medium">
+              Google Analytics only runs if you choose &quot;Accept&quot; on
+              the cookie-consent banner shown when you first visit. If you
+              choose &quot;Decline&quot; (or take no action), no analytics
+              script loads and no data is sent to Google.
+            </p>
+          </div>
+          <ul className="list-disc list-inside space-y-1 text-gray-600">
+            <li>
+              When enabled, Google Analytics may collect information such as
+              pages visited, approximate location, device/browser type, and
+              how you interact with the site
+            </li>
+            <li>
+              This data is processed by Google in line with the{" "}
+              <a
+                href="https://policies.google.com/privacy"
+                className="underline hover:text-gray-800"
+                target="_blank"
+                rel="noreferrer"
+              >
+                Google Privacy Policy
+              </a>
+            </li>
+            <li>
+              You can change your choice at any time by clearing your
+              browser&apos;s site data for this domain, which will show the
+              consent banner again
+            </li>
+          </ul>
         </div>
       ),
     },
@@ -142,11 +187,14 @@ const PrivacyPolicy: React.FC = () => {
         <div className="space-y-3">
           <div className="bg-green-50 p-4 rounded-lg border-l-4 border-green-400">
             <p className="text-green-800 font-semibold">
-              No Third-Party Data Sharing
+              No Third-Party Data Sharing From the App
             </p>
             <p className="text-green-700 mt-1">
-              Poker Blinds Buzzer does not integrate with any third-party
-              analytics, advertising, or data collection services.
+              The Poker Blinds Buzzer app does not integrate with any
+              third-party analytics, advertising, or data collection services.
+              The only third-party service in use is the optional, consent-based
+              Google Analytics on this website — see &quot;Website
+              Analytics&quot; above.
             </p>
           </div>
           <div>
@@ -154,7 +202,10 @@ const PrivacyPolicy: React.FC = () => {
               What This Means:
             </h4>
             <ul className="list-disc list-inside space-y-1 text-gray-600">
-              <li>No analytics tracking (Google Analytics, Firebase, etc.)</li>
+              <li>
+                No analytics in the app itself; Google Analytics on the
+                website only runs if you accept the cookie-consent banner
+              </li>
               <li>No advertising networks or ad tracking</li>
               <li>No crash reporting services</li>
               <li>No social media integrations</li>
@@ -194,7 +245,9 @@ const PrivacyPolicy: React.FC = () => {
               <div>
                 <p className="font-medium text-blue-800">Opt-Out</p>
                 <p className="text-sm text-blue-700">
-                  Disable analytics and crash reporting in app settings
+                  Decline the cookie-consent banner on this website to keep
+                  Google Analytics from loading — the app itself never
+                  collects analytics, so there is nothing to opt out of there
                 </p>
               </div>
             </div>
@@ -238,10 +291,12 @@ const PrivacyPolicy: React.FC = () => {
 
           <div className="prose prose-gray max-w-none">
             <p className="text-lg text-gray-700 leading-relaxed mb-6">
-              Poker Blinds Buzzer is designed with privacy in mind. We do not
-              collect, store, or transmit any personal data. All your tournament
-              settings, preferences, and configurations are stored locally on
-              your device only.
+              The Poker Blinds Buzzer app is designed with privacy in mind. It
+              does not collect, store, or transmit any personal data — all
+              your tournament settings, preferences, and configurations are
+              stored locally on your device only. This website uses optional,
+              consent-based Google Analytics; see &quot;Website
+              Analytics&quot; below for details.
             </p>
 
             <div className="bg-gradient-to-r from-blue-50 to-indigo-50 p-6 rounded-lg border border-blue-200">
@@ -249,10 +304,13 @@ const PrivacyPolicy: React.FC = () => {
                 Key Privacy Principles
               </h3>
               <ul className="space-y-1 text-blue-800">
-                <li>• No data collection or transmission to servers</li>
-                <li>• All your data stays on your device</li>
-                <li>• No third-party tracking or analytics</li>
-                <li>• Complete privacy and offline functionality</li>
+                <li>• The app collects or transmits no personal data</li>
+                <li>• All your app data stays on your device</li>
+                <li>• No third-party tracking inside the app</li>
+                <li>
+                  • This website only loads Google Analytics if you accept the
+                  cookie-consent banner
+                </li>
               </ul>
             </div>
           </div>
@@ -322,7 +380,7 @@ const PrivacyPolicy: React.FC = () => {
         {/* Footer */}
         <div className="text-center mt-12 py-8 border-t border-gray-200">
           <p className="text-gray-500 text-sm">
-            © 2025 {companyName}. This privacy policy is effective as of{" "}
+            © 2026 {companyName}. This privacy policy is effective as of{" "}
             {lastUpdated}.
           </p>
         </div>
