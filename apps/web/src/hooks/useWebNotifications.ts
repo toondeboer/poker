@@ -1,18 +1,15 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useState } from "react";
 
 /**
  * Browser notifications + speech synthesis for announcing blind changes.
  * All calls are no-ops when the relevant browser API is unavailable.
  */
 export function useWebNotifications() {
-  const [permission, setPermission] =
-    useState<NotificationPermission>("default");
-
-  useEffect(() => {
-    if (typeof window !== "undefined" && "Notification" in window) {
-      setPermission(Notification.permission);
-    }
-  }, []);
+  const [permission, setPermission] = useState<NotificationPermission>(() =>
+    typeof window !== "undefined" && "Notification" in window
+      ? Notification.permission
+      : "default",
+  );
 
   const requestPermission =
     useCallback(async (): Promise<NotificationPermission> => {

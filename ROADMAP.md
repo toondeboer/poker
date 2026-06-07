@@ -44,4 +44,4 @@ _Last reviewed: 2026-06-07._
 | R21 | Hoist a shared timer state machine into `@poker/core` | High | High | Have web `useWebTimer` and mobile `useTimerEngine` adapt one core state machine; kills the duplicated-engine drift class of bugs. | ⬜ Not started |
 | R22 | Decompose `TimerContext` / `useTimerEngine` (SRP) | Med | High | Split engine vs. side-effects vs. native sync; reduces the god-object fragility. | ⬜ Not started |
 | R23 | Extract `<StoreButton>` in `LandingPage` | Low | Low | Apple/Google store SVG + button markup is duplicated 3×. | ⬜ Not started |
-| R24 | Dependency / Expo SDK version bumps | Med | Med | Stack (Expo 53 / RN 0.79 / Next 15.3) is ~1+ SDK generation behind. | ⬜ Not started |
+| R24 | Dependency / Expo SDK version bumps | Med | Med | Stack (Expo 53 / RN 0.79) is ~1+ SDK generation behind. Next.js bumped to 16.2.7 (was 15.3.5); Expo/RN still pending. | 🚧 In progress |

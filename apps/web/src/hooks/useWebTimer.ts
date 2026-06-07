@@ -28,11 +28,16 @@ export function useWebTimer({ onExpire }: UseWebTimerOptions) {
 
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const onExpireRef = useRef(onExpire);
-  onExpireRef.current = onExpire;
   const durationRef = useRef(timerDuration);
-  durationRef.current = timerDuration;
   const timeLeftRef = useRef(timeLeft);
-  timeLeftRef.current = timeLeft;
+
+  // Keep refs in sync with the latest values for use in async callbacks
+  // (interval ticks, event handlers) without retriggering effects.
+  useEffect(() => {
+    onExpireRef.current = onExpire;
+    durationRef.current = timerDuration;
+    timeLeftRef.current = timeLeft;
+  });
 
   // Restore persisted timer state on mount.
   useEffect(() => {
