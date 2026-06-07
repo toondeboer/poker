@@ -9,6 +9,7 @@ import {
 } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import { Ionicons } from "@expo/vector-icons";
+import { formatTime } from "@poker/core";
 import { useBlinds } from "@/src/contexts/BlindsContext";
 import { useTimer } from "@/src/contexts/TimerContext";
 import { useRouter } from "expo-router";
@@ -29,13 +30,6 @@ export default function PokerTimer() {
     dismissTimerAlert,
     handleNextBlinds,
   } = useTimer();
-
-  // Format time as MM:SS
-  const formatTime = (seconds: number) => {
-    const mins = Math.floor(seconds / 60);
-    const secs = seconds % 60;
-    return `${mins.toString().padStart(2, "0")}:${secs.toString().padStart(2, "0")}`;
-  };
 
   const percent = Math.max(0, timeLeft) / timerDuration;
 

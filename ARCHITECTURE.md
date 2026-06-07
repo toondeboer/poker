@@ -91,7 +91,7 @@ survive a reload) using the exact same serialization the app uses.
 | Sound | `expo-av` (`useSounds`) | Web Audio API (`useWebAudio`) |
 | Notifications | `expo-notifications` (`useTimerNotification`) | `Notification` API + speech synthesis (`useWebNotifications`) |
 | Background timer | iOS Live Activities + Android foreground service (`LiveActivityService`, native `ios/`/`android/`) | none — the tab stays open; no background needed |
-| Haptics | `expo-haptics` | none |
+| Haptics | React Native `Vibration` API (`TimerExpirationAlert`) + native Android `Vibrator` | none |
 | Storage | AsyncStorage adapter | localStorage adapter |
 | UI | React Native `StyleSheet` components | Next.js + Tailwind components |
 

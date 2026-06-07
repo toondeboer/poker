@@ -3,6 +3,9 @@ node_modules/
 .pnp
 .pnp.*
 
+# Only the root lockfile is used (npm workspaces); keep nested ones out
+apps/*/package-lock.json
+
 # Turborepo
 .turbo
 

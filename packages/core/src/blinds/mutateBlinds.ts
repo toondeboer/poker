@@ -1,5 +1,4 @@
 import { BlindLevel } from "../types/BlindLevel";
-import { generateBlindLevels } from "./generateBlinds";
 
 /** Clamp a blind index into the valid range for a schedule of `levelCount` levels. */
 export const clampBlindIndex = (index: number, levelCount: number): number =>
@@ -44,6 +43,3 @@ export const updateBlindLevel = (
   value: number,
 ): BlindLevel[] =>
   levels.map((level, i) => (i === index ? { ...level, [field]: value } : level));
-
-/** The default schedule, for "reset to default" actions. */
-export const defaultBlindLevels = (): BlindLevel[] => generateBlindLevels();

@@ -30,6 +30,10 @@ export function useTimerEngine(
 
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const hasHandledTimerCompleteRef = useRef(false); // Track if we've already handled timer completion
+  // Keep the latest callbacks in a ref so effects don't depend on their
+  // (unstable) identity and tear down the interval on every render.
+  const callbacksRef = useRef(callbacks);
+  callbacksRef.current = callbacks;
 
   // Update Live Activity with current state
   const updateLiveActivity = async (shouldAlertOnExpiry: boolean) => {
@@ -65,7 +69,7 @@ export function useTimerEngine(
       if (hasExpired && !hasHandledTimerCompleteRef.current) {
         // Timer expired while app was closed
         hasHandledTimerCompleteRef.current = true;
-        callbacks.onTimerComplete();
+        callbacksRef.current.onTimerComplete();
 
         // Reset timer after completion but don't save state yet
         setPaused(true);
@@ -147,7 +151,10 @@ export function useTimerEngine(
     }
   };
 
-  // Timer countdown effect
+  // Timer countdown effect. Recomputes timeLeft from the absolute endTime each
+  // second. It does NOT persist per tick: while running, timeLeft is derived
+  // from endTime on load, so the save effect below only fires on meaningful
+  // state changes.
   useEffect(() => {
     if (intervalRef.current) {
       clearInterval(intervalRef.current);
@@ -159,15 +166,7 @@ export function useTimerEngine(
         setTimeLeft(newTimeLeft);
 
         // Call optional time update callback
-        callbacks.onTimeUpdate?.(newTimeLeft);
-
-        // Save updated time left periodically
-        TimerStorage.saveTimerState({
-          endTime,
-          timerDuration,
-          paused: false,
-          timeLeft: newTimeLeft,
-        });
+        callbacksRef.current.onTimeUpdate?.(newTimeLeft);
 
         if (newTimeLeft === 0) {
           clearInterval(intervalRef.current!);
@@ -180,7 +179,7 @@ export function useTimerEngine(
         clearInterval(intervalRef.current);
       }
     };
-  }, [paused, endTime, timerDuration, callbacks]);
+  }, [paused, endTime]);
 
   // Handle timer completion
   useEffect(() => {
@@ -191,17 +190,21 @@ export function useTimerEngine(
       !hasHandledTimerCompleteRef.current
     ) {
       hasHandledTimerCompleteRef.current = true;
-      callbacks.onTimerComplete();
+      callbacksRef.current.onTimerComplete();
       resetTimer();
     }
   }, [timeLeft, paused, endTime]);
 
-  // Save state whenever it changes
+  // Persist on meaningful state changes only (start/resume/pause/reset/duration).
+  // timeLeft is intentionally excluded: it ticks every second while running but
+  // is recomputed from endTime on load, so persisting per tick would hammer
+  // AsyncStorage for no benefit. Pausing flips paused/endTime, so the frozen
+  // timeLeft is still captured here.
   useEffect(() => {
     if (!isLoading) {
       saveCurrentState();
     }
-  }, [endTime, timerDuration, paused, timeLeft, isLoading]);
+  }, [endTime, timerDuration, paused, isLoading]);
 
   // Update Live Activity when state changes
   useEffect(() => {
