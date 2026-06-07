@@ -10,13 +10,20 @@ A monorepo for the Poker Blinds Buzzer product:
 - `apps/mobile` (`@poker/mobile`) — Expo (bare) React Native iOS/Android app.
 - `packages/core` (`@poker/core`) — shared, framework-agnostic TypeScript logic.
 
+## Roadmap — check this every session
+
+Planned and completed improvements live in [ROADMAP.md](./ROADMAP.md). **Read it at the start of
+any work session.** When you implement, partially land, defer, or abandon an item, update that
+row's **Status** in the same change (✅ Done · 🚧 In progress · ⬜ Not started · ⏸️ Deferred). Add
+newly proposed improvements as new rows rather than leaving them only in commit messages or chat.
+
 ## Package manager & commands
 
 - **npm workspaces + Turborepo.** Always run `npm install` from the **repo root** (one
   lockfile). Don't introduce yarn/pnpm.
 - Common commands (from root):
   - `npm run web` · `npm run ios` · `npm run android` · `npm run mobile`
-  - `npm run typecheck` · `npm run lint` · `npm run build` (each fans out via `turbo`)
+  - `npm run typecheck` · `npm run lint` · `npm run test` · `npm run build` (each fans out via `turbo`)
   - Single workspace: `npm run <script> -w @poker/<core|web|mobile>`
 
 ## Conventions & guardrails
