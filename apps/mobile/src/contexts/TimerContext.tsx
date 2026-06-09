@@ -195,9 +195,17 @@ export function TimerProvider({ children }: Readonly<{ children: ReactNode }>) {
     checkBackgroundSupport();
   }, []);
 
-  // Handle app state changes
+  // Handle app state changes. `loadTimerState` has an unstable identity (it's
+  // recreated every render), so this effect re-runs every second while the timer
+  // ticks. Only reload on an actual background→foreground transition — otherwise
+  // we'd reload timer state from storage once per second, which (among other
+  // things) clobbers a just-applied reset with the previously persisted value.
+  const wasActiveRef = useRef(isActive);
   useEffect(() => {
-    if (isActive) {
+    const cameToForeground = isActive && !wasActiveRef.current;
+    wasActiveRef.current = isActive;
+
+    if (cameToForeground) {
       // App has come to the foreground, reload timer state
       loadTimerState();
       liveActivityService.syncActivityState();

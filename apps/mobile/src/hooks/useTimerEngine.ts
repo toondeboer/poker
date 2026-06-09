@@ -137,7 +137,16 @@ export function useTimerEngine(
     setTimeLeft(timerDuration);
     hasHandledTimerCompleteRef.current = false;
 
-    await saveCurrentState();
+    // Persist the reset state explicitly. saveCurrentState() reads timeLeft and
+    // endTime from this render's closure (the setters above haven't applied
+    // yet), so it would save the pre-reset timeLeft — which a foreground reload
+    // then restores, making "reset" appear to do nothing.
+    await TimerStorage.saveTimerState({
+      endTime: undefined,
+      timerDuration,
+      paused: true,
+      timeLeft: timerDuration,
+    });
   };
 
   // Set timer duration
