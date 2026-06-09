@@ -1,5 +1,5 @@
 // src/components/TimerExpirationAlert.tsx
-import React, { useEffect, useRef } from "react";
+import React, { useEffect, useState } from "react";
 import {
   Animated,
   Dimensions,
@@ -33,8 +33,10 @@ export function TimerExpirationAlert({
   onDismiss,
   onNextBlinds,
 }: TimerExpirationAlertProps) {
-  const pulse1 = useRef(new Animated.Value(0.8)).current;
-  const pulse2 = useRef(new Animated.Value(1.2)).current;
+  // Lazily-initialized state holds a stable Animated.Value without reading a
+  // ref during render (which the React Compiler lint rules disallow).
+  const [pulse1] = useState(() => new Animated.Value(0.8));
+  const [pulse2] = useState(() => new Animated.Value(1.2));
 
   // Vibrate and start pulse animation when alert becomes visible
   useEffect(() => {

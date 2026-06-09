@@ -7,9 +7,9 @@ export const asyncStorageAdapter: StorageAdapter = {
   getItem: (key) => AsyncStorage.getItem(key),
   setItem: (key, value) => AsyncStorage.setItem(key, value),
   multiGet: async (keys) => {
-    const result = await AsyncStorage.multiGet(keys);
-    return result.map(([key, value]) => [key, value] as StorageKeyValuePair);
+    const result = await AsyncStorage.getMany(keys);
+    return keys.map((key) => [key, result[key] ?? null] as StorageKeyValuePair);
   },
-  multiSet: (pairs) => AsyncStorage.multiSet(pairs),
-  multiRemove: (keys) => AsyncStorage.multiRemove(keys),
+  multiSet: (pairs) => AsyncStorage.setMany(Object.fromEntries(pairs)),
+  multiRemove: (keys) => AsyncStorage.removeMany(keys),
 };

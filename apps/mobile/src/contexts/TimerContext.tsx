@@ -214,6 +214,9 @@ export function TimerProvider({ children }: Readonly<{ children: ReactNode }>) {
     // If app goes to background while alert is showing, auto-dismiss and advance
     if ((isBackground || isInactive) && showTimerAlert) {
       console.log("App is going to background, auto-dismiss timer alert");
+      // Reacting to an AppState transition (app backgrounded while the alert is
+      // visible); the setState inside dismissTimerAlert is intentional here.
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       dismissTimerAlert();
     }
   }, [isActive, isBackground, isInactive, loadTimerState, showTimerAlert]);
