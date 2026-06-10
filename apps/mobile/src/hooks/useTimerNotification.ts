@@ -58,32 +58,6 @@ export function useTimerNotification() {
     });
   }, [isActive]);
 
-  // Request notification permissions on hook initialization (iOS only)
-  // eslint-disable-next-line react-hooks/rules-of-hooks
-  useEffect(() => {
-    registerForPushNotificationsAsync();
-
-    // Listen for notification interactions to stop continuous notifications
-    const subscription = Notifications.addNotificationResponseReceivedListener(
-      handleNotificationResponse,
-    );
-
-    // Clear notifications when app initially loads
-    clearAllNotifications();
-
-    return () => {
-      subscription.remove();
-    };
-  }, []);
-
-  // eslint-disable-next-line react-hooks/rules-of-hooks
-  useEffect(() => {
-    if (isActive) {
-      // Clear all notifications when app comes to foreground
-      clearAllNotifications();
-    }
-  }, [isActive]);
-
   const handleNotificationResponse = async (
     response: Notifications.NotificationResponse,
   ) => {
@@ -248,6 +222,38 @@ export function useTimerNotification() {
       console.error("Failed to clear all notifications:", error);
     }
   };
+
+  // Effects are declared after the functions they call so the React Compiler
+  // lint rules don't flag access to a variable before its declaration.
+
+  // Request notification permissions on hook initialization (iOS only)
+  // eslint-disable-next-line react-hooks/rules-of-hooks
+  useEffect(() => {
+    // Async permission registration; its setState calls run after awaits as a
+    // result of the async work, so the synchronous call here is intentional.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    registerForPushNotificationsAsync();
+
+    // Listen for notification interactions to stop continuous notifications
+    const subscription = Notifications.addNotificationResponseReceivedListener(
+      handleNotificationResponse,
+    );
+
+    // Clear notifications when app initially loads
+    clearAllNotifications();
+
+    return () => {
+      subscription.remove();
+    };
+  }, []);
+
+  // eslint-disable-next-line react-hooks/rules-of-hooks
+  useEffect(() => {
+    if (isActive) {
+      // Clear all notifications when app comes to foreground
+      clearAllNotifications();
+    }
+  }, [isActive]);
 
   return {
     scheduleNotification,

@@ -75,6 +75,9 @@ export function useNotificationPermission() {
     };
 
     useEffect(() => {
+        // Async permission check on mount; the setState calls inside run after
+        // awaits / are the result of the async work, so this is intentional.
+        // eslint-disable-next-line react-hooks/set-state-in-effect
         checkPermission();
     }, []);
 

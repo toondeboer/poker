@@ -33,7 +33,9 @@ export function useTimerEngine(
   // Keep the latest callbacks in a ref so effects don't depend on their
   // (unstable) identity and tear down the interval on every render.
   const callbacksRef = useRef(callbacks);
-  callbacksRef.current = callbacks;
+  useEffect(() => {
+    callbacksRef.current = callbacks;
+  });
 
   // Update Live Activity with current state
   const updateLiveActivity = async (shouldAlertOnExpiry: boolean) => {
@@ -233,6 +235,10 @@ export function useTimerEngine(
   useEffect(() => {
     if (paused && endTime === undefined && timeLeft > timerDuration) {
       console.log("Resetting time left to new timer duration:", timerDuration);
+      // Clamp a previously-persisted timeLeft down to a newly-lowered duration.
+      // This reconciles state in response to a timerDuration change, so the
+      // synchronous setState here is intentional.
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setTimeLeft(timerDuration);
     }
   }, [timerDuration, paused, endTime]);
