@@ -1,4 +1,5 @@
 // src/hooks/useTimerEngine.ts
+import { logger } from "@/src/utils/logger";
 import { useEffect, useRef, useState } from "react";
 import {
   BlindLevel,
@@ -89,7 +90,7 @@ export function useTimerEngine(
         hasHandledTimerCompleteRef.current = false;
       }
     } catch (error) {
-      console.error("Failed to load timer state:", error);
+      logger.error("Failed to load timer state:", error);
       // Use default values on error
       setTimerDuration(DEFAULT_TIMER_DURATION);
       setTimeLeft(DEFAULT_TIMER_DURATION);
@@ -117,12 +118,12 @@ export function useTimerEngine(
     const newPaused = !paused;
 
     if (newPaused) {
-      console.log("Pausing timer at time left:", timeLeft);
+      logger.log("Pausing timer at time left:", timeLeft);
       // Pausing the timer
       setEndTime(undefined);
       setPaused(true);
     } else {
-      console.log("Resuming timer with time left:", timeLeft);
+      logger.log("Resuming timer with time left:", timeLeft);
       // Resuming the timer
       const newEndTime = computeEndTime(timeLeft);
       setEndTime(newEndTime);
@@ -157,7 +158,7 @@ export function useTimerEngine(
 
     // If timer is paused and we don't have an endTime (truly reset state), update time left
     if (paused && !endTime) {
-      console.log("Setting time left to duration:", duration);
+      logger.log("Setting time left to duration:", duration);
       setTimeLeft(duration);
     }
   };
@@ -221,10 +222,10 @@ export function useTimerEngine(
   useEffect(() => {
     if (!isLoading) {
       if (isActive) {
-        console.log("App is active, updating Live Activity");
+        logger.log("App is active, updating Live Activity");
         updateLiveActivity(false);
       } else {
-        console.log(
+        logger.log(
           "App is in background, updating Live Activity with alert on expiry",
         );
         updateLiveActivity(true);
@@ -234,7 +235,7 @@ export function useTimerEngine(
 
   useEffect(() => {
     if (paused && endTime === undefined && timeLeft > timerDuration) {
-      console.log("Resetting time left to new timer duration:", timerDuration);
+      logger.log("Resetting time left to new timer duration:", timerDuration);
       // Clamp a previously-persisted timeLeft down to a newly-lowered duration.
       // This reconciles state in response to a timerDuration change, so the
       // synchronous setState here is intentional.

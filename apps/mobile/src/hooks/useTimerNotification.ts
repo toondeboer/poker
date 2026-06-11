@@ -1,8 +1,9 @@
 // src/hooks/useTimerNotification.ts
+import { logger } from "@/src/utils/logger";
 import * as Notifications from "expo-notifications";
 import { SchedulableTriggerInputTypes } from "expo-notifications";
 import { BlindLevel } from "@poker/core";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { Platform } from "react-native";
 import { useAppState } from "@/src/contexts/AppStateContext";
 
@@ -15,26 +16,18 @@ const CUSTOM_SOUNDS = {
 } as const;
 
 export function useTimerNotification() {
-  const [scheduledNotificationIds, setScheduledNotificationIds] = useState<
-    string[]
-  >([]);
   const [hasPermission, setHasPermission] = useState<boolean>(false);
 
   const { isActive } = useAppState();
-
-  const continuousDataRef = useRef<{
-    blindLevel?: BlindLevel;
-    startTime: number;
-  } | null>(null);
 
   // Early return for Android - notifications handled by foreground service
   if (Platform.OS === "android") {
     return {
       scheduleNotification: async () => {
-        console.log("Android notifications handled by foreground service");
+        logger.log("Android notifications handled by foreground service");
       },
       cancelNotification: async () => {
-        console.log("Android notifications handled by foreground service");
+        logger.log("Android notifications handled by foreground service");
       },
     };
   }
@@ -65,7 +58,7 @@ export function useTimerNotification() {
 
     // If user interacts with a timer notification, stop the continuous notifications
     if (notificationData?.type === "timer_complete") {
-      await stopContinuousNotifications();
+      await clearAllNotifications();
     }
   };
 
@@ -83,7 +76,7 @@ export function useTimerNotification() {
       }
 
       if (finalStatus !== "granted") {
-        console.warn("Failed to get push token for push notification!");
+        logger.warn("Failed to get push token for push notification!");
         setHasPermission(false);
         return;
       }
@@ -99,7 +92,7 @@ export function useTimerNotification() {
         },
       ]);
     } catch (error) {
-      console.error("Error setting up notifications:", error);
+      logger.error("Error setting up notifications:", error);
       setHasPermission(false);
     }
   };
@@ -145,13 +138,13 @@ export function useTimerNotification() {
         notifications.push(notificationId);
       }
 
-      console.log(
+      logger.log(
         `Scheduled ${notifications.length} repeating notifications starting in ${startDelay} seconds`,
       );
 
       return notifications;
     } catch (error) {
-      console.error("Failed to schedule repeating notifications:", error);
+      logger.error("Failed to schedule repeating notifications:", error);
       return [];
     }
   };
@@ -161,10 +154,10 @@ export function useTimerNotification() {
     newBlindLevel?: BlindLevel,
   ) => {
     if (!hasPermission) {
-      console.warn("No notification permission, attempting to request...");
+      logger.warn("No notification permission, attempting to request...");
       await registerForPushNotificationsAsync();
       if (!hasPermission) {
-        console.error("Cannot schedule notification without permission");
+        logger.error("Cannot schedule notification without permission");
         return;
       }
     }
@@ -175,33 +168,12 @@ export function useTimerNotification() {
 
       await scheduleRepeatingNotifications(seconds, newBlindLevel);
     } catch (error) {
-      console.error("Failed to schedule notification:", error);
-    }
-  };
-
-  const stopContinuousNotifications = async () => {
-    try {
-      if (scheduledNotificationIds.length > 0) {
-        // Cancel all scheduled notifications
-        await Promise.all(
-          scheduledNotificationIds.map((id) =>
-            Notifications.cancelScheduledNotificationAsync(id),
-          ),
-        );
-
-        console.log(
-          `Stopped ${scheduledNotificationIds.length} continuous notifications`,
-        );
-        setScheduledNotificationIds([]);
-        continuousDataRef.current = null;
-      }
-    } catch (error) {
-      console.error("Failed to stop continuous notifications:", error);
+      logger.error("Failed to schedule notification:", error);
     }
   };
 
   const cancelNotification = async () => {
-    await stopContinuousNotifications();
+    await clearAllNotifications();
   };
 
   // Clear all notifications - both scheduled and delivered
@@ -213,13 +185,9 @@ export function useTimerNotification() {
       // Dismiss all delivered notifications from the notification center/screen
       await Notifications.dismissAllNotificationsAsync();
 
-      // Reset local state
-      setScheduledNotificationIds([]);
-      continuousDataRef.current = null;
-
-      console.log("Cleared all scheduled and delivered notifications");
+      logger.log("Cleared all scheduled and delivered notifications");
     } catch (error) {
-      console.error("Failed to clear all notifications:", error);
+      logger.error("Failed to clear all notifications:", error);
     }
   };
 

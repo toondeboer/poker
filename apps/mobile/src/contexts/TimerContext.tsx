@@ -1,4 +1,5 @@
 // src/contexts/TimerContext.tsx
+import { logger } from "@/src/utils/logger";
 import React, {
   createContext,
   ReactNode,
@@ -64,16 +65,16 @@ export function TimerProvider({ children }: Readonly<{ children: ReactNode }>) {
         await playSound();
         alarmPlayingRef.current = true;
         setShowTimerAlert(true);
-        console.log("Timer completed - showing alert and playing alarm");
+        logger.log("Timer completed - showing alert and playing alarm");
       } else {
-        console.log(
+        logger.log(
           "App in background, skipping alarm sound and alert (background service will handle audio)",
         );
         // Auto-advance if in background
         increaseBlinds();
       }
     } catch (error) {
-      console.error("Failed to play completion sound:", error);
+      logger.error("Failed to play completion sound:", error);
       // Still show alert even if sound fails
       if (isActive) {
         setShowTimerAlert(true);
@@ -87,7 +88,7 @@ export function TimerProvider({ children }: Readonly<{ children: ReactNode }>) {
   ) => {
     // Only handle notifications for iOS
     if (Platform.OS !== "ios") {
-      console.log(
+      logger.log(
         "Skipping notification scheduling on Android - handled by foreground service",
       );
       return;
@@ -185,7 +186,7 @@ export function TimerProvider({ children }: Readonly<{ children: ReactNode }>) {
         const hasPermission =
           await liveActivityService.requestNotificationPermission();
         if (!hasPermission) {
-          console.warn(
+          logger.warn(
             "Background activity available but notification permission denied",
           );
         }
@@ -213,7 +214,7 @@ export function TimerProvider({ children }: Readonly<{ children: ReactNode }>) {
 
     // If app goes to background while alert is showing, auto-dismiss and advance
     if ((isBackground || isInactive) && showTimerAlert) {
-      console.log("App is going to background, auto-dismiss timer alert");
+      logger.log("App is going to background, auto-dismiss timer alert");
       // Reacting to an AppState transition (app backgrounded while the alert is
       // visible); the setState inside dismissTimerAlert is intentional here.
       // eslint-disable-next-line react-hooks/set-state-in-effect
