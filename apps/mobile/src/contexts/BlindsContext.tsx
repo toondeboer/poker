@@ -1,4 +1,5 @@
 // src/contexts/BlindsContext.tsx
+import { logger } from "@/src/utils/logger";
 import {
   createContext,
   ReactNode,
@@ -56,7 +57,7 @@ export function BlindsProvider({
         setBlindLevels(savedState.blindLevels);
         setCustomBlindLevels(savedState.customBlindLevels);
       } catch (error) {
-        console.error("Failed to load blinds state:", error);
+        logger.error("Failed to load blinds state:", error);
       } finally {
         setIsLoading(false);
       }
@@ -76,7 +77,7 @@ export function BlindsProvider({
             customBlindLevels,
           });
         } catch (error) {
-          console.error("Failed to save blinds state:", error);
+          logger.error("Failed to save blinds state:", error);
         }
       };
 

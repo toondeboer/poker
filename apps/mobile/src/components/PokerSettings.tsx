@@ -9,6 +9,7 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
+import { formatTime } from "@poker/core";
 import { useTimer } from "@/src/contexts/TimerContext";
 import { useBlinds } from "@/src/contexts/BlindsContext";
 
@@ -42,12 +43,6 @@ export default function PokerSettings() {
 
   const handleSaveBlinds = () => {
     applyCustomBlindLevels();
-  };
-
-  const formatTime = (seconds: number) => {
-    const minutes = Math.floor(seconds / 60);
-    const remainingSeconds = seconds % 60;
-    return `${minutes}:${remainingSeconds.toString().padStart(2, "0")}`;
   };
 
   const isTablet = screenWidth > 768;

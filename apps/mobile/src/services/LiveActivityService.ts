@@ -1,4 +1,5 @@
 // src/services/LiveActivityService.ts
+import { logger } from "@/src/utils/logger";
 import { Platform } from "react-native";
 import {
   LiveActivity,
@@ -28,7 +29,7 @@ class LiveActivityService {
       try {
         return await LiveActivity.areActivitiesEnabled();
       } catch (error) {
-        console.warn("Error checking Live Activity status:", error);
+        logger.warn("Error checking Live Activity status:", error);
         return false;
       }
     } else if (Platform.OS === "android") {
@@ -38,7 +39,7 @@ class LiveActivityService {
           await ForegroundService.hasNotificationPermission();
         return isSupported && hasPermission;
       } catch (error) {
-        console.warn("Error checking Foreground Service status:", error);
+        logger.warn("Error checking Foreground Service status:", error);
         return false;
       }
     }
@@ -56,7 +57,7 @@ class LiveActivityService {
       return this.handleAndroidForegroundService(state, shouldAlertOnExpiry);
     }
 
-    console.warn("Platform not supported for background activities");
+    logger.warn("Platform not supported for background activities");
     return null;
   }
 
@@ -64,14 +65,14 @@ class LiveActivityService {
     state: PokerTimerState,
   ): Promise<string | null> {
     if (!this.isIOSSupported) {
-      console.warn("Live Activities not supported on this device");
+      logger.warn("Live Activities not supported on this device");
       return null;
     }
 
     try {
       const enabled = await this.isEnabled();
       if (!enabled) {
-        console.warn("Live Activities are not enabled");
+        logger.warn("Live Activities are not enabled");
         return null;
       }
 
@@ -101,16 +102,16 @@ class LiveActivityService {
           // Activity still exists, update it
           try {
             await LiveActivity.updateActivity(this.activityId, activityData);
-            console.log("Live Activity updated successfully");
+            logger.log("Live Activity updated successfully");
             return this.activityId;
           } catch (updateError) {
-            console.error("Failed to update Live Activity:", updateError);
+            logger.error("Failed to update Live Activity:", updateError);
             // If update fails, clear the ID and create a new one
             this.activityId = null;
           }
         } else {
           // Activity no longer exists, clear the local reference
-          console.warn("Activity no longer active, clearing local reference");
+          logger.warn("Activity no longer active, clearing local reference");
           this.activityId = null;
         }
       }
@@ -118,14 +119,14 @@ class LiveActivityService {
       // If we reach here, we need to create a new activity
       this.activityId = await LiveActivity.startActivity(activityData);
       if (this.activityId) {
-        console.log("Live Activity started:", this.activityId);
+        logger.log("Live Activity started:", this.activityId);
         return this.activityId;
       } else {
-        console.warn("Failed to start Live Activity - no ID returned");
+        logger.warn("Failed to start Live Activity - no ID returned");
         return null;
       }
     } catch (error) {
-      console.error("Failed to start/update Live Activity:", error);
+      logger.error("Failed to start/update Live Activity:", error);
       this.activityId = null;
       return null;
     }
@@ -138,7 +139,7 @@ class LiveActivityService {
     try {
       const enabled = await this.isEnabled();
       if (!enabled) {
-        console.warn("Foreground Service not available or permission denied");
+        logger.warn("Foreground Service not available or permission denied");
         return null;
       }
 
@@ -167,16 +168,16 @@ class LiveActivityService {
       if (isRunning) {
         // Update existing service
         await ForegroundService.updateService(serviceData);
-        console.log("Foreground Service updated successfully");
+        logger.log("Foreground Service updated successfully");
         return "android_service"; // Return a consistent ID for Android
       } else {
         // Start new service
         await ForegroundService.startService(serviceData);
-        console.log("Foreground Service started successfully");
+        logger.log("Foreground Service started successfully");
         return "android_service";
       }
     } catch (error) {
-      console.error("Failed to start/update Foreground Service:", error);
+      logger.error("Failed to start/update Foreground Service:", error);
       return null;
     }
   }
@@ -189,18 +190,18 @@ class LiveActivityService {
 
       try {
         await LiveActivity.endActivity(this.activityId);
-        console.log("Live Activity ended");
+        logger.log("Live Activity ended");
       } catch (error) {
-        console.error("Failed to end Live Activity:", error);
+        logger.error("Failed to end Live Activity:", error);
       } finally {
         this.activityId = null;
       }
     } else if (Platform.OS === "android") {
       try {
         await ForegroundService.stopService();
-        console.log("Foreground Service stopped");
+        logger.log("Foreground Service stopped");
       } catch (error) {
-        console.error("Failed to stop Foreground Service:", error);
+        logger.error("Failed to stop Foreground Service:", error);
       }
     }
   }
@@ -214,7 +215,7 @@ class LiveActivityService {
       try {
         return await LiveActivity.getActiveActivities();
       } catch (error) {
-        console.warn("Error getting active activities:", error);
+        logger.warn("Error getting active activities:", error);
         return [];
       }
     } else if (Platform.OS === "android") {
@@ -222,7 +223,7 @@ class LiveActivityService {
         const isRunning = await ForegroundService.isServiceRunning();
         return isRunning ? ["android_service"] : [];
       } catch (error) {
-        console.warn("Error checking service status:", error);
+        logger.warn("Error checking service status:", error);
         return [];
       }
     }
@@ -255,18 +256,18 @@ class LiveActivityService {
 
         // If we think we have an active activity but it's not in the list, clear it
         if (this.activityId && !activeActivities.includes(this.activityId)) {
-          console.log("Clearing orphaned activity ID");
+          logger.log("Clearing orphaned activity ID");
           this.activityId = null;
         }
       } catch (error) {
-        console.warn("Error during cleanup:", error);
+        logger.warn("Error during cleanup:", error);
       }
     } else if (Platform.OS === "android") {
       // For Android, we can try to stop the service to ensure cleanup
       try {
         await ForegroundService.stopService();
       } catch (error) {
-        console.warn("Error during Android service cleanup:", error);
+        logger.warn("Error during Android service cleanup:", error);
       }
     }
   }
@@ -281,29 +282,29 @@ class LiveActivityService {
 
         if (this.activityId && !activeActivities.includes(this.activityId)) {
           // Our stored activity ID is no longer active
-          console.log("Stored activity ID is no longer active, clearing it");
+          logger.log("Stored activity ID is no longer active, clearing it");
           this.activityId = null;
         } else if (!this.activityId && activeActivities.length > 0) {
           // We don't have an activity ID but there are active activities
           // This could happen if the app was restarted while an activity was running
-          console.log("Found active activities but no stored ID, syncing...");
+          logger.log("Found active activities but no stored ID, syncing...");
           // End all active activities except the first one
           for (let i = 1; i < activeActivities.length; i++) {
             await LiveActivity.endActivity(activeActivities[i]);
-            console.log(`Ended orphaned activity: ${activeActivities[i]}`);
+            logger.log(`Ended orphaned activity: ${activeActivities[i]}`);
           }
           this.activityId = activeActivities[0]; // Adopt the first one
         }
       } catch (error) {
-        console.warn("Error syncing activity state:", error);
+        logger.warn("Error syncing activity state:", error);
       }
     } else if (Platform.OS === "android") {
       // For Android, sync is simpler - just check if service is running
       try {
         const isRunning = await ForegroundService.isServiceRunning();
-        console.log("Android service running state:", isRunning);
+        logger.log("Android service running state:", isRunning);
       } catch (error) {
-        console.warn("Error syncing Android service state:", error);
+        logger.warn("Error syncing Android service state:", error);
       }
     }
   }
@@ -314,7 +315,7 @@ class LiveActivityService {
       try {
         return await ForegroundService.hasNotificationPermission();
       } catch (error) {
-        console.warn("Error checking notification permission:", error);
+        logger.warn("Error checking notification permission:", error);
         return false;
       }
     }

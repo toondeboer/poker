@@ -1,4 +1,5 @@
 // src/hooks/useNotificationPermission.ts
+import { logger } from '@/src/utils/logger';
 import { useEffect, useState } from 'react';
 import { Platform, PermissionsAndroid, Alert, Linking } from 'react-native';
 import { liveActivityService } from '@/src/services/LiveActivityService';
@@ -18,7 +19,7 @@ export function useNotificationPermission() {
                 setHasPermission(true);
             }
         } catch (error) {
-            console.error('Error checking notification permission:', error);
+            logger.error('Error checking notification permission:', error);
             setHasPermission(false);
         } finally {
             setIsLoading(false);
@@ -43,7 +44,7 @@ export function useNotificationPermission() {
                 setHasPermission(hasPermission);
                 return hasPermission;
             } catch (error) {
-                console.error('Error requesting notification permission:', error);
+                logger.error('Error requesting notification permission:', error);
                 setHasPermission(false);
                 return false;
             }
