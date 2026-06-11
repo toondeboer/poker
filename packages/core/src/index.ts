@@ -32,3 +32,18 @@ export { createTimerStorage } from "./storage/timerStorage";
 export type { TimerState, TimerStorage } from "./storage/timerStorage";
 export { createBlindsStorage } from "./storage/blindsStorage";
 export type { BlindsState, BlindsStorage } from "./storage/blindsStorage";
+
+// Timer state machine
+export {
+  createTimerState,
+  startTimer,
+  pauseTimer,
+  resetTimer,
+  tickTimer,
+  advanceRound,
+  isExpired,
+  withDuration,
+  clampToDuration,
+  hydrateTimerState,
+} from "./timer/timerMachine";
+export type { TimerMachineState } from "./timer/timerMachine";

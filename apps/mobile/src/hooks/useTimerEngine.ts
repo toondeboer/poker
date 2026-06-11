@@ -3,9 +3,16 @@ import { logger } from "@/src/utils/logger";
 import { useEffect, useRef, useState } from "react";
 import {
   BlindLevel,
-  DEFAULT_TIMER_DURATION,
-  calculateTimeLeft,
-  computeEndTime,
+  createTimerState,
+  hydrateTimerState,
+  startTimer,
+  pauseTimer,
+  resetTimer as resetTimerState,
+  tickTimer,
+  isExpired,
+  withDuration,
+  clampToDuration,
+  type TimerMachineState,
 } from "@poker/core";
 import { TimerState, TimerStorage } from "@/src/services/TimerStorage";
 import { liveActivityService } from "@/src/services/LiveActivityService";
@@ -16,16 +23,20 @@ export interface TimerEngineCallbacks {
   onTimeUpdate?: (timeLeft: number) => void;
 }
 
+/**
+ * Mobile countdown engine. A thin adapter over the shared `@poker/core` timer
+ * state machine — all start/pause/reset/tick/hydrate transitions come from core
+ * — while this hook owns the React effects, AsyncStorage persistence, Live
+ * Activity sync, and mobile's stop-and-acknowledge expiry policy.
+ */
 export function useTimerEngine(
   currentBlindLevel: number,
   blindLevels: BlindLevel[],
   callbacks: TimerEngineCallbacks,
 ) {
-  const [timerDuration, setTimerDuration] = useState(DEFAULT_TIMER_DURATION);
-  const [endTime, setEndTime] = useState<number>();
-  const [timeLeft, setTimeLeft] = useState(DEFAULT_TIMER_DURATION);
-  const [paused, setPaused] = useState(true);
+  const [state, setState] = useState<TimerMachineState>(createTimerState);
   const [isLoading, setIsLoading] = useState(true);
+  const { timerDuration, endTime, timeLeft, paused } = state;
 
   const { isActive } = useAppState();
 
@@ -59,43 +70,23 @@ export function useTimerEngine(
   const loadTimerState = async (): Promise<void> => {
     try {
       const savedState = await TimerStorage.loadTimerState();
+      const { state: hydrated, expired } = hydrateTimerState(savedState);
 
-      // Calculate current time left based on end time if timer was running
-      let currentTimeLeft = savedState.timeLeft;
-      let hasExpired = false;
-
-      if (savedState.endTime && !savedState.paused) {
-        currentTimeLeft = calculateTimeLeft(savedState.endTime);
-        hasExpired = currentTimeLeft === 0;
-      }
-
-      if (hasExpired && !hasHandledTimerCompleteRef.current) {
-        // Timer expired while app was closed
+      if (expired && !hasHandledTimerCompleteRef.current) {
+        // Timer expired while app was closed. hydrate already produced reset
+        // state; fire the completion callback (mobile's reopen-to-expired nudge).
         hasHandledTimerCompleteRef.current = true;
         callbacksRef.current.onTimerComplete();
-
-        // Reset timer after completion but don't save state yet
-        setPaused(true);
-        setEndTime(undefined);
-        setTimeLeft(savedState.timerDuration);
-        setTimerDuration(savedState.timerDuration);
+        setState(hydrated);
       } else {
-        // Restore normal state
-        setTimerDuration(savedState.timerDuration);
-        setEndTime(savedState.endTime);
-        setTimeLeft(currentTimeLeft);
-        setPaused(savedState.paused);
-
-        // Reset the flag when loading normal state
+        // Restore normal state and clear the completion flag.
+        setState(hydrated);
         hasHandledTimerCompleteRef.current = false;
       }
     } catch (error) {
       logger.error("Failed to load timer state:", error);
       // Use default values on error
-      setTimerDuration(DEFAULT_TIMER_DURATION);
-      setTimeLeft(DEFAULT_TIMER_DURATION);
-      setPaused(true);
-      setEndTime(undefined);
+      setState(createTimerState());
       hasHandledTimerCompleteRef.current = false;
     } finally {
       setIsLoading(false);
@@ -104,30 +95,23 @@ export function useTimerEngine(
 
   // Save current state to storage
   const saveCurrentState = async (): Promise<void> => {
-    const state: TimerState = {
+    const timerState: TimerState = {
       endTime,
       timerDuration,
       paused,
       timeLeft,
     };
-    await TimerStorage.saveTimerState(state);
+    await TimerStorage.saveTimerState(timerState);
   };
 
   // Toggle pause/resume
   const togglePause = async (): Promise<void> => {
-    const newPaused = !paused;
-
-    if (newPaused) {
+    if (!paused) {
       logger.log("Pausing timer at time left:", timeLeft);
-      // Pausing the timer
-      setEndTime(undefined);
-      setPaused(true);
+      setState((s) => pauseTimer(s));
     } else {
       logger.log("Resuming timer with time left:", timeLeft);
-      // Resuming the timer
-      const newEndTime = computeEndTime(timeLeft);
-      setEndTime(newEndTime);
-      setPaused(false);
+      setState((s) => startTimer(s));
       // Reset completion flag when starting timer
       hasHandledTimerCompleteRef.current = false;
     }
@@ -135,13 +119,11 @@ export function useTimerEngine(
 
   // Reset timer
   const resetTimer = async (): Promise<void> => {
-    setPaused(true);
-    setEndTime(undefined);
-    setTimeLeft(timerDuration);
+    setState((s) => resetTimerState(s));
     hasHandledTimerCompleteRef.current = false;
 
     // Persist the reset state explicitly. saveCurrentState() reads timeLeft and
-    // endTime from this render's closure (the setters above haven't applied
+    // endTime from this render's closure (the setState above hasn't applied
     // yet), so it would save the pre-reset timeLeft — which a foreground reload
     // then restores, making "reset" appear to do nothing.
     await TimerStorage.saveTimerState({
@@ -154,13 +136,10 @@ export function useTimerEngine(
 
   // Set timer duration
   const handleSetTimerDuration = async (duration: number): Promise<void> => {
-    setTimerDuration(duration);
-
-    // If timer is paused and we don't have an endTime (truly reset state), update time left
-    if (paused && !endTime) {
-      logger.log("Setting time left to duration:", duration);
-      setTimeLeft(duration);
-    }
+    logger.log("Setting timer duration:", duration);
+    // Core withDuration re-syncs timeLeft only when truly reset (paused, no
+    // endTime); a running/anchored timer keeps its remaining time.
+    setState((s) => withDuration(s, duration));
   };
 
   // Timer countdown effect. Recomputes timeLeft from the absolute endTime each
@@ -174,15 +153,14 @@ export function useTimerEngine(
 
     if (!paused && endTime && timeLeft > 0) {
       intervalRef.current = setInterval(() => {
-        const newTimeLeft = calculateTimeLeft(endTime);
-        setTimeLeft(newTimeLeft);
-
-        // Call optional time update callback
-        callbacksRef.current.onTimeUpdate?.(newTimeLeft);
-
-        if (newTimeLeft === 0) {
-          clearInterval(intervalRef.current!);
-        }
+        setState((s) => {
+          const ticked = tickTimer(s);
+          callbacksRef.current.onTimeUpdate?.(ticked.timeLeft);
+          if (isExpired(ticked)) {
+            clearInterval(intervalRef.current!);
+          }
+          return ticked;
+        });
       }, 1000);
     }
 
@@ -193,7 +171,8 @@ export function useTimerEngine(
     };
   }, [paused, endTime]);
 
-  // Handle timer completion
+  // Handle timer completion. Mobile's policy: stop and wait for player
+  // acknowledgement (fire the callback, then reset).
   useEffect(() => {
     if (
       timeLeft === 0 &&
@@ -234,14 +213,11 @@ export function useTimerEngine(
   }, [endTime, paused, currentBlindLevel, blindLevels, isLoading, isActive]);
 
   useEffect(() => {
-    if (paused && endTime === undefined && timeLeft > timerDuration) {
-      logger.log("Resetting time left to new timer duration:", timerDuration);
-      // Clamp a previously-persisted timeLeft down to a newly-lowered duration.
-      // This reconciles state in response to a timerDuration change, so the
-      // synchronous setState here is intentional.
-      // eslint-disable-next-line react-hooks/set-state-in-effect
-      setTimeLeft(timerDuration);
-    }
+    // Clamp a previously-persisted timeLeft down to a newly-lowered duration.
+    // This reconciles state in response to a timerDuration change, so the
+    // synchronous setState here is intentional.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setState((s) => clampToDuration(s));
   }, [timerDuration, paused, endTime]);
 
   return {
