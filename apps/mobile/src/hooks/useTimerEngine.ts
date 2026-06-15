@@ -14,9 +14,8 @@ import {
   clampToDuration,
   type TimerMachineState,
 } from "@poker/core";
-import { TimerState, TimerStorage } from "@/src/services/TimerStorage";
-import { liveActivityService } from "@/src/services/LiveActivityService";
-import { useAppState } from "@/src/contexts/AppStateContext";
+import { useTimerPersistence } from "@/src/hooks/useTimerPersistence";
+import { useLiveActivitySync } from "@/src/hooks/useLiveActivitySync";
 
 export interface TimerEngineCallbacks {
   onTimerComplete: () => void;
@@ -25,9 +24,10 @@ export interface TimerEngineCallbacks {
 
 /**
  * Mobile countdown engine. A thin adapter over the shared `@poker/core` timer
- * state machine — all start/pause/reset/tick/hydrate transitions come from core
- * — while this hook owns the React effects, AsyncStorage persistence, Live
- * Activity sync, and mobile's stop-and-acknowledge expiry policy.
+ * state machine — all start/pause/reset/tick/hydrate transitions come from core.
+ * Persistence (`useTimerPersistence`) and native sync (`useLiveActivitySync`)
+ * live in their own hooks; this engine owns only the state machine, the tick
+ * interval, and mobile's stop-and-acknowledge expiry policy.
  */
 export function useTimerEngine(
   currentBlindLevel: number,
@@ -38,7 +38,9 @@ export function useTimerEngine(
   const [isLoading, setIsLoading] = useState(true);
   const { timerDuration, endTime, timeLeft, paused } = state;
 
-  const { isActive } = useAppState();
+  // Side effects: persistence I/O + native (Live Activity) sync.
+  const { load, save } = useTimerPersistence(state, isLoading);
+  useLiveActivitySync(state, currentBlindLevel, blindLevels, isLoading);
 
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const hasHandledTimerCompleteRef = useRef(false); // Track if we've already handled timer completion
@@ -49,27 +51,10 @@ export function useTimerEngine(
     callbacksRef.current = callbacks;
   });
 
-  // Update Live Activity with current state
-  const updateLiveActivity = async (shouldAlertOnExpiry: boolean) => {
-    await liveActivityService.startOrUpdateActivity(
-      {
-        endTime,
-        timeLeft,
-        paused,
-        currentBlindLevel: currentBlindLevel + 1, // Display as 1-based index
-        currentSmallBlind: blindLevels[currentBlindLevel]?.small || 0,
-        currentBigBlind: blindLevels[currentBlindLevel]?.big || 0,
-        nextSmallBlind: blindLevels[currentBlindLevel + 1]?.small || 0,
-        nextBigBlind: blindLevels[currentBlindLevel + 1]?.big || 0,
-      },
-      shouldAlertOnExpiry,
-    );
-  };
-
   // Load timer state from storage
   const loadTimerState = async (): Promise<void> => {
     try {
-      const savedState = await TimerStorage.loadTimerState();
+      const savedState = await load();
       const { state: hydrated, expired } = hydrateTimerState(savedState);
 
       if (expired && !hasHandledTimerCompleteRef.current) {
@@ -93,17 +78,6 @@ export function useTimerEngine(
     }
   };
 
-  // Save current state to storage
-  const saveCurrentState = async (): Promise<void> => {
-    const timerState: TimerState = {
-      endTime,
-      timerDuration,
-      paused,
-      timeLeft,
-    };
-    await TimerStorage.saveTimerState(timerState);
-  };
-
   // Toggle pause/resume
   const togglePause = async (): Promise<void> => {
     if (!paused) {
@@ -122,11 +96,12 @@ export function useTimerEngine(
     setState((s) => resetTimerState(s));
     hasHandledTimerCompleteRef.current = false;
 
-    // Persist the reset state explicitly. saveCurrentState() reads timeLeft and
-    // endTime from this render's closure (the setState above hasn't applied
-    // yet), so it would save the pre-reset timeLeft — which a foreground reload
-    // then restores, making "reset" appear to do nothing.
-    await TimerStorage.saveTimerState({
+    // Persist the reset state explicitly. The auto-save effect reads from the
+    // post-commit state, but the setState above hasn't applied yet, so saving
+    // here keeps the pre-reset timeLeft from being re-persisted — which a
+    // foreground reload would otherwise restore, making "reset" appear to do
+    // nothing.
+    await save({
       endTime: undefined,
       timerDuration,
       paused: true,
@@ -144,8 +119,7 @@ export function useTimerEngine(
 
   // Timer countdown effect. Recomputes timeLeft from the absolute endTime each
   // second. It does NOT persist per tick: while running, timeLeft is derived
-  // from endTime on load, so the save effect below only fires on meaningful
-  // state changes.
+  // from endTime on load, so persistence only fires on meaningful state changes.
   useEffect(() => {
     if (intervalRef.current) {
       clearInterval(intervalRef.current);
@@ -185,32 +159,6 @@ export function useTimerEngine(
       resetTimer();
     }
   }, [timeLeft, paused, endTime]);
-
-  // Persist on meaningful state changes only (start/resume/pause/reset/duration).
-  // timeLeft is intentionally excluded: it ticks every second while running but
-  // is recomputed from endTime on load, so persisting per tick would hammer
-  // AsyncStorage for no benefit. Pausing flips paused/endTime, so the frozen
-  // timeLeft is still captured here.
-  useEffect(() => {
-    if (!isLoading) {
-      saveCurrentState();
-    }
-  }, [endTime, timerDuration, paused, isLoading]);
-
-  // Update Live Activity when state changes
-  useEffect(() => {
-    if (!isLoading) {
-      if (isActive) {
-        logger.log("App is active, updating Live Activity");
-        updateLiveActivity(false);
-      } else {
-        logger.log(
-          "App is in background, updating Live Activity with alert on expiry",
-        );
-        updateLiveActivity(true);
-      }
-    }
-  }, [endTime, paused, currentBlindLevel, blindLevels, isLoading, isActive]);
 
   useEffect(() => {
     // Clamp a previously-persisted timeLeft down to a newly-lowered duration.
