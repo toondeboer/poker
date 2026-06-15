@@ -4,23 +4,37 @@
     "slug": "poker-kit",
     "scheme": "pokerkit",
     "version": "1.0.0",
-    "newArchEnabled": true,
+    "icon": "./src/assets/images/icon.png",
     "android": {
       "blockedPermissions": [
         "android.permission.RECORD_AUDIO",
         "android.permission.SYSTEM_ALERT_WINDOW",
         "android.permission.READ_EXTERNAL_STORAGE",
         "android.permission.WRITE_EXTERNAL_STORAGE"
-      ]
+      ],
+      "package": "com.toondeboer.pokerkit"
     },
     "experiments": {
       "typedRoutes": true
     },
+    "plugins": [
+      [
+        "expo-build-properties",
+        {
+          "ios": {
+            "deploymentTarget": "16.4"
+          }
+        }
+      ]
+    ],
     "extra": {
       "router": {},
       "eas": {
         "projectId": "f6b66f36-1e0d-45fa-8287-05b4343f7163"
       }
+    },
+    "ios": {
+      "bundleIdentifier": "com.toondeboer.pokerkit"
     }
   }
 }

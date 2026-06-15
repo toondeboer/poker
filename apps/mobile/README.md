@@ -35,6 +35,22 @@ To deploy your app to iOS, you need to create a development build. Follow these 
 
 ## Local development
 
+### Regenerating native projects
+
+This is a bare Expo workflow — the `ios/` and `android/` projects are committed. After you add or
+upgrade a native dependency, or bump the Expo SDK, regenerate them so the native projects match the
+installed packages. Run these from the `apps/mobile` directory:
+
+```bash
+cd apps/mobile           # the ios/ and android/ projects live here
+npx expo prebuild        # add --clean to regenerate from scratch (e.g. after an SDK bump)
+cd ios && pod install && cd ..
+```
+
+Then rebuild with `npx expo run:ios` / `npx expo run:android`. `--clean` wipes any hand-edited
+native code that isn't expressed as a config plugin, so review the diff afterwards and re-apply
+anything important.
+
 ### Android
 Create a new `local.properties` file in the `android` directory with the following content:
 

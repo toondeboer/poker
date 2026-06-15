@@ -45,9 +45,18 @@ newly proposed improvements as new rows rather than leaving them only in commit 
 
 ## Things that bite in this monorepo
 
-- **`@types/react` must stay a single version** — pinned via root `package.json` `overrides`.
-  If you change React typings, keep web and mobile on the same `19.0.x`, then do a clean
-  install (`rm -rf node_modules package-lock.json && npm install`) so the override applies.
+- **React must stay a single version across web + mobile** — root `package.json` `overrides`
+  pin `react`/`react-dom` (currently `19.2.3`, the version Expo bundles) and `@types/react`/
+  `@types/react-dom` (`~19.2`). Both apps pin React exact to match. Without the runtime
+  `react`/`react-dom` overrides, `next`'s peer range floats a *second* React copy to the root
+  and `expo-doctor` flags a duplicate native module. If you change React, bump web + mobile +
+  the overrides together, then clean-install (`rm -rf node_modules package-lock.json && npm install`)
+  so the overrides apply.
+- **`next` must be a root `devDependency`** even though only `@poker/web` imports it. On a
+  freshly generated lockfile npm hoists `eslint-config-next` to the root but leaves `next`
+  nested under `apps/web`, so `eslint-config-next`'s `require("next/dist/compiled/babel/eslint-parser")`
+  can't resolve `next` and **web lint dies**. Declaring `next` at the root forces it to hoist
+  there. Don't remove it.
 - **`@types/node` leaks to mobile via hoisting**, so use `ReturnType<typeof setInterval>` for
   interval refs instead of `number`.
 - **Metro monorepo config** lives in `apps/mobile/metro.config.js`; if Metro can't resolve a
