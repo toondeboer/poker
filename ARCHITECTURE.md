@@ -7,8 +7,8 @@ full-featured web timer, an iOS/Android app, and the shared logic both build on.
 
 | Workspace | Name | Stack | Purpose |
 |---|---|---|---|
-| `apps/web` | `@poker/web` | Next.js 15 (App Router), React 19, Tailwind CSS 4 | Marketing landing page (`/`) + the full-screen web timer (`/timer`) + privacy policy |
-| `apps/mobile` | `@poker/mobile` | Expo SDK 53 (bare), React Native 0.79, expo-router | The iOS/Android app (App Store / Play Store) |
+| `apps/web` | `@poker/web` | Next.js 16 (App Router), React 19, Tailwind CSS 4 | Marketing landing page (`/`) + the full-screen web timer (`/timer`) + privacy policy |
+| `apps/mobile` | `@poker/mobile` | Expo SDK 56 (bare), React Native 0.85, expo-router | The iOS/Android app (App Store / Play Store) |
 | `packages/core` | `@poker/core` | Plain TypeScript | Framework-agnostic poker-timer logic shared by both apps |
 
 The web and mobile UIs are **deliberately separate** — desktop and phone have different
@@ -88,7 +88,7 @@ survive a reload) using the exact same serialization the app uses.
 
 | Concern | `apps/mobile` | `apps/web` |
 |---|---|---|
-| Sound | `expo-av` (`useSounds`) | Web Audio API (`useWebAudio`) |
+| Sound | `expo-audio` (`useSounds`) | Web Audio API (`useWebAudio`) |
 | Notifications | `expo-notifications` (`useTimerNotification`) | `Notification` API + speech synthesis (`useWebNotifications`) |
 | Background timer | iOS Live Activities + Android foreground service (`LiveActivityService`, native `ios/`/`android/`) | none — the tab stays open; no background needed |
 | Haptics | React Native `Vibration` API (`TimerExpirationAlert`) + native Android `Vibrator` | none |
@@ -122,9 +122,11 @@ real desktop benefit.
 
 ## Monorepo gotchas
 
-- **Single `@types/react`.** The root `overrides` pin `@types/react`/`@types/react-dom` to
-  one `19.0.x` so web and mobile don't each resolve a different copy (two copies produce a
-  spurious "X cannot be used as a JSX component" type error). Keep them aligned.
+- **Single React + `@types/react`.** The root `overrides` pin `react`/`react-dom` (`19.2.3`,
+  the version Expo bundles) and `@types/react`/`@types/react-dom` (`~19.2`) so web and mobile
+  resolve one copy each. Without the runtime override `next`'s peer range floats a second React
+  to the root (`expo-doctor` flags a duplicate native module); two `@types/react` copies produce
+  a spurious "X cannot be used as a JSX component" error. Keep them aligned.
 - **Node global type leakage.** With hoisting, `@types/node` (a web dependency) is visible to
   the mobile `tsc`, so `setInterval` types as `NodeJS.Timeout`. Timer code uses
   `ReturnType<typeof setInterval>` to stay portable.

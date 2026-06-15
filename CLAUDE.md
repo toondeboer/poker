@@ -6,16 +6,9 @@ Guidance for working in this repo. See [ARCHITECTURE.md](./ARCHITECTURE.md) for 
 
 A monorepo for the Poker Blinds Buzzer product:
 
-- `apps/web` (`@poker/web`) — Next.js 15 site: marketing landing (`/`) + web timer (`/timer`).
-- `apps/mobile` (`@poker/mobile`) — Expo (bare) React Native iOS/Android app.
+- `apps/web` (`@poker/web`) — Next.js 16 site: marketing landing (`/`) + web timer (`/timer`).
+- `apps/mobile` (`@poker/mobile`) — Expo SDK 56 (bare) React Native iOS/Android app.
 - `packages/core` (`@poker/core`) — shared, framework-agnostic TypeScript logic.
-
-## Roadmap — check this every session
-
-Planned and completed improvements live in [ROADMAP.md](./ROADMAP.md). **Read it at the start of
-any work session.** When you implement, partially land, defer, or abandon an item, update that
-row's **Status** in the same change (✅ Done · 🚧 In progress · ⬜ Not started · ⏸️ Deferred). Add
-newly proposed improvements as new rows rather than leaving them only in commit messages or chat.
 
 ## Package manager & commands
 
