@@ -18,12 +18,15 @@
     "android": "npm run android --workspace @poker/mobile"
   },
   "devDependencies": {
+    "next": "16.2.7",
     "turbo": "^2",
     "typescript": "~5.8.3"
   },
   "overrides": {
-    "@types/react": "~19.0.14",
-    "@types/react-dom": "~19.0"
+    "react": "19.2.3",
+    "react-dom": "19.2.3",
+    "@types/react": "~19.2.0",
+    "@types/react-dom": "~19.2"
   },
   "engines": {
     "node": ">=20"
