@@ -8,10 +8,10 @@ import React, {
   useState,
 } from "react";
 import { Platform } from "react-native";
-import { Sound, useSounds } from "@/src/hooks/useSounds";
 import { useBlinds } from "@/src/contexts/BlindsContext";
 import { useTimerNotification } from "@/src/hooks/useTimerNotification";
 import { useTimerEngine } from "@/src/hooks/useTimerEngine";
+import { useTimerAlert } from "@/src/hooks/useTimerAlert";
 import { useNotificationPermission } from "@/src/hooks/useNotificationPermission";
 import { liveActivityService } from "@/src/services/LiveActivityService";
 import { useAppState } from "./AppStateContext";
@@ -40,15 +40,16 @@ type TimerContextType = {
 const TimerContext = createContext<TimerContextType | null>(null);
 
 export function TimerProvider({ children }: Readonly<{ children: ReactNode }>) {
-  const { playSound, stopSound, isLoaded } = useSounds(Sound.ALARM);
   const { increaseBlinds, currentBlindIndex, blindLevels } = useBlinds();
   const { scheduleNotification, cancelNotification } = useTimerNotification();
   const { isActive, isBackground, isInactive } = useAppState();
 
-  const [showTimerAlert, setShowTimerAlert] = useState(false);
+  // Expiry alert + alarm sound (own concern; see useTimerAlert).
+  const { showTimerAlert, isAlarmLoaded, showAlert, clearAlert } =
+    useTimerAlert();
+
   const [isBackgroundActivitySupported, setIsBackgroundActivitySupported] =
     useState(false);
-  const alarmPlayingRef = useRef(false);
 
   // Permission handling
   const {
@@ -61,10 +62,8 @@ export function TimerProvider({ children }: Readonly<{ children: ReactNode }>) {
   const handleTimerComplete = async () => {
     try {
       // Only play sound and show alert if app is active (in foreground)
-      if (isActive && isLoaded) {
-        await playSound();
-        alarmPlayingRef.current = true;
-        setShowTimerAlert(true);
+      if (isActive && isAlarmLoaded) {
+        await showAlert(true);
         logger.log("Timer completed - showing alert and playing alarm");
       } else {
         logger.log(
@@ -77,7 +76,7 @@ export function TimerProvider({ children }: Readonly<{ children: ReactNode }>) {
       logger.error("Failed to play completion sound:", error);
       // Still show alert even if sound fails
       if (isActive) {
-        setShowTimerAlert(true);
+        await showAlert(false);
       }
     }
   };
@@ -135,22 +134,12 @@ export function TimerProvider({ children }: Readonly<{ children: ReactNode }>) {
     // End background activity when timer is reset
     await liveActivityService.endActivity();
     // Dismiss alert and stop sound if active
-    if (showTimerAlert) {
-      setShowTimerAlert(false);
-      if (alarmPlayingRef.current) {
-        await stopSound();
-        alarmPlayingRef.current = false;
-      }
-    }
+    await clearAlert();
   };
 
   // Dismiss timer alert (advance to next blind level, keep timer paused, stop sound)
   const dismissTimerAlert = async () => {
-    setShowTimerAlert(false);
-    if (alarmPlayingRef.current) {
-      await stopSound();
-      alarmPlayingRef.current = false;
-    }
+    await clearAlert();
 
     // Advance to next blind level but keep timer paused
     increaseBlinds();
@@ -159,11 +148,7 @@ export function TimerProvider({ children }: Readonly<{ children: ReactNode }>) {
 
   // Handle next blinds (advance blinds, start new timer, stop sound)
   const handleNextBlinds = async () => {
-    setShowTimerAlert(false);
-    if (alarmPlayingRef.current) {
-      await stopSound();
-      alarmPlayingRef.current = false;
-    }
+    await clearAlert();
 
     // Advance to next blind level and start timer
     increaseBlinds();
@@ -216,8 +201,9 @@ export function TimerProvider({ children }: Readonly<{ children: ReactNode }>) {
     if ((isBackground || isInactive) && showTimerAlert) {
       logger.log("App is going to background, auto-dismiss timer alert");
       // Reacting to an AppState transition (app backgrounded while the alert is
-      // visible); the setState inside dismissTimerAlert is intentional here.
-      // eslint-disable-next-line react-hooks/set-state-in-effect
+      // visible); clearing the alert here is intentional. The alert's setState
+      // now lives inside useTimerAlert, so no set-state-in-effect suppression is
+      // needed.
       dismissTimerAlert();
     }
   }, [isActive, isBackground, isInactive, loadTimerState, showTimerAlert]);
@@ -230,10 +216,8 @@ export function TimerProvider({ children }: Readonly<{ children: ReactNode }>) {
   // Cleanup on unmount
   useEffect(() => {
     return () => {
-      if (alarmPlayingRef.current) {
-        stopSound();
-      }
-      // End background activity when component unmounts
+      // End background activity when component unmounts (the alarm sound is
+      // stopped by useTimerAlert's own unmount cleanup).
       liveActivityService.endActivity();
     };
   }, []);
