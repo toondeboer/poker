@@ -29,8 +29,8 @@
       [
         "react-native-google-mobile-ads",
         {
-          "androidAppId": "ca-app-pub-3940256099942544~3347511713",
-          "iosAppId": "ca-app-pub-3940256099942544~1458002511"
+          "androidAppId": "ca-app-pub-9738048037268359~6681894777",
+          "iosAppId": "ca-app-pub-9738048037268359~7123618601"
         }
       ]
     ],
@@ -38,7 +38,8 @@
       "router": {},
       "eas": {
         "projectId": "f6b66f36-1e0d-45fa-8287-05b4343f7163"
-      }
+      },
+      "revenueCatAppleKey": "appl_hLCYRriDHtxfPgZxYTIQSvmVLKu"
     },
     "ios": {
       "bundleIdentifier": "com.toondeboer.pokerkit"
