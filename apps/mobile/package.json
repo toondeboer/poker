@@ -11,8 +11,8 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@poker/core": "*",
     "@expo/vector-icons": "^15.0.2",
+    "@poker/core": "*",
     "@react-native-async-storage/async-storage": "^3.1.1",
     "expo": "~56.0.11",
     "expo-audio": "~56.0.12",
@@ -29,6 +29,7 @@
     "react": "19.2.3",
     "react-native": "0.85.3",
     "react-native-gesture-handler": "~2.31.1",
+    "react-native-google-mobile-ads": "^16.3.4",
     "react-native-reanimated": "4.3.1",
     "react-native-safe-area-context": "~5.7.0",
     "react-native-screens": "4.25.2",
