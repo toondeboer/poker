@@ -11,8 +11,8 @@ import mobileAds, { TestIds } from "react-native-google-mobile-ads";
 export const BANNER_AD_UNIT_ID = __DEV__
   ? TestIds.BANNER
   : (Platform.select({
-      ios: "ca-app-pub-XXXXXXXXXXXXXXXX/XXXXXXXXXX", // TODO: real iOS banner unit
-      android: "ca-app-pub-XXXXXXXXXXXXXXXX/XXXXXXXXXX", // TODO: real Android banner unit
+      ios: "ca-app-pub-9738048037268359/6329411686",
+      android: "ca-app-pub-9738048037268359/5644145279",
       default: TestIds.BANNER,
     }) ?? TestIds.BANNER);
 
