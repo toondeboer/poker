@@ -12,7 +12,6 @@ import {
   LucideIcon,
 } from "lucide-react";
 import Image, { StaticImageData } from "next/image";
-import TipJar from "./TipJar";
 import AdSlot from "@/components/ads/AdSlot";
 import { ADSENSE_SLOT_LANDING } from "@/lib/monetization";
 import icon from "../../assets/icon.png";
@@ -494,7 +493,6 @@ const LandingPage: React.FC = () => {
             </div>
 
             <div className="flex flex-col sm:flex-row items-center space-y-2 sm:space-y-0 sm:space-x-6 text-gray-400">
-              <TipJar />
               <a
                 href={PRIVACY_POLICY_LINK}
                 className="hover:text-white transition-colors"
