@@ -14,6 +14,7 @@ import { useBlinds } from "@/src/contexts/BlindsContext";
 import { useTimer } from "@/src/contexts/TimerContext";
 import { useRouter } from "expo-router";
 import { TimerExpirationAlert } from "./TimerExpirationAlert";
+import { BannerAdSlot } from "./ads/BannerAdSlot";
 
 export default function PokerTimer() {
   const router = useRouter();
@@ -198,6 +199,9 @@ export default function PokerTimer() {
             </TouchableOpacity>
           </View>
         </View>
+
+        {/* Banner ad — pinned below the content, hidden for Pro users */}
+        <BannerAdSlot />
       </LinearGradient>
 
       {/* Timer Expiration Alert */}

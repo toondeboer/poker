@@ -1,0 +1,23 @@
+/**
+ * Whether the current user has unlocked the paid "Pro" tier. Pro removes ads
+ * and unlocks premium features, and resolves identically on web and mobile.
+ */
+export type Entitlements = {
+  isPremium: boolean;
+};
+
+/**
+ * Source of truth for the user's entitlements, implemented per platform: the
+ * mobile app backs it with RevenueCat; the web app uses a no-op (web has no
+ * native IAP yet). Mirrors the StorageAdapter seam so the rest of the app never
+ * touches a platform billing SDK directly.
+ */
+export interface EntitlementProvider {
+  /** Resolve the current entitlements (e.g. from a cached customer-info call). */
+  getEntitlements(): Promise<Entitlements>;
+  /**
+   * Subscribe to entitlement changes (e.g. after a purchase or restore).
+   * Returns an unsubscribe function.
+   */
+  onChange(callback: (entitlements: Entitlements) => void): () => void;
+}

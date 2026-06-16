@@ -2,6 +2,8 @@ import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import AnalyticsConsent from "./components/AnalyticsConsent";
+import AdSenseScript from "./components/AdSenseScript";
+import KofiWidget from "./components/KofiWidget";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -78,6 +80,8 @@ export default function RootLayout({
       >
         {children}
         <AnalyticsConsent />
+        <AdSenseScript />
+        <KofiWidget />
       </body>
     </html>
   );

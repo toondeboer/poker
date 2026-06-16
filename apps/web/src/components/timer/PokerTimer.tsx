@@ -13,6 +13,8 @@ import { CurrentBlinds } from "./CurrentBlinds";
 import { TimerControls } from "./TimerControls";
 import { BlindsSchedule } from "./BlindsSchedule";
 import { SettingsPanel } from "./SettingsPanel";
+import AdSlot from "@/components/ads/AdSlot";
+import { ADSENSE_SLOT_TIMER } from "@/lib/monetization";
 
 export default function PokerTimer() {
   const blinds = useWebBlinds();
@@ -108,6 +110,7 @@ export default function PokerTimer() {
               current={blinds.currentBlindIndex}
               onSelect={blinds.selectBlind}
             />
+            <AdSlot slot={ADSENSE_SLOT_TIMER} className="mt-6" />
           </aside>
         </div>
       </div>

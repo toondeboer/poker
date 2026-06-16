@@ -1,14 +1,22 @@
 // src/app/_layout.tsx
+import { useEffect } from "react";
 import { Stack } from "expo-router";
 import { TimerProvider } from "@/src/contexts/TimerContext";
 import { BlindsProvider } from "@/src/contexts/BlindsContext";
 import { AppStateProvider } from "@/src/contexts/AppStateContext";
+import { PremiumProvider } from "@/src/contexts/PremiumContext";
+import { initializeAds } from "@/src/services/ads";
 
 export default function RootLayout() {
+  useEffect(() => {
+    void initializeAds();
+  }, []);
+
   return (
-    <AppStateProvider>
-      <BlindsProvider>
-        <TimerProvider>
+    <PremiumProvider>
+      <AppStateProvider>
+        <BlindsProvider>
+          <TimerProvider>
           <Stack
             screenOptions={{
               headerStyle: {
@@ -34,8 +42,9 @@ export default function RootLayout() {
               }}
             />
           </Stack>
-        </TimerProvider>
-      </BlindsProvider>
-    </AppStateProvider>
+          </TimerProvider>
+        </BlindsProvider>
+      </AppStateProvider>
+    </PremiumProvider>
   );
 }

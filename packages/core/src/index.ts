@@ -47,3 +47,15 @@ export {
   hydrateTimerState,
 } from "./timer/timerMachine";
 export type { TimerMachineState } from "./timer/timerMachine";
+
+// Monetization
+export type {
+  Entitlements,
+  EntitlementProvider,
+} from "./monetization/EntitlementProvider";
+export { shouldShowAds } from "./monetization/adPolicy";
+export type { AdPolicyInput } from "./monetization/adPolicy";
+export {
+  ENTITLEMENT_PRO,
+  PRODUCT_PRO_LIFETIME,
+} from "./monetization/products";

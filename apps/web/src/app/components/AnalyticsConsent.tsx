@@ -1,36 +1,17 @@
 "use client";
 
-import { useEffect, useState } from "react";
 import Script from "next/script";
+import { useAnalyticsConsent } from "@/hooks/useAnalyticsConsent";
 
 const GA_MEASUREMENT_ID = "G-13MH57QZWG";
-const CONSENT_STORAGE_KEY = "analytics-consent";
-
-type Consent = "accepted" | "declined";
-
-const isConsent = (value: string | null): value is Consent =>
-  value === "accepted" || value === "declined";
 
 /**
- * Loads Google Analytics only after the visitor opts in, and shows a banner
- * to collect that choice (GDPR consent requirement for an EU publisher).
+ * Shows the consent banner and loads Google Analytics only after the visitor
+ * opts in (GDPR consent requirement for an EU publisher). The same consent
+ * choice also gates advertising (see AdSenseScript), so the banner covers both.
  */
 export default function AnalyticsConsent() {
-  const [consent, setConsent] = useState<Consent | null>(null);
-  const [hydrated, setHydrated] = useState(false);
-
-  useEffect(() => {
-    queueMicrotask(() => {
-      const stored = window.localStorage.getItem(CONSENT_STORAGE_KEY);
-      if (isConsent(stored)) setConsent(stored);
-      setHydrated(true);
-    });
-  }, []);
-
-  const choose = (value: Consent) => {
-    window.localStorage.setItem(CONSENT_STORAGE_KEY, value);
-    setConsent(value);
-  };
+  const { consent, hydrated, choose } = useAnalyticsConsent();
 
   return (
     <>
@@ -60,8 +41,9 @@ export default function AnalyticsConsent() {
         <div className="fixed bottom-0 inset-x-0 z-[100] bg-gray-900/95 backdrop-blur-md border-t border-white/10 text-white px-4 py-4 sm:px-6">
           <div className="max-w-4xl mx-auto flex flex-col sm:flex-row items-center gap-4">
             <p className="text-sm text-gray-300 text-center sm:text-left">
-              We use Google Analytics to understand how visitors use this site.
-              It only runs if you accept. See our{" "}
+              We use Google Analytics and advertising cookies to understand how
+              visitors use this site and to keep it free. They only run if you
+              accept. See our{" "}
               <a href="/privacy-policy" className="underline hover:text-white">
                 Privacy Policy
               </a>{" "}

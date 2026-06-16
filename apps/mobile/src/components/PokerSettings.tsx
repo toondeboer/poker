@@ -12,6 +12,8 @@ import {
 import { formatTime } from "@poker/core";
 import { useTimer } from "@/src/contexts/TimerContext";
 import { useBlinds } from "@/src/contexts/BlindsContext";
+import { usePremium } from "@/src/contexts/PremiumContext";
+import { Paywall } from "./paywall/Paywall";
 
 // Mock icons - replace with your preferred icon library (react-native-vector-icons, etc.)
 const ClockIcon = () => <Text style={styles.icon}>⏰</Text>;
@@ -20,6 +22,7 @@ const PlusIcon = () => <Text style={styles.icon}>➕</Text>;
 const TrashIcon = () => <Text style={styles.icon}>🗑️</Text>;
 const SaveIcon = () => <Text style={styles.icon}>💾</Text>;
 const ResetIcon = () => <Text style={styles.icon}>🔄</Text>;
+const CrownIcon = () => <Text style={styles.icon}>👑</Text>;
 
 const { width: screenWidth } = Dimensions.get("window");
 
@@ -34,8 +37,10 @@ export default function PokerSettings() {
   } = useBlinds();
 
   const { timerDuration, setTimerDuration } = useTimer();
+  const { isPremium } = usePremium();
 
   const [durationSetting, setDurationSetting] = useState(String(timerDuration));
+  const [showPaywall, setShowPaywall] = useState(false);
 
   const handleSaveTimer = () => {
     setTimerDuration(Number(durationSetting));
@@ -59,6 +64,48 @@ export default function PokerSettings() {
           <Text style={styles.headerSubtitle}>
             Configure your tournament settings
           </Text>
+        </View>
+
+        {/* Pro / Remove Ads */}
+        <View style={styles.proCardWrapper}>
+          <View style={styles.card}>
+            <View style={styles.cardHeader}>
+              <View style={styles.cardHeaderIcon}>
+                <CrownIcon />
+              </View>
+              <Text style={styles.cardTitle}>Pro</Text>
+              {isPremium && (
+                <View style={styles.levelBadge}>
+                  <Text style={styles.levelBadgeText}>Unlocked</Text>
+                </View>
+              )}
+            </View>
+
+            <View style={styles.cardContent}>
+              {isPremium ? (
+                <Text style={styles.proUnlockedText}>
+                  Thanks for going Pro! Ads are removed.
+                </Text>
+              ) : (
+                <>
+                  <Text style={styles.proDescription}>
+                    Remove ads, save tournament presets, and unlock more — with a
+                    one-time purchase.
+                  </Text>
+                  <TouchableOpacity
+                    style={styles.proButton}
+                    onPress={() => setShowPaywall(true)}
+                    activeOpacity={0.85}
+                  >
+                    <CrownIcon />
+                    <Text style={styles.proButtonText}>
+                      Unlock Pro / Remove Ads
+                    </Text>
+                  </TouchableOpacity>
+                </>
+              )}
+            </View>
+          </View>
         </View>
 
         <View
@@ -204,6 +251,11 @@ export default function PokerSettings() {
           </View>
         </View>
       </ScrollView>
+
+      <Paywall
+        visible={showPaywall}
+        onClose={() => setShowPaywall(false)}
+      />
     </View>
   );
 }
@@ -228,6 +280,39 @@ const styles = StyleSheet.create({
   headerSubtitle: {
     fontSize: 16,
     color: "#94a3b8",
+  },
+  proCardWrapper: {
+    paddingHorizontal: 16,
+    marginBottom: 24,
+  },
+  proDescription: {
+    fontSize: 14,
+    color: "#cbd5e1",
+    lineHeight: 20,
+  },
+  proUnlockedText: {
+    fontSize: 14,
+    color: "#cbd5e1",
+  },
+  proButton: {
+    backgroundColor: "#f59e0b",
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: 12,
+    borderRadius: 8,
+    gap: 8,
+    marginTop: 4,
+    shadowColor: "#f59e0b",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 12,
+    elevation: 6,
+  },
+  proButtonText: {
+    color: "#1f2937",
+    fontSize: 16,
+    fontWeight: "600",
   },
   cardsContainer: {
     paddingHorizontal: 16,
