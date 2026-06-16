@@ -3,7 +3,7 @@
     "name": "Poker Timer",
     "slug": "poker-kit",
     "scheme": "pokerkit",
-    "version": "1.0.0",
+    "version": "1.1.0",
     "icon": "./src/assets/images/icon.png",
     "android": {
       "blockedPermissions": [
@@ -42,7 +42,10 @@
       "revenueCatAppleKey": "appl_hLCYRriDHtxfPgZxYTIQSvmVLKu"
     },
     "ios": {
-      "bundleIdentifier": "com.toondeboer.pokerkit"
+      "bundleIdentifier": "com.toondeboer.pokerkit",
+      "config": {
+        "usesNonExemptEncryption": false
+      }
     }
   }
 }
