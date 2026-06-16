@@ -17,9 +17,6 @@ const PRO_FEATURES = [
   "Support an indie developer",
 ];
 
-// TODO(phase3): show the localized price from the RevenueCat offering instead.
-const PRICE_PLACEHOLDER = "$2.99 one-time";
-
 /**
  * The Pro upgrade sheet. Wired to {@link usePremium} so it works against the
  * stub today and against RevenueCat once that's added — no change needed here.
@@ -32,8 +29,11 @@ export function Paywall({
   visible: boolean;
   onClose: () => void;
 }) {
-  const { isPremium, purchasing, purchasePro, restore } = usePremium();
+  const { isPremium, purchasing, proPriceString, purchasePro, restore } =
+    usePremium();
   const [error, setError] = useState<string | null>(null);
+
+  const priceLabel = proPriceString ? `${proPriceString} one-time` : "one-time";
 
   const run = async (action: () => Promise<void>) => {
     setError(null);
@@ -83,7 +83,7 @@ export function Paywall({
                   <ActivityIndicator color="#1f2937" />
                 ) : (
                   <Text style={styles.buyButtonText}>
-                    Unlock Pro · {PRICE_PLACEHOLDER}
+                    Unlock Pro · {priceLabel}
                   </Text>
                 )}
               </TouchableOpacity>

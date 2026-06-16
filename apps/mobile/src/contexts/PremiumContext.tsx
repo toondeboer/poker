@@ -14,6 +14,8 @@ type PremiumContextValue = {
   isPremium: boolean;
   /** True while a purchase or restore is in flight. */
   purchasing: boolean;
+  /** Localized Pro price (e.g. "$2.99"), or null until loaded/unavailable. */
+  proPriceString: string | null;
   /** Start the Pro purchase flow. Throws on failure for the caller to surface. */
   purchasePro: () => Promise<void>;
   /** Restore a previous purchase. Throws on failure for the caller to surface. */
@@ -33,11 +35,15 @@ export function PremiumProvider({
 }: Readonly<{ children: React.ReactNode }>) {
   const [isPremium, setIsPremium] = useState(false);
   const [purchasing, setPurchasing] = useState(false);
+  const [proPriceString, setProPriceString] = useState<string | null>(null);
 
   useEffect(() => {
     let active = true;
     revenueCatProvider.getEntitlements().then((entitlements: Entitlements) => {
       if (active) setIsPremium(entitlements.isPremium);
+    });
+    revenueCatProvider.getProPriceString().then((price) => {
+      if (active) setProPriceString(price);
     });
     const unsubscribe = revenueCatProvider.onChange((entitlements) => {
       setIsPremium(entitlements.isPremium);
@@ -70,7 +76,7 @@ export function PremiumProvider({
 
   return (
     <PremiumContext.Provider
-      value={{ isPremium, purchasing, purchasePro, restore }}
+      value={{ isPremium, purchasing, proPriceString, purchasePro, restore }}
     >
       {children}
     </PremiumContext.Provider>

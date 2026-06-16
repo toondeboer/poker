@@ -1,63 +1,114 @@
 // src/services/revenueCatProvider.ts
-import type { EntitlementProvider, Entitlements } from "@poker/core";
+import { Platform } from "react-native";
+import Constants from "expo-constants";
+import Purchases, {
+  type CustomerInfo,
+  type PurchasesPackage,
+} from "react-native-purchases";
+import {
+  ENTITLEMENT_PRO,
+  type EntitlementProvider,
+  type Entitlements,
+} from "@poker/core";
 
 /**
  * Mobile billing surface: the read-only entitlement contract from @poker/core
- * plus the purchase/restore actions the paywall needs. The web app implements
- * only the read side; mobile layers billing on top.
+ * plus the purchase/restore actions and the localized price the paywall needs.
+ * The web app implements only the read side; mobile layers billing on top.
  */
 export interface BillingProvider extends EntitlementProvider {
   /** Start the Pro purchase flow. Resolves with the resulting entitlements. */
   purchasePro(): Promise<Entitlements>;
   /** Restore prior purchases (Apple-required). Resolves with entitlements. */
   restore(): Promise<Entitlements>;
+  /** Localized price string for the Pro package, or null if unavailable. */
+  getProPriceString(): Promise<string | null>;
 }
 
-/**
- * Phase 3 STUB. Holds entitlement state in memory and emits changes so the full
- * paywall → unlock → ad-removal UX is testable before RevenueCat exists. In a
- * release build purchase/restore throw, so a production app can never fake-unlock
- * Pro — wiring `react-native-purchases` is required before shipping.
- *
- * To make it real, install `react-native-purchases` and replace the bodies below:
- *   startup       → Purchases.configure({ apiKey })
- *   getEntitlements → map (await Purchases.getCustomerInfo()).entitlements.active[ENTITLEMENT_PRO]
- *   onChange      → Purchases.addCustomerInfoUpdateListener(...)
- *   purchasePro   → Purchases.purchasePackage(pkg)
- *   restore       → Purchases.restorePurchases()
- */
-let premium = false;
-const listeners = new Set<(entitlements: Entitlements) => void>();
+// Public RevenueCat SDK keys are safe to ship in the client (set in app.json
+// `extra`). Android key is added when the Play app is published.
+const extra = Constants.expoConfig?.extra as
+  | { revenueCatAppleKey?: string; revenueCatGoogleKey?: string }
+  | undefined;
 
-const emit = () => {
-  for (const listener of listeners) listener({ isPremium: premium });
-};
+const API_KEY = Platform.select({
+  ios: extra?.revenueCatAppleKey,
+  android: extra?.revenueCatGoogleKey,
+});
 
-const ensureConfigured = () => {
-  if (!__DEV__) {
+let configured = false;
+
+/** Configure the RevenueCat SDK once at startup. Safe to call repeatedly. */
+export function configurePurchases() {
+  if (configured || !API_KEY) return;
+  Purchases.configure({ apiKey: API_KEY });
+  configured = true;
+}
+
+const toEntitlements = (info: CustomerInfo): Entitlements => ({
+  isPremium: info.entitlements.active[ENTITLEMENT_PRO] !== undefined,
+});
+
+async function getProPackage(): Promise<PurchasesPackage> {
+  const offerings = await Purchases.getOfferings();
+  const pkg = offerings.current?.availablePackages[0];
+  if (!pkg) {
     throw new Error(
-      "Purchases aren't configured yet. Wire react-native-purchases (RevenueCat) before release.",
+      "No Pro package available — check the RevenueCat offering and store product.",
     );
   }
-};
+  return pkg;
+}
 
 export const revenueCatProvider: BillingProvider = {
-  getEntitlements: async () => ({ isPremium: premium }),
+  getEntitlements: async () => {
+    if (!API_KEY) return { isPremium: false };
+    configurePurchases();
+    return toEntitlements(await Purchases.getCustomerInfo());
+  },
+
   onChange: (callback) => {
-    listeners.add(callback);
-    return () => {
-      listeners.delete(callback);
-    };
+    if (!API_KEY) return () => {};
+    configurePurchases();
+    const listener = (info: CustomerInfo) => callback(toEntitlements(info));
+    Purchases.addCustomerInfoUpdateListener(listener);
+    return () => Purchases.removeCustomerInfoUpdateListener(listener);
   },
+
+  getProPriceString: async () => {
+    if (!API_KEY) return null;
+    configurePurchases();
+    try {
+      const pkg = await getProPackage();
+      return pkg.product.priceString;
+    } catch {
+      return null;
+    }
+  },
+
   purchasePro: async () => {
-    ensureConfigured();
-    premium = true;
-    emit();
-    return { isPremium: premium };
+    configurePurchases();
+    if (!configured) {
+      throw new Error("Purchases aren't available on this platform yet.");
+    }
+    const pkg = await getProPackage();
+    try {
+      const { customerInfo } = await Purchases.purchasePackage(pkg);
+      return toEntitlements(customerInfo);
+    } catch (e) {
+      // A user cancelling isn't an error — report current (unchanged) state.
+      if (e && typeof e === "object" && "userCancelled" in e && e.userCancelled) {
+        return toEntitlements(await Purchases.getCustomerInfo());
+      }
+      throw e;
+    }
   },
+
   restore: async () => {
-    ensureConfigured();
-    emit();
-    return { isPremium: premium };
+    configurePurchases();
+    if (!configured) {
+      throw new Error("Purchases aren't available on this platform yet.");
+    }
+    return toEntitlements(await Purchases.restorePurchases());
   },
 };

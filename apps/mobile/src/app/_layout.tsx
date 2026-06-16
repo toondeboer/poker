@@ -6,9 +6,11 @@ import { BlindsProvider } from "@/src/contexts/BlindsContext";
 import { AppStateProvider } from "@/src/contexts/AppStateContext";
 import { PremiumProvider } from "@/src/contexts/PremiumContext";
 import { initializeAds } from "@/src/services/ads";
+import { configurePurchases } from "@/src/services/revenueCatProvider";
 
 export default function RootLayout() {
   useEffect(() => {
+    configurePurchases();
     void initializeAds();
   }, []);
 
