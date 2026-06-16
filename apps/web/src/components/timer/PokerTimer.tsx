@@ -13,6 +13,9 @@ import { CurrentBlinds } from "./CurrentBlinds";
 import { TimerControls } from "./TimerControls";
 import { BlindsSchedule } from "./BlindsSchedule";
 import { SettingsPanel } from "./SettingsPanel";
+import TipJar from "@/app/components/TipJar";
+import AdSlot from "@/components/ads/AdSlot";
+import { ADSENSE_SLOT_TIMER } from "@/lib/monetization";
 
 export default function PokerTimer() {
   const blinds = useWebBlinds();
@@ -74,12 +77,17 @@ export default function PokerTimer() {
           >
             ← Poker Blinds Buzzer
           </Link>
-          <button
-            onClick={() => setShowSettings(true)}
-            className="flex items-center gap-2 rounded-lg border border-white/20 px-4 py-2 text-sm transition-colors hover:bg-white/10"
-          >
-            <Settings className="h-4 w-4" /> Settings
-          </button>
+          <div className="flex items-center gap-2">
+            <div className="hidden sm:block">
+              <TipJar />
+            </div>
+            <button
+              onClick={() => setShowSettings(true)}
+              className="flex items-center gap-2 rounded-lg border border-white/20 px-4 py-2 text-sm transition-colors hover:bg-white/10"
+            >
+              <Settings className="h-4 w-4" /> Settings
+            </button>
+          </div>
         </header>
 
         <div className="grid flex-1 items-center gap-8 lg:grid-cols-[1fr_22rem]">
@@ -108,6 +116,7 @@ export default function PokerTimer() {
               current={blinds.currentBlindIndex}
               onSelect={blinds.selectBlind}
             />
+            <AdSlot slot={ADSENSE_SLOT_TIMER} className="mt-6" />
           </aside>
         </div>
       </div>

@@ -12,6 +12,9 @@ import {
   LucideIcon,
 } from "lucide-react";
 import Image, { StaticImageData } from "next/image";
+import TipJar from "./TipJar";
+import AdSlot from "@/components/ads/AdSlot";
+import { ADSENSE_SLOT_LANDING } from "@/lib/monetization";
 import icon from "../../assets/icon.png";
 import screenshot_1 from "../../assets/screenshots/screenshot_1.jpeg";
 import screenshot_2 from "../../assets/screenshots/screenshot_2.jpeg";
@@ -400,6 +403,13 @@ const LandingPage: React.FC = () => {
         </div>
       </section>
 
+      {/* Ad slot (renders only when AdSense is configured + consent accepted) */}
+      <div className="px-4 sm:px-6 lg:px-8">
+        <div className="max-w-3xl mx-auto">
+          <AdSlot slot={ADSENSE_SLOT_LANDING} />
+        </div>
+      </div>
+
       {/* Download CTA Section */}
       <section className="py-20 px-4 sm:px-6 lg:px-8">
         <div className="max-w-4xl mx-auto text-center">
@@ -484,6 +494,7 @@ const LandingPage: React.FC = () => {
             </div>
 
             <div className="flex flex-col sm:flex-row items-center space-y-2 sm:space-y-0 sm:space-x-6 text-gray-400">
+              <TipJar />
               <a
                 href={PRIVACY_POLICY_LINK}
                 className="hover:text-white transition-colors"
