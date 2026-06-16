@@ -273,9 +273,14 @@ PODS:
   - EXUpdatesInterface (56.0.2):
     - ExpoModulesCore
   - FBLazyVector (0.85.3)
+  - Google-Mobile-Ads-SDK (13.1.0):
+    - GoogleUserMessagingPlatform (>= 1.1)
+  - GoogleUserMessagingPlatform (3.1.0)
   - hermes-engine (250829098.0.10):
     - hermes-engine/Pre-built (= 250829098.0.10)
   - hermes-engine/Pre-built (250829098.0.10)
+  - PurchasesHybridCommon (18.14.1):
+    - RevenueCat (= 5.78.0)
   - RCTDeprecation (0.85.3)
   - RCTRequired (0.85.3)
   - RCTSwiftUI (0.85.3)
@@ -2129,6 +2134,7 @@ PODS:
     - React-utils (= 0.85.3)
     - ReactNativeDependencies
   - ReactNativeDependencies (0.85.3)
+  - RevenueCat (5.78.0)
   - RNCMaskedView (0.3.2):
     - hermes-engine
     - RCTRequired
@@ -2173,6 +2179,33 @@ PODS:
     - ReactCommon/turbomodule/core
     - ReactNativeDependencies
     - Yoga
+  - RNGoogleMobileAds (16.3.4):
+    - Google-Mobile-Ads-SDK (= 13.1.0)
+    - GoogleUserMessagingPlatform (= 3.1.0)
+    - hermes-engine
+    - RCTRequired
+    - RCTTypeSafety
+    - React-Core
+    - React-Core-prebuilt
+    - React-debug
+    - React-Fabric
+    - React-featureflags
+    - React-graphics
+    - React-ImageManager
+    - React-jsi
+    - React-NativeModulesApple
+    - React-RCTFabric
+    - React-renderercss
+    - React-rendererdebug
+    - React-utils
+    - ReactCodegen
+    - ReactCommon/turbomodule/bridging
+    - ReactCommon/turbomodule/core
+    - ReactNativeDependencies
+    - Yoga
+  - RNPurchases (10.3.0):
+    - PurchasesHybridCommon (= 18.14.1)
+    - React-Core
   - RNReanimated (4.3.1):
     - hermes-engine
     - RCTRequired
@@ -2475,10 +2508,19 @@ DEPENDENCIES:
   - ReactNativeDependencies (from `../../../node_modules/react-native/third-party-podspecs/ReactNativeDependencies.podspec`)
   - "RNCMaskedView (from `../../../node_modules/@react-native-masked-view/masked-view`)"
   - RNGestureHandler (from `../../../node_modules/react-native-gesture-handler`)
+  - RNGoogleMobileAds (from `../../../node_modules/react-native-google-mobile-ads`)
+  - RNPurchases (from `../../../node_modules/react-native-purchases`)
   - RNReanimated (from `../../../node_modules/react-native-reanimated`)
   - RNScreens (from `../../../node_modules/react-native-screens`)
   - RNWorklets (from `../../../node_modules/react-native-worklets`)
   - Yoga (from `../../../node_modules/react-native/ReactCommon/yoga`)
+
+SPEC REPOS:
+  trunk:
+    - Google-Mobile-Ads-SDK
+    - GoogleUserMessagingPlatform
+    - PurchasesHybridCommon
+    - RevenueCat
 
 EXTERNAL SOURCES:
   AsyncStorage:
@@ -2694,6 +2736,10 @@ EXTERNAL SOURCES:
     :path: "../../../node_modules/@react-native-masked-view/masked-view"
   RNGestureHandler:
     :path: "../../../node_modules/react-native-gesture-handler"
+  RNGoogleMobileAds:
+    :path: "../../../node_modules/react-native-google-mobile-ads"
+  RNPurchases:
+    :path: "../../../node_modules/react-native-purchases"
   RNReanimated:
     :path: "../../../node_modules/react-native-reanimated"
   RNScreens:
@@ -2735,7 +2781,10 @@ SPEC CHECKSUMS:
   ExpoUI: cb2928f5537135cff59e7b84b4adbeb72355f9fd
   EXUpdatesInterface: 25408a97d682355eb9fb37e5aa6e22caece1881f
   FBLazyVector: 24e62c765683b8d89006a88a2c8f5cf019f0074d
+  Google-Mobile-Ads-SDK: 8429bef6ee1a4e322b0a5571b64217ed8317a3d5
+  GoogleUserMessagingPlatform: befe603da6501006420c206222acd449bba45a9c
   hermes-engine: 4068cd6a9055219d7072d00d0405f468ce0ad5f2
+  PurchasesHybridCommon: 825e4e748b62c919bc4cb4032b0d1e452409bd74
   RCTDeprecation: a4c521821fab57cbb125b36effe84d897d0dfa12
   RCTRequired: 9f3a7e5645d4bc3f551593de7550bb66ab6e42bc
   RCTSwiftUI: 239ed2eb9e73de5a6f518810630f0c95e01c8702
@@ -2808,8 +2857,11 @@ SPEC CHECKSUMS:
   ReactCodegen: dfe41c3f92bdf782bcf9b2c9d7c12cb9cfd82cb7
   ReactCommon: 7dfc3250793bf36cf221096ff59e1179e13eef7f
   ReactNativeDependencies: 53d6f969aacc58a7cf1090c6b95c0347c56b96fd
+  RevenueCat: f3641992451c1426da8d8d1466cec3bbdb765962
   RNCMaskedView: eb2b2e538afa907f05a5848a1a1ac26092e6fec9
   RNGestureHandler: 2ff61eac036eaf89f6818bf4ed9c39771a17d134
+  RNGoogleMobileAds: cb927cb06a5fdaa6236c1a555cef45b6000e34fd
+  RNPurchases: ebcfb4effc608048bf2481a413b0bcaa2b6677f7
   RNReanimated: 07fe6682b1d90b9d536540614562850503c63dbb
   RNScreens: 991cc417cd396602a6cf59a42139e5a9d91462a9
   RNWorklets: 2b1732dea513e38333481dc919029c1e14dc647d
