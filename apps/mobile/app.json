@@ -43,6 +43,7 @@
       "revenueCatAppleKey": "appl_hLCYRriDHtxfPgZxYTIQSvmVLKu"
     },
     "ios": {
+      "supportsTablet": true,
       "bundleIdentifier": "com.toondeboer.pokerkit",
       "config": {
         "usesNonExemptEncryption": false
