@@ -6,22 +6,13 @@
   "build": {
     "development": {
       "developmentClient": true,
-      "distribution": "internal",
-      "env": {
-        "EXPO_USE_PRECOMPILED_MODULES": "0"
-      }
+      "distribution": "internal"
     },
     "preview": {
-      "distribution": "internal",
-      "env": {
-        "EXPO_USE_PRECOMPILED_MODULES": "0"
-      }
+      "distribution": "internal"
     },
     "production": {
-      "autoIncrement": true,
-      "env": {
-        "EXPO_USE_PRECOMPILED_MODULES": "0"
-      }
+      "autoIncrement": true
     }
   },
   "submit": {
