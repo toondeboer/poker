@@ -11,9 +11,7 @@ import {
 import { usePremium } from "@/src/contexts/PremiumContext";
 
 const PRO_FEATURES = [
-  "Remove all ads",
-  "Save & switch tournament presets",
-  "Extra blind levels & sound packs",
+  "Remove all ads — a clean, full-screen timer",
   "Support an indie developer",
 ];
 
