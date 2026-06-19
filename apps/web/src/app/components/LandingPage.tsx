@@ -436,7 +436,7 @@ const LandingPage: React.FC = () => {
           <div className="mt-8 flex justify-center space-x-8 text-sm text-gray-400">
             <span>Free Download</span>
             <span>•</span>
-            <span>No Ads</span>
+            <span>Ad-free with Pro</span>
             <span>•</span>
             <span>Works Offline</span>
           </div>
