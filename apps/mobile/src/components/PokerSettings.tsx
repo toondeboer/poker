@@ -89,8 +89,7 @@ export default function PokerSettings() {
               ) : (
                 <>
                   <Text style={styles.proDescription}>
-                    Remove ads, save tournament presets, and unlock more — with a
-                    one-time purchase.
+                    Remove ads and support the app — a one-time purchase.
                   </Text>
                   <TouchableOpacity
                     style={styles.proButton}
