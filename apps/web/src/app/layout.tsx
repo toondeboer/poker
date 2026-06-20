@@ -4,6 +4,7 @@ import "./globals.css";
 import AnalyticsConsent from "./components/AnalyticsConsent";
 import AdSenseScript from "./components/AdSenseScript";
 import KofiWidget from "./components/KofiWidget";
+import { ADSENSE_CLIENT } from "@/lib/monetization";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -45,6 +46,11 @@ export default function RootLayout({
   return (
     <html lang="en">
       <head>
+        {/* AdSense site-ownership verification (works without loading ads, so it
+            stays compatible with the consent-gated ad script). */}
+        {ADSENSE_CLIENT && (
+          <meta name="google-adsense-account" content={ADSENSE_CLIENT} />
+        )}
         <link rel="manifest" href="/manifest.json" />
         <meta name="theme-color" content="#000000" />
         <meta name="mobile-web-app-capable" content="yes" />
