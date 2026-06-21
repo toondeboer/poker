@@ -40,7 +40,8 @@
       "eas": {
         "projectId": "f6b66f36-1e0d-45fa-8287-05b4343f7163"
       },
-      "revenueCatAppleKey": "appl_hLCYRriDHtxfPgZxYTIQSvmVLKu"
+      "revenueCatAppleKey": "appl_hLCYRriDHtxfPgZxYTIQSvmVLKu",
+      "revenueCatGoogleKey": "goog_CzPHngOHXCWjkfTdvKmaboZqrbr"
     },
     "ios": {
       "supportsTablet": true,
