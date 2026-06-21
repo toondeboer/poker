@@ -55,6 +55,7 @@ npm run mobile     # start the Expo dev server (choose a target)
 ```bash
 npm run typecheck  # tsc across all workspaces (via Turborepo)
 npm run lint       # eslint across all workspaces
+npm run test       # unit tests (@poker/core, via Vitest)
 npm run build      # production build of every buildable workspace
 ```
 
