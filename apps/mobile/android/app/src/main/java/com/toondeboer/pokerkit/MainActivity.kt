@@ -26,12 +26,12 @@ class MainActivity : ReactActivity() {
         super.onCreate(null)
     }
 
-    override fun onNewIntent(intent: Intent?) {
+    override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
         setIntent(intent)
 
         // Handle intents from foreground service notification
-        intent?.let { handleIntent(it) }
+        handleIntent(intent)
     }
 
     private fun handleIntent(intent: Intent) {

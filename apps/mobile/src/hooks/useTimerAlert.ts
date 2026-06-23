@@ -30,14 +30,22 @@ export function useTimerAlert() {
     }
   };
 
-  // Stop a still-playing alarm if the owner unmounts.
+  // Stop a still-playing alarm if the owner unmounts. Keep the latest stopSound
+  // in a ref so this cleanup runs ONLY on unmount. Depending on stopSound's
+  // identity instead would re-fire the cleanup on every status-driven re-render
+  // while the alarm plays (its deps include the oscillating `isLoaded`), pausing
+  // the alarm the instant it starts — which made the foreground alarm inaudible.
+  const stopSoundRef = useRef(stopSound);
+  useEffect(() => {
+    stopSoundRef.current = stopSound;
+  });
   useEffect(() => {
     return () => {
       if (alarmPlayingRef.current) {
-        stopSound();
+        stopSoundRef.current();
       }
     };
-  }, [stopSound]);
+  }, []);
 
   return { showTimerAlert, isAlarmLoaded: isLoaded, showAlert, clearAlert };
 }
