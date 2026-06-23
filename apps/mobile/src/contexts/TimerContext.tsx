@@ -167,10 +167,12 @@ export function TimerProvider({ children }: Readonly<{ children: ReactNode }>) {
       setIsBackgroundActivitySupported(isSupported);
 
       if (isSupported && Platform.OS === "android") {
-        // For Android, also check notification permission
-        const hasPermission =
-          await liveActivityService.requestNotificationPermission();
-        if (!hasPermission) {
+        // Actually prompt for POST_NOTIFICATIONS on Android 13+ — not just check.
+        // The foreground service shows the timer notification and plays the
+        // expiry alarm/vibration while backgrounded, and it refuses to start
+        // without this permission (see LiveActivityService.isEnabled).
+        const granted = await requestNotificationPermission();
+        if (!granted) {
           logger.warn(
             "Background activity available but notification permission denied",
           );
@@ -179,6 +181,7 @@ export function TimerProvider({ children }: Readonly<{ children: ReactNode }>) {
     };
 
     checkBackgroundSupport();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // Handle app state changes. `loadTimerState` has an unstable identity (it's
