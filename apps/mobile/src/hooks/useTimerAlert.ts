@@ -36,7 +36,9 @@ export function useTimerAlert() {
   // while the alarm plays (its deps include the oscillating `isLoaded`), pausing
   // the alarm the instant it starts — which made the foreground alarm inaudible.
   const stopSoundRef = useRef(stopSound);
-  stopSoundRef.current = stopSound;
+  useEffect(() => {
+    stopSoundRef.current = stopSound;
+  });
   useEffect(() => {
     return () => {
       if (alarmPlayingRef.current) {
