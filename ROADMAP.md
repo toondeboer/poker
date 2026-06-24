@@ -6,7 +6,8 @@ Monetization + growth tracker for Poker Blinds Buzzer.
 Remove-Ads IAP (RevenueCat). The web app has a live Ko-fi tip jar; web AdSense is built and
 awaiting Google approval. **Android launch is in progress** — the app has been revived and
 smoke-tested on an emulator (PR #44 merged), and the RevenueCat Play service account is uploaded
-and propagating; next is the first production build → Internal testing. Checklist is ordered by
+and propagating; next is the first production build → Internal testing, then (for newer personal
+Play accounts) a 14-day closed test before applying for production access. Checklist is ordered by
 priority (by ROI/effort — resequence as you like). See [ARCHITECTURE.md](./ARCHITECTURE.md) +
 [CLAUDE.md](./CLAUDE.md).
 
@@ -41,15 +42,15 @@ priority (by ROI/effort — resequence as you like). See [ARCHITECTURE.md](./ARC
 ## P2 — Android launch (ads + Pro parity)
 **Prereq — app health:**
 - ✅ Run the Android app locally; fix bugs (native build drift, notification permission, foreground alarm — PR #44)
-- 🚧 Update dependencies; resolve breakages (keep the React `19.2.3` overrides) — bump breakages resolved; still **run `expo-doctor`** before the production build
+- ✅ Update dependencies; resolve breakages — aligned `@babel/core`→7.29.x + `safe-area-context`→5.7.0 to Expo SDK 56, clean-reinstalled to dedupe, `expo-doctor` version check green (React `19.2.3` overrides untouched) — PR #45
 - ✅ Smoke-test: timer, blinds editor, notifications, Android foreground service, AdMob banner, Pro paywall (renders) — emulator green. Pro **purchase** flow deferred to Stage 6 (needs a Play device + license tester)
 
 **Then deploy:**
 - ⏳ RevenueCat: get the Play **service-account credentials green** — service account created, Play permissions granted, Google Play Android Developer API enabled, JSON uploaded to RevenueCat; **awaiting Google propagation** (~24–48h)
-- 🚧 `eas build -p android --profile production` → upload AAB to Play **Internal testing** (first upload may need to be manual) — **current step**
-- ⬜ Create Play **`pro_lifetime`** managed product (one-time) → attach in RevenueCat to the `pro` entitlement + offering — *blocked until the first AAB is uploaded*
+- 🚧 `eas build -p android --profile production` — **run from `apps/mobile`** so EAS links the existing `poker-kit` project (`extra.eas.projectId`), not a new one → upload the AAB to **Internal testing** — **current step** (build running). The Internal testing track already exists from an earlier manual upload
+- ⬜ Create Play **`pro_lifetime`** managed product (one-time) → attach in RevenueCat to the `pro` entitlement + offering — *needs an uploaded AAB that includes the Play Billing library (this production build provides it)*
 - ⬜ Play **store listing** + **content rating** + **Data safety** (declare AdMob ads, advertising ID, purchases)
-- ⬜ Test internal → promote to production → review → live
+- ⬜ Test on Internal testing, then **path to production**: newer personal Play accounts require **closed testing ≥12 testers × 14 continuous days** → **apply for production access** (Play Console → Production → "Apply for production access") → promote to Production → review → live. Older accounts may be exempt and can apply directly — confirm which applies. *The 14-day closed test (if required) is the new long pole.*
 - ⬜ Update `PLAY_STORE_LINK` in `apps/web/src/app/components/LandingPage.tsx` (currently placeholder `https://google.com`)
 
 ## P3 — More growth
