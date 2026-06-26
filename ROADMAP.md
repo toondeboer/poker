@@ -4,10 +4,10 @@ Monetization + growth tracker for Poker Blinds Buzzer.
 
 **Where things stand:** iOS is **live** (App Store v1.1.1) with an AdMob banner + a Pro /
 Remove-Ads IAP (RevenueCat). The web app has a live Ko-fi tip jar; web AdSense is built and
-awaiting Google approval. **Android launch is in progress** — the app is revived, built, and now in
-**Closed testing** on Google Play (the **14-day production-access clock is running**). Remaining work:
-recruit ≥12 testers, finish the `pro_lifetime`/RevenueCat purchase wiring, and the production store
-listing. Checklist is ordered by
+awaiting Google approval. **Android launch is in progress** — the app is in **Closed testing** with
+**≥12 testers opted in** (waiting out the **14-day production-access clock**); `pro_lifetime`/RevenueCat
+is wired and the store/compliance forms are filled in. Remaining: verify the Pro purchase on a physical
+device, then apply for production access once the 14 days are up. Checklist is ordered by
 priority (by ROI/effort — resequence as you like). See [ARCHITECTURE.md](./ARCHITECTURE.md) +
 [CLAUDE.md](./CLAUDE.md).
 
@@ -46,12 +46,12 @@ priority (by ROI/effort — resequence as you like). See [ARCHITECTURE.md](./ARC
 - ✅ Smoke-test: timer, blinds editor, notifications, Android foreground service, AdMob banner, Pro paywall (renders) — emulator green. Pro **purchase** flow deferred to Stage 6 (needs a Play device + license tester)
 
 **Then deploy:**
-- 🚧 RevenueCat: get the Play **service-account credentials green** — service account created; **release** permission added so `eas submit` works; **verify RevenueCat shows green** before purchase testing
+- ✅ RevenueCat: Play **service-account credentials** working — service account created; **release** permission added so `eas submit` works; products/offering wired
 - ✅ `eas build -p android --profile production` (from `apps/mobile`) → AAB built & uploaded to **Internal testing** via `eas submit`, then promoted to **Closed testing**. Gotchas fixed along the way: hermesc path for RN 0.85 (PR #45), the SA **release** permission, and the **AD_ID advertising-ID declaration** (App content)
-- ⬜ Create Play **`pro_lifetime`** managed product (one-time) → attach in RevenueCat to the `pro` entitlement + **current** offering — *now unblocked (billing-enabled AAB uploaded)* — **next**
-- ⬜ Test the **Pro purchase** end-to-end on a **physical device** from a testing track (license tester) → entitlement unlocks + AdMob banner hides
-- ⬜ Play **store listing** + **content rating** + **Data safety** — Advertising ID declaration ✅; still declare purchases + data collection. Required before production
-- 🚧 **Closed testing (account created 2025 → required): ≥12 testers opted in for 14 continuous days** — test started; **recruit ≥12 testers now** so the clock actually runs
+- ✅ Create Play **`pro_lifetime`** managed product (one-time) → attached in RevenueCat to the `pro` entitlement + **current** offering
+- 🚧 Test the **Pro purchase** end-to-end on a **physical device** from a testing track (license tester) → entitlement unlocks + AdMob banner hides — **current step** (bringing up a physical Android device)
+- ✅ Play **store listing** + **content rating** + **Data safety** — all forms filled in
+- ⏳ **Closed testing (account created 2025 → required): ≥12 testers opted in for 14 continuous days** — ≥12 testers in; **waiting out the 14 days**
 - ⬜ **Apply for production access** (Play Console → Production → "Apply for production access") after the 14-day closed test
 - ⬜ Promote to **Production** → review → live
 - ⬜ Update `PLAY_STORE_LINK` in `apps/web/src/app/components/LandingPage.tsx` (currently placeholder `https://google.com`)
