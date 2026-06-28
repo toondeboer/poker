@@ -25,13 +25,22 @@ priority (by ROI/effort — resequence as you like). See [ARCHITECTURE.md](./ARC
 - ✅ Android app revived for launch: RN 0.85 / Expo SDK 56 native build fixes + notification-permission
   + foreground-alarm bugs — emulator smoke test green (PR #44)
 
-## P0 — Quick closeouts (trivial, finish now)
-- ⬜ **Web AdSense go-live:** set Vercel env on the web app + redeploy:
-  - `NEXT_PUBLIC_ADSENSE_CLIENT=ca-pub-9738048037268359`
-  - `NEXT_PUBLIC_ADSENSE_SLOT_LANDING=3591846942`
-  - `NEXT_PUBLIC_ADSENSE_SLOT_TIMER=1002332300`
-- ⬜ Confirm `toondeboer.com` (apex) is deployed with the verification meta tag + `/ads.txt`, complete AdSense site verification → **await approval** (ads serve on the subdomain after approval + visitor consent)
-- ⬜ Verify the **App Store `pro_lifetime` IAP description** matches the trimmed paywall (no presets/sound-pack promises)
+## P0 — Quick closeouts (config done — go-live gated on external review)
+**Status:** all hands-on P0 config/deploy is complete (verified 2026-06-28). **P0 cannot be fully
+closed now** — the AdSense go-live is gated on Google's site review, which is out of our hands and
+tracked as a separate waiting item below.
+- ✅ **Web AdSense env (Vercel, web app `poker-timer.toondeboer.com`)** — all three set + deployed, confirmed:
+  - `NEXT_PUBLIC_ADSENSE_CLIENT=ca-pub-9738048037268359` — live (`/ads.txt` serves the seller line; `google-adsense-account` meta tag in `<head>`)
+  - `NEXT_PUBLIC_ADSENSE_SLOT_LANDING=3591846942` — set in Vercel Production
+  - `NEXT_PUBLIC_ADSENSE_SLOT_TIMER=1002332300` — set in Vercel Production
+- ✅ Apex `toondeboer.com` (a **separate** S3/CodeBuild static site, not the Vercel app) — serves the verification meta tag + `/ads.txt` (the seller line) with the correct pub id, deployed to the S3 bucket (confirmed live)
+- ✅ **App Store `pro_lifetime` IAP description** matches the trimmed paywall (remove-ads + support-the-dev only; no presets/sound-pack promises) — verified
+
+## ⏳ Waiting on external — AdSense site review (blocks P0 go-live)
+- ⏳ **Web AdSense site approval** — site submitted and **in review** ("Getting ready" as of 2026-06-28).
+  All our config is done (Vercel env + apex verification, see P0); ads serve on the subdomain only
+  after Google approves **and** the visitor consents. Nothing to do but wait — re-check AdSense
+  console → Sites; flip to ✅ when it reads "Ready", then confirm a banner renders post-consent.
 
 ## P1 — ASO (highest-leverage growth; free; drives installs for the already-live iOS app)
 - ⬜ iOS listing: optimized **title + subtitle + 100-char keyword field** ("poker timer", "blinds timer", "tournament clock", "poker clock"…)
