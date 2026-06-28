@@ -49,6 +49,7 @@ apps/web/public/workbox-*.js
 .DS_Store
 .idea/
 *.pem
+.vscode/
 
 # Logs
 npm-debug.log*
