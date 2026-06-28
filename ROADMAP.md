@@ -4,10 +4,10 @@ Monetization + growth tracker for Poker Blinds Buzzer.
 
 **Where things stand:** iOS is **live** (App Store v1.1.1) with an AdMob banner + a Pro /
 Remove-Ads IAP (RevenueCat). The web app has a live Ko-fi tip jar; web AdSense is built and
-awaiting Google approval. **Android launch is in progress** — the app is in **Closed testing** with
-**≥12 testers opted in** (waiting out the **14-day production-access clock**); `pro_lifetime`/RevenueCat
-is wired and the store/compliance forms are filled in. Remaining: verify the Pro purchase on a physical
-device, then apply for production access once the 14 days are up. Checklist is ordered by
+awaiting Google approval. **Android launch is essentially done** — Pro purchase verified end-to-end
+(shows in RevenueCat), the closed test completed, and the app is **submitted for production and in
+Google review**. The only remaining steps are gated on that review: go live, then swap the web Play
+Store link. Checklist is ordered by
 priority (by ROI/effort — resequence as you like). See [ARCHITECTURE.md](./ARCHITECTURE.md) +
 [CLAUDE.md](./CLAUDE.md).
 
@@ -49,12 +49,12 @@ priority (by ROI/effort — resequence as you like). See [ARCHITECTURE.md](./ARC
 - ✅ RevenueCat: Play **service-account credentials** working — service account created; **release** permission added so `eas submit` works; products/offering wired
 - ✅ `eas build -p android --profile production` (from `apps/mobile`) → AAB built & uploaded to **Internal testing** via `eas submit`, then promoted to **Closed testing**. Gotchas fixed along the way: hermesc path for RN 0.85 (PR #45), the SA **release** permission, and the **AD_ID advertising-ID declaration** (App content)
 - ✅ Create Play **`pro_lifetime`** managed product (one-time) → attached in RevenueCat to the `pro` entitlement + **current** offering
-- 🚧 Test the **Pro purchase** end-to-end on a **physical device** from a testing track (license tester) → entitlement unlocks + AdMob banner hides — **current step** (bringing up a physical Android device)
+- ✅ Test the **Pro purchase** end-to-end on a **physical device** (license tester) → purchase completes, Pro unlocks, transaction shows in RevenueCat
 - ✅ Play **store listing** + **content rating** + **Data safety** — all forms filled in
-- ⏳ **Closed testing (account created 2025 → required): ≥12 testers opted in for 14 continuous days** — ≥12 testers in; **waiting out the 14 days**
-- ⬜ **Apply for production access** (Play Console → Production → "Apply for production access") after the 14-day closed test
-- ⬜ Promote to **Production** → review → live
-- ⬜ Update `PLAY_STORE_LINK` in `apps/web/src/app/components/LandingPage.tsx` (currently placeholder `https://google.com`)
+- ✅ **Closed testing (account created 2025 → required): ≥12 testers × 14 continuous days** — completed
+- ✅ **Apply for production access** (Play Console → Production) — submitted
+- ⏳ Production release → **in Google review** (blocked here — nothing to do but wait)
+- ⬜ Once live: update `PLAY_STORE_LINK` in `apps/web/src/app/components/LandingPage.tsx` (placeholder `https://google.com`) → redeploy web
 
 ## P3 — More growth
 - ⬜ **Brandable apex domain** for the web app (off `poker-timer.toondeboer.com`) — better word-of-mouth, ASO, ads.txt-at-root, trust
