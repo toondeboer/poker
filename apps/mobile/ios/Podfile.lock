@@ -256,6 +256,8 @@ PODS:
     - RNScreens
   - ExpoSplashScreen (56.0.10):
     - ExpoModulesCore
+  - ExpoStoreReview (56.0.3):
+    - ExpoModulesCore
   - ExpoSymbols (56.0.6):
     - ExpoModulesCore
   - ExpoUI (56.0.18):
@@ -271,7 +273,7 @@ PODS:
   - hermes-engine (250829098.0.10):
     - hermes-engine/Pre-built (= 250829098.0.10)
   - hermes-engine/Pre-built (250829098.0.10)
-  - PurchasesHybridCommon (18.14.1):
+  - PurchasesHybridCommon (18.15.1):
     - RevenueCat (= 5.78.0)
   - RCTDeprecation (0.85.3)
   - RCTRequired (0.85.3)
@@ -2079,8 +2081,8 @@ PODS:
     - ReactCommon/turbomodule/core
     - ReactNativeDependencies
     - Yoga
-  - RNPurchases (10.3.0):
-    - PurchasesHybridCommon (= 18.14.1)
+  - RNPurchases (10.4.0):
+    - PurchasesHybridCommon (= 18.15.1)
     - React-Core
   - RNReanimated (4.3.1):
     - hermes-engine
@@ -2296,6 +2298,7 @@ DEPENDENCIES:
   - ExpoNotifications (from `../../../node_modules/expo-notifications/ios`)
   - ExpoRouter (from `../../../node_modules/expo-router/ios`)
   - ExpoSplashScreen (from `../../../node_modules/expo-splash-screen/ios`)
+  - ExpoStoreReview (from `../../../node_modules/expo-store-review/ios`)
   - ExpoSymbols (from `../../../node_modules/expo-symbols/ios`)
   - "ExpoUI (from `../../../node_modules/@expo/ui/ios`)"
   - EXUpdatesInterface (from `../../../node_modules/expo-updates-interface/ios`)
@@ -2444,6 +2447,8 @@ EXTERNAL SOURCES:
     :path: "../../../node_modules/expo-router/ios"
   ExpoSplashScreen:
     :path: "../../../node_modules/expo-splash-screen/ios"
+  ExpoStoreReview:
+    :path: "../../../node_modules/expo-store-review/ios"
   ExpoSymbols:
     :path: "../../../node_modules/expo-symbols/ios"
   ExpoUI:
@@ -2642,6 +2647,7 @@ SPEC CHECKSUMS:
   ExpoNotifications: 87875dae0faded5284004bc1204990947d3f64e0
   ExpoRouter: 5539806fcab8d38c639c9c255a6d73caa839436a
   ExpoSplashScreen: 3fe3a57d56d7242a9109d9714a6f9fa1e256538b
+  ExpoStoreReview: f785057aececd9c63a113c69a82b491e5f90694e
   ExpoSymbols: 377747de25bcb1ab68ec68f23d81fb81d43eae83
   ExpoUI: cb2928f5537135cff59e7b84b4adbeb72355f9fd
   EXUpdatesInterface: 25408a97d682355eb9fb37e5aa6e22caece1881f
@@ -2649,7 +2655,7 @@ SPEC CHECKSUMS:
   Google-Mobile-Ads-SDK: 8429bef6ee1a4e322b0a5571b64217ed8317a3d5
   GoogleUserMessagingPlatform: befe603da6501006420c206222acd449bba45a9c
   hermes-engine: 4068cd6a9055219d7072d00d0405f468ce0ad5f2
-  PurchasesHybridCommon: 825e4e748b62c919bc4cb4032b0d1e452409bd74
+  PurchasesHybridCommon: eed735a411c1aee8c05d62933fa7c4a40ede4009
   RCTDeprecation: 225e022b85a206cf0883a909c4a114159783363c
   RCTRequired: 827a95c181af0886a11e21bc66c084088cf87839
   RCTSwiftUI: 7babb07156ae0a8e5ea97f77e43959ddaca2c6f2
@@ -2725,7 +2731,7 @@ SPEC CHECKSUMS:
   RNCMaskedView: a543b7a36c195a519d1bd7ef0291f1cbc6a84a0d
   RNGestureHandler: e088832e6528268d5d5ba7e6dcbaecb11e9fd0ca
   RNGoogleMobileAds: 187e151c8a407f15b3354946920e717910bdab1c
-  RNPurchases: ebcfb4effc608048bf2481a413b0bcaa2b6677f7
+  RNPurchases: 1436e2381a4a06bfd6378158f9ebd11993e684cc
   RNReanimated: 4e3dcaf562e48352db5340bd2ef985ca007ae35f
   RNScreens: 04eaa3cec7258c13d744af58aed4aec958a17eda
   RNWorklets: 27a8081bb6b77254b688c9183671e191509f7979
