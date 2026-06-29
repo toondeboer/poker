@@ -34,6 +34,8 @@ export { createBlindsStorage } from "./storage/blindsStorage";
 export type { BlindsState, BlindsStorage } from "./storage/blindsStorage";
 export { createReviewStorage } from "./storage/reviewStorage";
 export type { ReviewStorage } from "./storage/reviewStorage";
+export { createPresetStorage } from "./storage/presetStorage";
+export type { PresetStorage } from "./storage/presetStorage";
 
 // Timer state machine
 export {
@@ -73,3 +75,13 @@ export type {
   ReviewPromptState,
   ReviewPolicyInput,
 } from "./reviews/reviewPolicy";
+
+// Presets
+export {
+  createPreset,
+  addPreset,
+  removePreset,
+  isValidPresetName,
+  MAX_PRESETS,
+} from "./presets/preset";
+export type { BlindPreset } from "./presets/preset";
