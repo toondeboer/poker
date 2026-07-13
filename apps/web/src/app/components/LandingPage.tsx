@@ -326,7 +326,7 @@ const LandingPage: React.FC = () => {
                   icon: Trophy,
                   title: "Tournament Structures",
                   description:
-                    "Pre-built tournament formats or create your own custom structures. From cash games to deep stack tournaments.",
+                    "Pre-built tournament formats or create your own custom structures, then save and reuse them as presets. From cash games to deep stack tournaments.",
                 },
                 {
                   icon: Shield,

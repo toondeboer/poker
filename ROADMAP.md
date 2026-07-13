@@ -75,7 +75,7 @@ tracked as a separate waiting item below.
 - ✅ Saved tournament presets / multiple blind structures — **Pro-gated**, ships in **v1.1.2** (`@poker/core` presets + `usePresets` + "Tournament Presets" card)
 - ✅ Extra blind levels — already free in the blinds editor (add/remove/edit); **kept free** (gating it would remove a capability existing users have)
 - ⬜ Sound packs — **deferred to v1.1.3**: needs audio assets + native wiring (Android foreground service `R.raw.alarm` + iOS notification sound are hardcoded today)
-- ✅ Re-add shipped features to `PRO_FEATURES` in `apps/mobile/src/components/paywall/Paywall.tsx` — presets added. **TODO:** add "saved tournament presets" to the App Store / Play / RevenueCat `pro_lifetime` IAP descriptions to match the paywall
+- ✅ Re-add shipped features to `PRO_FEATURES` in `apps/mobile/src/components/paywall/Paywall.tsx` — presets added. Updated `pro_lifetime` IAP description **copy drafted in [STORE_LISTING.md](./STORE_LISTING.md)** (remove ads + presets + support-the-dev). **TODO:** paste it into the three consoles (App Store Connect / Play Console / RevenueCat)
 
 ## 🔁 Ongoing — Monitor
 - ⬜ AdMob fill/revenue, RevenueCat conversions, AdSense (post-approval), `app-ads.txt`/`ads.txt` verification, ratings & reviews

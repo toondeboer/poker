@@ -117,12 +117,14 @@ export default function PokerSettings() {
             <View style={styles.cardContent}>
               {isPremium ? (
                 <Text style={styles.proUnlockedText}>
-                  Thanks for going Pro! Ads are removed.
+                  Thanks for going Pro! Ads are removed and tournament presets
+                  are unlocked.
                 </Text>
               ) : (
                 <>
                   <Text style={styles.proDescription}>
-                    Remove ads and support the app — a one-time purchase.
+                    Remove ads, save tournament presets, and support the app — a
+                    one-time purchase.
                   </Text>
                   <TouchableOpacity
                     style={styles.proButton}

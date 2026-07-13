@@ -51,6 +51,35 @@ The dead-simple blinds clock for home poker night. Big readable timer, custom bl
   naturally into the first two sentences and a feature bullet list. Reuse the
   promo text as the opening line.
 
+## In-app purchase — `pro_lifetime` description (keep in sync with the paywall)
+
+The paywall (`PRO_FEATURES` in `apps/mobile/src/components/paywall/Paywall.tsx`)
+now promises three things — **remove ads · save & load tournament presets ·
+support the dev**. Update the store IAP copy in all three consoles to match
+(this is the P4 sync item). Presets shipped in v1.1.2, so the earlier
+"remove-ads + support-the-dev only" description is now out of date.
+
+### App Store Connect — In-App Purchase → `pro_lifetime`
+- **Display Name (≤30 chars):** `Pro — Remove Ads & Presets` (`26`)
+- **Description** (short field — **verify the limit in the console**, it's tight):
+  ```
+  Remove ads + save tournament presets.
+  ```
+  `37` chars. If the field allows more:
+  `No ads, save tournament presets, support the dev.` (`49`)
+
+### Google Play — Monetize → Products → `pro_lifetime`
+- **Name (≤55 chars):** `Pro — Remove Ads & Tournament Presets` (`37`)
+- **Description (≤200 chars):**
+  ```
+  Unlock Pro: remove all ads for a clean full-screen timer, save & load your tournament presets (blind structure + round length), and support an indie developer. One-time purchase.
+  ```
+
+### RevenueCat
+- The `pro_lifetime` product description mirrors the store; if you keep an
+  internal description/notes field, match the copy above so the dashboard reads
+  the same. No entitlement/offering changes — just the text.
+
 ## Notes
 - Re-validate char counts in the console before saving (emoji/locale can shift).
 - Keep title/subtitle stable once ranked; iterate keywords + screenshots first.
