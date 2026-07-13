@@ -48,6 +48,9 @@ isn't launched yet (see [ROADMAP.md](./ROADMAP.md) for outstanding work).
   (archive fails on `Build ExpoModulesJSI xcframework` / safe-area-context "Directory not found",
   even with `--clear-cache`). Keep `ios.buildReactNativeFromSource: true` (app.json) **and** the
   eas.json build-profile env `EXPO_USE_PRECOMPILED_MODULES=0` + `RCT_USE_PREBUILT_RNCORE=0`. Verify:
-  `grep -c React-Core-prebuilt apps/mobile/ios/Podfile.lock` → `0`.
+  `grep -c React-Core-prebuilt apps/mobile/ios/Podfile.lock` → `0`. **A bare `pod install` re-adds the
+  prebuilt pods** (it doesn't read the eas.json env) — run it as
+  `EXPO_USE_PRECOMPILED_MODULES=0 RCT_USE_PREBUILT_RNCORE=0 npx pod-install`, and if the grep is
+  non-zero, `git checkout -- apps/mobile/ios/Podfile.lock` — never commit prebuilt refs.
 - **Keep `ios.supportsTablet: true`.** The app shipped universal (iPhone + iPad); an update that
   drops iPad is rejected at upload with App Store error 90101.

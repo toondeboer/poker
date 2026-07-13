@@ -5,10 +5,9 @@ Monetization + growth tracker for Poker Blinds Buzzer.
 **Where things stand:** iOS is **live** (App Store v1.1.1) with an AdMob banner + a Pro /
 Remove-Ads IAP (RevenueCat). **v1.1.2 is built** (in-app review prompt + Pro tournament presets +
 new ASO listing) and awaiting an EAS build + App Store release. The web app has a live Ko-fi tip jar; web AdSense is built and
-awaiting Google approval. **Android launch is essentially done** — Pro purchase verified end-to-end
-(shows in RevenueCat), the closed test completed, and the app is **submitted for production and in
-Google review**. The only remaining steps are gated on that review: go live, then swap the web Play
-Store link. Checklist is ordered by
+awaiting Google approval. **Android is now LIVE on Google Play** (approved 2026-07 — Pro purchase
+verified end-to-end, closed test completed, production review passed); the web landing page's
+`PLAY_STORE_LINK` now points at the real listing. Checklist is ordered by
 priority (by ROI/effort — resequence as you like). See [ARCHITECTURE.md](./ARCHITECTURE.md) +
 [CLAUDE.md](./CLAUDE.md).
 
@@ -25,6 +24,7 @@ priority (by ROI/effort — resequence as you like). See [ARCHITECTURE.md](./ARC
 - ✅ RevenueCat Android `goog_` SDK key wired in `app.json`
 - ✅ Android app revived for launch: RN 0.85 / Expo SDK 56 native build fixes + notification-permission
   + foreground-alarm bugs — emulator smoke test green (PR #44)
+- ✅ Android: **live on Google Play** (approved 2026-07) — AdMob banner + Pro/Remove-Ads IAP (RevenueCat), production review passed
 
 ## P0 — Quick closeouts (config done — go-live gated on external review)
 **Status:** all hands-on P0 config/deploy is complete (verified 2026-06-28). **P0 cannot be fully
@@ -49,7 +49,7 @@ tracked as a separate waiting item below.
 - ✅ In-app **review prompt** — fires after **5 rounds played** (gated: ≥5 rounds + 120-day cooldown in `@poker/core`); ships in **v1.1.2**
 - ✅ Reuse the same listing copy for Android at launch — Play Store copy drafted in [STORE_LISTING.md](./STORE_LISTING.md)
 
-## P2 — Android launch (ads + Pro parity)
+## ✅ P2 — Android launch (ads + Pro parity) — LIVE on Google Play (2026-07)
 **Prereq — app health:**
 - ✅ Run the Android app locally; fix bugs (native build drift, notification permission, foreground alarm — PR #44)
 - ✅ Update dependencies; resolve breakages — aligned `@babel/core`→7.29.x + `safe-area-context`→5.7.0 to Expo SDK 56, clean-reinstalled to dedupe, `expo-doctor` version check green (React `19.2.3` overrides untouched) — PR #45
@@ -63,8 +63,8 @@ tracked as a separate waiting item below.
 - ✅ Play **store listing** + **content rating** + **Data safety** — all forms filled in
 - ✅ **Closed testing (account created 2025 → required): ≥12 testers × 14 continuous days** — completed
 - ✅ **Apply for production access** (Play Console → Production) — submitted
-- ⏳ Production release → **in Google review** (blocked here — nothing to do but wait)
-- ⬜ Once live: update `PLAY_STORE_LINK` in `apps/web/src/app/components/LandingPage.tsx` (placeholder `https://google.com`) → redeploy web
+- ✅ Production release → **LIVE on Google Play** (approved 2026-07)
+- ✅ Update `PLAY_STORE_LINK` in `apps/web/src/app/components/LandingPage.tsx` → real listing (`com.toondeboer.pokerkit`). **TODO:** redeploy web so the link goes live
 
 ## P3 — More growth
 - ⬜ **Brandable apex domain** for the web app (off `poker-timer.toondeboer.com`) — better word-of-mouth, ASO, ads.txt-at-root, trust
