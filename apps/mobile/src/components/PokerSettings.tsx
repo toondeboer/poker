@@ -1,6 +1,7 @@
 // src/components/PokerSettings.tsx
 import React, { useState } from "react";
 import {
+  Alert,
   Dimensions,
   ScrollView,
   StyleSheet,
@@ -9,10 +10,11 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
-import { formatTime } from "@poker/core";
+import { BlindPreset, formatTime, isValidPresetName } from "@poker/core";
 import { useTimer } from "@/src/contexts/TimerContext";
 import { useBlinds } from "@/src/contexts/BlindsContext";
 import { usePremium } from "@/src/contexts/PremiumContext";
+import { usePresets } from "@/src/hooks/usePresets";
 import { Paywall } from "./paywall/Paywall";
 
 // Mock icons - replace with your preferred icon library (react-native-vector-icons, etc.)
@@ -23,6 +25,7 @@ const TrashIcon = () => <Text style={styles.icon}>🗑️</Text>;
 const SaveIcon = () => <Text style={styles.icon}>💾</Text>;
 const ResetIcon = () => <Text style={styles.icon}>🔄</Text>;
 const CrownIcon = () => <Text style={styles.icon}>👑</Text>;
+const BookmarkIcon = () => <Text style={styles.icon}>🔖</Text>;
 
 const { width: screenWidth } = Dimensions.get("window");
 
@@ -33,14 +36,19 @@ export default function PokerSettings() {
     removeBlindLevel,
     updateBlindLevel,
     applyCustomBlindLevels,
+    loadBlindLevels,
     resetToDefaultBlinds,
   } = useBlinds();
 
   const { timerDuration, setTimerDuration } = useTimer();
   const { isPremium } = usePremium();
+  const { presets, savePreset, deletePreset } = usePresets();
 
   const [durationSetting, setDurationSetting] = useState(String(timerDuration));
   const [showPaywall, setShowPaywall] = useState(false);
+  const [presetName, setPresetName] = useState("");
+
+  const canSavePreset = isValidPresetName(presetName, presets);
 
   const handleSaveTimer = () => {
     setTimerDuration(Number(durationSetting));
@@ -48,6 +56,31 @@ export default function PokerSettings() {
 
   const handleSaveBlinds = () => {
     applyCustomBlindLevels();
+  };
+
+  // Save the current editor setup (blind structure + round duration) as a preset.
+  const handleSavePreset = () => {
+    if (!canSavePreset) return;
+    savePreset(presetName, customBlindLevels, timerDuration);
+    setPresetName("");
+  };
+
+  // Make a saved preset the active (and editable) setup.
+  const handleLoadPreset = (preset: BlindPreset) => {
+    loadBlindLevels(preset.blindLevels);
+    setTimerDuration(preset.timerDuration);
+    setDurationSetting(String(preset.timerDuration));
+  };
+
+  const handleDeletePreset = (preset: BlindPreset) => {
+    Alert.alert("Delete preset", `Delete "${preset.name}"?`, [
+      { text: "Cancel", style: "cancel" },
+      {
+        text: "Delete",
+        style: "destructive",
+        onPress: () => deletePreset(preset.id),
+      },
+    ]);
   };
 
   const isTablet = screenWidth > 768;
@@ -247,6 +280,114 @@ export default function PokerSettings() {
                 </TouchableOpacity>
               </View>
             </View>
+          </View>
+        </View>
+
+        {/* Tournament Presets (Pro) */}
+        <View style={styles.presetCardWrapper}>
+          <View style={styles.card}>
+            <View style={styles.cardHeader}>
+              <View style={styles.cardHeaderIcon}>
+                <BookmarkIcon />
+              </View>
+              <Text style={styles.cardTitle}>Tournament Presets</Text>
+              {isPremium ? (
+                <View style={styles.levelBadge}>
+                  <Text style={styles.levelBadgeText}>
+                    {presets.length} saved
+                  </Text>
+                </View>
+              ) : (
+                <View style={styles.proPill}>
+                  <Text style={styles.proPillText}>PRO</Text>
+                </View>
+              )}
+            </View>
+
+            {isPremium ? (
+              <View style={styles.cardContent}>
+                <View style={styles.inputGroup}>
+                  <Text style={styles.inputLabel}>Save current setup</Text>
+                  <TextInput
+                    style={styles.input}
+                    value={presetName}
+                    onChangeText={setPresetName}
+                    placeholder="Preset name"
+                    placeholderTextColor="#94a3b8"
+                    maxLength={40}
+                  />
+                  <Text style={styles.inputHelper}>
+                    Saves your {customBlindLevels.length} blind levels and{" "}
+                    {formatTime(timerDuration)} round.
+                  </Text>
+                </View>
+
+                <TouchableOpacity
+                  style={[
+                    styles.primaryButton,
+                    !canSavePreset && styles.disabledButton,
+                  ]}
+                  onPress={handleSavePreset}
+                  disabled={!canSavePreset}
+                  activeOpacity={0.8}
+                >
+                  <SaveIcon />
+                  <Text style={styles.primaryButtonText}>Save Preset</Text>
+                </TouchableOpacity>
+
+                {presets.length === 0 ? (
+                  <Text style={styles.presetEmpty}>
+                    No presets yet — configure your blinds and round duration
+                    above, then save them here.
+                  </Text>
+                ) : (
+                  <View style={styles.presetList}>
+                    {presets.map((preset) => (
+                      <View key={preset.id} style={styles.presetRow}>
+                        <View style={styles.presetInfo}>
+                          <Text style={styles.presetName} numberOfLines={1}>
+                            {preset.name}
+                          </Text>
+                          <Text style={styles.presetMeta}>
+                            {preset.blindLevels.length} levels ·{" "}
+                            {formatTime(preset.timerDuration)}/round
+                          </Text>
+                        </View>
+                        <TouchableOpacity
+                          style={styles.loadButton}
+                          onPress={() => handleLoadPreset(preset)}
+                          activeOpacity={0.8}
+                        >
+                          <Text style={styles.loadButtonText}>Load</Text>
+                        </TouchableOpacity>
+                        <TouchableOpacity
+                          style={styles.removeButton}
+                          onPress={() => handleDeletePreset(preset)}
+                          activeOpacity={0.7}
+                        >
+                          <TrashIcon />
+                        </TouchableOpacity>
+                      </View>
+                    ))}
+                  </View>
+                )}
+              </View>
+            ) : (
+              <View style={styles.cardContent}>
+                <Text style={styles.proDescription}>
+                  Save your tournament setups — blind structures and round
+                  length — and load any of them in one tap.
+                </Text>
+                <TouchableOpacity
+                  style={styles.proButton}
+                  onPress={() => setShowPaywall(true)}
+                  activeOpacity={0.85}
+                >
+                  <CrownIcon />
+                  <Text style={styles.proButtonText}>Unlock Pro</Text>
+                </TouchableOpacity>
+              </View>
+            )}
           </View>
         </View>
       </ScrollView>
@@ -538,6 +679,69 @@ const styles = StyleSheet.create({
     color: "#ffffff",
     fontSize: 16,
     fontWeight: "500",
+  },
+  presetCardWrapper: {
+    paddingHorizontal: 16,
+    marginTop: 24,
+  },
+  proPill: {
+    backgroundColor: "rgba(245, 158, 11, 0.15)",
+    borderWidth: 1,
+    borderColor: "#f59e0b",
+    paddingHorizontal: 10,
+    paddingVertical: 3,
+    borderRadius: 20,
+  },
+  proPillText: {
+    fontSize: 12,
+    fontWeight: "700",
+    color: "#f59e0b",
+    letterSpacing: 0.5,
+  },
+  disabledButton: {
+    opacity: 0.5,
+  },
+  presetEmpty: {
+    fontSize: 13,
+    color: "#94a3b8",
+    lineHeight: 18,
+  },
+  presetList: {
+    gap: 12,
+  },
+  presetRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+    backgroundColor: "rgba(71, 85, 105, 0.3)",
+    borderWidth: 1,
+    borderColor: "rgba(75, 85, 99, 0.5)",
+    borderRadius: 8,
+    padding: 12,
+  },
+  presetInfo: {
+    flex: 1,
+  },
+  presetName: {
+    fontSize: 16,
+    fontWeight: "600",
+    color: "#ffffff",
+  },
+  presetMeta: {
+    fontSize: 12,
+    color: "#94a3b8",
+    marginTop: 2,
+  },
+  loadButton: {
+    backgroundColor: "#3b82f6",
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 8,
+  },
+  loadButtonText: {
+    color: "#ffffff",
+    fontSize: 14,
+    fontWeight: "600",
   },
   icon: {
     fontSize: 20,

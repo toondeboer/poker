@@ -25,7 +25,8 @@ import screenshot_7 from "../../assets/screenshots/screenshot_7.jpeg";
 
 const APP_STORE_LINK: string =
   "https://apps.apple.com/nl/app/poker-blinds-buzzer/id6749512168?l=en-GB";
-const PLAY_STORE_LINK: string = "https://google.com"; // TODO
+const PLAY_STORE_LINK: string =
+  "https://play.google.com/store/apps/details?id=com.toondeboer.pokerkit";
 
 const PRIVACY_POLICY_LINK = "/privacy-policy";
 const TIMER_LINK = "/timer";

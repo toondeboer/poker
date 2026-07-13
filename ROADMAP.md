@@ -3,11 +3,11 @@
 Monetization + growth tracker for Poker Blinds Buzzer.
 
 **Where things stand:** iOS is **live** (App Store v1.1.1) with an AdMob banner + a Pro /
-Remove-Ads IAP (RevenueCat). The web app has a live Ko-fi tip jar; web AdSense is built and
-awaiting Google approval. **Android launch is essentially done** — Pro purchase verified end-to-end
-(shows in RevenueCat), the closed test completed, and the app is **submitted for production and in
-Google review**. The only remaining steps are gated on that review: go live, then swap the web Play
-Store link. Checklist is ordered by
+Remove-Ads IAP (RevenueCat). **v1.1.2 is built** (in-app review prompt + Pro tournament presets +
+new ASO listing) and awaiting an EAS build + App Store release. The web app has a live Ko-fi tip jar; web AdSense is built and
+awaiting Google approval. **Android is now LIVE on Google Play** (approved 2026-07 — Pro purchase
+verified end-to-end, closed test completed, production review passed); the web landing page's
+`PLAY_STORE_LINK` now points at the real listing. Checklist is ordered by
 priority (by ROI/effort — resequence as you like). See [ARCHITECTURE.md](./ARCHITECTURE.md) +
 [CLAUDE.md](./CLAUDE.md).
 
@@ -24,6 +24,7 @@ priority (by ROI/effort — resequence as you like). See [ARCHITECTURE.md](./ARC
 - ✅ RevenueCat Android `goog_` SDK key wired in `app.json`
 - ✅ Android app revived for launch: RN 0.85 / Expo SDK 56 native build fixes + notification-permission
   + foreground-alarm bugs — emulator smoke test green (PR #44)
+- ✅ Android: **live on Google Play** (approved 2026-07) — AdMob banner + Pro/Remove-Ads IAP (RevenueCat), production review passed
 
 ## P0 — Quick closeouts (config done — go-live gated on external review)
 **Status:** all hands-on P0 config/deploy is complete (verified 2026-06-28). **P0 cannot be fully
@@ -43,12 +44,12 @@ tracked as a separate waiting item below.
   console → Sites; flip to ✅ when it reads "Ready", then confirm a banner renders post-consent.
 
 ## P1 — ASO (highest-leverage growth; free; drives installs for the already-live iOS app)
-- ⬜ iOS listing: optimized **title + subtitle + 100-char keyword field** ("poker timer", "blinds timer", "tournament clock", "poker clock"…)
+- ✅ iOS listing: optimized **title + subtitle + 100-char keyword field** — drafted in [STORE_LISTING.md](./STORE_LISTING.md), set in App Store Connect for **v1.1.2** (awaiting release)
 - ⬜ **Screenshots** leading with Live Activities / Dynamic Island, the big timer, custom blind structures
-- ⬜ In-app **review prompt** after a completed game
-- ⬜ Reuse the same listing copy for Android at launch
+- ✅ In-app **review prompt** — fires after **5 rounds played** (gated: ≥5 rounds + 120-day cooldown in `@poker/core`); ships in **v1.1.2**
+- ✅ Reuse the same listing copy for Android at launch — Play Store copy drafted in [STORE_LISTING.md](./STORE_LISTING.md)
 
-## P2 — Android launch (ads + Pro parity)
+## ✅ P2 — Android launch (ads + Pro parity) — LIVE on Google Play (2026-07)
 **Prereq — app health:**
 - ✅ Run the Android app locally; fix bugs (native build drift, notification permission, foreground alarm — PR #44)
 - ✅ Update dependencies; resolve breakages — aligned `@babel/core`→7.29.x + `safe-area-context`→5.7.0 to Expo SDK 56, clean-reinstalled to dedupe, `expo-doctor` version check green (React `19.2.3` overrides untouched) — PR #45
@@ -62,8 +63,8 @@ tracked as a separate waiting item below.
 - ✅ Play **store listing** + **content rating** + **Data safety** — all forms filled in
 - ✅ **Closed testing (account created 2025 → required): ≥12 testers × 14 continuous days** — completed
 - ✅ **Apply for production access** (Play Console → Production) — submitted
-- ⏳ Production release → **in Google review** (blocked here — nothing to do but wait)
-- ⬜ Once live: update `PLAY_STORE_LINK` in `apps/web/src/app/components/LandingPage.tsx` (placeholder `https://google.com`) → redeploy web
+- ✅ Production release → **LIVE on Google Play** (approved 2026-07)
+- ✅ Update `PLAY_STORE_LINK` in `apps/web/src/app/components/LandingPage.tsx` → real listing (`com.toondeboer.pokerkit`). **TODO:** redeploy web so the link goes live
 
 ## P3 — More growth
 - ⬜ **Brandable apex domain** for the web app (off `poker-timer.toondeboer.com`) — better word-of-mouth, ASO, ads.txt-at-root, trust
@@ -71,10 +72,10 @@ tracked as a separate waiting item below.
 - ⬜ **Table-side virality**: subtle on-screen brand + URL + a share affordance
 
 ## P4 — Premium features (then re-add to the Pro paywall)
-- ⬜ Saved tournament presets / multiple blind structures
-- ⬜ Extra blind levels
-- ⬜ Sound packs
-- ⬜ Re-add the above to `PRO_FEATURES` in `apps/mobile/src/components/paywall/Paywall.tsx` once shipped
+- ✅ Saved tournament presets / multiple blind structures — **Pro-gated**, ships in **v1.1.2** (`@poker/core` presets + `usePresets` + "Tournament Presets" card)
+- ✅ Extra blind levels — already free in the blinds editor (add/remove/edit); **kept free** (gating it would remove a capability existing users have)
+- ⬜ Sound packs — **deferred to v1.1.3**: needs audio assets + native wiring (Android foreground service `R.raw.alarm` + iOS notification sound are hardcoded today)
+- ✅ Re-add shipped features to `PRO_FEATURES` in `apps/mobile/src/components/paywall/Paywall.tsx` — presets added. **TODO:** add "saved tournament presets" to the App Store / Play / RevenueCat `pro_lifetime` IAP descriptions to match the paywall
 
 ## 🔁 Ongoing — Monitor
 - ⬜ AdMob fill/revenue, RevenueCat conversions, AdSense (post-approval), `app-ads.txt`/`ads.txt` verification, ratings & reviews

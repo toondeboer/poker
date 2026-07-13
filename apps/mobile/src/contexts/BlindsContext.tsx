@@ -32,6 +32,7 @@ type BlindsContextType = {
     value: number,
   ) => void;
   applyCustomBlindLevels: () => void;
+  loadBlindLevels: (levels: BlindLevel[]) => void;
   resetToDefaultBlinds: () => void;
   isLoading: boolean;
 };
@@ -122,6 +123,15 @@ export function BlindsProvider({
     setCurrentBlindIndex(0);
   };
 
+  // Apply a saved preset's structure: make it both the editable and the active
+  // schedule, and restart from level 1. Persistence is handled by the save
+  // effect that watches these values.
+  const loadBlindLevels = (levels: BlindLevel[]) => {
+    setCustomBlindLevels(levels);
+    setBlindLevels(levels);
+    setCurrentBlindIndex(0);
+  };
+
   const resetToDefaultBlinds = () => {
     const defaultLevels = generateBlindLevels();
     setCustomBlindLevels(defaultLevels);
@@ -141,6 +151,7 @@ export function BlindsProvider({
         removeBlindLevel,
         updateBlindLevel,
         applyCustomBlindLevels,
+        loadBlindLevels,
         resetToDefaultBlinds,
         isLoading,
       }}

@@ -14,6 +14,7 @@ import { useTimerEngine } from "@/src/hooks/useTimerEngine";
 import { useTimerAlert } from "@/src/hooks/useTimerAlert";
 import { useNotificationPermission } from "@/src/hooks/useNotificationPermission";
 import { liveActivityService } from "@/src/services/LiveActivityService";
+import { recordRoundPlayed } from "@/src/services/reviewService";
 import { useAppState } from "./AppStateContext";
 
 type TimerContextType = {
@@ -78,6 +79,12 @@ export function TimerProvider({ children }: Readonly<{ children: ReactNode }>) {
       if (isActive) {
         await showAlert(false);
       }
+    } finally {
+      // A blind level just ran out = one round played. Count it and, once
+      // enough rounds are in, ask for a review. Foreground only (isActive) —
+      // the OS won't show the sheet while backgrounded. Gated + throttled in
+      // @poker/core.
+      void recordRoundPlayed(isActive);
     }
   };
 
