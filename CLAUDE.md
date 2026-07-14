@@ -54,3 +54,11 @@ isn't launched yet (see [ROADMAP.md](./ROADMAP.md) for outstanding work).
   non-zero, `git checkout -- apps/mobile/ios/Podfile.lock` — never commit prebuilt refs.
 - **Keep `ios.supportsTablet: true`.** The app shipped universal (iPhone + iPad); an update that
   drops iPad is rejected at upload with App Store error 90101.
+- **Version bumps must touch the native projects, not just `app.json`.** This is a bare workflow, so
+  EAS builds the committed native projects and `app.json` `version` is cosmetic (prebuild isn't run,
+  so it never syncs). The marketing version lives in **`apps/mobile/ios/PokerTimer/Info.plist`**
+  (`CFBundleShortVersionString`, hardcoded — not `$(MARKETING_VERSION)`) and
+  **`apps/mobile/android/app/build.gradle`** (`versionName`). Bump all three together or the binary
+  ships the old version and App Store Connect rejects it (ITMS-90186 "train … is closed" / ITMS-90062).
+  Build numbers are fine to leave — `eas.json` `appVersionSource: remote` + `autoIncrement` manages
+  `CFBundleVersion` / `versionCode` on EAS's servers.
