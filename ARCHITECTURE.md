@@ -14,7 +14,9 @@ full-featured web timer, an iOS/Android app, and the shared logic both build on.
 The web and mobile UIs are **deliberately separate** — desktop and phone have different
 needs (the phone manages sleep, background timers, Live Activities and push notifications;
 the desktop does not). What they share is **logic, not components**: blind schedules, timer
-math, serialization, and types all live in `@poker/core`.
+math, serialization, and types all live in `@poker/core`. Running the React Native UI on the
+web (`react-native-web`) was evaluated and rejected as high-effort/fragile for no real desktop
+benefit.
 
 ## Repository layout
 
@@ -61,10 +63,6 @@ survive a reload) using the exact same serialization the app uses.
 | Haptics | React Native `Vibration` API (`TimerExpirationAlert`) + native Android `Vibrator` | none |
 | Storage | AsyncStorage adapter | localStorage adapter |
 | UI | React Native `StyleSheet` components | Next.js + Tailwind components |
-
-The web app intentionally does **not** reuse the React Native UI — running the RN component
-tree on the web (react-native-web) was evaluated and rejected as high-effort/fragile for no
-real desktop benefit.
 
 See [CLAUDE.md](./CLAUDE.md) for monorepo conventions and gotchas, and [README.md](./README.md)
 for setup, run, and deploy commands.

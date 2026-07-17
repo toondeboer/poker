@@ -16,7 +16,6 @@ current monetization/growth status.
   native modules are app-specific — wire them into core through an interface (e.g. `StorageAdapter`,
   and `EntitlementProvider` for Pro). Add a web no-op for mobile-only features (Live Activities,
   foreground service, push) instead of importing native modules on web.
-- **The web app has its own UI** (Next.js + Tailwind) — share logic, not components.
 - **Imports:** cross-package → `@poker/core`; within mobile → `@/src/...`; within web → `@/...`.
 
 ## Things that bite in this monorepo
@@ -39,10 +38,12 @@ current monetization/growth status.
   even with `--clear-cache`). `apps/mobile/ios/Podfile` bakes
   `ENV['EXPO_USE_PRECOMPILED_MODULES'] = '0'` and `ENV['RCT_USE_PREBUILT_RNCORE'] = '0'` at the
   top, so a plain `pod install` / `npm run pods` is safe — no env prefix needed. `app.json`'s
-  `ios.buildReactNativeFromSource: true` and the matching eas.json build-profile env vars are a
-  second line of defense for EAS. Verify: `grep -c React-Core-prebuilt apps/mobile/ios/Podfile.lock`
-  → `0`; if it's non-zero, someone removed the Podfile `ENV` lines — restore them rather than just
-  reverting the lock file.
+  `ios.buildReactNativeFromSource: true` documents the intent but has no effect on its own —
+  nothing bridges it to the env var, so the Podfile lines are what actually enforce this. The
+  matching `eas.json` build-profile env vars are a redundant guard specifically for EAS Build,
+  which sets `EXPO_USE_PRECOMPILED_MODULES=1` ambiently in its cloud environment. Verify:
+  `grep -c React-Core-prebuilt apps/mobile/ios/Podfile.lock` → `0`; if it's non-zero, someone
+  removed the Podfile `ENV` lines — restore them rather than just reverting the lock file.
 - **Keep `ios.supportsTablet: true`.** The app shipped universal (iPhone + iPad); an update that
   drops iPad is rejected at upload with App Store error 90101.
 - **Version bumps must touch the native projects, not just `app.json`.** This is a bare workflow, so

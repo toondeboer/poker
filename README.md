@@ -26,7 +26,7 @@ packages/
 
 ## Prerequisites
 
-- **Node ≥ 20** and npm (this repo uses npm workspaces — always install from the root).
+- **Node ≥ 20** and npm (this repo uses npm workspaces).
 - For mobile: **Xcode** + **CocoaPods** (iOS), **Android Studio / SDK** (Android), and the
   Expo/EAS CLI (`npm i -g eas-cli`, or use `npx`).
 
