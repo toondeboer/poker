@@ -4,8 +4,6 @@ import {
   Alert,
   Dimensions,
   Keyboard,
-  KeyboardAvoidingView,
-  Platform,
   ScrollView,
   StyleSheet,
   Text,
@@ -58,14 +56,17 @@ export default function PokerSettings() {
 
   const canSavePreset = isValidPresetName(presetName, presets);
 
-  // Scroll the Save Preset button above the keyboard once it opens, since the
-  // preset input sits mid-ScrollView and the keyboard would otherwise cover the
-  // button below it. Anchored to the keyboard's actual height (not a guessed
-  // offset) so it clears the button by exactly as much as it needs to.
+  // `automaticallyAdjustKeyboardInsets` (on the ScrollView below) makes all
+  // content scrollable above the keyboard, but iOS only auto-scrolls the focused
+  // *input* into view — the Save Preset button sits just below it and would stay
+  // hidden. When the preset input is focused, nudge the scroll so the button
+  // clears the keyboard too. Measured against the keyboard's real height, so it
+  // scrolls by exactly the overflow and no more (no dead space).
   useEffect(() => {
     const subscription = Keyboard.addListener("keyboardDidShow", (e) => {
       if (!presetInputFocused.current) return;
       const keyboardHeight = e.endCoordinates.height;
+      // Let the automatic inset-scroll settle first, then measure + nudge.
       setTimeout(() => {
         saveButtonRef.current?.measureInWindow((_x, y, _width, height) => {
           const visibleBottom = Dimensions.get("window").height - keyboardHeight;
@@ -77,7 +78,7 @@ export default function PokerSettings() {
             });
           }
         });
-      }, 50);
+      }, 150);
     });
     return () => subscription.remove();
   }, []);
@@ -118,20 +119,22 @@ export default function PokerSettings() {
   const isTablet = screenWidth > 768;
 
   return (
-    <KeyboardAvoidingView
-      style={styles.container}
-      behavior={Platform.OS === "ios" ? "padding" : undefined}
-    >
+    <View style={styles.container}>
       <ScrollView
         ref={scrollViewRef}
         style={styles.scrollView}
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
         onScroll={(e) => {
           scrollOffsetRef.current = e.nativeEvent.contentOffset.y;
         }}
         scrollEventThrottle={16}
-        keyboardShouldPersistTaps="handled"
+        // iOS: automatically inset the scroll area for the keyboard, so content
+        // scrolls fully into view and the keyboard never covers it. Android does
+        // the equivalent natively via `android:windowSoftInputMode="adjustResize"`
+        // in the manifest, so no wrapper (KeyboardAvoidingView) is needed here.
+        automaticallyAdjustKeyboardInsets={true}
       >
         {/* Header */}
         <View style={styles.header}>
@@ -359,7 +362,7 @@ export default function PokerSettings() {
                     placeholderTextColor="#94a3b8"
                     maxLength={40}
                     returnKeyType="done"
-                    onSubmitEditing={handleSavePreset}
+                    onSubmitEditing={() => Keyboard.dismiss()}
                     onFocus={() => {
                       presetInputFocused.current = true;
                     }}
@@ -448,7 +451,7 @@ export default function PokerSettings() {
         visible={showPaywall}
         onClose={() => setShowPaywall(false)}
       />
-    </KeyboardAvoidingView>
+    </View>
   );
 }
 
