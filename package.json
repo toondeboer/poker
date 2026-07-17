@@ -15,7 +15,8 @@
     "web": "npm run dev --workspace @poker/web",
     "mobile": "npm run start --workspace @poker/mobile",
     "ios": "npm run ios --workspace @poker/mobile",
-    "android": "npm run android --workspace @poker/mobile"
+    "android": "npm run android --workspace @poker/mobile",
+    "pods": "npm run pods --workspace @poker/mobile"
   },
   "devDependencies": {
     "next": "16.2.7",

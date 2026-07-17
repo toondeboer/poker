@@ -9,6 +9,12 @@ import {
 import type { Entitlements } from "@poker/core";
 import { revenueCatProvider } from "@/src/services/revenueCatProvider";
 
+// Flip to true to unlock Pro locally without going through RevenueCat/StoreKit —
+// real purchases aren't testable in the Simulator without StoreKit Testing +
+// RevenueCat dashboard setup. Never true in a release build since __DEV__ is
+// false there regardless of this literal.
+const FORCE_PRO_IN_DEV: boolean = __DEV__ && false;
+
 type PremiumContextValue = {
   /** True once the user has unlocked the Pro (ad-free) tier. */
   isPremium: boolean;
@@ -25,19 +31,19 @@ type PremiumContextValue = {
 const PremiumContext = createContext<PremiumContextValue | null>(null);
 
 /**
- * Exposes entitlement state and the purchase/restore actions to the tree. Backed
- * by a stub provider in Phases 2–3 (simulated in dev); swapping in RevenueCat
- * later requires no change to any consumer. Every ad surface reads `isPremium`
- * through {@link usePremium}, so unlocking Pro removes ads everywhere at once.
+ * Exposes entitlement state and the purchase/restore actions to the tree, backed
+ * by RevenueCat. Every ad surface reads `isPremium` through {@link usePremium},
+ * so unlocking Pro removes ads everywhere at once.
  */
 export function PremiumProvider({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
-  const [isPremium, setIsPremium] = useState(false);
+  const [isPremium, setIsPremium] = useState(FORCE_PRO_IN_DEV);
   const [purchasing, setPurchasing] = useState(false);
   const [proPriceString, setProPriceString] = useState<string | null>(null);
 
   useEffect(() => {
+    if (FORCE_PRO_IN_DEV) return;
     let active = true;
     revenueCatProvider.getEntitlements().then((entitlements: Entitlements) => {
       if (active) setIsPremium(entitlements.isPremium);
