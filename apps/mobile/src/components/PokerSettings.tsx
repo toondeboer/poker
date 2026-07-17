@@ -1,8 +1,9 @@
 // src/components/PokerSettings.tsx
-import React, { useRef, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import {
   Alert,
   Dimensions,
+  Keyboard,
   KeyboardAvoidingView,
   Platform,
   ScrollView,
@@ -51,23 +52,35 @@ export default function PokerSettings() {
   const [presetName, setPresetName] = useState("");
 
   const scrollViewRef = useRef<ScrollView>(null);
-  const presetInputSectionRef = useRef<View>(null);
+  const scrollOffsetRef = useRef(0);
+  const saveButtonRef = useRef<View>(null);
+  const presetInputFocused = useRef(false);
 
   const canSavePreset = isValidPresetName(presetName, presets);
 
-  // Scroll the "Save current setup" input + button above the keyboard once it opens,
-  // since the input sits mid-ScrollView and the keyboard would otherwise cover the button.
-  const scrollPresetInputIntoView = () => {
-    setTimeout(() => {
-      presetInputSectionRef.current?.measureLayout(
-        scrollViewRef.current as unknown as React.ElementRef<typeof View>,
-        (_x, y) => {
-          scrollViewRef.current?.scrollTo({ y: Math.max(y - 16, 0), animated: true });
-        },
-        () => {}
-      );
-    }, 100);
-  };
+  // Scroll the Save Preset button above the keyboard once it opens, since the
+  // preset input sits mid-ScrollView and the keyboard would otherwise cover the
+  // button below it. Anchored to the keyboard's actual height (not a guessed
+  // offset) so it clears the button by exactly as much as it needs to.
+  useEffect(() => {
+    const subscription = Keyboard.addListener("keyboardDidShow", (e) => {
+      if (!presetInputFocused.current) return;
+      const keyboardHeight = e.endCoordinates.height;
+      setTimeout(() => {
+        saveButtonRef.current?.measureInWindow((_x, y, _width, height) => {
+          const visibleBottom = Dimensions.get("window").height - keyboardHeight;
+          const overflow = y + height - visibleBottom;
+          if (overflow > 0) {
+            scrollViewRef.current?.scrollTo({
+              y: scrollOffsetRef.current + overflow + 16,
+              animated: true,
+            });
+          }
+        });
+      }, 50);
+    });
+    return () => subscription.remove();
+  }, []);
 
   const handleSaveTimer = () => {
     setTimerDuration(Number(durationSetting));
@@ -114,6 +127,10 @@ export default function PokerSettings() {
         style={styles.scrollView}
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
+        onScroll={(e) => {
+          scrollOffsetRef.current = e.nativeEvent.contentOffset.y;
+        }}
+        scrollEventThrottle={16}
         keyboardShouldPersistTaps="handled"
       >
         {/* Header */}
@@ -332,7 +349,7 @@ export default function PokerSettings() {
 
             {isPremium ? (
               <View style={styles.cardContent}>
-                <View style={styles.inputGroup} ref={presetInputSectionRef}>
+                <View style={styles.inputGroup}>
                   <Text style={styles.inputLabel}>Save current setup</Text>
                   <TextInput
                     style={styles.input}
@@ -343,7 +360,12 @@ export default function PokerSettings() {
                     maxLength={40}
                     returnKeyType="done"
                     onSubmitEditing={handleSavePreset}
-                    onFocus={scrollPresetInputIntoView}
+                    onFocus={() => {
+                      presetInputFocused.current = true;
+                    }}
+                    onBlur={() => {
+                      presetInputFocused.current = false;
+                    }}
                   />
                   <Text style={styles.inputHelper}>
                     Saves your {customBlindLevels.length} blind levels and{" "}
@@ -352,6 +374,7 @@ export default function PokerSettings() {
                 </View>
 
                 <TouchableOpacity
+                  ref={saveButtonRef}
                   style={[
                     styles.primaryButton,
                     !canSavePreset && styles.disabledButton,
