@@ -100,9 +100,9 @@ important.
 
 - **Website → Vercel.** The Vercel project's **Root Directory is `apps/web`**; pushes to the
   default branch deploy automatically.
-- **Mobile → EAS**, from `apps/mobile`:
+- **Mobile → EAS**, from the repo root:
   ```bash
-  eas build --platform ios --profile production
-  eas submit -p ios --latest
+  npm run eas:build:ios      # or eas:build:android
+  npm run eas:submit:ios     # or eas:submit:android — submits the latest EAS build
   ```
   (config in `eas.json`, project id in `app.json`).
