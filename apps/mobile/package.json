@@ -9,6 +9,10 @@
     "ios": "expo run:ios",
     "prebuild": "expo prebuild",
     "pods": "cd ios && pod install",
+    "eas:build:ios": "eas build --platform ios --profile production",
+    "eas:build:android": "eas build --platform android --profile production",
+    "eas:submit:ios": "eas submit -p ios --latest",
+    "eas:submit:android": "eas submit -p android --latest",
     "lint": "expo lint",
     "typecheck": "tsc --noEmit"
   },

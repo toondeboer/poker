@@ -100,9 +100,15 @@ important.
 
 - **Website → Vercel.** The Vercel project's **Root Directory is `apps/web`**; pushes to the
   default branch deploy automatically.
-- **Mobile → EAS**, from `apps/mobile`:
+- **Mobile → EAS**, from the repo root. `eas build` compiles a native binary in EAS's cloud (an
+  `.ipa` for iOS / `.aab` for Android); `eas submit` uploads the most recently finished build to
+  App Store Connect / Google Play Console. Build first, then submit once it finishes:
   ```bash
-  eas build --platform ios --profile production
-  eas submit -p ios --latest
+  npm run eas:build:ios
+  npm run eas:build:android
+  ```
+  ```bash
+  npm run eas:submit:ios
+  npm run eas:submit:android
   ```
   (config in `eas.json`, project id in `app.json`).
