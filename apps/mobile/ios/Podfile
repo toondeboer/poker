@@ -7,6 +7,13 @@ podfile_properties = JSON.parse(File.read(File.join(__dir__, 'Podfile.properties
 ENV['RCT_NEW_ARCH_ENABLED'] = '0' if podfile_properties['newArchEnabled'] == 'false'
 ENV['EX_DEV_CLIENT_NETWORK_INSPECTOR'] = podfile_properties['EX_DEV_CLIENT_NETWORK_INSPECTOR']
 
+# Force building React Native + Expo modules from source. Precompiled SDK-56 XCFrameworks
+# break this hoisted monorepo (archive fails on "Build ExpoModulesJSI xcframework" /
+# safe-area-context "Directory not found", even with --clear-cache). Setting these here
+# (rather than requiring callers to export them) means a plain `pod install` is always safe.
+ENV['EXPO_USE_PRECOMPILED_MODULES'] = '0'
+ENV['RCT_USE_PREBUILT_RNCORE'] = '0'
+
 platform :ios, podfile_properties['ios.deploymentTarget'] || '15.1'
 install! 'cocoapods',
   :deterministic_uuids => false

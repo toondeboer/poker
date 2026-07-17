@@ -7,6 +7,8 @@
     "reset-project": "node ./scripts/reset-project.js",
     "android": "expo run:android",
     "ios": "expo run:ios",
+    "prebuild": "expo prebuild",
+    "pods": "cd ios && pod install",
     "lint": "expo lint",
     "typecheck": "tsc --noEmit"
   },
