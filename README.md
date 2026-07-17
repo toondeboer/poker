@@ -12,7 +12,7 @@ This monorepo holds the whole product:
 
 Both are driven by the same shared logic in `@poker/core`, so the blind schedules and timer
 behaviour stay identical across platforms. See [ARCHITECTURE.md](./ARCHITECTURE.md) for the
-design.
+design and [CLAUDE.md](./CLAUDE.md) for conventions when working in this repo.
 
 ## Repository structure
 
@@ -24,18 +24,32 @@ packages/
   core/     @poker/core     shared, framework-agnostic timer logic
 ```
 
-Each app keeps its own docs in `apps/web/README.md` and `apps/mobile/README.md`.
-
 ## Prerequisites
 
 - **Node ≥ 20** and npm (this repo uses npm workspaces — always install from the root).
-- For mobile: **Xcode** (iOS), **Android Studio / SDK** (Android), and the Expo/EAS CLI
-  (`npm i -g eas-cli`, or use `npx`).
+- For mobile: **Xcode** + **CocoaPods** (iOS), **Android Studio / SDK** (Android), and the
+  Expo/EAS CLI (`npm i -g eas-cli`, or use `npx`).
 
 ## Install
 
 ```bash
-npm install        # from the repo root — installs all workspaces against one lockfile
+npm install    # from the repo root — installs all workspaces against one lockfile
+npm run pods   # installs the iOS CocoaPods (apps/mobile/ios)
+```
+
+Mobile is a **bare Expo workflow** (`apps/mobile/ios` and `apps/mobile/android` are committed
+native projects), so `npm install` alone doesn't set up iOS — CocoaPods isn't part of the npm
+lifecycle. Run `npm run pods` once up front, and again any time `apps/mobile/ios/Podfile.lock`
+changes (e.g. after pulling, or adding a native dependency); skipping it surfaces as an
+`xcodebuild` error: "The sandbox is not in sync with the Podfile.lock."
+
+### Android SDK
+
+Gradle needs to know where the Android SDK lives. Either export `ANDROID_HOME`, or create
+`apps/mobile/android/local.properties` (gitignored) with:
+
+```properties
+sdk.dir=/Users/<you>/Library/Android/sdk
 ```
 
 ## Run
@@ -59,12 +73,27 @@ npm run test       # unit tests (@poker/core, via Vitest)
 npm run build      # production build of every buildable workspace
 ```
 
+## Regenerating native projects (mobile)
+
+After adding or upgrading a native dependency, or bumping the Expo SDK, regenerate `ios/` and
+`android/` so they match the installed packages:
+
+```bash
+npm run prebuild -w @poker/mobile            # add `-- --clean` to regenerate from scratch
+npm run pods
+```
+
+Then rebuild with `npm run ios` / `npm run android`. `--clean` wipes any hand-edited native code
+that isn't expressed as a config plugin, so review the diff afterwards and re-apply anything
+important.
+
 ## Deploy
 
 - **Website → Vercel.** The Vercel project's **Root Directory is `apps/web`**; pushes to the
   default branch deploy automatically.
-- **Mobile → EAS.** From `apps/mobile`: `eas build` then `eas submit` (config in `eas.json`,
-  project id in `app.json`).
-
-See [ARCHITECTURE.md](./ARCHITECTURE.md) for how the pieces fit together and
-[CLAUDE.md](./CLAUDE.md) for conventions when working in this repo.
+- **Mobile → EAS**, from `apps/mobile`:
+  ```bash
+  eas build --platform ios --profile production
+  eas submit -p ios --latest
+  ```
+  (config in `eas.json`, project id in `app.json`).
