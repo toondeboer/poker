@@ -64,6 +64,15 @@ npm run android    # build & run on an Android emulator/device
 npm run mobile     # start the Expo dev server (choose a target)
 ```
 
+## Testing Pro features (mobile)
+
+Real purchases don't work in the iOS Simulator without extra one-time setup (StoreKit Testing
+config + a certificate uploaded to the RevenueCat dashboard). To unlock Pro locally without any
+of that, flip `FORCE_PRO_IN_DEV` to `true` in
+`apps/mobile/src/contexts/PremiumContext.tsx` — it's `__DEV__`-gated, so it's always `false` in
+a release build regardless of the literal. Fast Refresh picks up the change immediately; flip
+it back to `false` to test the free/paywall experience again.
+
 ## Checks
 
 ```bash
