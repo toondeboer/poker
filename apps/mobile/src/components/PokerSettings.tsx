@@ -1,8 +1,10 @@
 // src/components/PokerSettings.tsx
-import React, { useState } from "react";
+import React, { useRef, useState } from "react";
 import {
   Alert,
   Dimensions,
+  KeyboardAvoidingView,
+  Platform,
   ScrollView,
   StyleSheet,
   Text,
@@ -48,7 +50,24 @@ export default function PokerSettings() {
   const [showPaywall, setShowPaywall] = useState(false);
   const [presetName, setPresetName] = useState("");
 
+  const scrollViewRef = useRef<ScrollView>(null);
+  const presetInputSectionRef = useRef<View>(null);
+
   const canSavePreset = isValidPresetName(presetName, presets);
+
+  // Scroll the "Save current setup" input + button above the keyboard once it opens,
+  // since the input sits mid-ScrollView and the keyboard would otherwise cover the button.
+  const scrollPresetInputIntoView = () => {
+    setTimeout(() => {
+      presetInputSectionRef.current?.measureLayout(
+        scrollViewRef.current as unknown as React.ElementRef<typeof View>,
+        (_x, y) => {
+          scrollViewRef.current?.scrollTo({ y: Math.max(y - 16, 0), animated: true });
+        },
+        () => {}
+      );
+    }, 100);
+  };
 
   const handleSaveTimer = () => {
     setTimerDuration(Number(durationSetting));
@@ -86,11 +105,16 @@ export default function PokerSettings() {
   const isTablet = screenWidth > 768;
 
   return (
-    <View style={styles.container}>
+    <KeyboardAvoidingView
+      style={styles.container}
+      behavior={Platform.OS === "ios" ? "padding" : undefined}
+    >
       <ScrollView
+        ref={scrollViewRef}
         style={styles.scrollView}
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
       >
         {/* Header */}
         <View style={styles.header}>
@@ -308,7 +332,7 @@ export default function PokerSettings() {
 
             {isPremium ? (
               <View style={styles.cardContent}>
-                <View style={styles.inputGroup}>
+                <View style={styles.inputGroup} ref={presetInputSectionRef}>
                   <Text style={styles.inputLabel}>Save current setup</Text>
                   <TextInput
                     style={styles.input}
@@ -317,6 +341,9 @@ export default function PokerSettings() {
                     placeholder="Preset name"
                     placeholderTextColor="#94a3b8"
                     maxLength={40}
+                    returnKeyType="done"
+                    onSubmitEditing={handleSavePreset}
+                    onFocus={scrollPresetInputIntoView}
                   />
                   <Text style={styles.inputHelper}>
                     Saves your {customBlindLevels.length} blind levels and{" "}
@@ -398,7 +425,7 @@ export default function PokerSettings() {
         visible={showPaywall}
         onClose={() => setShowPaywall(false)}
       />
-    </View>
+    </KeyboardAvoidingView>
   );
 }
 
