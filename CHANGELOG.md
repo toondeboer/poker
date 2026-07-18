@@ -5,13 +5,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 Add changes under `[Unreleased]` as you merge them; roll that section into a dated,
-platform-tagged heading (e.g. `## [1.1.3] - 2026-07-20 — Android`) when you cut a release. See
-the release checklist in [CLAUDE.md](./CLAUDE.md).
-
-> **Platform note:** Android launched later than iOS, at 1.1.1 — so 1.0.0 and 1.1.0 are
-> iOS-only. iOS and Android version independently from here on. Entries before 1.1.2 are
-> **reconstructed** from git and EAS build history and are approximate (the marketing version
-> used to lag the native version files).
+platform-tagged heading (e.g. `## [1.1.3] - 2026-07-20 — Android`) when you cut a release.
 
 ## [Unreleased]
 
@@ -31,10 +25,14 @@ fixes land in 1.1.3._
 
 ## [1.1.1] - 2026-06-19
 
+_Also the version Android first launched with. Reconstructed from build history — approximate._
+
 ### Fixed
 - Post-launch stability and App Store compliance fixes following the monetization release.
 
-## [1.1.0] - 2026-06-17
+## [1.1.0] - 2026-06-17 — iOS only
+
+_Before Android's launch. Reconstructed from build history — approximate._
 
 ### Added
 - Monetization: an AdMob banner and a one-time **Pro / Remove Ads** purchase (RevenueCat), plus
@@ -44,7 +42,9 @@ fixes land in 1.1.3._
 ### Changed
 - Upgraded to Expo SDK 56 / React Native 0.85.
 
-## [1.0.0] - 2025-07
+## [1.0.0] - 2025-07 — iOS only
+
+_Before Android's launch. Reconstructed from build history — approximate._
 
 ### Added
 - Initial App Store release: a poker tournament timer with configurable blind levels, a
