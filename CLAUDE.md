@@ -52,8 +52,17 @@ current monetization/growth status.
   (`CFBundleShortVersionString`, hardcoded — not `$(MARKETING_VERSION)`) and
   **`apps/mobile/android/app/build.gradle`** (`versionName`). iOS and Android version
   **independently** — a number belongs to one platform (iOS is on 1.1.2; Android on 1.1.1, next
-  1.1.3). Miss the native bump and the binary ships the old version and App Store Connect rejects it
-  (ITMS-90186 "train … is closed" / ITMS-90062). Use `npm run release -- <version> --ios|--android`
-  (rolls `CHANGELOG.md`, commits) rather than editing by hand — see [RELEASING.md](./RELEASING.md).
-  Build numbers are fine to leave — `eas.json` `appVersionSource: remote` + `autoIncrement` manages
-  `CFBundleVersion` / `versionCode` on EAS's servers.
+  1.1.3). Bump the native file for whichever platform is shipping (don't touch the other
+  platform's), or the binary ships the old version and App Store Connect rejects it (ITMS-90186
+  "train … is closed" / ITMS-90062). Build numbers are fine to leave — `eas.json`
+  `appVersionSource: remote` + `autoIncrement` manages `CFBundleVersion` / `versionCode` on EAS's
+  servers.
+- **Releasing a build: update `CHANGELOG.md` and tag the commit.** Add an entry under
+  `[Unreleased]` in `CHANGELOG.md` (Keep a Changelog format) as features land, then roll it into a
+  dated, platform-tagged heading when you version-bump for release (e.g.
+  `## [1.1.3] - 2026-07-20 — Android`). After `eas submit` succeeds, tag the exact commit that was
+  built — not just wherever the version string changed, since one version number can span several
+  commits before the one that actually ships:
+  `git tag -a v<version> <built-commit-sha> -m "v<version> (<platform>, build <n>)"` then
+  `git push origin v<version>`. Find the built commit via `eas build:view <id>` or the EAS build
+  page.

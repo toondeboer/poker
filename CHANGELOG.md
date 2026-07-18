@@ -4,8 +4,9 @@ All notable user-facing changes to the **Poker Blinds Buzzer** mobile app are do
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the app
 follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-Add changes under `[Unreleased]` as you merge them; `npm run release <version>` moves that
-section into a dated release heading. See [RELEASING.md](./RELEASING.md) for the full process.
+Add changes under `[Unreleased]` as you merge them; roll that section into a dated,
+platform-tagged heading (e.g. `## [1.1.3] - 2026-07-20 — Android`) when you cut a release. See
+the release checklist in [CLAUDE.md](./CLAUDE.md).
 
 > **Platform note:** Android launched later than iOS, at 1.1.1 — so 1.0.0 and 1.1.0 are
 > iOS-only. iOS and Android version independently from here on. Entries before 1.1.2 are

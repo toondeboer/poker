@@ -17,7 +17,6 @@
     "ios": "npm run ios --workspace @poker/mobile",
     "android": "npm run android --workspace @poker/mobile",
     "pods": "npm run pods --workspace @poker/mobile",
-    "release": "node scripts/release.mjs",
     "eas:build:ios": "npm run eas:build:ios --workspace @poker/mobile",
     "eas:build:android": "npm run eas:build:android --workspace @poker/mobile",
     "eas:submit:ios": "npm run eas:submit:ios --workspace @poker/mobile",

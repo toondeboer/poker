@@ -13,7 +13,7 @@ import { revenueCatProvider } from "@/src/services/revenueCatProvider";
 // real purchases aren't testable in the Simulator without StoreKit Testing +
 // RevenueCat dashboard setup. Never true in a release build since __DEV__ is
 // false there regardless of this literal.
-const FORCE_PRO_IN_DEV: boolean = __DEV__ && false;
+const FORCE_PRO_IN_DEV: boolean = __DEV__ && true;
 
 type PremiumContextValue = {
   /** True once the user has unlocked the Pro (ad-free) tier. */
