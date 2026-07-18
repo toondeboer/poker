@@ -52,5 +52,6 @@ current monetization/growth status.
   (`CFBundleShortVersionString`, hardcoded — not `$(MARKETING_VERSION)`) and
   **`apps/mobile/android/app/build.gradle`** (`versionName`). Bump all three together or the binary
   ships the old version and App Store Connect rejects it (ITMS-90186 "train … is closed" / ITMS-90062).
-  Build numbers are fine to leave — `eas.json` `appVersionSource: remote` + `autoIncrement` manages
-  `CFBundleVersion` / `versionCode` on EAS's servers.
+  `npm run release <version>` bumps all three (+ rolls `CHANGELOG.md`) so they can't drift — see
+  [RELEASING.md](./RELEASING.md). Build numbers are fine to leave — `eas.json`
+  `appVersionSource: remote` + `autoIncrement` manages `CFBundleVersion` / `versionCode` on EAS's servers.

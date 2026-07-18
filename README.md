@@ -112,3 +112,6 @@ important.
   npm run eas:submit:android
   ```
   (config in `eas.json`, project id in `app.json`).
+
+  For cutting a versioned release — bumping the version, updating [CHANGELOG.md](./CHANGELOG.md),
+  and tagging — follow [RELEASING.md](./RELEASING.md) (`npm run release <version>`).
