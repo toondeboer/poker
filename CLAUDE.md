@@ -46,12 +46,14 @@ current monetization/growth status.
   removed the Podfile `ENV` lines — restore them rather than just reverting the lock file.
 - **Keep `ios.supportsTablet: true`.** The app shipped universal (iPhone + iPad); an update that
   drops iPad is rejected at upload with App Store error 90101.
-- **Version bumps must touch the native projects, not just `app.json`.** This is a bare workflow, so
+- **Version bumps must touch the native project, not just `app.json`.** This is a bare workflow, so
   EAS builds the committed native projects and `app.json` `version` is cosmetic (prebuild isn't run,
   so it never syncs). The marketing version lives in **`apps/mobile/ios/PokerTimer/Info.plist`**
   (`CFBundleShortVersionString`, hardcoded — not `$(MARKETING_VERSION)`) and
-  **`apps/mobile/android/app/build.gradle`** (`versionName`). Bump all three together or the binary
-  ships the old version and App Store Connect rejects it (ITMS-90186 "train … is closed" / ITMS-90062).
-  `npm run release <version>` bumps all three (+ rolls `CHANGELOG.md`) so they can't drift — see
-  [RELEASING.md](./RELEASING.md). Build numbers are fine to leave — `eas.json`
-  `appVersionSource: remote` + `autoIncrement` manages `CFBundleVersion` / `versionCode` on EAS's servers.
+  **`apps/mobile/android/app/build.gradle`** (`versionName`). iOS and Android version
+  **independently** — a number belongs to one platform (iOS is on 1.1.2; Android on 1.1.1, next
+  1.1.3). Miss the native bump and the binary ships the old version and App Store Connect rejects it
+  (ITMS-90186 "train … is closed" / ITMS-90062). Use `npm run release -- <version> --ios|--android`
+  (rolls `CHANGELOG.md`, commits) rather than editing by hand — see [RELEASING.md](./RELEASING.md).
+  Build numbers are fine to leave — `eas.json` `appVersionSource: remote` + `autoIncrement` manages
+  `CFBundleVersion` / `versionCode` on EAS's servers.

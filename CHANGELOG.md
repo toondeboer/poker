@@ -7,13 +7,17 @@ follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 Add changes under `[Unreleased]` as you merge them; `npm run release <version>` moves that
 section into a dated release heading. See [RELEASING.md](./RELEASING.md) for the full process.
 
-> Entries before `1.1.2` are **reconstructed** from git and EAS build history. Because the
-> marketing version in `app.json` used to lag the native version files, exact version boundaries
-> for those releases are approximate.
+> **Platform note:** Android launched later than iOS, at 1.1.1 — so 1.0.0 and 1.1.0 are
+> iOS-only. iOS and Android version independently from here on. Entries before 1.1.2 are
+> **reconstructed** from git and EAS build history and are approximate (the marketing version
+> used to lag the native version files).
 
 ## [Unreleased]
 
-## [1.1.2] - 2026-07-17
+## [1.1.2] - 2026-07-17 — iOS only
+
+_In App Store review. Not shipped to Android (this version has Android-only bugs); the Android
+fixes land in 1.1.3._
 
 ### Added
 - Saved tournament presets (Pro) — save the current blind structure and round length, then
