@@ -45,11 +45,31 @@ The dead-simple blinds clock for home poker night. Big readable timer, custom bl
   ```
   Tournament blinds clock with a big timer, custom levels & a loud buzzer.
   ```
-- **Long description:** Play has no keyword field — keywords are mined from the
-  long description, so weave the phrases above (*poker timer, blinds timer,
-  tournament clock, poker clock, blind levels, poker night, Texas Hold'em*)
-  naturally into the first two sentences and a feature bullet list. Reuse the
-  promo text as the opening line.
+- **Long description (≤4000 chars):** Play has no keyword field — keywords are
+  mined from the long description, so the phrases (*poker timer, blinds timer,
+  tournament clock, poker clock, blind levels, poker night, Texas Hold'em*) are
+  woven into the first two sentences (the part visible before "Read more") and
+  the feature bullets below.
+  ```
+  The simple poker timer & tournament clock for home poker night. A big, easy-to-read blinds timer and a loud buzzer mean nobody has to squint at their phone mid-hand to know when it's time to raise.
+
+  Built for real Texas Hold'em tournament nights, not a casino app full of settings you'll never touch:
+
+  • Big, glanceable timer — read the clock from across the table
+  • Fully custom blind levels — set your own blind structure and round lengths, add or remove levels anytime, free
+  • Loud buzzer & notification when a level ends, even if your phone is locked or the app is in the background
+  • Keeps timing in the background — the clock won't drop out mid-tournament
+  • Clean, distraction-free interface — no account, no sign-up, no clutter
+
+  Whether it's a casual poker night with friends or a bigger home tournament, Poker Blinds Timer & Buzzer keeps the blinds clock visible and on schedule so everyone can focus on the cards, not the clock.
+
+  Go Pro to remove ads for a clean, full-screen timer — or just support an indie developer. Everything else stays free.
+  ```
+  `1077` chars. **Deliberately doesn't mention tournament presets** — that
+  feature is iOS-only as of v1.1.2 (Android is still on 1.1.1). Add a bullet
+  for it once presets ship to Android in **v1.1.3** (see P4 Pro-copy sync item
+  in [ROADMAP.md](./ROADMAP.md)), so the listing doesn't promise a feature the
+  current Android binary doesn't have.
 
 ## In-app purchase — `pro_lifetime` description (keep in sync with the paywall)
 

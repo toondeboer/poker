@@ -2,12 +2,13 @@
 
 Monetization + growth tracker for Poker Blinds Buzzer.
 
-**Where things stand:** iOS is **live** (App Store v1.1.1) with an AdMob banner + a Pro /
-Remove-Ads IAP (RevenueCat). **v1.1.2 is built** (in-app review prompt + Pro tournament presets +
-new ASO listing) and awaiting an EAS build + App Store release. The web app has a live Ko-fi tip jar; web AdSense is built and
-awaiting Google approval. **Android is now LIVE on Google Play** (approved 2026-07 — Pro purchase
-verified end-to-end, closed test completed, production review passed); the web landing page's
-`PLAY_STORE_LINK` now points at the real listing. Checklist is ordered by
+**Where things stand:** iOS is **live on the App Store at v1.1.2** (in-app review prompt + Pro
+tournament presets + new ASO listing), with an AdMob banner + a Pro / Remove-Ads IAP (RevenueCat).
+v1.1.2 is iOS-only — it has Android-only bugs, so Android stays on 1.1.1 until 1.1.3. The web app
+has a live Ko-fi tip jar; web AdSense is built and awaiting Google approval. **Android is now LIVE
+on Google Play** (approved 2026-07 — Pro purchase verified end-to-end, closed test completed,
+production review passed); the web landing page's `PLAY_STORE_LINK` now points at the real
+listing. Checklist is ordered by
 priority (by ROI/effort — resequence as you like). See [ARCHITECTURE.md](./ARCHITECTURE.md) +
 [CLAUDE.md](./CLAUDE.md).
 
@@ -16,6 +17,7 @@ priority (by ROI/effort — resequence as you like). See [ARCHITECTURE.md](./ARC
 ## ✅ Done
 - ✅ Shared `shouldShowAds` + entitlement seam in `@poker/core`
 - ✅ iOS: AdMob banner + RevenueCat Pro/Remove-Ads IAP — **live (v1.1.1)**
+- ✅ iOS: tournament presets (Pro) + in-app review prompt + refreshed ASO listing — **live (v1.1.2)**
 - ✅ iOS build-from-source fix (SDK-56 precompiled XCFrameworks break this monorepo)
 - ✅ iOS universal device family (`supportsTablet`) — fixes App Store error 90101
 - ✅ Honest Pro paywall copy (only "remove ads" + "support the dev" for now)
@@ -43,10 +45,12 @@ tracked as a separate waiting item below.
   after Google approves **and** the visitor consents. Nothing to do but wait — re-check AdSense
   console → Sites; flip to ✅ when it reads "Ready", then confirm a banner renders post-consent.
 
-## P1 — ASO (highest-leverage growth; free; drives installs for the already-live iOS app)
-- ✅ iOS listing: optimized **title + subtitle + 100-char keyword field** — drafted in [STORE_LISTING.md](./STORE_LISTING.md), set in App Store Connect for **v1.1.2** (awaiting release)
-- ⬜ **Screenshots** leading with Live Activities / Dynamic Island, the big timer, custom blind structures
-- ✅ In-app **review prompt** — fires after **5 rounds played** (gated: ≥5 rounds + 120-day cooldown in `@poker/core`); ships in **v1.1.2**
+## P1 — ASO (highest-leverage growth; free; drives installs for the already-live apps)
+- ✅ iOS listing: optimized **title + subtitle + 100-char keyword field** — drafted in [STORE_LISTING.md](./STORE_LISTING.md), **live in App Store Connect since v1.1.2**
+- ✅ Android screenshots — uploaded to the Play listing
+- ⬜ **Android feature graphic** — currently just the app icon enlarged; needs a proper 1024×500 graphic showing the app in use, not just the logo
+- ⬜ **iOS screenshots** leading with Live Activities / Dynamic Island, the big timer, custom blind structures
+- ✅ In-app **review prompt** — fires after **5 rounds played** (gated: ≥5 rounds + 120-day cooldown in `@poker/core`); **live on iOS since v1.1.2**, lands on Android in **v1.1.3**
 - ✅ Reuse the same listing copy for Android at launch — Play Store copy drafted in [STORE_LISTING.md](./STORE_LISTING.md)
 
 ## ✅ P2 — Android launch (ads + Pro parity) — LIVE on Google Play (2026-07)

@@ -11,7 +11,7 @@ platform-tagged heading (e.g. `## [1.1.3] - 2026-07-20 — Android`) when you cu
 
 ## [1.1.2] - 2026-07-17 — iOS only
 
-_In App Store review. Not shipped to Android (this version has Android-only bugs); the Android
+_Live on the App Store. Not shipped to Android (this version has Android-only bugs); the Android
 fixes land in 1.1.3._
 
 ### Added
