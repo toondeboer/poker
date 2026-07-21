@@ -2,18 +2,16 @@
 import React, { useEffect, useState } from "react";
 import {
   Animated,
-  Dimensions,
   Modal,
   StyleSheet,
   Text,
   TouchableOpacity,
   Vibration,
+  useWindowDimensions,
   View,
 } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import { Ionicons } from "@expo/vector-icons";
-
-const { width, height } = Dimensions.get("window");
 
 interface TimerExpirationAlertProps {
   visible: boolean;
@@ -33,6 +31,8 @@ export function TimerExpirationAlert({
   onDismiss,
   onNextBlinds,
 }: TimerExpirationAlertProps) {
+  const { width, height } = useWindowDimensions();
+
   // Lazily-initialized state holds a stable Animated.Value without reading a
   // ref during render (which the React Compiler lint rules disallow).
   const [pulse1] = useState(() => new Animated.Value(0.8));
@@ -98,35 +98,35 @@ export function TimerExpirationAlert({
       {/* Backdrop */}
       <View style={styles.backdrop}>
         {/* Pulsing Background Effect */}
-        <View style={styles.pulseContainer}>
+        <View style={[styles.pulseContainer, { width, height }]}>
           <Animated.View
             style={[
               styles.pulseBackground,
-              styles.pulse1,
+              { borderRadius: width / 2, width: width * 0.8, height: width * 0.8 },
               { transform: [{ scale: pulse1 }] },
             ]}
           >
             <LinearGradient
               colors={["rgba(239, 68, 68, 0.8)", "rgba(220, 38, 38, 0.9)"]}
-              style={styles.pulseGradient}
+              style={[styles.pulseGradient, { borderRadius: width / 2 }]}
             />
           </Animated.View>
           <Animated.View
             style={[
               styles.pulseBackground,
-              styles.pulse2,
+              { borderRadius: width / 2, width: width * 1.2, height: width * 1.2 },
               { transform: [{ scale: pulse2 }] },
             ]}
           >
             <LinearGradient
               colors={["rgba(239, 68, 68, 0.6)", "rgba(220, 38, 38, 0.7)"]}
-              style={styles.pulseGradient}
+              style={[styles.pulseGradient, { borderRadius: width / 2 }]}
             />
           </Animated.View>
         </View>
 
         {/* Main Alert Card */}
-        <View style={styles.alertCard}>
+        <View style={[styles.alertCard, { maxWidth: width * 0.9 }]}>
           {/* Alert Icon */}
           <View style={styles.iconContainer}>
             <LinearGradient
@@ -196,27 +196,15 @@ const styles = StyleSheet.create({
   },
   pulseContainer: {
     position: "absolute",
-    width: width,
-    height: height,
     justifyContent: "center",
     alignItems: "center",
   },
   pulseBackground: {
     position: "absolute",
-    borderRadius: width / 2,
   },
   pulseGradient: {
     width: "100%",
     height: "100%",
-    borderRadius: width / 2,
-  },
-  pulse1: {
-    width: width * 0.8,
-    height: width * 0.8,
-  },
-  pulse2: {
-    width: width * 1.2,
-    height: width * 1.2,
   },
   alertCard: {
     backgroundColor: "white",
@@ -228,7 +216,6 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.3,
     shadowRadius: 20,
     elevation: 20,
-    maxWidth: width * 0.9,
     width: "100%",
   },
   iconContainer: {

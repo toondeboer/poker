@@ -9,6 +9,12 @@ platform-tagged heading (e.g. `## [1.1.3] - 2026-07-20 — Android`) when you cu
 
 ## [Unreleased]
 
+### Fixed
+- Android: removed the portrait-only lock on `MainActivity` so large-screen devices (tablets,
+  foldables) aren't forced into a restriction Android 16 ignores anyway; also made two components
+  that read window dimensions once at load time (`TimerExpirationAlert`, `PokerSettings`'
+  tablet-layout check) recompute reactively on rotation/fold instead of staying stale.
+
 ## [1.1.3] - 2026-07-21 — iOS & Android
 
 ### Added
