@@ -1,6 +1,6 @@
 // src/hooks/useLiveActivitySync.ts
 import { useEffect } from "react";
-import type { BlindLevel, TimerMachineState } from "@poker/core";
+import type { BlindLevel, SoundPackId, TimerMachineState } from "@poker/core";
 import { logger } from "@/src/utils/logger";
 import { liveActivityService } from "@/src/services/LiveActivityService";
 import { useAppState } from "@/src/contexts/AppStateContext";
@@ -15,6 +15,7 @@ export function useLiveActivitySync(
   currentBlindLevel: number,
   blindLevels: BlindLevel[],
   isLoading: boolean,
+  soundPackId: SoundPackId,
 ) {
   const { endTime, timeLeft, paused } = state;
   const { isActive } = useAppState();
@@ -40,7 +41,16 @@ export function useLiveActivitySync(
         nextBigBlind: blindLevels[currentBlindLevel + 1]?.big || 0,
       },
       !isActive, // shouldAlertOnExpiry — only when backgrounded
+      soundPackId,
     );
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [endTime, paused, currentBlindLevel, blindLevels, isLoading, isActive]);
+  }, [
+    endTime,
+    paused,
+    currentBlindLevel,
+    blindLevels,
+    isLoading,
+    isActive,
+    soundPackId,
+  ]);
 }

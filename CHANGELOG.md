@@ -9,6 +9,16 @@ platform-tagged heading (e.g. `## [1.1.3] - 2026-07-20 — Android`) when you cu
 
 ## [Unreleased]
 
+### Added
+- Sound Pack (Pro) — choose the alarm that plays when a round ends. Three bundled alternatives
+  (Classic Beep, Bell Chime, Double Buzz) alongside the original Classic Alarm, picked from a new
+  "Sound Pack" card in Settings, with a 3-second preview per option.
+
+### Fixed
+- Sound preview in Settings no longer plays the alarm's full length (up to ~11s) — capped at 3
+  seconds and stoppable early.
+- Selecting a new sound pack now applies immediately instead of only after restarting the app.
+
 ## [1.1.2] - 2026-07-17 — iOS only
 
 _Live on the App Store. Not shipped to Android (this version has Android-only bugs); the Android

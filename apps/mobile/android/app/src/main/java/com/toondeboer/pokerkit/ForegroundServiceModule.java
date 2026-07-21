@@ -82,6 +82,10 @@ public class ForegroundServiceModule extends ReactContextBaseJavaModule {
                 serviceIntent.putExtra(PokerTimerService.EXTRA_SHOULD_ALERT_ON_EXPIRY,
                         data.getBoolean("shouldAlertOnExpiry"));
             }
+            if (data.hasKey("soundId")) {
+                serviceIntent.putExtra(PokerTimerService.EXTRA_SOUND_ID,
+                        data.getString("soundId"));
+            }
 
             reactContext.startForegroundService(serviceIntent);
             isServiceRunning = true;
@@ -144,6 +148,10 @@ public class ForegroundServiceModule extends ReactContextBaseJavaModule {
             if (data.hasKey("shouldAlertOnExpiry")) {
                 serviceIntent.putExtra(PokerTimerService.EXTRA_SHOULD_ALERT_ON_EXPIRY,
                         data.getBoolean("shouldAlertOnExpiry"));
+            }
+            if (data.hasKey("soundId")) {
+                serviceIntent.putExtra(PokerTimerService.EXTRA_SOUND_ID,
+                        data.getString("soundId"));
             }
 
             reactContext.startService(serviceIntent);

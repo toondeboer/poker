@@ -8,11 +8,14 @@ import React, {
   useState,
 } from "react";
 import { Platform } from "react-native";
+import { DEFAULT_SOUND_PACK_ID } from "@poker/core";
 import { useBlinds } from "@/src/contexts/BlindsContext";
 import { useTimerNotification } from "@/src/hooks/useTimerNotification";
 import { useTimerEngine } from "@/src/hooks/useTimerEngine";
 import { useTimerAlert } from "@/src/hooks/useTimerAlert";
+import { useSoundPack } from "@/src/contexts/SoundPackContext";
 import { useNotificationPermission } from "@/src/hooks/useNotificationPermission";
+import { usePremium } from "@/src/contexts/PremiumContext";
 import { liveActivityService } from "@/src/services/LiveActivityService";
 import { recordRoundPlayed } from "@/src/services/reviewService";
 import { useAppState } from "./AppStateContext";
@@ -45,9 +48,15 @@ export function TimerProvider({ children }: Readonly<{ children: ReactNode }>) {
   const { scheduleNotification, cancelNotification } = useTimerNotification();
   const { isActive, isBackground, isInactive } = useAppState();
 
+  // Sound pack selection is a Pro feature — non-Pro users always get the
+  // free default, regardless of what's persisted from a lapsed Pro session.
+  const { isPremium } = usePremium();
+  const { soundPackId } = useSoundPack();
+  const effectiveSoundPackId = isPremium ? soundPackId : DEFAULT_SOUND_PACK_ID;
+
   // Expiry alert + alarm sound (own concern; see useTimerAlert).
   const { showTimerAlert, isAlarmLoaded, showAlert, clearAlert } =
-    useTimerAlert();
+    useTimerAlert(effectiveSoundPackId);
 
   const [isBackgroundActivitySupported, setIsBackgroundActivitySupported] =
     useState(false);
@@ -104,7 +113,7 @@ export function TimerProvider({ children }: Readonly<{ children: ReactNode }>) {
       await cancelNotification();
     } else {
       const nextBlindLevel = blindLevels[currentBlindIndex + 1];
-      await scheduleNotification(timeLeft, nextBlindLevel);
+      await scheduleNotification(timeLeft, nextBlindLevel, effectiveSoundPackId);
     }
   };
 
@@ -119,7 +128,7 @@ export function TimerProvider({ children }: Readonly<{ children: ReactNode }>) {
     resetTimer: engineResetTimer,
     isLoading,
     loadTimerState,
-  } = useTimerEngine(currentBlindIndex, blindLevels, {
+  } = useTimerEngine(currentBlindIndex, blindLevels, effectiveSoundPackId, {
     onTimerComplete: handleTimerComplete,
   });
 

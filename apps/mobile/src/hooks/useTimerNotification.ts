@@ -2,7 +2,7 @@
 import { logger } from "@/src/utils/logger";
 import * as Notifications from "expo-notifications";
 import { SchedulableTriggerInputTypes } from "expo-notifications";
-import { BlindLevel } from "@poker/core";
+import { BlindLevel, DEFAULT_SOUND_PACK_ID, SoundPackId } from "@poker/core";
 import { useEffect, useState } from "react";
 import { Platform } from "react-native";
 import { useAppState } from "@/src/contexts/AppStateContext";
@@ -10,10 +10,15 @@ import { useAppState } from "@/src/contexts/AppStateContext";
 const NOTIFICATION_CATEGORY = "timerActions";
 const REPEAT_INTERVAL = 8; // Schedule next notification slightly before current one ends
 
-// Define your custom sounds - iOS only (Android handled by foreground service)
-const CUSTOM_SOUNDS = {
-  timer_complete: "alarm.wav",
-} as const;
+// iOS-only custom notification sound files, one per sound pack (Android is
+// handled by the foreground service instead). Filenames must exactly match
+// what's bundled into the iOS app target — see PokerTimer.xcodeproj.
+const CUSTOM_SOUNDS: Record<SoundPackId, string> = {
+  alarm: "alarm.wav",
+  classic_beep: "classic_beep.wav",
+  bell_chime: "bell_chime.wav",
+  double_buzz: "double_buzz.wav",
+};
 
 export function useTimerNotification() {
   const [hasPermission, setHasPermission] = useState<boolean>(false);
@@ -100,6 +105,7 @@ export function useTimerNotification() {
   const scheduleRepeatingNotifications = async (
     startDelay: number,
     blindLevel?: BlindLevel,
+    soundPackId: SoundPackId = DEFAULT_SOUND_PACK_ID,
     maxDuration: number = 300, // Maximum 5 minutes of continuous notifications
   ) => {
     const notifications: string[] = [];
@@ -107,7 +113,7 @@ export function useTimerNotification() {
       ? `New blind levels: ${blindLevel.small} / ${blindLevel.big}`
       : "Time is up!";
 
-    const soundToUse = CUSTOM_SOUNDS.timer_complete;
+    const soundToUse = CUSTOM_SOUNDS[soundPackId];
 
     try {
       // Schedule notifications every REPEAT_INTERVAL seconds for maxDuration
@@ -152,6 +158,7 @@ export function useTimerNotification() {
   const scheduleNotification = async (
     seconds: number,
     newBlindLevel?: BlindLevel,
+    soundPackId: SoundPackId = DEFAULT_SOUND_PACK_ID,
   ) => {
     if (!hasPermission) {
       logger.warn("No notification permission, attempting to request...");
@@ -166,7 +173,7 @@ export function useTimerNotification() {
       // Cancel any existing notifications first
       await clearAllNotifications();
 
-      await scheduleRepeatingNotifications(seconds, newBlindLevel);
+      await scheduleRepeatingNotifications(seconds, newBlindLevel, soundPackId);
     } catch (error) {
       logger.error("Failed to schedule notification:", error);
     }
