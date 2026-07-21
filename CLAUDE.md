@@ -32,6 +32,11 @@ Mobile releases are batched on a short-lived branch per version, not shipped str
   `git checkout main && git pull && git checkout -b release/<version>`. Name it
   `release/<version>`, not `v<version>` — a branch and the eventual `v<version>` tag can't share a
   name without ambiguous-ref problems (`git checkout v1.1.3` becomes unpredictable).
+- **Never commit directly to `release/<version>`, even for a docs-only change** (e.g. a
+  `ROADMAP.md` update) — the whole point of the release branch is that nothing lands there
+  without going through a PR. Branch off it (`git checkout -b feature/<name>`), commit there, and
+  PR into the release branch. The only exception is the release-prep commit(s) made as part of
+  *cutting* the release itself (step-by-step below) — those go directly on the release branch.
 - **PRs for anything going into that release target the release branch, not `main`** —
   `gh pr create --base release/<version>`. Every change still gets a `CHANGELOG.md` entry under
   `[Unreleased]` in the same commit/PR that lands it (Keep a Changelog format) — no exceptions,
