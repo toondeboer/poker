@@ -2,20 +2,17 @@
 
 Monetization + growth tracker for Poker Blinds Buzzer.
 
-**Where things stand:** iOS is **live on the App Store at v1.1.2** (in-app review prompt + Pro
-tournament presets + new ASO listing); **Android is live on Google Play** (approved 2026-07 — Pro
-purchase verified end-to-end, closed test completed, production review passed). Both platforms run
-an AdMob banner + a Pro / Remove-Ads IAP (RevenueCat). **v1.1.3 is in progress, targeting a
-simultaneous iOS + Android release** — adds the Sound Pack Pro feature (a picker with 3 bundled
-alternative alarm sounds), the SEO/table-side-share work (PR #56, merged into `release/1.1.3`), and
-rolls up whatever Android-only fixes land alongside it. The web app has a live Ko-fi tip jar; web
-AdSense is built, but Google **rejected** the site review 2026-07-21 ("Low value content") — the
-first content fix merged in PR #56 (see P3 SEO), but **isn't live yet**: Vercel only deploys `main`
-automatically, and `release/1.1.3` → `main` doesn't merge until the mobile v1.1.3 submission ships
-(see CLAUDE.md's release process) — so the web content fix is hostage to the mobile release
-timeline unless that's deliberately decoupled. The web landing page's `PLAY_STORE_LINK` points at
-the real Play listing and is deployed. Checklist is ordered by priority (by ROI/effort — resequence
-as you like). See [ARCHITECTURE.md](./ARCHITECTURE.md) + [CLAUDE.md](./CLAUDE.md).
+**Where things stand:** iOS is **live on the App Store at v1.1.2**; **Android is live on Google
+Play** (approved 2026-07). Both platforms run an AdMob banner + a Pro / Remove-Ads IAP
+(RevenueCat). **v1.1.3 is being cut now — simultaneous iOS + Android** (Sound Pack Pro, the
+table-side share row, and the SEO/table-side-share web work from PR #56): version files bumped to
+1.1.3 on both platforms and the changelog rolled up; `eas build` + `eas submit` are next. The web
+app has a live Ko-fi tip jar; web AdSense is built, but Google **rejected** the site review
+2026-07-21 ("Low value content") — the content fix merged in PR #56 (see P3 SEO) but **isn't live
+yet**: Vercel only deploys `main`, and `release/1.1.3` → `main` merges once this submission ships,
+which is exactly what's happening now. The web landing page's `PLAY_STORE_LINK` points at the real
+Play listing and is deployed. Checklist is ordered by priority (by ROI/effort — resequence as you
+like). See [ARCHITECTURE.md](./ARCHITECTURE.md) + [CLAUDE.md](./CLAUDE.md).
 
 **Legend:** ✅ done · 🚧 in progress · ⏳ waiting on an external process · ⬜ not started · ❌ chosen not to do for now.
 
