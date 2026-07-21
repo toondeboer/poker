@@ -59,10 +59,27 @@ sdk.dir=/Users/<you>/Library/Android/sdk
 npm run web
 
 # Mobile app
-npm run ios        # build & run on an iOS simulator/device
-npm run android    # build & run on an Android emulator/device
-npm run mobile     # start the Expo dev server (choose a target)
+npm run ios            # build & run on an iOS simulator
+npm run ios:device     # build & run on a connected physical iPhone
+npm run android        # build & run on an Android emulator
+npm run android:device # build & run on a connected physical Android device
+npm run mobile         # start the Expo dev server (choose a target)
 ```
+
+All of these are safe to run from the repo root (they proxy into `apps/mobile` via npm workspaces).
+Running the underlying `npx expo` commands directly instead, from the repo root rather than
+`apps/mobile`, makes the Expo CLI treat the monorepo root itself as the app — it'll generate a
+bogus `app.json`/`ios/`/`android/` at the root and add stray dependencies to the root
+`package.json`. If that happens: `git checkout -- package.json package-lock.json` and `rm -rf ios
+android app.json` at the repo root to undo it (safe — none of it is real project state).
+
+Physical-device builds (`ios:device` / `android:device`) need the device on the **same Wi-Fi
+network** as your Mac — the app talks to the Metro dev server over the network, not the USB cable.
+For iOS specifically, always launch via `ios:device` (or `npm run ios -- --device`) rather than
+Xcode's own Run button: the CLI launches the app with a deep link that tells `expo-dev-client`
+which Metro server to use; a plain Xcode ⌘R skips that and the app fails with `No script URL
+provided ... unsanitizedScriptURLString = (null)`. Once a device has connected via the CLI once,
+subsequent Xcode ⌘R runs on it keep working since the URL is cached.
 
 ## Testing Pro features (mobile)
 
