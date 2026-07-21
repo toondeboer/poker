@@ -7,12 +7,15 @@ tournament presets + new ASO listing); **Android is live on Google Play** (appro
 purchase verified end-to-end, closed test completed, production review passed). Both platforms run
 an AdMob banner + a Pro / Remove-Ads IAP (RevenueCat). **v1.1.3 is in progress, targeting a
 simultaneous iOS + Android release** — adds the Sound Pack Pro feature (a picker with 3 bundled
-alternative alarm sounds) and rolls up whatever Android-only fixes land alongside it. The web app
-has a live Ko-fi tip jar; web AdSense is built, but Google **rejected** the site review 2026-07-21
-("Low value content") — needs more substantive content (see P3 SEO) before resubmitting. The web
-landing page's `PLAY_STORE_LINK` points at the real Play listing and is deployed. Checklist is
-ordered by priority (by ROI/effort — resequence as you like). See
-[ARCHITECTURE.md](./ARCHITECTURE.md) + [CLAUDE.md](./CLAUDE.md).
+alternative alarm sounds), the SEO/table-side-share work (PR #56, merged into `release/1.1.3`), and
+rolls up whatever Android-only fixes land alongside it. The web app has a live Ko-fi tip jar; web
+AdSense is built, but Google **rejected** the site review 2026-07-21 ("Low value content") — the
+first content fix merged in PR #56 (see P3 SEO), but **isn't live yet**: Vercel only deploys `main`
+automatically, and `release/1.1.3` → `main` doesn't merge until the mobile v1.1.3 submission ships
+(see CLAUDE.md's release process) — so the web content fix is hostage to the mobile release
+timeline unless that's deliberately decoupled. The web landing page's `PLAY_STORE_LINK` points at
+the real Play listing and is deployed. Checklist is ordered by priority (by ROI/effort — resequence
+as you like). See [ARCHITECTURE.md](./ARCHITECTURE.md) + [CLAUDE.md](./CLAUDE.md).
 
 **Legend:** ✅ done · 🚧 in progress · ⏳ waiting on an external process · ⬜ not started · ❌ chosen not to do for now.
 
@@ -44,10 +47,10 @@ despite config being done.
 ## ⏳ Waiting on external — AdSense rejected: "Low value content" (blocks P0 go-live)
 - ⏳ **Web AdSense site review — rejected 2026-07-21** with "Low value content": the site doesn't
   yet meet Google's minimum content / unique-content bar for the publisher network. Config (Vercel
-  env + apex verification, see P0) is unaffected and stays ready — nothing to flip there. What's
-  actually needed is more substantive content on the web app (the `/timer` page and landing page
-  are thin), which overlaps directly with the **SEO** work now active in P3 below — building that
-  out is the path to resubmitting, not a pure wait-and-recheck anymore.
+  env + apex verification, see P0) is unaffected and stays ready — nothing to flip there. The first
+  content fix (see P3 SEO) merged into `release/1.1.3` but **isn't deployed yet** — it won't reach
+  production until that branch merges to `main`. Resubmitting to AdSense before then would just
+  re-review the old thin content.
 
 ## P1 — ASO (skipped for now)
 - ✅ iOS listing: optimized **title + subtitle + 100-char keyword field** — drafted in [STORE_LISTING.md](./STORE_LISTING.md), **live in App Store Connect since v1.1.2**
@@ -76,8 +79,23 @@ despite config being done.
 
 ## P3 — More growth
 - ❌ **Brandable apex domain** for the web app (off `poker-timer.toondeboer.com`) — chosen not to do for now
-- ⬜ **SEO**: rank the free web `/timer` ("poker timer", "blinds timer"…) and funnel visitors to the app — now doubles as the fix for the AdSense "low value content" rejection above
-- ⬜ **Table-side virality**: subtle on-screen brand + URL + a share affordance
+- ✅ **SEO — technical/on-page baseline**: enriched web metadata (OG/Twitter/canonical/keywords),
+  added `robots.ts`/`sitemap.ts`, gave `/timer` real content (how-to + FAQ, with `FAQPage` /
+  `WebApplication` / `SoftwareApplication` JSON-LD) instead of the bare widget — PR #56, merged
+  into `release/1.1.3` (**not deployed to production yet**, see the AdSense item above). This is a
+  necessary baseline, not a ranking guarantee — it alone won't surface the app for searches like
+  "poker timer." Still open, in rough priority order:
+  - ⬜ Verify the `poker-timer.toondeboer.com` property in Google Search Console and submit
+    `sitemap.xml` — confirms indexing and gives real impression/click data
+  - ⬜ Add genuinely useful content-page depth (e.g. a "how to run a home poker tournament" guide,
+    a blind-structure explainer) — the `/timer` FAQ alone is still thin by competitive standards
+  - ⬜ **Backlinks** — the dominant ranking factor for a term like "poker timer," and untouched so
+    far: Product Hunt launch, r/poker, poker forums, app-directory listings
+  - ⏳ Resubmit for AdSense review once the content fix is live and the above gives Google enough
+    to judge the site as more than "low value content"
+- ✅ **Table-side virality**: subtle on-screen brand + URL + a share affordance on both the web and
+  mobile timer screens — PR #56, merged into `release/1.1.3` (web side not deployed yet, same
+  caveat; mobile side ships with the v1.1.3 build)
 
 ## P4 — Premium features (then re-add to the Pro paywall)
 - ✅ Saved tournament presets / multiple blind structures — **Pro-gated**, ships in **v1.1.2** (`@poker/core` presets + `usePresets` + "Tournament Presets" card)
