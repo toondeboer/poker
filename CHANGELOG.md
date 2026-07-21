@@ -9,6 +9,10 @@ platform-tagged heading (e.g. `## [1.1.3] - 2026-07-20 — Android`) when you cu
 
 ## [Unreleased]
 
+### Changed
+- Android: release builds now enable R8 code shrinking/obfuscation and resource shrinking
+  (previously shipped unminified) — smaller, faster app for a smoother experience.
+
 ### Fixed
 - Android: real edge-to-edge display instead of the transparent-status/nav-bar-color trick —
   content now respects safe-area insets and the system bars use `react-native-edge-to-edge`

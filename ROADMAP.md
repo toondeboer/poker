@@ -59,28 +59,24 @@ Android 15 and large-screen restrictions are ignored outright from Android 16, s
 fix now (one more PR into `release/1.1.3` before the next Android build) than to let them become
 forced/user-visible later. PR each item into `release/1.1.3` normally, with a `CHANGELOG.md`
 `[Unreleased]` entry per [CLAUDE.md](./CLAUDE.md).
-- ⬜ **True edge-to-edge, not the transparent-bar trick** — root cause of both the "may not
+- 🚧 **True edge-to-edge, not the transparent-bar trick** — root cause of both the "may not
   display for all users" warning and the deprecated-API warning
   (`Window.getStatusBarColor`/`setStatusBarColor`/`setNavigationBarColor`,
-  `LAYOUT_IN_DISPLAY_CUTOUT_MODE_*`). `apps/mobile/android/app/src/main/res/values/styles.xml`
-  currently fakes edge-to-edge with `android:statusBarColor`/`navigationBarColor = transparent` on
-  `AppTheme` instead of real `WindowCompat`/inset handling, and
-  `apps/mobile/src/components/PokerTimer.tsx` pads content with a hardcoded
-  `StatusBar.currentHeight || 44` rather than real insets. Plan:
-  1. Replace that hardcoded padding with `useSafeAreaInsets()` (`react-native-safe-area-context`
-     is already a dependency) in `PokerTimer.tsx`.
-  2. Swap the raw `react-native` `StatusBar` import for `expo-status-bar`'s
-     `<StatusBar style="light" />`, which is edge-to-edge–aware and doesn't call the deprecated
-     color setters itself.
-  3. Drop the `statusBarColor`/`navigationBarColor` overrides from `styles.xml`. Diff against a
-     throwaway `expo prebuild -p android --clean` to see what SDK 56's current template does for
-     edge-to-edge — don't apply prebuild output wholesale, this is a bare workflow with
-     hand-written foreground-service/notification native code that prebuild would clobber.
-  4. Re-check the Play Console warning list after the next build. The remaining flagged call
-     sites (`StatusBarModule`, Material `BottomSheetDialog`/`SheetDialog`/`EdgeToEdgeUtils`, the
-     Google Mobile Ads SDK's ad overlay) live inside React Native core, Material Components, and
-     `react-native-google-mobile-ads` respectively, not our call sites — those only clear via
-     upstream version bumps, not app code.
+  `LAYOUT_IN_DISPLAY_CUTOUT_MODE_*`). Fixed by switching `AppTheme` in
+  `apps/mobile/android/app/src/main/res/values/styles.xml` from
+  `Theme.AppCompat.DayNight.NoActionBar` (with manual transparent `statusBarColor`/
+  `navigationBarColor` overrides) to `react-native-edge-to-edge`'s `Theme.EdgeToEdge`, which
+  handles real `WindowCompat`/inset behavior; `PokerTimer.tsx` and `BannerAdSlot.tsx` now use
+  `useSafeAreaInsets()` (wrapped in `SafeAreaProvider` at the app root) instead of the hardcoded
+  `StatusBar.currentHeight || 44` padding, and `SystemBars` (from `react-native-edge-to-edge`)
+  replaces the raw `react-native` `StatusBar` component. `app.json` documents intent via
+  `android.edgeToEdgeEnabled`. **Still needed:** an on-device visual check — typecheck/lint are
+  clean and `assembleDebug` compiles the theme + the newly-autolinked native module, but that's
+  not a substitute for seeing the status/nav bar and inset behavior render. The remaining flagged
+  call sites (`StatusBarModule`, Material `BottomSheetDialog`/`SheetDialog`/`EdgeToEdgeUtils`, the
+  Google Mobile Ads SDK's ad overlay) live inside React Native core, Material Components, and
+  `react-native-google-mobile-ads` respectively, not our call sites — those only clear via
+  upstream version bumps, not app code.
 - 🚧 **Remove the Android portrait lock for large screens** —
   `android:screenOrientation="portrait"` removed from `MainActivity` in
   `apps/mobile/android/app/src/main/AndroidManifest.xml` (Android 16 ignores it outright on
@@ -97,18 +93,19 @@ forced/user-visible later. PR each item into `release/1.1.3` normally, with a `C
   emulator in both orientations — typecheck/lint/`assembleDebug` are clean and the merged
   manifest confirms `MainActivity` no longer declares `screenOrientation`, but that's not a
   substitute for seeing the layout render.
-- ⬜ **Enable R8** — `enableProguardInReleaseBuilds` in
-  `apps/mobile/android/app/build.gradle` reads from
-  `android.enableProguardInReleaseBuilds` in `gradle.properties`, which isn't set (defaults
-  `false`) — release builds ship unminified today. Plan: set
-  `android.enableProguardInReleaseBuilds=true` and `android.enableShrinkResourcesInReleaseBuilds=true`
-  in `gradle.properties`, then do a full **release-build** smoke test on a physical device —
-  RevenueCat purchase flow, AdMob banner, and the foreground-service timer/notifications
-  specifically, since reflection-heavy libraries are exactly what R8 breaks silently when keep
-  rules are missing. `apps/mobile/android/app/proguard-rules.pro` currently only has
-  reanimated/turbomodule keep rules — expect to add more (RevenueCat, Google Mobile Ads, Expo
-  modules ship most of their own consumer rules via AAR, but verify rather than assume) once
-  something breaks in the smoke test.
+- ✅ **Enable R8** — set `android.enableProguardInReleaseBuilds=true` and
+  `android.enableShrinkResourcesInReleaseBuilds=true` in
+  `apps/mobile/android/gradle.properties` (previously unset/`false`, so release builds shipped
+  unminified). No `proguard-rules.pro` additions were needed — RevenueCat, Google Mobile Ads, and
+  the Expo modules all ship their own consumer rules via AAR, exactly as hoped but not previously
+  verified. Smoke-tested a real `assembleRelease` build (R8 + resource shrinking) on an emulator:
+  app launch, timer countdown, the foreground-service notification (live blinds/time-left text
+  survived), an AdMob test ad rendering, and the RevenueCat paywall modal (full feature list +
+  buttons; "Restore purchases"/"Maybe later" all present) — RevenueCat correctly reported
+  `BILLING_UNAVAILABLE` with a fully-readable error message (expected on an emulator with no Play
+  Store account, not an R8 stripping issue). No crashes, no obfuscated/garbled error output
+  anywhere. Still worth a real device + license-tester purchase before this ships, since the
+  emulator can't exercise an actual completed purchase.
 
 ## P1 — ASO (skipped for now)
 - ✅ iOS listing: optimized **title + subtitle + 100-char keyword field** — drafted in [STORE_LISTING.md](./STORE_LISTING.md), **live in App Store Connect since v1.1.2**
