@@ -6,7 +6,10 @@ Monetization + growth tracker for Poker Blinds Buzzer.
 Play** (approved 2026-07). Both platforms run an AdMob banner + a Pro / Remove-Ads IAP
 (RevenueCat). **v1.1.3 is being cut now — simultaneous iOS + Android** (Sound Pack Pro, the
 table-side share row, and the SEO/table-side-share web work from PR #56): version files bumped to
-1.1.3 on both platforms and the changelog rolled up; `eas build` + `eas submit` are next. The web
+1.1.3 on both platforms and the changelog rolled up. An Android upload for this release is already
+in Play Console, which surfaced **4 recommendations (2026-07-21)** — edge-to-edge, large-screen
+orientation, R8 — see the new section below; these need to land on `release/1.1.3` before the
+*next* `eas build`/`eas submit` for Android finalizes the production release. The web
 app has a live Ko-fi tip jar; web AdSense is built, but Google **rejected** the site review
 2026-07-21 ("Low value content") — the content fix merged in PR #56 (see P3 SEO) but **isn't live
 yet**: Vercel only deploys `main`, and `release/1.1.3` → `main` merges once this submission ships,
@@ -48,6 +51,59 @@ despite config being done.
   content fix (see P3 SEO) merged into `release/1.1.3` but **isn't deployed yet** — it won't reach
   production until that branch merges to `main`. Resubmitting to AdSense before then would just
   re-review the old thin content.
+
+## Android technical quality — Play Console recommendations (v1.1.3)
+**Status:** surfaced 2026-07-21 against the Android upload already in Play Console for this
+release. All 4 are "recommended," not blocking — but edge-to-edge is enforced by default from
+Android 15 and large-screen restrictions are ignored outright from Android 16, so it's cheaper to
+fix now (one more PR into `release/1.1.3` before the next Android build) than to let them become
+forced/user-visible later. PR each item into `release/1.1.3` normally, with a `CHANGELOG.md`
+`[Unreleased]` entry per [CLAUDE.md](./CLAUDE.md).
+- ⬜ **True edge-to-edge, not the transparent-bar trick** — root cause of both the "may not
+  display for all users" warning and the deprecated-API warning
+  (`Window.getStatusBarColor`/`setStatusBarColor`/`setNavigationBarColor`,
+  `LAYOUT_IN_DISPLAY_CUTOUT_MODE_*`). `apps/mobile/android/app/src/main/res/values/styles.xml`
+  currently fakes edge-to-edge with `android:statusBarColor`/`navigationBarColor = transparent` on
+  `AppTheme` instead of real `WindowCompat`/inset handling, and
+  `apps/mobile/src/components/PokerTimer.tsx` pads content with a hardcoded
+  `StatusBar.currentHeight || 44` rather than real insets. Plan:
+  1. Replace that hardcoded padding with `useSafeAreaInsets()` (`react-native-safe-area-context`
+     is already a dependency) in `PokerTimer.tsx`.
+  2. Swap the raw `react-native` `StatusBar` import for `expo-status-bar`'s
+     `<StatusBar style="light" />`, which is edge-to-edge–aware and doesn't call the deprecated
+     color setters itself.
+  3. Drop the `statusBarColor`/`navigationBarColor` overrides from `styles.xml`. Diff against a
+     throwaway `expo prebuild -p android --clean` to see what SDK 56's current template does for
+     edge-to-edge — don't apply prebuild output wholesale, this is a bare workflow with
+     hand-written foreground-service/notification native code that prebuild would clobber.
+  4. Re-check the Play Console warning list after the next build. The remaining flagged call
+     sites (`StatusBarModule`, Material `BottomSheetDialog`/`SheetDialog`/`EdgeToEdgeUtils`, the
+     Google Mobile Ads SDK's ad overlay) live inside React Native core, Material Components, and
+     `react-native-google-mobile-ads` respectively, not our call sites — those only clear via
+     upstream version bumps, not app code.
+- ⬜ **Remove the Android portrait lock for large screens** —
+  `android:screenOrientation="portrait"` on `MainActivity` in
+  `apps/mobile/android/app/src/main/AndroidManifest.xml` gets ignored outright on large-screen
+  devices from Android 16, so it's better to fix the layout and remove it deliberately now than
+  have Android force it later, untested. iOS already ships this app with **no orientation
+  restriction and `supportsTablet: true`** (`Info.plist`'s `UISupportedInterfaceOrientations` /
+  `~ipad` both list all four orientations) and is live on the App Store, so this isn't starting
+  from zero — it's bringing Android to the same bar iOS already clears. Plan: remove the manifest
+  restriction, smoke-test the timer/blinds-editor/settings/paywall screens on an Android tablet
+  emulator and a foldable emulator in both orientations, fix whatever layout breaks before
+  merging.
+- ⬜ **Enable R8** — `enableProguardInReleaseBuilds` in
+  `apps/mobile/android/app/build.gradle` reads from
+  `android.enableProguardInReleaseBuilds` in `gradle.properties`, which isn't set (defaults
+  `false`) — release builds ship unminified today. Plan: set
+  `android.enableProguardInReleaseBuilds=true` and `android.enableShrinkResourcesInReleaseBuilds=true`
+  in `gradle.properties`, then do a full **release-build** smoke test on a physical device —
+  RevenueCat purchase flow, AdMob banner, and the foreground-service timer/notifications
+  specifically, since reflection-heavy libraries are exactly what R8 breaks silently when keep
+  rules are missing. `apps/mobile/android/app/proguard-rules.pro` currently only has
+  reanimated/turbomodule keep rules — expect to add more (RevenueCat, Google Mobile Ads, Expo
+  modules ship most of their own consumer rules via AAR, but verify rather than assume) once
+  something breaks in the smoke test.
 
 ## P1 — ASO (skipped for now)
 - ✅ iOS listing: optimized **title + subtitle + 100-char keyword field** — drafted in [STORE_LISTING.md](./STORE_LISTING.md), **live in App Store Connect since v1.1.2**
