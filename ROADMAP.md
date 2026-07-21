@@ -81,17 +81,22 @@ forced/user-visible later. PR each item into `release/1.1.3` normally, with a `C
      Google Mobile Ads SDK's ad overlay) live inside React Native core, Material Components, and
      `react-native-google-mobile-ads` respectively, not our call sites — those only clear via
      upstream version bumps, not app code.
-- ⬜ **Remove the Android portrait lock for large screens** —
-  `android:screenOrientation="portrait"` on `MainActivity` in
-  `apps/mobile/android/app/src/main/AndroidManifest.xml` gets ignored outright on large-screen
-  devices from Android 16, so it's better to fix the layout and remove it deliberately now than
-  have Android force it later, untested. iOS already ships this app with **no orientation
-  restriction and `supportsTablet: true`** (`Info.plist`'s `UISupportedInterfaceOrientations` /
-  `~ipad` both list all four orientations) and is live on the App Store, so this isn't starting
-  from zero — it's bringing Android to the same bar iOS already clears. Plan: remove the manifest
-  restriction, smoke-test the timer/blinds-editor/settings/paywall screens on an Android tablet
-  emulator and a foldable emulator in both orientations, fix whatever layout breaks before
-  merging.
+- 🚧 **Remove the Android portrait lock for large screens** —
+  `android:screenOrientation="portrait"` removed from `MainActivity` in
+  `apps/mobile/android/app/src/main/AndroidManifest.xml` (Android 16 ignores it outright on
+  large-screen devices anyway, so better to remove it deliberately than have Android force it
+  later, untested). iOS already ships this app with **no orientation restriction and
+  `supportsTablet: true`**, so this brings Android to the same bar. While auditing the layout for
+  rotation-readiness, found and fixed two components that computed `Dimensions.get("window")`
+  **once at module load** instead of reactively (`TimerExpirationAlert.tsx`,
+  `PokerSettings.tsx`'s `isTablet` check) — since `MainActivity`'s `configChanges` already
+  includes `orientation|screenSize|screenLayout` (no activity recreation on rotation/fold), those
+  would've kept using stale dimensions from first launch after a rotation or fold. Switched both
+  to `useWindowDimensions()`. **Still needed:** an actual on-device smoke test of the
+  timer/blinds-editor/settings/paywall screens on an Android tablet emulator and a foldable
+  emulator in both orientations — typecheck/lint/`assembleDebug` are clean and the merged
+  manifest confirms `MainActivity` no longer declares `screenOrientation`, but that's not a
+  substitute for seeing the layout render.
 - ⬜ **Enable R8** — `enableProguardInReleaseBuilds` in
   `apps/mobile/android/app/build.gradle` reads from
   `android.enableProguardInReleaseBuilds` in `gradle.properties`, which isn't set (defaults

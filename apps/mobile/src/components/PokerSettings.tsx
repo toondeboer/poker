@@ -9,6 +9,7 @@ import {
   Text,
   TextInput,
   TouchableOpacity,
+  useWindowDimensions,
   View,
 } from "react-native";
 import {
@@ -111,9 +112,9 @@ function SoundPackRow({
   );
 }
 
-const { width: screenWidth } = Dimensions.get("window");
-
 export default function PokerSettings() {
+  const { width: screenWidth } = useWindowDimensions();
+
   const {
     customBlindLevels,
     addBlindLevel,
