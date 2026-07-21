@@ -13,6 +13,7 @@ import { usePremium } from "@/src/contexts/PremiumContext";
 const PRO_FEATURES = [
   "Remove all ads — a clean, full-screen timer",
   "Save & load tournament presets",
+  "Choose your alarm sound",
   "Support an indie developer",
 ];
 

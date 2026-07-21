@@ -3,14 +3,14 @@
 Monetization + growth tracker for Poker Blinds Buzzer.
 
 **Where things stand:** iOS is **live on the App Store at v1.1.2** (in-app review prompt + Pro
-tournament presets + new ASO listing), with an AdMob banner + a Pro / Remove-Ads IAP (RevenueCat).
-v1.1.2 is iOS-only — it has Android-only bugs, so Android stays on 1.1.1 until 1.1.3. The web app
-has a live Ko-fi tip jar; web AdSense is built and awaiting Google approval. **Android is now LIVE
-on Google Play** (approved 2026-07 — Pro purchase verified end-to-end, closed test completed,
-production review passed); the web landing page's `PLAY_STORE_LINK` now points at the real
-listing. Checklist is ordered by
-priority (by ROI/effort — resequence as you like). See [ARCHITECTURE.md](./ARCHITECTURE.md) +
-[CLAUDE.md](./CLAUDE.md).
+tournament presets + new ASO listing); **Android is live on Google Play** (approved 2026-07 — Pro
+purchase verified end-to-end, closed test completed, production review passed). Both platforms run
+an AdMob banner + a Pro / Remove-Ads IAP (RevenueCat). **v1.1.3 is in progress, targeting a
+simultaneous iOS + Android release** — adds the Sound Pack Pro feature (a picker with 3 bundled
+alternative alarm sounds) and rolls up whatever Android-only fixes land alongside it. The web app
+has a live Ko-fi tip jar; web AdSense is built and awaiting Google approval. The web landing page's
+`PLAY_STORE_LINK` points at the real Play listing. Checklist is ordered by priority (by ROI/effort
+— resequence as you like). See [ARCHITECTURE.md](./ARCHITECTURE.md) + [CLAUDE.md](./CLAUDE.md).
 
 **Legend:** ✅ done · 🚧 in progress · ⏳ waiting on an external process · ⬜ not started.
 
@@ -78,7 +78,17 @@ tracked as a separate waiting item below.
 ## P4 — Premium features (then re-add to the Pro paywall)
 - ✅ Saved tournament presets / multiple blind structures — **Pro-gated**, ships in **v1.1.2** (`@poker/core` presets + `usePresets` + "Tournament Presets" card)
 - ✅ Extra blind levels — already free in the blinds editor (add/remove/edit); **kept free** (gating it would remove a capability existing users have)
-- ⬜ Sound packs — **deferred to v1.1.3**: needs audio assets + native wiring (Android foreground service `R.raw.alarm` + iOS notification sound are hardcoded today)
+- ✅ Sound packs — **ships in v1.1.3**: Pro-gated picker (Classic Alarm + 3 bundled alternatives)
+  wired through JS playback, Android foreground service, and iOS notification sound; smoke-tested
+  end-to-end on both platforms. Bundled audio is a synthesized placeholder tone — swap for produced
+  audio in a follow-up if desired.
+- ⬜ Custom/uploaded alarm sound (Pro) — let a user pick their own audio file instead of choosing
+  from the bundled packs. Deferred out of the v1.1.3 sound-pack work (bigger scope): needs
+  `expo-document-picker` + persisting the picked file across app restarts, and different native
+  wiring per platform — Android can pass the picked `content://` URI straight into
+  `MediaPlayer.setDataSource`, but iOS notification sounds require copying the file into the app's
+  `Library/Sounds` directory (`UNNotificationSound` only resolves bundle/Library-Sounds filenames,
+  not arbitrary paths), under Apple's 30-second sound-file limit.
 - ✅ Re-add shipped features to `PRO_FEATURES` in `apps/mobile/src/components/paywall/Paywall.tsx` — presets added. Updated `pro_lifetime` IAP description **copy drafted in [STORE_LISTING.md](./STORE_LISTING.md)** (remove ads + presets + support-the-dev). **TODO:** paste it into the three consoles (App Store Connect / Play Console / RevenueCat)
 
 ## 🔁 Ongoing — Monitor

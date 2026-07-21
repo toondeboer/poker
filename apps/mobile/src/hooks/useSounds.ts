@@ -6,10 +6,22 @@ import {
   useAudioPlayer,
   useAudioPlayerStatus,
 } from "expo-audio";
+import type { SoundPackId } from "@poker/core";
 
 export enum Sound {
   ALARM = require("../assets/sounds/alarm.mp3"),
+  CLASSIC_BEEP = require("../assets/sounds/classic_beep.wav"),
+  BELL_CHIME = require("../assets/sounds/bell_chime.wav"),
+  DOUBLE_BUZZ = require("../assets/sounds/double_buzz.wav"),
 }
+
+/** Maps a persisted {@link SoundPackId} to the bundled asset that plays it. */
+export const SOUND_BY_PACK_ID: Record<SoundPackId, Sound> = {
+  alarm: Sound.ALARM,
+  classic_beep: Sound.CLASSIC_BEEP,
+  bell_chime: Sound.BELL_CHIME,
+  double_buzz: Sound.DOUBLE_BUZZ,
+};
 
 export const useSounds = (soundType: Sound) => {
   // `useAudioPlayer` loads the source and releases the native player on unmount,

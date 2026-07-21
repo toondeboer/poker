@@ -15,6 +15,8 @@ export interface LiveActivityData {
 
 export interface LiveActivityDataAndroid extends LiveActivityData {
   shouldAlertOnExpiry: boolean;
+  /** Sound pack id (matches an Android `res/raw/<soundId>` resource name). */
+  soundId: string;
 }
 
 interface LiveActivityModule {

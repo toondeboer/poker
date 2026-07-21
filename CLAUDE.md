@@ -33,6 +33,24 @@ current monetization/growth status.
   dep or `@poker/core`, check `watchFolders`/`nodeModulesPaths` there.
 - **Mobile is a bare Expo workflow** — `apps/mobile/ios` and `apps/mobile/android` are committed.
   App-config/native changes need `expo prebuild` (+ `npm run pods`); EAS builds the committed projects.
+- **`expo run:android` plants broken package shims that also break iOS.** Expo's autolinking
+  creates partial proxy directories — missing `package.json` and the platform folder, just a stray
+  `android/` — at `node_modules/expo-dev-client/node_modules/expo-dev-launcher` and directly under
+  `apps/mobile/node_modules/{expo,expo-constants,expo-modules-autolinking}`. These shadow the
+  real, correctly-hoisted copies at root `node_modules/` for *any* Node-based resolution,
+  including CocoaPods' iOS autolinking. Symptoms: Android — `Project with path
+  ':expo-dev-launcher' could not be found in project ':expo-dev-client'` (surfaces once the Gradle
+  daemon/cache goes cold; harmless while warm). iOS — `expo-modules-autolinking resolve -p ios`
+  silently omits the `expo` package (every other `expo-*` package resolves fine), so `pod install`
+  never links the `Expo` pod and `AppDelegate.swift`'s `public import Expo` fails (`no such module
+  'Expo'`); patching around *that* (e.g. adding `pod 'Expo'` to the Podfile by hand) only gets you
+  to a runtime crash instead (`Cannot find native module 'ExpoFetchModule'`), since the Swift
+  module-registration codegen is driven by the same broken resolve output. Don't do that — fix the
+  actual shims: `rm -rf node_modules/expo-dev-client/node_modules
+  apps/mobile/node_modules/{expo,expo-constants,expo-modules-autolinking}`, confirm with `cd
+  apps/mobile && npx expo-modules-autolinking resolve -p ios --json | grep -c
+  '"packageName":"expo"'` → should be `1`, then `npm install` (Android) or `npm run pods -w
+  @poker/mobile` (iOS) and rebuild.
 - **iOS must build from source.** SDK-56 precompiled XCFrameworks break this hoisted monorepo
   (archive fails on `Build ExpoModulesJSI xcframework` / safe-area-context "Directory not found",
   even with `--clear-cache`). `apps/mobile/ios/Podfile` bakes
@@ -50,19 +68,25 @@ current monetization/growth status.
   EAS builds the committed native projects and `app.json` `version` is cosmetic (prebuild isn't run,
   so it never syncs). The marketing version lives in **`apps/mobile/ios/PokerTimer/Info.plist`**
   (`CFBundleShortVersionString`, hardcoded — not `$(MARKETING_VERSION)`) and
-  **`apps/mobile/android/app/build.gradle`** (`versionName`). iOS and Android version
-  **independently** — a number belongs to one platform (iOS is on 1.1.2; Android on 1.1.1, next
-  1.1.3). Bump the native file for whichever platform is shipping (don't touch the other
-  platform's), or the binary ships the old version and App Store Connect rejects it (ITMS-90186
-  "train … is closed" / ITMS-90062). Build numbers are fine to leave — `eas.json`
-  `appVersionSource: remote` + `autoIncrement` manages `CFBundleVersion` / `versionCode` on EAS's
-  servers.
-- **Releasing a build: update `CHANGELOG.md` and tag the commit.** Add an entry under
-  `[Unreleased]` in `CHANGELOG.md` (Keep a Changelog format) as features land, then roll it into a
-  dated, platform-tagged heading when you version-bump for release (e.g.
-  `## [1.1.3] - 2026-07-20 — Android`). After `eas submit` succeeds, tag the exact commit that was
+  **`apps/mobile/android/app/build.gradle`** (`versionName`). iOS and Android version numbers are
+  independent counters, **not tied to each other** — they can diverge (e.g. iOS at 1.1.2, Android
+  still at 1.1.1) when only one platform ships, or **share the same number** when both platforms
+  ship the same release together (e.g. both go to 1.1.3). Either way, bump the native file for
+  every platform that's actually shipping *in this release* and leave the others untouched, or the
+  binary ships the old version and App Store Connect rejects it (ITMS-90186 "train … is closed" /
+  ITMS-90062). Build numbers are fine to leave — `eas.json` `appVersionSource: remote` +
+  `autoIncrement` manages `CFBundleVersion` / `versionCode` on EAS's servers.
+- **Every change gets a `CHANGELOG.md` entry — no exceptions.** Add a bullet under `[Unreleased]`
+  in the same commit/PR that lands the feature, fix, or behavior change (Keep a Changelog format)
+  — don't defer this to release time, or the changelog stops being a reliable diff of what changed
+  since the last version.
+- **Releasing a build: roll the changelog and tag the commit.** When you version-bump for release,
+  roll the accumulated `[Unreleased]` entries into a dated, platform-tagged heading (e.g.
+  `## [1.1.3] - 2026-07-20 — Android`, or `— iOS & Android` when both platforms ship the same
+  version together in one heading). After `eas submit` succeeds, tag the exact commit that was
   built — not just wherever the version string changed, since one version number can span several
   commits before the one that actually ships:
   `git tag -a v<version> <built-commit-sha> -m "v<version> (<platform>, build <n>)"` then
-  `git push origin v<version>`. Find the built commit via `eas build:view <id>` or the EAS build
-  page.
+  `git push origin v<version>` (one tag covers both platforms when they ship the same version
+  together, since it's the same built commit). Find the built commit via `eas build:view <id>` or
+  the EAS build page.
