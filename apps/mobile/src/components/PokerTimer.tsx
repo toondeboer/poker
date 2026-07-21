@@ -1,13 +1,8 @@
 // src/components/PokerTimer.tsx
 import React, { useCallback } from "react";
-import {
-  Share,
-  StatusBar,
-  StyleSheet,
-  Text,
-  TouchableOpacity,
-  View,
-} from "react-native";
+import { Share, StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import { SystemBars } from "react-native-edge-to-edge";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { LinearGradient } from "expo-linear-gradient";
 import { Ionicons } from "@expo/vector-icons";
 import { formatTime, SITE_URL, SHARE_MESSAGE } from "@poker/core";
@@ -19,6 +14,7 @@ import { BannerAdSlot } from "./ads/BannerAdSlot";
 
 export default function PokerTimer() {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const { currentBlindIndex, blindLevels, increaseBlinds, decreaseBlinds } =
     useBlinds();
   const {
@@ -63,12 +59,12 @@ export default function PokerTimer() {
 
   return (
     <View style={styles.container}>
-      <StatusBar barStyle="light-content" />
+      <SystemBars style="light" />
 
       {/* Background Gradient */}
       <LinearGradient
         colors={getGradientColors() as any}
-        style={styles.gradientBackground}
+        style={[styles.gradientBackground, { paddingTop: insets.top }]}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 1 }}
       >
@@ -244,7 +240,6 @@ const styles = StyleSheet.create({
   },
   gradientBackground: {
     flex: 1,
-    paddingTop: StatusBar.currentHeight || 44,
   },
   content: {
     flex: 1,

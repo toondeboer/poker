@@ -1,5 +1,6 @@
 // src/components/ads/BannerAdSlot.tsx
 import { View, StyleSheet } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { BannerAd, BannerAdSize } from "react-native-google-mobile-ads";
 import { shouldShowAds } from "@poker/core";
 import { usePremium } from "@/src/contexts/PremiumContext";
@@ -16,11 +17,12 @@ import { BANNER_AD_UNIT_ID } from "@/src/services/ads";
 export function BannerAdSlot() {
   const { isPremium } = usePremium();
   const { consentResolved } = useAdsConsent();
+  const insets = useSafeAreaInsets();
 
   if (!shouldShowAds({ isPremium, consentResolved })) return null;
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { paddingBottom: 8 + insets.bottom }]}>
       <BannerAd
         unitId={BANNER_AD_UNIT_ID}
         size={BannerAdSize.ANCHORED_ADAPTIVE_BANNER}
@@ -33,6 +35,5 @@ export function BannerAdSlot() {
 const styles = StyleSheet.create({
   container: {
     alignItems: "center",
-    paddingBottom: 8,
   },
 });

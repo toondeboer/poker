@@ -12,7 +12,8 @@
         "android.permission.READ_EXTERNAL_STORAGE",
         "android.permission.WRITE_EXTERNAL_STORAGE"
       ],
-      "package": "com.toondeboer.pokerkit"
+      "package": "com.toondeboer.pokerkit",
+      "edgeToEdgeEnabled": true
     },
     "experiments": {
       "typedRoutes": true
