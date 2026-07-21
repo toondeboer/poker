@@ -38,6 +38,12 @@ Mobile releases are batched on a short-lived branch per version, not shipped str
   don't defer this to release time, or the changelog stops being a reliable diff of what changed.
   Entries keep accumulating there across however many PRs land before the release ships; don't
   roll them into a dated heading until the release is actually being cut (last step below).
+- **Open the `release/<version>` → `main` PR immediately after cutting the branch, and leave it
+  open** (`gh pr create --base main --head release/<version>`) — don't merge it until the release
+  actually ships. It's the running release-candidate diff, not a normal feature PR. Every time
+  something merges into `release/<version>`, update this PR's description so it still reflects
+  what's in the release — easiest way is to mirror the current `[Unreleased]` section of
+  `CHANGELOG.md` into it (`gh pr edit <number> --body "..."`).
 - **Cutting the release**, once everything intended for it is merged into `release/<version>`:
   1. Bump native version files for whichever platform(s) are shipping. The marketing version
      lives in **`apps/mobile/ios/PokerTimer/Info.plist`** (`CFBundleShortVersionString`,
@@ -57,10 +63,10 @@ Mobile releases are batched on a short-lived branch per version, not shipped str
   4. Commit those release-prep changes on the release branch.
   5. `eas build` + `eas submit` **from the release branch** — EAS builds whatever's checked out
      locally, so make sure `release/<version>` is checked out when you run it.
-  6. Once submission succeeds: merge `release/<version>` into `main` (PR or direct merge — purely
-     additive over `main` at this point, so it's a clean merge), then tag the resulting `main`
-     commit — not just wherever the version string changed, since one version number can span
-     several commits before the one that actually ships:
+  6. Once submission succeeds: merge the standing `release/<version>` → `main` PR (update its
+     description one last time first), then tag the resulting `main` commit — not just wherever
+     the version string changed, since one version number can span several commits before the one
+     that actually ships:
      `git tag -a v<version> <built-commit-sha> -m "v<version> (<platform>, build <n>)"` then
      `git push origin v<version>`. Find the built commit via `eas build:view <id>` or the EAS
      build page.
