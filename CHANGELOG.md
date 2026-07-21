@@ -9,8 +9,6 @@ platform-tagged heading (e.g. `## [1.1.3] - 2026-07-20 — Android`) when you cu
 
 ## [Unreleased]
 
-## [1.1.3] - 2026-07-21 — iOS & Android
-
 ### Added
 - Sound Pack (Pro) — choose the alarm that plays when a round ends. Three bundled alternatives
   (Classic Beep, Bell Chime, Double Buzz) alongside the original Classic Alarm, picked from a new
@@ -19,6 +17,7 @@ platform-tagged heading (e.g. `## [1.1.3] - 2026-07-20 — Android`) when you cu
 ### Fixed
 - Sound preview in Settings no longer plays the alarm's full length (up to ~11s) — capped at 3
   seconds and stoppable early.
+- Selecting a new sound pack now applies immediately instead of only after restarting the app.
 
 ## [1.1.2] - 2026-07-17 — iOS only
 
@@ -61,8 +60,7 @@ _Before Android's launch. Reconstructed from build history — approximate._
 - Initial App Store release: a poker tournament timer with configurable blind levels, a
   per-round countdown, background timing, iOS Live Activities, and an Android foreground service.
 
-[Unreleased]: https://github.com/toondeboer/poker/compare/v1.1.3...HEAD
-[1.1.3]: https://github.com/toondeboer/poker/compare/v1.1.2...v1.1.3
+[Unreleased]: https://github.com/toondeboer/poker/compare/v1.1.2...HEAD
 [1.1.2]: https://github.com/toondeboer/poker/compare/v1.1.1...v1.1.2
 [1.1.1]: https://github.com/toondeboer/poker/compare/v1.1.0...v1.1.1
 [1.1.0]: https://github.com/toondeboer/poker/compare/v1.0.0...v1.1.0
