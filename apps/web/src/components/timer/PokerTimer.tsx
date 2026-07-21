@@ -13,6 +13,7 @@ import { CurrentBlinds } from "./CurrentBlinds";
 import { TimerControls } from "./TimerControls";
 import { BlindsSchedule } from "./BlindsSchedule";
 import { SettingsPanel } from "./SettingsPanel";
+import { ShareBar } from "./ShareBar";
 import AdSlot from "@/components/ads/AdSlot";
 import { ADSENSE_SLOT_TIMER } from "@/lib/monetization";
 
@@ -69,6 +70,9 @@ export default function PokerTimer() {
       style={{ background }}
     >
       <div className="mx-auto flex min-h-screen max-w-7xl flex-col px-4 py-6 lg:px-8">
+        <h1 className="sr-only">
+          Free Poker Tournament Timer — Poker Blinds Buzzer
+        </h1>
         <header className="mb-4 flex items-center justify-between">
           <Link
             href="/"
@@ -113,6 +117,8 @@ export default function PokerTimer() {
             <AdSlot slot={ADSENSE_SLOT_TIMER} className="mt-6" />
           </aside>
         </div>
+
+        <ShareBar />
       </div>
 
       {showSettings && (

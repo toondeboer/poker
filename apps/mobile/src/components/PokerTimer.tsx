@@ -1,6 +1,7 @@
 // src/components/PokerTimer.tsx
-import React from "react";
+import React, { useCallback } from "react";
 import {
+  Share,
   StatusBar,
   StyleSheet,
   Text,
@@ -9,7 +10,7 @@ import {
 } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import { Ionicons } from "@expo/vector-icons";
-import { formatTime } from "@poker/core";
+import { formatTime, SITE_URL, SHARE_MESSAGE } from "@poker/core";
 import { useBlinds } from "@/src/contexts/BlindsContext";
 import { useTimer } from "@/src/contexts/TimerContext";
 import { useRouter } from "expo-router";
@@ -31,6 +32,13 @@ export default function PokerTimer() {
     dismissTimerAlert,
     handleNextBlinds,
   } = useTimer();
+
+  const handleShare = useCallback(() => {
+    Share.share({
+      message: `${SHARE_MESSAGE} ${SITE_URL}`,
+      url: SITE_URL,
+    }).catch(() => {});
+  }, []);
 
   const percent = Math.max(0, timeLeft) / timerDuration;
 
@@ -198,6 +206,20 @@ export default function PokerTimer() {
               <Text style={styles.settingsButtonText}>Settings</Text>
             </TouchableOpacity>
           </View>
+
+          {/* Subtle brand + share row — helps players at the table find the app */}
+          <TouchableOpacity
+            style={styles.shareRow}
+            onPress={handleShare}
+            accessibilityLabel="Share Poker Blinds Buzzer"
+          >
+            <Ionicons
+              name="share-social-outline"
+              size={14}
+              color="rgba(255,255,255,0.7)"
+            />
+            <Text style={styles.shareRowText}>Share Poker Blinds Buzzer</Text>
+          </TouchableOpacity>
         </View>
 
         {/* Banner ad — pinned below the content, hidden for Pro users */}
@@ -434,5 +456,19 @@ const styles = StyleSheet.create({
     color: "white",
     fontSize: 16,
     fontWeight: "600",
+  },
+
+  // Share row
+  shareRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 6,
+    marginTop: 16,
+  },
+  shareRowText: {
+    color: "rgba(255,255,255,0.7)",
+    fontSize: 12,
+    fontWeight: "500",
   },
 });
