@@ -22,7 +22,7 @@ import { useTimer } from "@/src/contexts/TimerContext";
 import { useBlinds } from "@/src/contexts/BlindsContext";
 import { usePremium } from "@/src/contexts/PremiumContext";
 import { usePresets } from "@/src/hooks/usePresets";
-import { useSoundPack } from "@/src/hooks/useSoundPack";
+import { useSoundPack } from "@/src/contexts/SoundPackContext";
 import { SOUND_BY_PACK_ID, useSounds } from "@/src/hooks/useSounds";
 import { Paywall } from "./paywall/Paywall";
 

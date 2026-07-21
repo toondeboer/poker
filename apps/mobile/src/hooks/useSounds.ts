@@ -9,6 +9,11 @@ import {
 import type { SoundPackId } from "@poker/core";
 
 export enum Sound {
+  // Deliberately a different (longer, ~34s) clip than the ~11s alarm.wav used
+  // for background/notifications (see useTimerNotification's CUSTOM_SOUNDS and
+  // PokerTimerService.java) — iOS caps custom notification sounds at 30s, so
+  // the background variant has to be a separate, shorter clip. The other
+  // sound packs below don't have this split since they're short everywhere.
   ALARM = require("../assets/sounds/alarm.mp3"),
   CLASSIC_BEEP = require("../assets/sounds/classic_beep.wav"),
   BELL_CHIME = require("../assets/sounds/bell_chime.wav"),

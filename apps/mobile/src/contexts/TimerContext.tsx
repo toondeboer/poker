@@ -13,7 +13,7 @@ import { useBlinds } from "@/src/contexts/BlindsContext";
 import { useTimerNotification } from "@/src/hooks/useTimerNotification";
 import { useTimerEngine } from "@/src/hooks/useTimerEngine";
 import { useTimerAlert } from "@/src/hooks/useTimerAlert";
-import { useSoundPack } from "@/src/hooks/useSoundPack";
+import { useSoundPack } from "@/src/contexts/SoundPackContext";
 import { useNotificationPermission } from "@/src/hooks/useNotificationPermission";
 import { usePremium } from "@/src/contexts/PremiumContext";
 import { liveActivityService } from "@/src/services/LiveActivityService";
