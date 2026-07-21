@@ -9,6 +9,11 @@ platform-tagged heading (e.g. `## [1.1.3] - 2026-07-20 — Android`) when you cu
 
 ## [Unreleased]
 
+### Fixed
+- Android: real edge-to-edge display instead of the transparent-status/nav-bar-color trick —
+  content now respects safe-area insets and the system bars use `react-native-edge-to-edge`
+  instead of deprecated `Window.setStatusBarColor`/`setNavigationBarColor` APIs.
+
 ## [1.1.3] - 2026-07-21 — iOS & Android
 
 ### Added
