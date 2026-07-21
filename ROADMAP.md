@@ -92,18 +92,19 @@ forced/user-visible later. PR each item into `release/1.1.3` normally, with a `C
   restriction, smoke-test the timer/blinds-editor/settings/paywall screens on an Android tablet
   emulator and a foldable emulator in both orientations, fix whatever layout breaks before
   merging.
-- ⬜ **Enable R8** — `enableProguardInReleaseBuilds` in
-  `apps/mobile/android/app/build.gradle` reads from
-  `android.enableProguardInReleaseBuilds` in `gradle.properties`, which isn't set (defaults
-  `false`) — release builds ship unminified today. Plan: set
-  `android.enableProguardInReleaseBuilds=true` and `android.enableShrinkResourcesInReleaseBuilds=true`
-  in `gradle.properties`, then do a full **release-build** smoke test on a physical device —
-  RevenueCat purchase flow, AdMob banner, and the foreground-service timer/notifications
-  specifically, since reflection-heavy libraries are exactly what R8 breaks silently when keep
-  rules are missing. `apps/mobile/android/app/proguard-rules.pro` currently only has
-  reanimated/turbomodule keep rules — expect to add more (RevenueCat, Google Mobile Ads, Expo
-  modules ship most of their own consumer rules via AAR, but verify rather than assume) once
-  something breaks in the smoke test.
+- ✅ **Enable R8** — set `android.enableProguardInReleaseBuilds=true` and
+  `android.enableShrinkResourcesInReleaseBuilds=true` in
+  `apps/mobile/android/gradle.properties` (previously unset/`false`, so release builds shipped
+  unminified). No `proguard-rules.pro` additions were needed — RevenueCat, Google Mobile Ads, and
+  the Expo modules all ship their own consumer rules via AAR, exactly as hoped but not previously
+  verified. Smoke-tested a real `assembleRelease` build (R8 + resource shrinking) on an emulator:
+  app launch, timer countdown, the foreground-service notification (live blinds/time-left text
+  survived), an AdMob test ad rendering, and the RevenueCat paywall modal (full feature list +
+  buttons; "Restore purchases"/"Maybe later" all present) — RevenueCat correctly reported
+  `BILLING_UNAVAILABLE` with a fully-readable error message (expected on an emulator with no Play
+  Store account, not an R8 stripping issue). No crashes, no obfuscated/garbled error output
+  anywhere. Still worth a real device + license-tester purchase before this ships, since the
+  emulator can't exercise an actual completed purchase.
 
 ## P1 — ASO (skipped for now)
 - ✅ iOS listing: optimized **title + subtitle + 100-char keyword field** — drafted in [STORE_LISTING.md](./STORE_LISTING.md), **live in App Store Connect since v1.1.2**

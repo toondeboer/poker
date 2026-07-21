@@ -9,6 +9,10 @@ platform-tagged heading (e.g. `## [1.1.3] - 2026-07-20 — Android`) when you cu
 
 ## [Unreleased]
 
+### Changed
+- Android: release builds now enable R8 code shrinking/obfuscation and resource shrinking
+  (previously shipped unminified) — smaller, faster app for a smoother experience.
+
 ## [1.1.3] - 2026-07-21 — iOS & Android
 
 ### Added
