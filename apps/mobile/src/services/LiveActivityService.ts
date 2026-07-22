@@ -7,7 +7,7 @@ import {
   LiveActivityData,
   LiveActivityDataAndroid,
 } from "../modules/LiveActivityModule";
-import { PokerTimerState } from "@poker/core";
+import { DEFAULT_SOUND_PACK_ID, PokerTimerState, SoundPackId } from "@poker/core";
 
 class LiveActivityService {
   private activityId: string | null = null;
@@ -50,11 +50,16 @@ class LiveActivityService {
   async startOrUpdateActivity(
     state: PokerTimerState,
     shouldAlertOnExpiry: boolean,
+    soundPackId: SoundPackId = DEFAULT_SOUND_PACK_ID,
   ): Promise<string | null> {
     if (Platform.OS === "ios") {
       return this.handleiOSLiveActivity(state);
     } else if (Platform.OS === "android") {
-      return this.handleAndroidForegroundService(state, shouldAlertOnExpiry);
+      return this.handleAndroidForegroundService(
+        state,
+        shouldAlertOnExpiry,
+        soundPackId,
+      );
     }
 
     logger.warn("Platform not supported for background activities");
@@ -135,6 +140,7 @@ class LiveActivityService {
   private async handleAndroidForegroundService(
     state: PokerTimerState,
     shouldAlertOnExpiry: boolean,
+    soundPackId: SoundPackId,
   ): Promise<string | null> {
     try {
       const enabled = await this.isEnabled();
@@ -153,6 +159,7 @@ class LiveActivityService {
         nextBigBlind: state.nextBigBlind,
         paused: state.paused,
         shouldAlertOnExpiry,
+        soundId: soundPackId,
       };
 
       // Handle timing - Android expects milliseconds for endTime

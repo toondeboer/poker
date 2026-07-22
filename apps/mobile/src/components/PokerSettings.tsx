@@ -9,13 +9,23 @@ import {
   Text,
   TextInput,
   TouchableOpacity,
+  useWindowDimensions,
   View,
 } from "react-native";
-import { BlindPreset, formatTime, isValidPresetName } from "@poker/core";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
+import {
+  BlindPreset,
+  formatTime,
+  isValidPresetName,
+  SOUND_PACKS,
+  SoundPackId,
+} from "@poker/core";
 import { useTimer } from "@/src/contexts/TimerContext";
 import { useBlinds } from "@/src/contexts/BlindsContext";
 import { usePremium } from "@/src/contexts/PremiumContext";
 import { usePresets } from "@/src/hooks/usePresets";
+import { useSoundPack } from "@/src/contexts/SoundPackContext";
+import { SOUND_BY_PACK_ID, useSounds } from "@/src/hooks/useSounds";
 import { Paywall } from "./paywall/Paywall";
 
 // Mock icons - replace with your preferred icon library (react-native-vector-icons, etc.)
@@ -27,10 +37,86 @@ const SaveIcon = () => <Text style={styles.icon}>💾</Text>;
 const ResetIcon = () => <Text style={styles.icon}>🔄</Text>;
 const CrownIcon = () => <Text style={styles.icon}>👑</Text>;
 const BookmarkIcon = () => <Text style={styles.icon}>🔖</Text>;
+const SpeakerIcon = () => <Text style={styles.icon}>🔊</Text>;
 
-const { width: screenWidth } = Dimensions.get("window");
+// Alarm sounds are designed to keep ringing until dismissed (so a round change
+// is never missed) — fine for a real expiry, annoying for a Settings preview.
+// Cap the preview instead of playing the sound's full length.
+const PREVIEW_DURATION_MS = 3000;
+
+/** One selectable sound-pack row, owning its own preview player. */
+function SoundPackRow({
+  pack,
+  selected,
+  onSelect,
+}: {
+  pack: { id: SoundPackId; label: string };
+  selected: boolean;
+  onSelect: () => void;
+}) {
+  const { playSound, stopSound, isLoaded, isPlaying } = useSounds(
+    SOUND_BY_PACK_ID[pack.id],
+  );
+  const previewTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const clearPreviewTimeout = () => {
+    if (previewTimeoutRef.current) {
+      clearTimeout(previewTimeoutRef.current);
+      previewTimeoutRef.current = null;
+    }
+  };
+
+  const handlePreviewPress = async () => {
+    if (isPlaying) {
+      clearPreviewTimeout();
+      await stopSound();
+      return;
+    }
+    await playSound();
+    previewTimeoutRef.current = setTimeout(() => {
+      stopSound();
+    }, PREVIEW_DURATION_MS);
+  };
+
+  // Stop a still-playing preview if the row unmounts (e.g. leaving Settings).
+  useEffect(() => {
+    return () => {
+      clearPreviewTimeout();
+      if (isPlaying) stopSound();
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  return (
+    <View style={[styles.presetRow, selected && styles.soundRowSelected]}>
+      <TouchableOpacity
+        style={styles.presetInfo}
+        onPress={onSelect}
+        activeOpacity={0.8}
+      >
+        <Text style={styles.presetName}>{pack.label}</Text>
+        <Text style={styles.presetMeta}>
+          {selected ? "Selected" : "Tap to select"}
+        </Text>
+      </TouchableOpacity>
+      <TouchableOpacity
+        style={styles.loadButton}
+        onPress={handlePreviewPress}
+        disabled={!isLoaded}
+        activeOpacity={0.8}
+      >
+        <Text style={styles.loadButtonText}>
+          {isPlaying ? "■ Stop" : "▶ Preview"}
+        </Text>
+      </TouchableOpacity>
+    </View>
+  );
+}
 
 export default function PokerSettings() {
+  const { width: screenWidth } = useWindowDimensions();
+  const insets = useSafeAreaInsets();
+
   const {
     customBlindLevels,
     addBlindLevel,
@@ -44,6 +130,7 @@ export default function PokerSettings() {
   const { timerDuration, setTimerDuration } = useTimer();
   const { isPremium } = usePremium();
   const { presets, savePreset, deletePreset } = usePresets();
+  const { soundPackId, setSoundPackId } = useSoundPack();
 
   const [durationSetting, setDurationSetting] = useState(String(timerDuration));
   const [showPaywall, setShowPaywall] = useState(false);
@@ -123,7 +210,14 @@ export default function PokerSettings() {
       <ScrollView
         ref={scrollViewRef}
         style={styles.scrollView}
-        contentContainerStyle={styles.scrollContent}
+        contentContainerStyle={[
+          styles.scrollContent,
+          {
+            paddingLeft: insets.left,
+            paddingRight: insets.right,
+            paddingBottom: 40 + insets.bottom,
+          },
+        ]}
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
         onScroll={(e) => {
@@ -161,14 +255,14 @@ export default function PokerSettings() {
             <View style={styles.cardContent}>
               {isPremium ? (
                 <Text style={styles.proUnlockedText}>
-                  Thanks for going Pro! Ads are removed and tournament presets
-                  are unlocked.
+                  Thanks for going Pro! Ads are removed, tournament presets are
+                  unlocked, and you can pick your alarm sound.
                 </Text>
               ) : (
                 <>
                   <Text style={styles.proDescription}>
-                    Remove ads, save tournament presets, and support the app — a
-                    one-time purchase.
+                    Remove ads, save tournament presets, choose your alarm
+                    sound, and support the app — a one-time purchase.
                   </Text>
                   <TouchableOpacity
                     style={styles.proButton}
@@ -432,6 +526,60 @@ export default function PokerSettings() {
                 <Text style={styles.proDescription}>
                   Save your tournament setups — blind structures and round
                   length — and load any of them in one tap.
+                </Text>
+                <TouchableOpacity
+                  style={styles.proButton}
+                  onPress={() => setShowPaywall(true)}
+                  activeOpacity={0.85}
+                >
+                  <CrownIcon />
+                  <Text style={styles.proButtonText}>Unlock Pro</Text>
+                </TouchableOpacity>
+              </View>
+            )}
+          </View>
+        </View>
+
+        {/* Sound Pack (Pro) */}
+        <View style={styles.presetCardWrapper}>
+          <View style={styles.card}>
+            <View style={styles.cardHeader}>
+              <View style={styles.cardHeaderIcon}>
+                <SpeakerIcon />
+              </View>
+              <Text style={styles.cardTitle}>Sound Pack</Text>
+              {isPremium ? (
+                <View style={styles.levelBadge}>
+                  <Text style={styles.levelBadgeText}>
+                    {SOUND_PACKS.find((pack) => pack.id === soundPackId)
+                      ?.label ?? "Classic Alarm"}
+                  </Text>
+                </View>
+              ) : (
+                <View style={styles.proPill}>
+                  <Text style={styles.proPillText}>PRO</Text>
+                </View>
+              )}
+            </View>
+
+            {isPremium ? (
+              <View style={styles.cardContent}>
+                <View style={styles.presetList}>
+                  {SOUND_PACKS.map((pack) => (
+                    <SoundPackRow
+                      key={pack.id}
+                      pack={pack}
+                      selected={pack.id === soundPackId}
+                      onSelect={() => setSoundPackId(pack.id)}
+                    />
+                  ))}
+                </View>
+              </View>
+            ) : (
+              <View style={styles.cardContent}>
+                <Text style={styles.proDescription}>
+                  Choose the alarm that plays when a round ends — a few
+                  bundled sounds beyond the classic alarm.
                 </Text>
                 <TouchableOpacity
                   style={styles.proButton}
@@ -773,6 +921,10 @@ const styles = StyleSheet.create({
     borderColor: "rgba(75, 85, 99, 0.5)",
     borderRadius: 8,
     padding: 12,
+  },
+  soundRowSelected: {
+    borderColor: "#f59e0b",
+    backgroundColor: "rgba(245, 158, 11, 0.1)",
   },
   presetInfo: {
     flex: 1,

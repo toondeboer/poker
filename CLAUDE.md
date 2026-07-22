@@ -18,6 +18,71 @@ current monetization/growth status.
   foreground service, push) instead of importing native modules on web.
 - **Imports:** cross-package → `@poker/core`; within mobile → `@/src/...`; within web → `@/...`.
 
+## Release process
+
+Mobile releases are batched on a short-lived branch per version, not shipped straight from
+`main` — avoids cutting a new App Store/Play submission for every small merged PR while a review
+(which can take days) is pending.
+
+- **`main` always matches what's actually live** in the App Store / Play Store. Never
+  version-bump, tag, or submit from `main` directly — it's the thing you fall back to for an
+  emergency fix, so it can't be "ahead" of production.
+- **`release/<version>` is the integration branch for the next release** (e.g. `release/1.1.4`),
+  cut from `main` when you start batching work toward it:
+  `git checkout main && git pull && git checkout -b release/<version>`. Name it
+  `release/<version>`, not `v<version>` — a branch and the eventual `v<version>` tag can't share a
+  name without ambiguous-ref problems (`git checkout v1.1.3` becomes unpredictable).
+- **Never commit directly to `release/<version>`, even for a docs-only change** (e.g. a
+  `ROADMAP.md` update) — the whole point of the release branch is that nothing lands there
+  without going through a PR. Branch off it (`git checkout -b feature/<name>`), commit there, and
+  PR into the release branch. The only exception is the release-prep commit(s) made as part of
+  *cutting* the release itself (step-by-step below) — those go directly on the release branch.
+- **PRs for anything going into that release target the release branch, not `main`** —
+  `gh pr create --base release/<version>`. Every change still gets a `CHANGELOG.md` entry under
+  `[Unreleased]` in the same commit/PR that lands it (Keep a Changelog format) — no exceptions,
+  don't defer this to release time, or the changelog stops being a reliable diff of what changed.
+  Entries keep accumulating there across however many PRs land before the release ships; don't
+  roll them into a dated heading until the release is actually being cut (last step below).
+- **Open the `release/<version>` → `main` PR immediately after cutting the branch, and leave it
+  open** (`gh pr create --base main --head release/<version>`) — don't merge it until the release
+  actually ships. It's the running release-candidate diff, not a normal feature PR. Every time
+  something merges into `release/<version>`, update this PR's description so it still reflects
+  what's in the release — easiest way is to mirror the current `[Unreleased]` section of
+  `CHANGELOG.md` into it (`gh pr edit <number> --body "..."`).
+- **Cutting the release**, once everything intended for it is merged into `release/<version>`:
+  1. Bump native version files for whichever platform(s) are shipping. The marketing version
+     lives in **`apps/mobile/ios/PokerTimer/Info.plist`** (`CFBundleShortVersionString`,
+     hardcoded — not `$(MARKETING_VERSION)`) and **`apps/mobile/android/app/build.gradle`**
+     (`versionName`); `app.json`'s `version` is cosmetic (prebuild isn't run, so it never syncs)
+     but keep it in sync anyway. iOS and Android version numbers are independent counters, **not
+     tied to each other** — they can diverge (e.g. iOS at 1.1.2, Android still at 1.1.1) when only
+     one platform ships, or share the same number when both ship together. Either way, bump the
+     native file only for the platform(s) shipping *in this release*, or the binary ships the old
+     version and App Store Connect rejects it (ITMS-90186 "train … is closed" / ITMS-90062).
+     Build numbers are fine to leave — `eas.json` `appVersionSource: remote` + `autoIncrement`
+     manages `CFBundleVersion` / `versionCode` on EAS's servers.
+  2. Roll the accumulated `[Unreleased]` entries into a dated heading (e.g.
+     `## [1.1.3] - 2026-07-20 — Android`, or `— iOS & Android` when both platforms ship together
+     in one heading), add the compare link at the bottom.
+  3. Update `ROADMAP.md` if it references the release.
+  4. Commit those release-prep changes on the release branch.
+  5. `eas build` + `eas submit` **from the release branch** — EAS builds whatever's checked out
+     locally, so make sure `release/<version>` is checked out when you run it.
+  6. Once submission succeeds: merge the standing `release/<version>` → `main` PR (update its
+     description one last time first), then tag the resulting `main` commit — not just wherever
+     the version string changed, since one version number can span several commits before the one
+     that actually ships:
+     `git tag -a v<version> <built-commit-sha> -m "v<version> (<platform>, build <n>)"` then
+     `git push origin v<version>`. Find the built commit via `eas build:view <id>` or the EAS
+     build page.
+  7. Delete `release/<version>`. Cut the next `release/<version>` from the new `main` tip when you
+     start batching the next round of work.
+- **Hotfixing the live version while a release branch is mid-cycle**: branch `hotfix/<version>`
+  from `main` (not from the active release branch — `main` is what's actually live), fix it, ship
+  through the same version/changelog/tag steps above, merge back to `main`. Then merge (or
+  cherry-pick) that same fix into the in-progress `release/<version>` too, or it'll be silently
+  reverted when that release eventually merges over it.
+
 ## Things that bite in this monorepo
 
 - **React must stay a single version across web + mobile** — root `package.json` `overrides` pin
@@ -33,6 +98,28 @@ current monetization/growth status.
   dep or `@poker/core`, check `watchFolders`/`nodeModulesPaths` there.
 - **Mobile is a bare Expo workflow** — `apps/mobile/ios` and `apps/mobile/android` are committed.
   App-config/native changes need `expo prebuild` (+ `npm run pods`); EAS builds the committed projects.
+- **The floating gear-icon-in-a-circle in the top corner of every screen on a dev-client build is
+  Expo's own dev-menu trigger** (`expo-dev-client`/`expo-dev-menu`), not app UI — it doesn't exist
+  in the app's source and never ships in a release build. Ignore it when reviewing screenshots or
+  debugging layout; it's not a bug to fix and not a system accessibility overlay either.
+- **`expo run:android` plants broken package shims that also break iOS.** Expo's autolinking
+  creates partial proxy directories — missing `package.json` and the platform folder, just a stray
+  `android/` — at `node_modules/expo-dev-client/node_modules/expo-dev-launcher` and directly under
+  `apps/mobile/node_modules/{expo,expo-constants,expo-modules-autolinking}`. These shadow the
+  real, correctly-hoisted copies at root `node_modules/` for *any* Node-based resolution,
+  including CocoaPods' iOS autolinking. Symptoms: Android — `Project with path
+  ':expo-dev-launcher' could not be found in project ':expo-dev-client'` (surfaces once the Gradle
+  daemon/cache goes cold; harmless while warm). iOS — `expo-modules-autolinking resolve -p ios`
+  silently omits the `expo` package (every other `expo-*` package resolves fine), so `pod install`
+  never links the `Expo` pod and `AppDelegate.swift`'s `public import Expo` fails (`no such module
+  'Expo'`); patching around *that* (e.g. adding `pod 'Expo'` to the Podfile by hand) only gets you
+  to a runtime crash instead (`Cannot find native module 'ExpoFetchModule'`), since the Swift
+  module-registration codegen is driven by the same broken resolve output. Don't do that — fix the
+  actual shims: `rm -rf node_modules/expo-dev-client/node_modules
+  apps/mobile/node_modules/{expo,expo-constants,expo-modules-autolinking}`, confirm with `cd
+  apps/mobile && npx expo-modules-autolinking resolve -p ios --json | grep -c
+  '"packageName":"expo"'` → should be `1`, then `npm install` (Android) or `npm run pods -w
+  @poker/mobile` (iOS) and rebuild.
 - **iOS must build from source.** SDK-56 precompiled XCFrameworks break this hoisted monorepo
   (archive fails on `Build ExpoModulesJSI xcframework` / safe-area-context "Directory not found",
   even with `--clear-cache`). `apps/mobile/ios/Podfile` bakes
@@ -46,23 +133,3 @@ current monetization/growth status.
   removed the Podfile `ENV` lines — restore them rather than just reverting the lock file.
 - **Keep `ios.supportsTablet: true`.** The app shipped universal (iPhone + iPad); an update that
   drops iPad is rejected at upload with App Store error 90101.
-- **Version bumps must touch the native project, not just `app.json`.** This is a bare workflow, so
-  EAS builds the committed native projects and `app.json` `version` is cosmetic (prebuild isn't run,
-  so it never syncs). The marketing version lives in **`apps/mobile/ios/PokerTimer/Info.plist`**
-  (`CFBundleShortVersionString`, hardcoded — not `$(MARKETING_VERSION)`) and
-  **`apps/mobile/android/app/build.gradle`** (`versionName`). iOS and Android version
-  **independently** — a number belongs to one platform (iOS is on 1.1.2; Android on 1.1.1, next
-  1.1.3). Bump the native file for whichever platform is shipping (don't touch the other
-  platform's), or the binary ships the old version and App Store Connect rejects it (ITMS-90186
-  "train … is closed" / ITMS-90062). Build numbers are fine to leave — `eas.json`
-  `appVersionSource: remote` + `autoIncrement` manages `CFBundleVersion` / `versionCode` on EAS's
-  servers.
-- **Releasing a build: update `CHANGELOG.md` and tag the commit.** Add an entry under
-  `[Unreleased]` in `CHANGELOG.md` (Keep a Changelog format) as features land, then roll it into a
-  dated, platform-tagged heading when you version-bump for release (e.g.
-  `## [1.1.3] - 2026-07-20 — Android`). After `eas submit` succeeds, tag the exact commit that was
-  built — not just wherever the version string changed, since one version number can span several
-  commits before the one that actually ships:
-  `git tag -a v<version> <built-commit-sha> -m "v<version> (<platform>, build <n>)"` then
-  `git push origin v<version>`. Find the built commit via `eas build:view <id>` or the EAS build
-  page.

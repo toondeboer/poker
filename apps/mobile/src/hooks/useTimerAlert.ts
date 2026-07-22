@@ -1,14 +1,19 @@
 // src/hooks/useTimerAlert.ts
 import { useEffect, useRef, useState } from "react";
-import { Sound, useSounds } from "@/src/hooks/useSounds";
+import { DEFAULT_SOUND_PACK_ID, SoundPackId } from "@poker/core";
+import { SOUND_BY_PACK_ID, useSounds } from "@/src/hooks/useSounds";
 
 /**
  * Owns the timer-expiry alert + alarm sound. Showing the alert and playing the
  * alarm are one concern (show ⇒ start alarm, clear ⇒ stop alarm), kept out of
  * the TimerContext composition root.
  */
-export function useTimerAlert() {
-  const { playSound, stopSound, isLoaded } = useSounds(Sound.ALARM);
+export function useTimerAlert(
+  soundPackId: SoundPackId = DEFAULT_SOUND_PACK_ID,
+) {
+  const { playSound, stopSound, isLoaded } = useSounds(
+    SOUND_BY_PACK_ID[soundPackId],
+  );
   const [showTimerAlert, setShowTimerAlert] = useState(false);
   const alarmPlayingRef = useRef(false);
 

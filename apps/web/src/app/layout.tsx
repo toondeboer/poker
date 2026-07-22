@@ -5,6 +5,10 @@ import AnalyticsConsent from "./components/AnalyticsConsent";
 import AdSenseScript from "./components/AdSenseScript";
 import KofiWidget from "./components/KofiWidget";
 import { ADSENSE_CLIENT } from "@/lib/monetization";
+import { SITE_URL } from "@poker/core";
+
+const SITE_DESCRIPTION =
+  "Free poker tournament timer with customizable blind levels, sound alerts, and saved tournament presets. Play in your browser or get the app for iOS and Android.";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -17,8 +21,23 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Poker Timer App",
-  description: "Poker Timer with blinds tracker",
+  metadataBase: new URL(SITE_URL),
+  title: {
+    default: "Poker Blinds Buzzer — Free Poker Tournament Timer",
+    template: "%s | Poker Blinds Buzzer",
+  },
+  description: SITE_DESCRIPTION,
+  keywords: [
+    "poker timer",
+    "blinds timer",
+    "poker tournament timer",
+    "poker clock",
+    "blind timer app",
+    "poker blinds buzzer",
+  ],
+  alternates: {
+    canonical: "/",
+  },
   manifest: "/manifest.json",
   appleWebApp: {
     capable: true,
@@ -27,6 +46,20 @@ export const metadata: Metadata = {
   },
   formatDetection: {
     telephone: false,
+  },
+  openGraph: {
+    type: "website",
+    url: SITE_URL,
+    siteName: "Poker Blinds Buzzer",
+    title: "Poker Blinds Buzzer — Free Poker Tournament Timer",
+    description: SITE_DESCRIPTION,
+    images: ["/icon-512x512.png"],
+  },
+  twitter: {
+    card: "summary",
+    title: "Poker Blinds Buzzer — Free Poker Tournament Timer",
+    description: SITE_DESCRIPTION,
+    images: ["/icon-512x512.png"],
   },
 };
 

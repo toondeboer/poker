@@ -14,6 +14,12 @@ import { revenueCatProvider } from "@/src/services/revenueCatProvider";
 // RevenueCat dashboard setup. Never true in a release build since __DEV__ is
 // false there regardless of this literal.
 const FORCE_PRO_IN_DEV: boolean = __DEV__ && false;
+// Flip to true to force the free/ad experience locally, bypassing the real
+// RevenueCat entitlement check — useful when the Apple/Google account signed
+// into the test device already owns `pro_lifetime` (a one-time purchase, so
+// it persists across reinstalls) and you want to see the ad-supported UI
+// anyway. Only one of these two should be true at a time.
+const FORCE_FREE_IN_DEV: boolean = __DEV__ && false;
 
 type PremiumContextValue = {
   /** True once the user has unlocked the Pro (ad-free) tier. */
@@ -43,7 +49,9 @@ export function PremiumProvider({
   const [proPriceString, setProPriceString] = useState<string | null>(null);
 
   useEffect(() => {
-    if (FORCE_PRO_IN_DEV) return;
+    // Initial state above already reflects FORCE_PRO_IN_DEV (and FORCE_FREE_IN_DEV
+    // implies false, which is the same default) — just skip the real check.
+    if (FORCE_PRO_IN_DEV || FORCE_FREE_IN_DEV) return;
     let active = true;
     revenueCatProvider.getEntitlements().then((entitlements: Entitlements) => {
       if (active) setIsPremium(entitlements.isPremium);

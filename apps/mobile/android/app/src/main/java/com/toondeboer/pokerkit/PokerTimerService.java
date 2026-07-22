@@ -33,6 +33,10 @@ public class PokerTimerService extends Service {
     public static final String EXTRA_TIME_LEFT = "timeLeft";
     public static final String EXTRA_PAUSED = "paused";
     public static final String EXTRA_SHOULD_ALERT_ON_EXPIRY = "shouldAlertOnExpiry";
+    public static final String EXTRA_SOUND_ID = "soundId";
+
+    // Fallback sound resource when soundId is missing or doesn't match a bundled resource.
+    private static final String DEFAULT_SOUND_ID = "alarm";
 
     // Actions
     public static final String ACTION_START = "START_TIMER_SERVICE";
@@ -66,6 +70,7 @@ public class PokerTimerService extends Service {
     private int timeLeft = 0;
     private boolean paused = true;
     private boolean shouldAlertOnExpiry = true;
+    private String soundId = DEFAULT_SOUND_ID;
     private boolean isAlerting = false;
     private boolean timerExpired = false;
 
@@ -114,6 +119,8 @@ public class PokerTimerService extends Service {
         timeLeft = intent.getIntExtra(EXTRA_TIME_LEFT, 0);
         boolean newPaused = intent.getBooleanExtra(EXTRA_PAUSED, true);
         shouldAlertOnExpiry = intent.getBooleanExtra(EXTRA_SHOULD_ALERT_ON_EXPIRY, true);
+        String newSoundId = intent.getStringExtra(EXTRA_SOUND_ID);
+        soundId = (newSoundId != null) ? newSoundId : DEFAULT_SOUND_ID;
 
         // If timer was unpaused or time updated, reset expired state
         if (paused && !newPaused || timeLeft > 0) {
@@ -187,8 +194,14 @@ public class PokerTimerService extends Service {
                 mediaPlayer.release();
             }
 
-            // Try custom sound first
-            Uri soundUri = Uri.parse("android.resource://" + getPackageName() + "/" + R.raw.alarm);
+            // Try the selected sound pack first, falling back to the bundled default
+            // alarm resource if `soundId` doesn't match a `res/raw` entry (e.g. an
+            // older client sent an id this build doesn't know about).
+            int soundResId = getResources().getIdentifier(soundId, "raw", getPackageName());
+            if (soundResId == 0) {
+                soundResId = R.raw.alarm;
+            }
+            Uri soundUri = Uri.parse("android.resource://" + getPackageName() + "/" + soundResId);
             mediaPlayer = new MediaPlayer();
             mediaPlayer.setDataSource(this, soundUri);
 

@@ -12,6 +12,7 @@ import {
   isExpired,
   withDuration,
   clampToDuration,
+  type SoundPackId,
   type TimerMachineState,
 } from "@poker/core";
 import { useTimerPersistence } from "@/src/hooks/useTimerPersistence";
@@ -32,6 +33,7 @@ export interface TimerEngineCallbacks {
 export function useTimerEngine(
   currentBlindLevel: number,
   blindLevels: BlindLevel[],
+  soundPackId: SoundPackId,
   callbacks: TimerEngineCallbacks,
 ) {
   const [state, setState] = useState<TimerMachineState>(createTimerState);
@@ -40,7 +42,13 @@ export function useTimerEngine(
 
   // Side effects: persistence I/O + native (Live Activity) sync.
   const { load, save } = useTimerPersistence(state, isLoading);
-  useLiveActivitySync(state, currentBlindLevel, blindLevels, isLoading);
+  useLiveActivitySync(
+    state,
+    currentBlindLevel,
+    blindLevels,
+    isLoading,
+    soundPackId,
+  );
 
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const hasHandledTimerCompleteRef = useRef(false); // Track if we've already handled timer completion
