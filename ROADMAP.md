@@ -91,6 +91,10 @@ next Android upload.
   `Dimensions.get()` (`TimerExpirationAlert.tsx`, `PokerSettings.tsx`'s `isTablet` check) are kept
   — they still matter for tablets/foldables, which can still get resized/rotated by Android 16
   regardless of the manifest attribute.
+- ✅ **iOS: same portrait-only decision applied to iPhone** — `apps/mobile/ios/PokerTimer/Info.plist`'s
+  `UISupportedInterfaceOrientations` (iPhone) trimmed to just `UIInterfaceOrientationPortrait`
+  (was all four), matching the Android phone decision above. `UISupportedInterfaceOrientations~ipad`
+  is untouched — iPad keeps all four orientations, same as Android tablets/foldables.
 - ✅ **Timer screen fits one screen without scrolling, responsively** — found during the same
   on-device pass: the timer screen wasn't scrollable and only padded for the top inset, so the ad
   banner could push the share row off-screen with no way to reach it. Rejected making it
