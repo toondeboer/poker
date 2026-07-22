@@ -9,6 +9,11 @@ platform-tagged heading (e.g. `## [1.1.3] - 2026-07-20 — Android`) when you cu
 
 ## [Unreleased]
 
+### Added
+- Web: new `/guide` page — "How to Run a Home Poker Tournament" — covering buy-ins, blind
+  structures, payouts, and a blind-structure explainer, with `HowTo`/`FAQPage` structured data.
+  Cross-linked from `/timer`.
+
 ## [1.1.3] - 2026-07-21 — iOS & Android
 
 **Release notes (App Store / Play Console "What's New" text) are drafted in
