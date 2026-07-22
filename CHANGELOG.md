@@ -9,6 +9,11 @@ platform-tagged heading (e.g. `## [1.1.3] - 2026-07-20 — Android`) when you cu
 
 ## [Unreleased]
 
+### Fixed
+- iOS: locked iPhone to portrait only (was allowing all four orientations), matching the
+  portrait-only decision already made for Android phones. iPad is unaffected — still supports all
+  orientations.
+
 ## [1.1.3] - 2026-07-21 — iOS & Android
 
 ### Added
