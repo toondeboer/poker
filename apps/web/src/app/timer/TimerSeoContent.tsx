@@ -83,7 +83,15 @@ export function TimerSeoContent() {
           ))}
         </div>
 
-        <p className="mt-10 text-sm text-gray-400">
+        <p className="mt-4 text-sm text-gray-400">
+          New to running one of these?{" "}
+          <Link href="/guide" className="underline hover:text-white">
+            How to run a home poker tournament
+          </Link>
+          .
+        </p>
+
+        <p className="mt-4 text-sm text-gray-400">
           Want it on your phone with offline support and background alerts?{" "}
           <Link href="/" className="underline hover:text-white">
             Get the Poker Blinds Buzzer app

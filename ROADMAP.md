@@ -2,21 +2,23 @@
 
 Monetization + growth tracker for Poker Blinds Buzzer.
 
-**Where things stand:** iOS is **live on the App Store at v1.1.2**; **Android is live on Google
-Play** (approved 2026-07). Both platforms run an AdMob banner + a Pro / Remove-Ads IAP
-(RevenueCat). **v1.1.3 is being cut now — simultaneous iOS + Android** (Sound Pack Pro, the
-table-side share row, and the SEO/table-side-share web work from PR #56): version files bumped to
-1.1.3 on both platforms and the changelog rolled up. An earlier Android upload for this release
-surfaced **4 Play Console recommendations (2026-07-21)** — edge-to-edge, large-screen orientation,
-R8 — all now **fixed, verified live on a physical device, and merged into `release/1.1.3`** (see
-the Android technical quality section below). **Next step: `eas build` + `eas submit` for Android**
-(and iOS) from `release/1.1.3`, then merge PR #55 into `main` and tag `v1.1.3` once that succeeds.
-The web app has a live Ko-fi tip jar; web AdSense is built, but Google **rejected** the site review
-2026-07-21 ("Low value content") — the content fix merged in PR #56 (see P3 SEO) but **isn't live
-yet**: Vercel only deploys `main`, and `release/1.1.3` → `main` merges once this submission ships,
-which is exactly what's happening now. The web landing page's `PLAY_STORE_LINK` points at the real
-Play listing and is deployed. Checklist is ordered by priority (by ROI/effort — resequence as you
-like). See [ARCHITECTURE.md](./ARCHITECTURE.md) + [CLAUDE.md](./CLAUDE.md).
+**Where things stand:** **v1.1.3 has shipped — simultaneous iOS + Android** (Sound Pack Pro, the
+table-side share row, and the SEO/table-side-share web work from PR #56). `release/1.1.3` was
+built and submitted on both platforms, PR #55 merged into `main`, `v1.1.3` tagged on commit
+`90ea90e` (2026-07-22), and the release branch deleted. Android submitted to the Play Console
+production track and iOS uploaded to App Store Connect as of the submission — **confirm final
+store-review approval directly in App Store Connect / Play Console**, since that isn't visible
+from the repo. Both platforms run an AdMob banner + a Pro / Remove-Ads IAP (RevenueCat). An
+earlier Android upload for this release surfaced **4 Play Console recommendations (2026-07-21)**
+— edge-to-edge, large-screen orientation, R8 — all fixed and verified live on a physical device
+(see the Android technical quality section below). The web app has a live Ko-fi tip jar; web
+AdSense is built, but Google **rejected** the site review 2026-07-21 ("Low value content") — the
+content fix from PR #56 is now **confirmed live in production** (verified on
+`poker-timer.toondeboer.com/timer`, 2026-07-22), along with a new `/guide` "how to run a home
+poker tournament" page. **Next step: resubmit the site for AdSense review** (see P3 SEO) — nothing
+else blocks it now that the content fix is live. The web landing page's `PLAY_STORE_LINK` points
+at the real Play listing and is deployed. Checklist is ordered by priority (by ROI/effort —
+resequence as you like). See [ARCHITECTURE.md](./ARCHITECTURE.md) + [CLAUDE.md](./CLAUDE.md).
 
 **Legend:** ✅ done · 🚧 in progress · ⏳ waiting on an external process · ⬜ not started · ❌ chosen not to do for now.
 
@@ -43,15 +45,19 @@ despite config being done.
   - `NEXT_PUBLIC_ADSENSE_SLOT_LANDING=3591846942` — set in Vercel Production
   - `NEXT_PUBLIC_ADSENSE_SLOT_TIMER=1002332300` — set in Vercel Production
 - ✅ Apex `toondeboer.com` (a **separate** S3/CodeBuild static site, not the Vercel app) — serves the verification meta tag + `/ads.txt` (the seller line) with the correct pub id, deployed to the S3 bucket (confirmed live)
-- ✅ **App Store `pro_lifetime` IAP description** matches the trimmed paywall (remove-ads + support-the-dev only; no presets/sound-pack promises) — verified
+- 🚧 **App Store `pro_lifetime` IAP description** — stale: the paywall (`PRO_FEATURES` in
+  `Paywall.tsx`) now promises four things (remove ads, presets, sound pack, support-the-dev), and
+  updated copy for all three consoles is drafted in [STORE_LISTING.md](./STORE_LISTING.md#in-app-purchase--pro_lifetime-description-keep-in-sync-with-the-paywall),
+  but **still needs pasting into App Store Connect / Play Console / RevenueCat** (manual console
+  step — see the matching P4 item).
 
 ## ⏳ Waiting on external — AdSense rejected: "Low value content" (blocks P0 go-live)
 - ⏳ **Web AdSense site review — rejected 2026-07-21** with "Low value content": the site doesn't
   yet meet Google's minimum content / unique-content bar for the publisher network. Config (Vercel
-  env + apex verification, see P0) is unaffected and stays ready — nothing to flip there. The first
-  content fix (see P3 SEO) merged into `release/1.1.3` but **isn't deployed yet** — it won't reach
-  production until that branch merges to `main`. Resubmitting to AdSense before then would just
-  re-review the old thin content.
+  env + apex verification, see P0) is unaffected and stays ready — nothing to flip there. The
+  content fix (see P3 SEO) merged in PR #56 and PR #55, and is now **confirmed live in production**
+  (verified on `poker-timer.toondeboer.com/timer`, 2026-07-22), plus a new `/guide` content page —
+  **ready to resubmit for AdSense review now.**
 
 ## ✅ Android technical quality — Play Console recommendations (v1.1.3)
 **Status:** surfaced 2026-07-21 against an earlier Android upload for this release. All 4 were
@@ -153,21 +159,22 @@ next Android upload.
 - ❌ **Brandable apex domain** for the web app (off `poker-timer.toondeboer.com`) — chosen not to do for now
 - ✅ **SEO — technical/on-page baseline**: enriched web metadata (OG/Twitter/canonical/keywords),
   added `robots.ts`/`sitemap.ts`, gave `/timer` real content (how-to + FAQ, with `FAQPage` /
-  `WebApplication` / `SoftwareApplication` JSON-LD) instead of the bare widget — PR #56, merged
-  into `release/1.1.3` (**not deployed to production yet**, see the AdSense item above). This is a
-  necessary baseline, not a ranking guarantee — it alone won't surface the app for searches like
-  "poker timer." Still open, in rough priority order:
+  `WebApplication` / `SoftwareApplication` JSON-LD) instead of the bare widget — PR #56, **live in
+  production**. This is a necessary baseline, not a ranking guarantee — it alone won't surface the
+  app for searches like "poker timer." Still open, in rough priority order:
   - ⬜ Verify the `poker-timer.toondeboer.com` property in Google Search Console and submit
-    `sitemap.xml` — confirms indexing and gives real impression/click data
-  - ⬜ Add genuinely useful content-page depth (e.g. a "how to run a home poker tournament" guide,
-    a blind-structure explainer) — the `/timer` FAQ alone is still thin by competitive standards
+    `sitemap.xml` — confirms indexing and gives real impression/click data. Needs the site owner's
+    Google account — not something to do from the repo.
+  - ✅ Add genuinely useful content-page depth — new `/guide` page: "How to Run a Home Poker
+    Tournament" (buy-in, blind structure, payouts, timer) + a blind-structure explainer, with
+    `HowTo`/`FAQPage` JSON-LD, cross-linked from `/timer`. Live in production.
   - ⬜ **Backlinks** — the dominant ranking factor for a term like "poker timer," and untouched so
-    far: Product Hunt launch, r/poker, poker forums, app-directory listings
-  - ⏳ Resubmit for AdSense review once the content fix is live and the above gives Google enough
-    to judge the site as more than "low value content"
+    far: Product Hunt launch, r/poker, poker forums, app-directory listings. Public outreach under
+    the owner's own accounts — not something to do unprompted from the repo.
+  - ⏳ **Resubmit for AdSense review** — content fix + `/guide` are both live now; nothing left to
+    unblock this except actually clicking "Request review" in the AdSense dashboard.
 - ✅ **Table-side virality**: subtle on-screen brand + URL + a share affordance on both the web and
-  mobile timer screens — PR #56, merged into `release/1.1.3` (web side not deployed yet, same
-  caveat; mobile side ships with the v1.1.3 build)
+  mobile timer screens — PR #56, live in production (web) and shipped in the v1.1.3 build (mobile)
 
 ## P4 — Premium features (then re-add to the Pro paywall)
 - ✅ Saved tournament presets / multiple blind structures — **Pro-gated**, ships in **v1.1.2** (`@poker/core` presets + `usePresets` + "Tournament Presets" card)
