@@ -162,9 +162,11 @@ next Android upload.
   `WebApplication` / `SoftwareApplication` JSON-LD) instead of the bare widget — PR #56, **live in
   production**. This is a necessary baseline, not a ranking guarantee — it alone won't surface the
   app for searches like "poker timer." Still open, in rough priority order:
-  - ⬜ Verify the `poker-timer.toondeboer.com` property in Google Search Console and submit
-    `sitemap.xml` — confirms indexing and gives real impression/click data. Needs the site owner's
-    Google account — not something to do from the repo.
+  - ✅ Verify the `poker-timer.toondeboer.com` property in Google Search Console and submit
+    `sitemap.xml` — done 2026-07-22. Verified via a URL-prefix property + HTML file (not DNS —
+    the subdomain's existing Vercel CNAME rules out a DNS TXT/CNAME record at that name; the
+    file lives at `apps/web/public/google00c13e72a57bbd0f.html`, PR #70). Sitemap submission
+    shows **Success**.
   - ✅ Add genuinely useful content-page depth — new `/guide` page: "How to Run a Home Poker
     Tournament" (buy-in, blind structure, payouts, timer) + a blind-structure explainer, with
     `HowTo`/`FAQPage` JSON-LD, cross-linked from `/timer`. Live in production.
