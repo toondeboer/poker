@@ -38,6 +38,46 @@ words across name+subtitle+keywords into phrases, so e.g. "card" + "game" →
 The dead-simple blinds clock for home poker night. Big readable timer, custom blind levels, and a loud buzzer when it's time to raise. Live Activities on the Lock Screen.
 ```
 
+### Description (≤4000 chars)
+
+**Currently live** (stale — doesn't mention Pro, tournament presets, or Sound Packs, unlike the
+Play long description; same root cause as the `pro_lifetime` IAP copy gap above), `790` chars:
+```
+Make every poker night a professional experience. Poker Blinds Buzzer is designed for players and hosts who want to focus on the game, not the clock. Whether you're running a friendly home game or a competitive tournament, Poker Blinds Buzzer keeps the action flowing and everyone on the same page.
+
+Features:
+Customizable blind levels – Set duration, small blind and big blind values to fit your game.
+
+Automatic blind increases – Blinds update seamlessly without interrupting gameplay.
+
+Clear audio alerts – Know exactly when it's time to raise the stakes or take a break.
+
+Optimized for iPhone – Clean, intuitive design that's quick to set up.
+
+No more arguments about when blinds should go up or when the next break starts — Poker Blinds Buzzer handles it all so you can enjoy the game.
+```
+
+**Drafted replacement** — mirrors the Play long description's structure (glanceable timer, custom
+blinds, background alerts, Pro bullets, CTA), swapping in Live Activities for the iOS-specific
+Lock Screen bullet already promised in the promotional text above. `1279` chars:
+```
+The simple poker timer & tournament clock for home poker night. A big, easy-to-read blinds timer and a loud buzzer mean nobody has to squint at their phone mid-hand to know when it's time to raise.
+
+Built for real Texas Hold'em tournament nights, not a casino app full of settings you'll never touch:
+
+• Big, glanceable timer — read the clock from across the table
+• Fully custom blind levels — set your own blind structure and round lengths, add or remove levels anytime, free
+• Loud buzzer & notification when a level ends, even if your phone is locked or the app is in the background
+• Live Activities on the Lock Screen — check the current blind level without unlocking your phone
+• Clean, distraction-free interface — no account, no sign-up, no clutter
+• Save tournament presets (Pro) — store your blind structure & round length, load them in one tap
+• Choose your alarm sound (Pro) — pick from a few bundled alarm packs beyond the default
+
+Whether it's a casual poker night with friends or a bigger home tournament, Poker Blinds Buzzer keeps the blinds clock visible and on schedule so everyone can focus on the cards, not the clock.
+
+Go Pro to remove ads, save tournament presets, and pick your alarm sound — or just support an indie developer. Everything else stays free.
+```
+
 ## Android — Google Play (reuse at launch — P1 item 4)
 
 - **Title (≤30 chars):** `Poker Blinds Timer & Buzzer`
