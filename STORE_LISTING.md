@@ -60,45 +60,73 @@ The dead-simple blinds clock for home poker night. Big readable timer, custom bl
   • Loud buzzer & notification when a level ends, even if your phone is locked or the app is in the background
   • Keeps timing in the background — the clock won't drop out mid-tournament
   • Clean, distraction-free interface — no account, no sign-up, no clutter
+  • Save tournament presets (Pro) — store your blind structure & round length, load them in one tap
+  • Choose your alarm sound (Pro) — pick from a few bundled alarm packs beyond the default
 
   Whether it's a casual poker night with friends or a bigger home tournament, Poker Blinds Timer & Buzzer keeps the blinds clock visible and on schedule so everyone can focus on the cards, not the clock.
 
-  Go Pro to remove ads for a clean, full-screen timer — or just support an indie developer. Everything else stays free.
+  Go Pro to remove ads, save tournament presets, and pick your alarm sound — or just support an indie developer. Everything else stays free.
   ```
-  `1077` chars. **Deliberately doesn't mention tournament presets** — that
-  feature is iOS-only as of v1.1.2 (Android is still on 1.1.1). Add a bullet
-  for it once presets ship to Android in **v1.1.3** (see P4 Pro-copy sync item
-  in [ROADMAP.md](./ROADMAP.md)), so the listing doesn't promise a feature the
-  current Android binary doesn't have.
+  `1264` chars. Updated for v1.1.3: previously deliberately omitted tournament
+  presets since that feature was iOS-only as of v1.1.2 (Android was still on
+  1.1.1) — now that presets **and** Sound Packs both ship to Android in
+  **v1.1.3**, both are called out as Pro bullets above.
 
 ## In-app purchase — `pro_lifetime` description (keep in sync with the paywall)
 
 The paywall (`PRO_FEATURES` in `apps/mobile/src/components/paywall/Paywall.tsx`)
-now promises three things — **remove ads · save & load tournament presets ·
-support the dev**. Update the store IAP copy in all three consoles to match
-(this is the P4 sync item). Presets shipped in v1.1.2, so the earlier
-"remove-ads + support-the-dev only" description is now out of date.
+now promises **four** things — **remove ads · save & load tournament presets ·
+choose your alarm sound · support the dev**. Update the store IAP copy in all
+three consoles to match (this is the P4 sync item). Presets shipped in v1.1.2
+(iOS)/v1.1.3 (Android); Sound Packs are new in v1.1.3 on both platforms — the
+copy below adds the sound-pack mention that was still missing.
 
 ### App Store Connect — In-App Purchase → `pro_lifetime`
-- **Display Name (≤30 chars):** `Pro — Remove Ads & Presets` (`26`)
+- **Display Name (≤30 chars):** `Pro — Ads, Presets & Sounds` (`27`)
 - **Description** (short field — **verify the limit in the console**, it's tight):
   ```
-  Remove ads + save tournament presets.
+  No ads, presets & custom sounds.
   ```
-  `37` chars. If the field allows more:
-  `No ads, save tournament presets, support the dev.` (`49`)
+  `32` chars.
 
 ### Google Play — Monetize → Products → `pro_lifetime`
-- **Name (≤55 chars):** `Pro — Remove Ads & Tournament Presets` (`37`)
+- **Name (≤55 chars):** `Pro — Remove Ads, Presets & Sound Packs` (`39`)
 - **Description (≤200 chars):**
   ```
-  Unlock Pro: remove all ads for a clean full-screen timer, save & load your tournament presets (blind structure + round length), and support an indie developer. One-time purchase.
+  Unlock Pro: remove all ads for a clean full-screen timer, save & load tournament presets, choose your alarm sound from bundled packs, and support an indie developer. One-time purchase.
   ```
+  `184` chars.
 
 ### RevenueCat
 - The `pro_lifetime` product description mirrors the store; if you keep an
   internal description/notes field, match the copy above so the dashboard reads
   the same. No entitlement/offering changes — just the text.
+
+## Release notes — v1.1.3
+
+**Asymmetric on purpose:** iOS is live at v1.1.2 (already has tournament
+presets + the in-app review prompt), so its notes only cover what's new since
+then. Android is live at v1.1.1 (skipped 1.1.2 entirely — see `CHANGELOG.md`),
+so its notes cover **two versions' worth** of changes: presets are new to
+Android users here, not just Sound Packs.
+
+### iOS — "What's New in This Version" (App Store Connect)
+```
+🔊 Sound Packs (Pro): choose the alarm that plays when a round ends — Classic Alarm, Classic Beep, Bell Chime, or Double Buzz — with a 3-second preview before you pick.
+📣 Share Poker Blinds Buzzer with your table in one tap.
+Thanks for playing — feedback always welcome!
+```
+`269` chars (App Store Connect's limit is generous, ~4000 — kept short on purpose).
+
+### Android — "Release notes" (Play Console, ≤500 chars per language)
+```
+Big update!
+📌 Tournament Presets (Pro): save your blind structure & round length, load them in one tap.
+🔊 Sound Packs (Pro): pick your round-end alarm — Classic Alarm, Beep, Bell Chime, or Double Buzz — with a quick preview.
+📣 Share the app with your table in one tap.
+✨ Smoother, more polished experience throughout.
+```
+`317` chars — fits the 500-char Play Console limit.
 
 ## Notes
 - Re-validate char counts in the console before saving (emoji/locale can shift).

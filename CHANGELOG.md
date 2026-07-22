@@ -9,17 +9,14 @@ platform-tagged heading (e.g. `## [1.1.3] - 2026-07-20 — Android`) when you cu
 
 ## [Unreleased]
 
-### Added
-- Dev-only `FORCE_FREE_IN_DEV` toggle in `PremiumContext.tsx` (mirrors the existing
-  `FORCE_PRO_IN_DEV`), for testing the free/ad experience on a device whose Apple/Google account
-  already owns `pro_lifetime`. Always `false` in release builds; no user-facing effect.
-
-### Fixed
-- iOS: locked iPhone to portrait only (was allowing all four orientations), matching the
-  portrait-only decision already made for Android phones. iPad is unaffected — still supports all
-  orientations.
-
 ## [1.1.3] - 2026-07-21 — iOS & Android
+
+**Release notes (App Store / Play Console "What's New" text) are drafted in
+[STORE_LISTING.md](./STORE_LISTING.md#release-notes--v113)** — kept there
+alongside the rest of the store copy rather than duplicated here. iOS's notes
+cover only what's new since the live v1.1.2; Android's cover two versions'
+worth since it's live at v1.1.1 (presets are new to Android users here, not
+just Sound Packs).
 
 ### Added
 - Sound Pack (Pro) — choose the alarm that plays when a round ends. Three bundled alternatives
@@ -27,6 +24,9 @@ platform-tagged heading (e.g. `## [1.1.3] - 2026-07-20 — Android`) when you cu
   "Sound Pack" card in Settings, with a 3-second preview per option.
 - A subtle "Share Poker Blinds Buzzer" row below the timer, so players at the table can share the
   app with one tap.
+- Dev-only `FORCE_FREE_IN_DEV` toggle in `PremiumContext.tsx` (mirrors the existing
+  `FORCE_PRO_IN_DEV`), for testing the free/ad experience on a device whose Apple/Google account
+  already owns `pro_lifetime`. Always `false` in release builds; no user-facing effect.
 
 ### Changed
 - Android: release builds now enable R8 code shrinking/obfuscation and resource shrinking
@@ -51,6 +51,12 @@ platform-tagged heading (e.g. `## [1.1.3] - 2026-07-20 — Android`) when you cu
   no way to reach it. The ad banner also moved to sit between the timer card and the share row
   instead of below both, and the screen now pads for all four safe-area insets instead of only
   the top.
+- Android: portrait-only lock kept on `MainActivity` deliberately (product decision) —
+  Android 16's large-screen orientation override only affects tablets/foldables anyway, so phones
+  still honor it.
+- iOS: locked iPhone to portrait only (was allowing all four orientations), matching the
+  portrait-only decision already made for Android phones. iPad is unaffected — still supports all
+  orientations.
 
 ## [1.1.2] - 2026-07-17 — iOS only
 

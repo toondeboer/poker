@@ -183,7 +183,7 @@ next Android upload.
   `MediaPlayer.setDataSource`, but iOS notification sounds require copying the file into the app's
   `Library/Sounds` directory (`UNNotificationSound` only resolves bundle/Library-Sounds filenames,
   not arbitrary paths), under Apple's 30-second sound-file limit).
-- ✅ Re-add shipped features to `PRO_FEATURES` in `apps/mobile/src/components/paywall/Paywall.tsx` — presets added. Updated `pro_lifetime` IAP description (remove ads + presets + support-the-dev, copy in [STORE_LISTING.md](./STORE_LISTING.md)) pasted into App Store Connect / Play Console / RevenueCat
+- 🚧 Re-add shipped features to `PRO_FEATURES` in `apps/mobile/src/components/paywall/Paywall.tsx` — presets and Sound Packs both added (4 features total: remove ads, presets, sound pack, support-the-dev). `STORE_LISTING.md`'s IAP description was stale — only mentioned ads + presets, missing the sound-pack mention added for v1.1.3 Sound Packs. Copy updated in `STORE_LISTING.md`; **still needs pasting into App Store Connect / Play Console / RevenueCat** (manual console step).
 
 ## 🔁 Ongoing — Monitor
 - ⬜ AdMob fill/revenue, RevenueCat conversions, AdSense (post-approval), `app-ads.txt`/`ads.txt` verification, ratings & reviews
