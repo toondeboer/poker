@@ -77,22 +77,31 @@ forced/user-visible later. PR each item into `release/1.1.3` normally, with a `C
   Google Mobile Ads SDK's ad overlay) live inside React Native core, Material Components, and
   `react-native-google-mobile-ads` respectively, not our call sites — those only clear via
   upstream version bumps, not app code.
-- 🚧 **Remove the Android portrait lock for large screens** —
-  `android:screenOrientation="portrait"` removed from `MainActivity` in
-  `apps/mobile/android/app/src/main/AndroidManifest.xml` (Android 16 ignores it outright on
-  large-screen devices anyway, so better to remove it deliberately than have Android force it
-  later, untested). iOS already ships this app with **no orientation restriction and
-  `supportsTablet: true`**, so this brings Android to the same bar. While auditing the layout for
-  rotation-readiness, found and fixed two components that computed `Dimensions.get("window")`
-  **once at module load** instead of reactively (`TimerExpirationAlert.tsx`,
-  `PokerSettings.tsx`'s `isTablet` check) — since `MainActivity`'s `configChanges` already
-  includes `orientation|screenSize|screenLayout` (no activity recreation on rotation/fold), those
-  would've kept using stale dimensions from first launch after a rotation or fold. Switched both
-  to `useWindowDimensions()`. **Still needed:** an actual on-device smoke test of the
-  timer/blinds-editor/settings/paywall screens on an Android tablet emulator and a foldable
-  emulator in both orientations — typecheck/lint/`assembleDebug` are clean and the merged
-  manifest confirms `MainActivity` no longer declares `screenOrientation`, but that's not a
-  substitute for seeing the layout render.
+- ✅ **Large-screen orientation — kept `android:screenOrientation="portrait"` on phones,
+  deliberately** — first pass removed it entirely to satisfy the Play Console recommendation, but
+  on-device testing (physical Samsung phone) showed real auto-rotate landscape layouts are worse
+  UX for a poker timer, and product direction is **portrait-only on phones, no exceptions**.
+  Restored `android:screenOrientation="portrait"` on `MainActivity`. This doesn't actually undo
+  large-screen support: Android 16's override that ignores `screenOrientation` only kicks in for
+  **large-screen devices** (tablets/foldables) — phones still honor the manifest attribute — so
+  Play Console will likely keep flagging this as a recommendation (not a blocker) indefinitely,
+  which is an accepted tradeoff for the portrait-only product decision. The two components fixed
+  to read `useWindowDimensions()` reactively instead of a stale module-load-time
+  `Dimensions.get()` (`TimerExpirationAlert.tsx`, `PokerSettings.tsx`'s `isTablet` check) are kept
+  — they still matter for tablets/foldables, which can still get resized/rotated by Android 16
+  regardless of the manifest attribute.
+- ✅ **Timer screen fits one screen without scrolling, responsively** — found during the same
+  on-device pass: the timer screen wasn't scrollable and only padded for the top inset, so the ad
+  banner could push the share row off-screen with no way to reach it, and it didn't account for
+  the ad banner or shorter available height. Rather than making it scrollable (rejected — the
+  screen's content is minimal enough that scrolling reads as a bug, not a feature, for a poker
+  timer glanced at across a table), `PokerTimer.tsx` now computes a `scale` factor from available
+  height (window height minus insets minus the ad banner's reserved height when shown) and applies
+  it to font sizes and vertical spacing, so the card compresses just enough to fit — full size
+  when there's room (matches the original design), compact when the ad banner and/or a landscape
+  height (moot now that phones are portrait-only, but tablets/foldables can still get resized to
+  a shorter height by Android 16) leave less room. Verified live on-device: fits without scrolling
+  in both the Pro (no ad) and free (ad shown) cases.
 - ✅ **Enable R8** — set `android.enableProguardInReleaseBuilds=true` and
   `android.enableShrinkResourcesInReleaseBuilds=true` in
   `apps/mobile/android/gradle.properties` (previously unset/`false`, so release builds shipped

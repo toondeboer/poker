@@ -1,27 +1,41 @@
 // src/components/PokerTimer.tsx
-import React, { useCallback } from "react";
+import React, { useCallback, useMemo } from "react";
 import {
   Share,
-  ScrollView,
   StyleSheet,
   Text,
   TouchableOpacity,
+  useWindowDimensions,
   View,
 } from "react-native";
 import { SystemBars } from "react-native-edge-to-edge";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { LinearGradient } from "expo-linear-gradient";
 import { Ionicons } from "@expo/vector-icons";
-import { formatTime, SITE_URL, SHARE_MESSAGE } from "@poker/core";
+import { formatTime, shouldShowAds, SITE_URL, SHARE_MESSAGE } from "@poker/core";
 import { useBlinds } from "@/src/contexts/BlindsContext";
 import { useTimer } from "@/src/contexts/TimerContext";
+import { usePremium } from "@/src/contexts/PremiumContext";
+import { useAdsConsent } from "@/src/hooks/useAdsConsent";
 import { useRouter } from "expo-router";
 import { TimerExpirationAlert } from "./TimerExpirationAlert";
 import { BannerAdSlot } from "./ads/BannerAdSlot";
 
+// The card is designed to fit one screen with no scrolling. `BASELINE_HEIGHT` is
+// roughly the available height on a typical phone in portrait with no ad banner
+// (where the fixed sizes below look right); shorter available height — the ad
+// banner, or landscape — scales spacing/font-size down proportionally instead of
+// letting content overflow or leaving it scrollable.
+const BASELINE_HEIGHT = 700;
+const MIN_SCALE = 0.6;
+const AD_RESERVED_HEIGHT = 60;
+
 export default function PokerTimer() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
+  const { height: windowHeight } = useWindowDimensions();
+  const { isPremium } = usePremium();
+  const { consentResolved } = useAdsConsent();
   const { currentBlindIndex, blindLevels, increaseBlinds, decreaseBlinds } =
     useBlinds();
   const {
@@ -35,6 +49,21 @@ export default function PokerTimer() {
     dismissTimerAlert,
     handleNextBlinds,
   } = useTimer();
+
+  const adVisible = shouldShowAds({ isPremium, consentResolved });
+
+  const scale = useMemo(() => {
+    const availableHeight =
+      windowHeight -
+      insets.top -
+      insets.bottom -
+      (adVisible ? AD_RESERVED_HEIGHT : 0);
+    return Math.min(1, Math.max(MIN_SCALE, availableHeight / BASELINE_HEIGHT));
+  }, [windowHeight, insets.top, insets.bottom, adVisible]);
+
+  // Scales vertical spacing/font-size so the card fits one screen without
+  // scrolling — see BASELINE_HEIGHT above.
+  const s = useCallback((value: number) => value * scale, [scale]);
 
   const handleShare = useCallback(() => {
     Share.share({
@@ -75,30 +104,40 @@ export default function PokerTimer() {
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 1 }}
       >
-        <ScrollView
-          style={styles.scrollView}
-          contentContainerStyle={[
+        <View
+          style={[
             styles.content,
             {
-              paddingTop: insets.top + 24,
-              paddingBottom: insets.bottom + 24,
+              paddingTop: insets.top + s(24),
+              paddingBottom: insets.bottom + s(24),
               paddingLeft: insets.left + 24,
               paddingRight: insets.right + 24,
             },
           ]}
-          showsVerticalScrollIndicator={false}
         >
           {/* Main Timer Card */}
-          <View style={styles.mainCard}>
+          <View
+            style={[
+              styles.mainCard,
+              { padding: s(32), marginBottom: s(24) },
+            ]}
+          >
             {/* Timer Display */}
-            <View style={styles.timerSection}>
-              <Text style={styles.timerText}>{formatTime(timeLeft)}</Text>
-              <Text style={styles.levelText}>
+            <View style={[styles.timerSection, { marginBottom: s(32) }]}>
+              <Text
+                style={[
+                  styles.timerText,
+                  { fontSize: s(72), marginBottom: s(8) },
+                ]}
+              >
+                {formatTime(timeLeft)}
+              </Text>
+              <Text style={[styles.levelText, { marginBottom: s(16) }]}>
                 Level {currentBlindIndex + 1}
               </Text>
 
               {/* Progress Bar */}
-              <View style={styles.progressBarContainer}>
+              <View style={[styles.progressBarContainer, { marginBottom: s(8) }]}>
                 <View style={styles.progressBarBackground}>
                   <View
                     style={[
@@ -114,8 +153,15 @@ export default function PokerTimer() {
             </View>
 
             {/* Current Blinds */}
-            <View style={styles.blindsCard}>
-              <Text style={styles.blindsTitle}>Current Blinds</Text>
+            <View
+              style={[
+                styles.blindsCard,
+                { padding: s(24), marginBottom: s(24) },
+              ]}
+            >
+              <Text style={[styles.blindsTitle, { marginBottom: s(12) }]}>
+                Current Blinds
+              </Text>
               <View style={styles.blindsRow}>
                 <View style={styles.blindColumn}>
                   <Text style={styles.blindLabel}>Small Blind</Text>
@@ -135,8 +181,15 @@ export default function PokerTimer() {
 
             {/* Next Blinds Preview */}
             {nextBlindLevel && (
-              <View style={styles.nextBlindsCard}>
-                <Text style={styles.nextBlindsTitle}>Next Level</Text>
+              <View
+                style={[
+                  styles.nextBlindsCard,
+                  { padding: s(16), marginBottom: s(24) },
+                ]}
+              >
+                <Text style={[styles.nextBlindsTitle, { marginBottom: s(8) }]}>
+                  Next Level
+                </Text>
                 <View style={styles.nextBlindsRow}>
                   <Text style={styles.nextBlindsText}>
                     SB: {nextBlindLevel.small}
@@ -149,11 +202,12 @@ export default function PokerTimer() {
             )}
 
             {/* Timer Controls */}
-            <View style={styles.timerControls}>
+            <View style={[styles.timerControls, { marginBottom: s(24) }]}>
               <TouchableOpacity
                 style={[
                   styles.primaryButton,
                   {
+                    paddingVertical: s(12),
                     backgroundColor: paused
                       ? timerDuration === timeLeft
                         ? "#7C3AED"
@@ -177,17 +231,21 @@ export default function PokerTimer() {
                 </Text>
               </TouchableOpacity>
 
-              <TouchableOpacity style={styles.resetButton} onPress={resetTimer}>
+              <TouchableOpacity
+                style={[styles.resetButton, { paddingVertical: s(12) }]}
+                onPress={resetTimer}
+              >
                 <Ionicons name="refresh" size={20} color="white" />
               </TouchableOpacity>
             </View>
 
             {/* Blind Controls */}
-            <View style={styles.blindControls}>
+            <View style={[styles.blindControls, { marginBottom: s(24) }]}>
               <TouchableOpacity
                 style={[
                   styles.blindButton,
                   styles.decreaseButton,
+                  { paddingVertical: s(12) },
                   currentBlindIndex === 0 && styles.disabledButton,
                 ]}
                 onPress={decreaseBlinds}
@@ -201,6 +259,7 @@ export default function PokerTimer() {
                 style={[
                   styles.blindButton,
                   styles.increaseButton,
+                  { paddingVertical: s(12) },
                   currentBlindIndex >= blindLevels.length - 1 &&
                     styles.disabledButton,
                 ]}
@@ -214,7 +273,7 @@ export default function PokerTimer() {
 
             {/* Settings Button */}
             <TouchableOpacity
-              style={styles.settingsButton}
+              style={[styles.settingsButton, { paddingVertical: s(12) }]}
               onPress={() => router.navigate("/settings")}
             >
               <Ionicons name="settings" size={20} color="white" />
@@ -224,7 +283,7 @@ export default function PokerTimer() {
 
           {/* Subtle brand + share row — helps players at the table find the app */}
           <TouchableOpacity
-            style={styles.shareRow}
+            style={[styles.shareRow, { marginTop: s(16) }]}
             onPress={handleShare}
             accessibilityLabel="Share Poker Blinds Buzzer"
           >
@@ -235,7 +294,7 @@ export default function PokerTimer() {
             />
             <Text style={styles.shareRowText}>Share Poker Blinds Buzzer</Text>
           </TouchableOpacity>
-        </ScrollView>
+        </View>
 
         {/* Banner ad — pinned below the content, hidden for Pro users */}
         <BannerAdSlot />
@@ -260,18 +319,13 @@ const styles = StyleSheet.create({
   gradientBackground: {
     flex: 1,
   },
-  scrollView: {
-    flex: 1,
-  },
   content: {
-    flexGrow: 1,
+    flex: 1,
     justifyContent: "center",
   },
   mainCard: {
     backgroundColor: "rgba(255, 255, 255, 0.95)",
     borderRadius: 24,
-    padding: 32,
-    marginBottom: 24,
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 10 },
     shadowOpacity: 0.3,
@@ -282,22 +336,17 @@ const styles = StyleSheet.create({
   // Timer Section
   timerSection: {
     alignItems: "center",
-    marginBottom: 32,
   },
   timerText: {
-    fontSize: 72,
     fontWeight: "bold",
     color: "#1F2937",
-    marginBottom: 8,
   },
   levelText: {
     fontSize: 14,
     color: "#6B7280",
-    marginBottom: 16,
   },
   progressBarContainer: {
     width: "100%",
-    marginBottom: 8,
   },
   progressBarBackground: {
     width: "100%",
@@ -315,15 +364,12 @@ const styles = StyleSheet.create({
   blindsCard: {
     backgroundColor: "#F9FAFB",
     borderRadius: 16,
-    padding: 24,
-    marginBottom: 24,
   },
   blindsTitle: {
     fontSize: 18,
     fontWeight: "600",
     color: "#374151",
     textAlign: "center",
-    marginBottom: 12,
   },
   blindsRow: {
     flexDirection: "row",
@@ -354,8 +400,6 @@ const styles = StyleSheet.create({
   nextBlindsCard: {
     backgroundColor: "#EFF6FF",
     borderRadius: 16,
-    padding: 16,
-    marginBottom: 24,
     borderWidth: 2,
     borderColor: "#DBEAFE",
   },
@@ -364,7 +408,6 @@ const styles = StyleSheet.create({
     fontWeight: "500",
     color: "#1D4ED8",
     textAlign: "center",
-    marginBottom: 8,
   },
   nextBlindsRow: {
     flexDirection: "row",
@@ -379,14 +422,12 @@ const styles = StyleSheet.create({
   timerControls: {
     flexDirection: "row",
     gap: 12,
-    marginBottom: 24,
   },
   primaryButton: {
     flex: 1,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    paddingVertical: 12,
     paddingHorizontal: 16,
     borderRadius: 12,
     gap: 8,
@@ -403,7 +444,6 @@ const styles = StyleSheet.create({
   },
   resetButton: {
     backgroundColor: "#6B7280",
-    paddingVertical: 12,
     paddingHorizontal: 16,
     borderRadius: 12,
     shadowColor: "#000",
@@ -417,14 +457,12 @@ const styles = StyleSheet.create({
   blindControls: {
     flexDirection: "row",
     gap: 12,
-    marginBottom: 24,
   },
   blindButton: {
     flex: 1,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    paddingVertical: 12,
     paddingHorizontal: 16,
     borderRadius: 12,
     gap: 8,
@@ -457,7 +495,6 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     backgroundColor: "#374151",
-    paddingVertical: 12,
     paddingHorizontal: 16,
     borderRadius: 12,
     gap: 8,
@@ -479,7 +516,6 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     gap: 6,
-    marginTop: 16,
   },
   shareRowText: {
     color: "rgba(255,255,255,0.7)",

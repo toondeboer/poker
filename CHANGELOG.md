@@ -17,14 +17,17 @@ platform-tagged heading (e.g. `## [1.1.3] - 2026-07-20 — Android`) when you cu
 - Android: real edge-to-edge display instead of the transparent-status/nav-bar-color trick —
   content now respects safe-area insets and the system bars use `react-native-edge-to-edge`
   instead of deprecated `Window.setStatusBarColor`/`setNavigationBarColor` APIs.
-- Android: removed the portrait-only lock on `MainActivity` so large-screen devices (tablets,
-  foldables) aren't forced into a restriction Android 16 ignores anyway; also made two components
-  that read window dimensions once at load time (`TimerExpirationAlert`, `PokerSettings`'
-  tablet-layout check) recompute reactively on rotation/fold instead of staying stale.
-- Android: the timer screen is now scrollable and pads for all four safe-area insets instead of
-  only the top — fixes the share row becoming unreachable when the ad banner is showing, and
-  content/the ad banner clipping under the rotated navigation bar in landscape. Settings screen
-  now also pads for the left/right inset in landscape for the same reason.
+- Android: two components that read window dimensions once at load time
+  (`TimerExpirationAlert`, `PokerSettings`' tablet-layout check) now recompute reactively instead
+  of staying stale, so tablets/foldables that get resized by Android 16 (which can still happen
+  regardless of the app's portrait setting) don't end up with mis-sized layouts.
+- Android: settings screen now pads for the left/right safe-area inset (previously only handled
+  by the OS-provided header), fixing content clipping under the navigation bar on large-screen
+  devices.
+- Android: the timer screen now scales its font sizes and spacing to fit one screen without
+  scrolling when the ad banner is showing (previously the ad banner could push the "Share" row
+  off-screen with no way to reach it) and pads for all four safe-area insets instead of only the
+  top.
 
 ## [1.1.3] - 2026-07-21 — iOS & Android
 
