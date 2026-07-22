@@ -1,8 +1,7 @@
 # CLAUDE.md
 
 Guidance for working in this repo. See [README.md](./README.md) for setup, commands, and deploy,
-[ARCHITECTURE.md](./ARCHITECTURE.md) for the full design, and [ROADMAP.md](./ROADMAP.md) for
-current monetization/growth status.
+and [ARCHITECTURE.md](./ARCHITECTURE.md) for the full design.
 
 ## Conventions & guardrails
 
