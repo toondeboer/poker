@@ -12,12 +12,13 @@ from the repo. Both platforms run an AdMob banner + a Pro / Remove-Ads IAP (Reve
 earlier Android upload for this release surfaced **4 Play Console recommendations (2026-07-21)**
 — edge-to-edge, large-screen orientation, R8 — all fixed and verified live on a physical device
 (see the Android technical quality section below). The web app has a live Ko-fi tip jar; web
-AdSense is built, but Google **rejected** the site review 2026-07-21 ("Low value content") — the
-content fix from PR #56 is now **confirmed live in production** (verified on
-`poker-timer.toondeboer.com/timer`, 2026-07-22), along with a new `/guide` "how to run a home
-poker tournament" page. **Next step: resubmit the site for AdSense review** (see P3 SEO) — nothing
-else blocks it now that the content fix is live. The web landing page's `PLAY_STORE_LINK` points
-at the real Play listing and is deployed. Checklist is ordered by priority (by ROI/effort —
+AdSense is built; Google **rejected** the first site review 2026-07-21 ("Low value content"), the
+content fix from PR #56 + the new `/guide` page went live in production, and the site was
+**resubmitted for AdSense review on 2026-07-22** — now **waiting on Google's decision** (see the
+waiting-on-external section). The `pro_lifetime` IAP description (all three consoles) and the iOS
+App Store Connect listing description have both been **updated to the v1.1.3-aligned copy
+drafted in [STORE_LISTING.md](./STORE_LISTING.md)**. The web landing page's `PLAY_STORE_LINK`
+points at the real Play listing and is deployed. Checklist is ordered by priority (by ROI/effort —
 resequence as you like). See [ARCHITECTURE.md](./ARCHITECTURE.md) + [CLAUDE.md](./CLAUDE.md).
 
 **Legend:** ✅ done · 🚧 in progress · ⏳ waiting on an external process · ⬜ not started · ❌ chosen not to do for now.
@@ -36,28 +37,27 @@ resequence as you like). See [ARCHITECTURE.md](./ARCHITECTURE.md) + [CLAUDE.md](
   + foreground-alarm bugs — emulator smoke test green (PR #44)
 - ✅ Android: **live on Google Play** (approved 2026-07) — AdMob banner + Pro/Remove-Ads IAP (RevenueCat), production review passed
 
-## P0 — Quick closeouts (config done — AdSense go-live rejected, see below)
-**Status:** all hands-on P0 config/deploy is complete (verified 2026-06-28). **P0 cannot be closed**
-— Google rejected the AdSense site review (see waiting item below), so ads don't actually serve yet
-despite config being done.
+## ✅ P0 — Quick closeouts (config done, AdSense resubmitted — see waiting section)
+**Status:** all hands-on P0 config/deploy is complete, including the IAP/App Store copy sync.
+**P0 itself can't fully close until AdSense approves** (see waiting item below) — that's the only
+remaining dependency, and it's outside repo control.
 - ✅ **Web AdSense env (Vercel, web app `poker-timer.toondeboer.com`)** — all three set + deployed, confirmed:
   - `NEXT_PUBLIC_ADSENSE_CLIENT=ca-pub-9738048037268359` — live (`/ads.txt` serves the seller line; `google-adsense-account` meta tag in `<head>`)
   - `NEXT_PUBLIC_ADSENSE_SLOT_LANDING=3591846942` — set in Vercel Production
   - `NEXT_PUBLIC_ADSENSE_SLOT_TIMER=1002332300` — set in Vercel Production
 - ✅ Apex `toondeboer.com` (a **separate** S3/CodeBuild static site, not the Vercel app) — serves the verification meta tag + `/ads.txt` (the seller line) with the correct pub id, deployed to the S3 bucket (confirmed live)
-- 🚧 **App Store `pro_lifetime` IAP description** — stale: the paywall (`PRO_FEATURES` in
-  `Paywall.tsx`) now promises four things (remove ads, presets, sound pack, support-the-dev), and
-  updated copy for all three consoles is drafted in [STORE_LISTING.md](./STORE_LISTING.md#in-app-purchase--pro_lifetime-description-keep-in-sync-with-the-paywall),
-  but **still needs pasting into App Store Connect / Play Console / RevenueCat** (manual console
-  step — see the matching P4 item).
+- ✅ **App Store `pro_lifetime` IAP description** — updated to the four-feature copy (remove ads,
+  presets, sound pack, support-the-dev) in App Store Connect, Play Console, and RevenueCat (2026-07-22).
+- ✅ **iOS App Store Connect listing description** — replaced the stale, Pro-less text with the
+  v1.1.3-aligned rewrite drafted in [STORE_LISTING.md](./STORE_LISTING.md) (2026-07-22).
 
-## ⏳ Waiting on external — AdSense rejected: "Low value content" (blocks P0 go-live)
-- ⏳ **Web AdSense site review — rejected 2026-07-21** with "Low value content": the site doesn't
-  yet meet Google's minimum content / unique-content bar for the publisher network. Config (Vercel
-  env + apex verification, see P0) is unaffected and stays ready — nothing to flip there. The
-  content fix (see P3 SEO) merged in PR #56 and PR #55, and is now **confirmed live in production**
-  (verified on `poker-timer.toondeboer.com/timer`, 2026-07-22), plus a new `/guide` content page —
-  **ready to resubmit for AdSense review now.**
+## ⏳ Waiting on external — AdSense resubmitted, awaiting Google's decision
+- ⏳ **Web AdSense site review — resubmitted 2026-07-22** after the first rejection (2026-07-21,
+  "Low value content"). The content fix (`/timer` FAQ, PR #56) and the new `/guide` page are both
+  live in production, and the site was resubmitted for review — **now waiting on Google**, typically
+  a few days to a couple weeks. Nothing left to do here until Google responds; if rejected again,
+  check the specific reason before assuming more content depth is needed — could also be traffic
+  volume or another policy area.
 
 ## ✅ Android technical quality — Play Console recommendations (v1.1.3)
 **Status:** surfaced 2026-07-21 against an earlier Android upload for this release. All 4 were
@@ -171,8 +171,8 @@ next Android upload.
   - ⬜ **Backlinks** — the dominant ranking factor for a term like "poker timer," and untouched so
     far: Product Hunt launch, r/poker, poker forums, app-directory listings. Public outreach under
     the owner's own accounts — not something to do unprompted from the repo.
-  - ⏳ **Resubmit for AdSense review** — content fix + `/guide` are both live now; nothing left to
-    unblock this except actually clicking "Request review" in the AdSense dashboard.
+  - ⏳ **Resubmit for AdSense review** — done 2026-07-22, awaiting Google's decision (see the
+    waiting-on-external section up top).
 - ✅ **Table-side virality**: subtle on-screen brand + URL + a share affordance on both the web and
   mobile timer screens — PR #56, live in production (web) and shipped in the v1.1.3 build (mobile)
 
@@ -190,7 +190,7 @@ next Android upload.
   `MediaPlayer.setDataSource`, but iOS notification sounds require copying the file into the app's
   `Library/Sounds` directory (`UNNotificationSound` only resolves bundle/Library-Sounds filenames,
   not arbitrary paths), under Apple's 30-second sound-file limit).
-- 🚧 Re-add shipped features to `PRO_FEATURES` in `apps/mobile/src/components/paywall/Paywall.tsx` — presets and Sound Packs both added (4 features total: remove ads, presets, sound pack, support-the-dev). `STORE_LISTING.md`'s IAP description was stale — only mentioned ads + presets, missing the sound-pack mention added for v1.1.3 Sound Packs. Copy updated in `STORE_LISTING.md`; **still needs pasting into App Store Connect / Play Console / RevenueCat** (manual console step).
+- ✅ Re-add shipped features to `PRO_FEATURES` in `apps/mobile/src/components/paywall/Paywall.tsx` — presets and Sound Packs both added (4 features total: remove ads, presets, sound pack, support-the-dev). Updated `pro_lifetime` IAP copy (drafted in `STORE_LISTING.md`) pasted into App Store Connect / Play Console / RevenueCat (2026-07-22).
 
 ## 🔁 Ongoing — Monitor
 - ⬜ AdMob fill/revenue, RevenueCat conversions, AdSense (post-approval), `app-ads.txt`/`ads.txt` verification, ratings & reviews

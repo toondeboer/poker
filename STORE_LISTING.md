@@ -40,26 +40,10 @@ The dead-simple blinds clock for home poker night. Big readable timer, custom bl
 
 ### Description (≤4000 chars)
 
-**Currently live** (stale — doesn't mention Pro, tournament presets, or Sound Packs, unlike the
-Play long description; same root cause as the `pro_lifetime` IAP copy gap above), `790` chars:
-```
-Make every poker night a professional experience. Poker Blinds Buzzer is designed for players and hosts who want to focus on the game, not the clock. Whether you're running a friendly home game or a competitive tournament, Poker Blinds Buzzer keeps the action flowing and everyone on the same page.
-
-Features:
-Customizable blind levels – Set duration, small blind and big blind values to fit your game.
-
-Automatic blind increases – Blinds update seamlessly without interrupting gameplay.
-
-Clear audio alerts – Know exactly when it's time to raise the stakes or take a break.
-
-Optimized for iPhone – Clean, intuitive design that's quick to set up.
-
-No more arguments about when blinds should go up or when the next break starts — Poker Blinds Buzzer handles it all so you can enjoy the game.
-```
-
-**Drafted replacement** — mirrors the Play long description's structure (glanceable timer, custom
-blinds, background alerts, Pro bullets, CTA), swapping in Live Activities for the iOS-specific
-Lock Screen bullet already promised in the promotional text above. `1279` chars:
+**Currently live in App Store Connect** (pasted 2026-07-22) — mirrors the Play long description's
+structure (glanceable timer, custom blinds, background alerts, Pro bullets, CTA), swapping in Live
+Activities for the iOS-specific Lock Screen bullet already promised in the promotional text above.
+`1279` chars:
 ```
 The simple poker timer & tournament clock for home poker night. A big, easy-to-read blinds timer and a loud buzzer mean nobody has to squint at their phone mid-hand to know when it's time to raise.
 
@@ -116,10 +100,10 @@ Go Pro to remove ads, save tournament presets, and pick your alarm sound — or 
 
 The paywall (`PRO_FEATURES` in `apps/mobile/src/components/paywall/Paywall.tsx`)
 now promises **four** things — **remove ads · save & load tournament presets ·
-choose your alarm sound · support the dev**. Update the store IAP copy in all
-three consoles to match (this is the P4 sync item). Presets shipped in v1.1.2
-(iOS)/v1.1.3 (Android); Sound Packs are new in v1.1.3 on both platforms — the
-copy below adds the sound-pack mention that was still missing.
+choose your alarm sound · support the dev**. Presets shipped in v1.1.2
+(iOS)/v1.1.3 (Android); Sound Packs are new in v1.1.3 on both platforms. The
+copy below (which adds the sound-pack mention that was previously missing) is
+**live in all three consoles as of 2026-07-22** (this was the P4 sync item).
 
 ### App Store Connect — In-App Purchase → `pro_lifetime`
 - **Display Name (≤30 chars):** `Pro — Ads, Presets & Sounds` (`27`)
