@@ -6,11 +6,12 @@ Monetization + growth tracker for Poker Blinds Buzzer.
 Play** (approved 2026-07). Both platforms run an AdMob banner + a Pro / Remove-Ads IAP
 (RevenueCat). **v1.1.3 is being cut now — simultaneous iOS + Android** (Sound Pack Pro, the
 table-side share row, and the SEO/table-side-share web work from PR #56): version files bumped to
-1.1.3 on both platforms and the changelog rolled up. An Android upload for this release is already
-in Play Console, which surfaced **4 recommendations (2026-07-21)** — edge-to-edge, large-screen
-orientation, R8 — see the new section below; these need to land on `release/1.1.3` before the
-*next* `eas build`/`eas submit` for Android finalizes the production release. The web
-app has a live Ko-fi tip jar; web AdSense is built, but Google **rejected** the site review
+1.1.3 on both platforms and the changelog rolled up. An earlier Android upload for this release
+surfaced **4 Play Console recommendations (2026-07-21)** — edge-to-edge, large-screen orientation,
+R8 — all now **fixed, verified live on a physical device, and merged into `release/1.1.3`** (see
+the Android technical quality section below). **Next step: `eas build` + `eas submit` for Android**
+(and iOS) from `release/1.1.3`, then merge PR #55 into `main` and tag `v1.1.3` once that succeeds.
+The web app has a live Ko-fi tip jar; web AdSense is built, but Google **rejected** the site review
 2026-07-21 ("Low value content") — the content fix merged in PR #56 (see P3 SEO) but **isn't live
 yet**: Vercel only deploys `main`, and `release/1.1.3` → `main` merges once this submission ships,
 which is exactly what's happening now. The web landing page's `PLAY_STORE_LINK` points at the real
@@ -52,14 +53,14 @@ despite config being done.
   production until that branch merges to `main`. Resubmitting to AdSense before then would just
   re-review the old thin content.
 
-## Android technical quality — Play Console recommendations (v1.1.3)
-**Status:** surfaced 2026-07-21 against the Android upload already in Play Console for this
-release. All 4 are "recommended," not blocking — but edge-to-edge is enforced by default from
-Android 15 and large-screen restrictions are ignored outright from Android 16, so it's cheaper to
-fix now (one more PR into `release/1.1.3` before the next Android build) than to let them become
-forced/user-visible later. PR each item into `release/1.1.3` normally, with a `CHANGELOG.md`
-`[Unreleased]` entry per [CLAUDE.md](./CLAUDE.md).
-- 🚧 **True edge-to-edge, not the transparent-bar trick** — root cause of both the "may not
+## ✅ Android technical quality — Play Console recommendations (v1.1.3)
+**Status:** surfaced 2026-07-21 against an earlier Android upload for this release. All 4 were
+"recommended," not blocking, but edge-to-edge is enforced by default from Android 15 and
+large-screen restrictions are ignored outright from Android 16 — cheaper to fix now than let them
+become forced/user-visible later. All 4 fixed, verified live on a physical device (Samsung
+SM_A325M), and merged into `release/1.1.3` via PR #63. Re-check the recommendations list after the
+next Android upload.
+- ✅ **True edge-to-edge, not the transparent-bar trick** — root cause of both the "may not
   display for all users" warning and the deprecated-API warning
   (`Window.getStatusBarColor`/`setStatusBarColor`/`setNavigationBarColor`,
   `LAYOUT_IN_DISPLAY_CUTOUT_MODE_*`). Fixed by switching `AppTheme` in

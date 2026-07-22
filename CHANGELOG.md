@@ -9,11 +9,23 @@ platform-tagged heading (e.g. `## [1.1.3] - 2026-07-20 — Android`) when you cu
 
 ## [Unreleased]
 
+## [1.1.3] - 2026-07-21 — iOS & Android
+
+### Added
+- Sound Pack (Pro) — choose the alarm that plays when a round ends. Three bundled alternatives
+  (Classic Beep, Bell Chime, Double Buzz) alongside the original Classic Alarm, picked from a new
+  "Sound Pack" card in Settings, with a 3-second preview per option.
+- A subtle "Share Poker Blinds Buzzer" row below the timer, so players at the table can share the
+  app with one tap.
+
 ### Changed
 - Android: release builds now enable R8 code shrinking/obfuscation and resource shrinking
   (previously shipped unminified) — smaller, faster app for a smoother experience.
 
 ### Fixed
+- Sound preview in Settings no longer plays the alarm's full length (up to ~11s) — capped at 3
+  seconds and stoppable early.
+- Selecting a new sound pack now applies immediately instead of only after restarting the app.
 - Android: real edge-to-edge display instead of the transparent-status/nav-bar-color trick —
   content now respects safe-area insets and the system bars use `react-native-edge-to-edge`
   instead of deprecated `Window.setStatusBarColor`/`setNavigationBarColor` APIs.
@@ -29,20 +41,6 @@ platform-tagged heading (e.g. `## [1.1.3] - 2026-07-20 — Android`) when you cu
   no way to reach it. The ad banner also moved to sit between the timer card and the share row
   instead of below both, and the screen now pads for all four safe-area insets instead of only
   the top.
-
-## [1.1.3] - 2026-07-21 — iOS & Android
-
-### Added
-- Sound Pack (Pro) — choose the alarm that plays when a round ends. Three bundled alternatives
-  (Classic Beep, Bell Chime, Double Buzz) alongside the original Classic Alarm, picked from a new
-  "Sound Pack" card in Settings, with a 3-second preview per option.
-- A subtle "Share Poker Blinds Buzzer" row below the timer, so players at the table can share the
-  app with one tap.
-
-### Fixed
-- Sound preview in Settings no longer plays the alarm's full length (up to ~11s) — capped at 3
-  seconds and stoppable early.
-- Selecting a new sound pack now applies immediately instead of only after restarting the app.
 
 ## [1.1.2] - 2026-07-17 — iOS only
 
