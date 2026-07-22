@@ -14,6 +14,11 @@ platform-tagged heading (e.g. `## [1.1.3] - 2026-07-20 — Android`) when you cu
   `FORCE_PRO_IN_DEV`), for testing the free/ad experience on a device whose Apple/Google account
   already owns `pro_lifetime`. Always `false` in release builds; no user-facing effect.
 
+### Fixed
+- iOS: locked iPhone to portrait only (was allowing all four orientations), matching the
+  portrait-only decision already made for Android phones. iPad is unaffected — still supports all
+  orientations.
+
 ## [1.1.3] - 2026-07-21 — iOS & Android
 
 ### Added
