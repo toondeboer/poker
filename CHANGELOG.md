@@ -21,6 +21,10 @@ platform-tagged heading (e.g. `## [1.1.3] - 2026-07-20 — Android`) when you cu
   foldables) aren't forced into a restriction Android 16 ignores anyway; also made two components
   that read window dimensions once at load time (`TimerExpirationAlert`, `PokerSettings`'
   tablet-layout check) recompute reactively on rotation/fold instead of staying stale.
+- Android: the timer screen is now scrollable and pads for all four safe-area insets instead of
+  only the top — fixes the share row becoming unreachable when the ad banner is showing, and
+  content/the ad banner clipping under the rotated navigation bar in landscape. Settings screen
+  now also pads for the left/right inset in landscape for the same reason.
 
 ## [1.1.3] - 2026-07-21 — iOS & Android
 

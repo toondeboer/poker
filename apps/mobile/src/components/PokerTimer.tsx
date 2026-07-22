@@ -1,6 +1,13 @@
 // src/components/PokerTimer.tsx
 import React, { useCallback } from "react";
-import { Share, StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import {
+  Share,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
+} from "react-native";
 import { SystemBars } from "react-native-edge-to-edge";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { LinearGradient } from "expo-linear-gradient";
@@ -64,11 +71,23 @@ export default function PokerTimer() {
       {/* Background Gradient */}
       <LinearGradient
         colors={getGradientColors() as any}
-        style={[styles.gradientBackground, { paddingTop: insets.top }]}
+        style={styles.gradientBackground}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 1 }}
       >
-        <View style={styles.content}>
+        <ScrollView
+          style={styles.scrollView}
+          contentContainerStyle={[
+            styles.content,
+            {
+              paddingTop: insets.top + 24,
+              paddingBottom: insets.bottom + 24,
+              paddingLeft: insets.left + 24,
+              paddingRight: insets.right + 24,
+            },
+          ]}
+          showsVerticalScrollIndicator={false}
+        >
           {/* Main Timer Card */}
           <View style={styles.mainCard}>
             {/* Timer Display */}
@@ -216,7 +235,7 @@ export default function PokerTimer() {
             />
             <Text style={styles.shareRowText}>Share Poker Blinds Buzzer</Text>
           </TouchableOpacity>
-        </View>
+        </ScrollView>
 
         {/* Banner ad — pinned below the content, hidden for Pro users */}
         <BannerAdSlot />
@@ -241,10 +260,11 @@ const styles = StyleSheet.create({
   gradientBackground: {
     flex: 1,
   },
-  content: {
+  scrollView: {
     flex: 1,
-    paddingHorizontal: 24,
-    paddingVertical: 24,
+  },
+  content: {
+    flexGrow: 1,
     justifyContent: "center",
   },
   mainCard: {

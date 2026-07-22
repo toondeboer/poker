@@ -12,6 +12,7 @@ import {
   useWindowDimensions,
   View,
 } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import {
   BlindPreset,
   formatTime,
@@ -114,6 +115,7 @@ function SoundPackRow({
 
 export default function PokerSettings() {
   const { width: screenWidth } = useWindowDimensions();
+  const insets = useSafeAreaInsets();
 
   const {
     customBlindLevels,
@@ -208,7 +210,14 @@ export default function PokerSettings() {
       <ScrollView
         ref={scrollViewRef}
         style={styles.scrollView}
-        contentContainerStyle={styles.scrollContent}
+        contentContainerStyle={[
+          styles.scrollContent,
+          {
+            paddingLeft: insets.left,
+            paddingRight: insets.right,
+            paddingBottom: 40 + insets.bottom,
+          },
+        ]}
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
         onScroll={(e) => {
