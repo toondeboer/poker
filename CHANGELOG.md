@@ -9,6 +9,27 @@ platform-tagged heading (e.g. `## [1.1.3] - 2026-07-20 — Android`) when you cu
 
 ## [Unreleased]
 
+### Changed
+- Android: release builds now enable R8 code shrinking/obfuscation and resource shrinking
+  (previously shipped unminified) — smaller, faster app for a smoother experience.
+
+### Fixed
+- Android: real edge-to-edge display instead of the transparent-status/nav-bar-color trick —
+  content now respects safe-area insets and the system bars use `react-native-edge-to-edge`
+  instead of deprecated `Window.setStatusBarColor`/`setNavigationBarColor` APIs.
+- Android: two components that read window dimensions once at load time
+  (`TimerExpirationAlert`, `PokerSettings`' tablet-layout check) now recompute reactively instead
+  of staying stale, so tablets/foldables that get resized by Android 16 (which can still happen
+  regardless of the app's portrait setting) don't end up with mis-sized layouts.
+- Android: settings screen now pads for the left/right safe-area inset (previously only handled
+  by the OS-provided header), fixing content clipping under the navigation bar on large-screen
+  devices.
+- Android: the timer screen now measures its own content and scales font sizes/spacing to fit one
+  screen without scrolling — previously the ad banner could push the "Share" row off-screen with
+  no way to reach it. The ad banner also moved to sit between the timer card and the share row
+  instead of below both, and the screen now pads for all four safe-area insets instead of only
+  the top.
+
 ## [1.1.3] - 2026-07-21 — iOS & Android
 
 ### Added

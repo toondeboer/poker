@@ -59,51 +59,65 @@ Android 15 and large-screen restrictions are ignored outright from Android 16, s
 fix now (one more PR into `release/1.1.3` before the next Android build) than to let them become
 forced/user-visible later. PR each item into `release/1.1.3` normally, with a `CHANGELOG.md`
 `[Unreleased]` entry per [CLAUDE.md](./CLAUDE.md).
-- ⬜ **True edge-to-edge, not the transparent-bar trick** — root cause of both the "may not
+- 🚧 **True edge-to-edge, not the transparent-bar trick** — root cause of both the "may not
   display for all users" warning and the deprecated-API warning
   (`Window.getStatusBarColor`/`setStatusBarColor`/`setNavigationBarColor`,
-  `LAYOUT_IN_DISPLAY_CUTOUT_MODE_*`). `apps/mobile/android/app/src/main/res/values/styles.xml`
-  currently fakes edge-to-edge with `android:statusBarColor`/`navigationBarColor = transparent` on
-  `AppTheme` instead of real `WindowCompat`/inset handling, and
-  `apps/mobile/src/components/PokerTimer.tsx` pads content with a hardcoded
-  `StatusBar.currentHeight || 44` rather than real insets. Plan:
-  1. Replace that hardcoded padding with `useSafeAreaInsets()` (`react-native-safe-area-context`
-     is already a dependency) in `PokerTimer.tsx`.
-  2. Swap the raw `react-native` `StatusBar` import for `expo-status-bar`'s
-     `<StatusBar style="light" />`, which is edge-to-edge–aware and doesn't call the deprecated
-     color setters itself.
-  3. Drop the `statusBarColor`/`navigationBarColor` overrides from `styles.xml`. Diff against a
-     throwaway `expo prebuild -p android --clean` to see what SDK 56's current template does for
-     edge-to-edge — don't apply prebuild output wholesale, this is a bare workflow with
-     hand-written foreground-service/notification native code that prebuild would clobber.
-  4. Re-check the Play Console warning list after the next build. The remaining flagged call
-     sites (`StatusBarModule`, Material `BottomSheetDialog`/`SheetDialog`/`EdgeToEdgeUtils`, the
-     Google Mobile Ads SDK's ad overlay) live inside React Native core, Material Components, and
-     `react-native-google-mobile-ads` respectively, not our call sites — those only clear via
-     upstream version bumps, not app code.
-- ⬜ **Remove the Android portrait lock for large screens** —
-  `android:screenOrientation="portrait"` on `MainActivity` in
-  `apps/mobile/android/app/src/main/AndroidManifest.xml` gets ignored outright on large-screen
-  devices from Android 16, so it's better to fix the layout and remove it deliberately now than
-  have Android force it later, untested. iOS already ships this app with **no orientation
-  restriction and `supportsTablet: true`** (`Info.plist`'s `UISupportedInterfaceOrientations` /
-  `~ipad` both list all four orientations) and is live on the App Store, so this isn't starting
-  from zero — it's bringing Android to the same bar iOS already clears. Plan: remove the manifest
-  restriction, smoke-test the timer/blinds-editor/settings/paywall screens on an Android tablet
-  emulator and a foldable emulator in both orientations, fix whatever layout breaks before
-  merging.
-- ⬜ **Enable R8** — `enableProguardInReleaseBuilds` in
-  `apps/mobile/android/app/build.gradle` reads from
-  `android.enableProguardInReleaseBuilds` in `gradle.properties`, which isn't set (defaults
-  `false`) — release builds ship unminified today. Plan: set
-  `android.enableProguardInReleaseBuilds=true` and `android.enableShrinkResourcesInReleaseBuilds=true`
-  in `gradle.properties`, then do a full **release-build** smoke test on a physical device —
-  RevenueCat purchase flow, AdMob banner, and the foreground-service timer/notifications
-  specifically, since reflection-heavy libraries are exactly what R8 breaks silently when keep
-  rules are missing. `apps/mobile/android/app/proguard-rules.pro` currently only has
-  reanimated/turbomodule keep rules — expect to add more (RevenueCat, Google Mobile Ads, Expo
-  modules ship most of their own consumer rules via AAR, but verify rather than assume) once
-  something breaks in the smoke test.
+  `LAYOUT_IN_DISPLAY_CUTOUT_MODE_*`). Fixed by switching `AppTheme` in
+  `apps/mobile/android/app/src/main/res/values/styles.xml` from
+  `Theme.AppCompat.DayNight.NoActionBar` (with manual transparent `statusBarColor`/
+  `navigationBarColor` overrides) to `react-native-edge-to-edge`'s `Theme.EdgeToEdge`, which
+  handles real `WindowCompat`/inset behavior; `PokerTimer.tsx` and `BannerAdSlot.tsx` now use
+  `useSafeAreaInsets()` (wrapped in `SafeAreaProvider` at the app root) instead of the hardcoded
+  `StatusBar.currentHeight || 44` padding, and `SystemBars` (from `react-native-edge-to-edge`)
+  replaces the raw `react-native` `StatusBar` component. `app.json` documents intent via
+  `android.edgeToEdgeEnabled`. **Still needed:** an on-device visual check — typecheck/lint are
+  clean and `assembleDebug` compiles the theme + the newly-autolinked native module, but that's
+  not a substitute for seeing the status/nav bar and inset behavior render. The remaining flagged
+  call sites (`StatusBarModule`, Material `BottomSheetDialog`/`SheetDialog`/`EdgeToEdgeUtils`, the
+  Google Mobile Ads SDK's ad overlay) live inside React Native core, Material Components, and
+  `react-native-google-mobile-ads` respectively, not our call sites — those only clear via
+  upstream version bumps, not app code.
+- ✅ **Large-screen orientation — kept `android:screenOrientation="portrait"` on phones,
+  deliberately** — first pass removed it entirely to satisfy the Play Console recommendation, but
+  on-device testing (physical Samsung phone) showed real auto-rotate landscape layouts are worse
+  UX for a poker timer, and product direction is **portrait-only on phones, no exceptions**.
+  Restored `android:screenOrientation="portrait"` on `MainActivity`. This doesn't actually undo
+  large-screen support: Android 16's override that ignores `screenOrientation` only kicks in for
+  **large-screen devices** (tablets/foldables) — phones still honor the manifest attribute — so
+  Play Console will likely keep flagging this as a recommendation (not a blocker) indefinitely,
+  which is an accepted tradeoff for the portrait-only product decision. The two components fixed
+  to read `useWindowDimensions()` reactively instead of a stale module-load-time
+  `Dimensions.get()` (`TimerExpirationAlert.tsx`, `PokerSettings.tsx`'s `isTablet` check) are kept
+  — they still matter for tablets/foldables, which can still get resized/rotated by Android 16
+  regardless of the manifest attribute.
+- ✅ **Timer screen fits one screen without scrolling, responsively** — found during the same
+  on-device pass: the timer screen wasn't scrollable and only padded for the top inset, so the ad
+  banner could push the share row off-screen with no way to reach it. Rejected making it
+  scrollable — the screen's content is minimal enough that scrolling reads as a bug, not a
+  feature, for a poker timer glanced at across a table. First pass estimated the ad banner's
+  height with a guessed constant, which undershot the real adaptive-banner size (confirmed
+  on-device: still didn't fit with the actual test ad). Replaced with a **measured** approach
+  instead of a guess: `PokerTimer.tsx` measures the actual rendered height of the card + ad +
+  share row via `onLayout` and computes a `scale` factor (`available height ÷ measured natural
+  height`, clamped to a 0.6 floor) applied to font sizes and spacing throughout — self-corrects
+  once the adaptive banner reports its real size (which it doesn't know until it's loaded), so
+  there's no constant to keep re-tuning. Also moved the ad banner to sit **between the card and
+  the share row** (was previously pinned below both, separate from the scaled column) per product
+  direction. Verified live on-device with the real (larger, 468×60) test ad: fits one screen with
+  no scrolling, ad correctly positioned above the share row.
+- ✅ **Enable R8** — set `android.enableProguardInReleaseBuilds=true` and
+  `android.enableShrinkResourcesInReleaseBuilds=true` in
+  `apps/mobile/android/gradle.properties` (previously unset/`false`, so release builds shipped
+  unminified). No `proguard-rules.pro` additions were needed — RevenueCat, Google Mobile Ads, and
+  the Expo modules all ship their own consumer rules via AAR, exactly as hoped but not previously
+  verified. Smoke-tested a real `assembleRelease` build (R8 + resource shrinking) on an emulator:
+  app launch, timer countdown, the foreground-service notification (live blinds/time-left text
+  survived), an AdMob test ad rendering, and the RevenueCat paywall modal (full feature list +
+  buttons; "Restore purchases"/"Maybe later" all present) — RevenueCat correctly reported
+  `BILLING_UNAVAILABLE` with a fully-readable error message (expected on an emulator with no Play
+  Store account, not an R8 stripping issue). No crashes, no obfuscated/garbled error output
+  anywhere. Still worth a real device + license-tester purchase before this ships, since the
+  emulator can't exercise an actual completed purchase.
 
 ## P1 — ASO (skipped for now)
 - ✅ iOS listing: optimized **title + subtitle + 100-char keyword field** — drafted in [STORE_LISTING.md](./STORE_LISTING.md), **live in App Store Connect since v1.1.2**

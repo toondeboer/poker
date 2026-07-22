@@ -98,6 +98,10 @@ Mobile releases are batched on a short-lived branch per version, not shipped str
   dep or `@poker/core`, check `watchFolders`/`nodeModulesPaths` there.
 - **Mobile is a bare Expo workflow** — `apps/mobile/ios` and `apps/mobile/android` are committed.
   App-config/native changes need `expo prebuild` (+ `npm run pods`); EAS builds the committed projects.
+- **The floating gear-icon-in-a-circle in the top corner of every screen on a dev-client build is
+  Expo's own dev-menu trigger** (`expo-dev-client`/`expo-dev-menu`), not app UI — it doesn't exist
+  in the app's source and never ships in a release build. Ignore it when reviewing screenshots or
+  debugging layout; it's not a bug to fix and not a system accessibility overlay either.
 - **`expo run:android` plants broken package shims that also break iOS.** Expo's autolinking
   creates partial proxy directories — missing `package.json` and the platform folder, just a stray
   `android/` — at `node_modules/expo-dev-client/node_modules/expo-dev-launcher` and directly under
