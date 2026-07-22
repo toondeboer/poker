@@ -9,6 +9,11 @@ platform-tagged heading (e.g. `## [1.1.3] - 2026-07-20 — Android`) when you cu
 
 ## [Unreleased]
 
+### Added
+- Dev-only `FORCE_FREE_IN_DEV` toggle in `PremiumContext.tsx` (mirrors the existing
+  `FORCE_PRO_IN_DEV`), for testing the free/ad experience on a device whose Apple/Google account
+  already owns `pro_lifetime`. Always `false` in release builds; no user-facing effect.
+
 ## [1.1.3] - 2026-07-21 — iOS & Android
 
 ### Added
