@@ -1,6 +1,7 @@
 // src/components/PokerTimer.tsx
-import React, { useCallback, useMemo } from "react";
+import React, { useCallback, useState } from "react";
 import {
+  LayoutChangeEvent,
   Share,
   StyleSheet,
   Text,
@@ -12,30 +13,24 @@ import { SystemBars } from "react-native-edge-to-edge";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { LinearGradient } from "expo-linear-gradient";
 import { Ionicons } from "@expo/vector-icons";
-import { formatTime, shouldShowAds, SITE_URL, SHARE_MESSAGE } from "@poker/core";
+import { formatTime, SITE_URL, SHARE_MESSAGE } from "@poker/core";
 import { useBlinds } from "@/src/contexts/BlindsContext";
 import { useTimer } from "@/src/contexts/TimerContext";
-import { usePremium } from "@/src/contexts/PremiumContext";
-import { useAdsConsent } from "@/src/hooks/useAdsConsent";
 import { useRouter } from "expo-router";
 import { TimerExpirationAlert } from "./TimerExpirationAlert";
 import { BannerAdSlot } from "./ads/BannerAdSlot";
 
-// The card is designed to fit one screen with no scrolling. `BASELINE_HEIGHT` is
-// roughly the available height on a typical phone in portrait with no ad banner
-// (where the fixed sizes below look right); shorter available height — the ad
-// banner, or landscape — scales spacing/font-size down proportionally instead of
-// letting content overflow or leaving it scrollable.
-const BASELINE_HEIGHT = 700;
+// The card is designed to fit one screen with no scrolling. Rather than guessing
+// at a baseline/ad height, we measure the actual rendered height of the card +
+// ad + share row and scale font-size/spacing down to fit whatever's actually
+// available — this also self-corrects once the ad banner reports its real
+// size (adaptive banners don't know their height until they've loaded).
 const MIN_SCALE = 0.6;
-const AD_RESERVED_HEIGHT = 60;
 
 export default function PokerTimer() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { height: windowHeight } = useWindowDimensions();
-  const { isPremium } = usePremium();
-  const { consentResolved } = useAdsConsent();
   const { currentBlindIndex, blindLevels, increaseBlinds, decreaseBlinds } =
     useBlinds();
   const {
@@ -50,20 +45,28 @@ export default function PokerTimer() {
     handleNextBlinds,
   } = useTimer();
 
-  const adVisible = shouldShowAds({ isPremium, consentResolved });
-
-  const scale = useMemo(() => {
-    const availableHeight =
-      windowHeight -
-      insets.top -
-      insets.bottom -
-      (adVisible ? AD_RESERVED_HEIGHT : 0);
-    return Math.min(1, Math.max(MIN_SCALE, availableHeight / BASELINE_HEIGHT));
-  }, [windowHeight, insets.top, insets.bottom, adVisible]);
+  const [scale, setScale] = useState(1);
+  const availableHeight = windowHeight - insets.top - insets.bottom;
 
   // Scales vertical spacing/font-size so the card fits one screen without
-  // scrolling — see BASELINE_HEIGHT above.
+  // scrolling — see MIN_SCALE above.
   const s = useCallback((value: number) => value * scale, [scale]);
+
+  const handleColumnLayout = useCallback(
+    (e: LayoutChangeEvent) => {
+      const measuredHeight = e.nativeEvent.layout.height;
+      if (measuredHeight <= 0) return;
+      const naturalHeight = measuredHeight / scale;
+      const nextScale = Math.min(
+        1,
+        Math.max(MIN_SCALE, availableHeight / naturalHeight),
+      );
+      if (Math.abs(nextScale - scale) > 0.01) {
+        setScale(nextScale);
+      }
+    },
+    [scale, availableHeight],
+  );
 
   const handleShare = useCallback(() => {
     Share.share({
@@ -108,196 +111,234 @@ export default function PokerTimer() {
           style={[
             styles.content,
             {
-              paddingTop: insets.top + s(24),
-              paddingBottom: insets.bottom + s(24),
+              paddingTop: insets.top,
+              paddingBottom: insets.bottom,
               paddingLeft: insets.left + 24,
               paddingRight: insets.right + 24,
             },
           ]}
         >
-          {/* Main Timer Card */}
-          <View
-            style={[
-              styles.mainCard,
-              { padding: s(32), marginBottom: s(24) },
-            ]}
-          >
-            {/* Timer Display */}
-            <View style={[styles.timerSection, { marginBottom: s(32) }]}>
-              <Text
-                style={[
-                  styles.timerText,
-                  { fontSize: s(72), marginBottom: s(8) },
-                ]}
-              >
-                {formatTime(timeLeft)}
-              </Text>
-              <Text style={[styles.levelText, { marginBottom: s(16) }]}>
-                Level {currentBlindIndex + 1}
-              </Text>
-
-              {/* Progress Bar */}
-              <View style={[styles.progressBarContainer, { marginBottom: s(8) }]}>
-                <View style={styles.progressBarBackground}>
-                  <View
-                    style={[
-                      styles.progressBarFill,
-                      {
-                        width: `${percent * 100}%`,
-                        backgroundColor: getProgressBarColor(),
-                      },
-                    ]}
-                  />
-                </View>
-              </View>
-            </View>
-
-            {/* Current Blinds */}
+          <View onLayout={handleColumnLayout}>
+            {/* Main Timer Card */}
             <View
               style={[
-                styles.blindsCard,
-                { padding: s(24), marginBottom: s(24) },
+                styles.mainCard,
+                { padding: s(32), marginBottom: s(24) },
               ]}
             >
-              <Text style={[styles.blindsTitle, { marginBottom: s(12) }]}>
-                Current Blinds
-              </Text>
-              <View style={styles.blindsRow}>
-                <View style={styles.blindColumn}>
-                  <Text style={styles.blindLabel}>Small Blind</Text>
-                  <Text style={styles.blindValue}>
-                    {blindLevels[currentBlindIndex].small}
-                  </Text>
-                </View>
-                <View style={styles.divider} />
-                <View style={styles.blindColumn}>
-                  <Text style={styles.blindLabel}>Big Blind</Text>
-                  <Text style={styles.blindValue}>
-                    {blindLevels[currentBlindIndex].big}
-                  </Text>
+              {/* Timer Display */}
+              <View style={[styles.timerSection, { marginBottom: s(32) }]}>
+                <Text
+                  style={[
+                    styles.timerText,
+                    { fontSize: s(72), marginBottom: s(8) },
+                  ]}
+                >
+                  {formatTime(timeLeft)}
+                </Text>
+                <Text
+                  style={[
+                    styles.levelText,
+                    { fontSize: s(14), marginBottom: s(16) },
+                  ]}
+                >
+                  Level {currentBlindIndex + 1}
+                </Text>
+
+                {/* Progress Bar */}
+                <View
+                  style={[
+                    styles.progressBarContainer,
+                    { marginBottom: s(8) },
+                  ]}
+                >
+                  <View
+                    style={[styles.progressBarBackground, { height: s(12) }]}
+                  >
+                    <View
+                      style={[
+                        styles.progressBarFill,
+                        {
+                          width: `${percent * 100}%`,
+                          backgroundColor: getProgressBarColor(),
+                        },
+                      ]}
+                    />
+                  </View>
                 </View>
               </View>
-            </View>
 
-            {/* Next Blinds Preview */}
-            {nextBlindLevel && (
+              {/* Current Blinds */}
               <View
                 style={[
-                  styles.nextBlindsCard,
-                  { padding: s(16), marginBottom: s(24) },
+                  styles.blindsCard,
+                  { padding: s(24), marginBottom: s(24) },
                 ]}
               >
-                <Text style={[styles.nextBlindsTitle, { marginBottom: s(8) }]}>
-                  Next Level
+                <Text
+                  style={[
+                    styles.blindsTitle,
+                    { fontSize: s(18), marginBottom: s(12) },
+                  ]}
+                >
+                  Current Blinds
                 </Text>
-                <View style={styles.nextBlindsRow}>
-                  <Text style={styles.nextBlindsText}>
-                    SB: {nextBlindLevel.small}
-                  </Text>
-                  <Text style={styles.nextBlindsText}>
-                    BB: {nextBlindLevel.big}
-                  </Text>
+                <View style={styles.blindsRow}>
+                  <View style={styles.blindColumn}>
+                    <Text style={[styles.blindLabel, { fontSize: s(14) }]}>
+                      Small Blind
+                    </Text>
+                    <Text style={[styles.blindValue, { fontSize: s(32) }]}>
+                      {blindLevels[currentBlindIndex].small}
+                    </Text>
+                  </View>
+                  <View style={[styles.divider, { height: s(48) }]} />
+                  <View style={styles.blindColumn}>
+                    <Text style={[styles.blindLabel, { fontSize: s(14) }]}>
+                      Big Blind
+                    </Text>
+                    <Text style={[styles.blindValue, { fontSize: s(32) }]}>
+                      {blindLevels[currentBlindIndex].big}
+                    </Text>
+                  </View>
                 </View>
               </View>
-            )}
 
-            {/* Timer Controls */}
-            <View style={[styles.timerControls, { marginBottom: s(24) }]}>
-              <TouchableOpacity
-                style={[
-                  styles.primaryButton,
-                  {
-                    paddingVertical: s(12),
-                    backgroundColor: paused
+              {/* Next Blinds Preview */}
+              {nextBlindLevel && (
+                <View
+                  style={[
+                    styles.nextBlindsCard,
+                    { padding: s(16), marginBottom: s(24) },
+                  ]}
+                >
+                  <Text
+                    style={[
+                      styles.nextBlindsTitle,
+                      { fontSize: s(14), marginBottom: s(8) },
+                    ]}
+                  >
+                    Next Level
+                  </Text>
+                  <View style={styles.nextBlindsRow}>
+                    <Text style={[styles.nextBlindsText, { fontSize: s(14) }]}>
+                      SB: {nextBlindLevel.small}
+                    </Text>
+                    <Text style={[styles.nextBlindsText, { fontSize: s(14) }]}>
+                      BB: {nextBlindLevel.big}
+                    </Text>
+                  </View>
+                </View>
+              )}
+
+              {/* Timer Controls */}
+              <View style={[styles.timerControls, { marginBottom: s(24) }]}>
+                <TouchableOpacity
+                  style={[
+                    styles.primaryButton,
+                    {
+                      paddingVertical: s(12),
+                      backgroundColor: paused
+                        ? timerDuration === timeLeft
+                          ? "#7C3AED"
+                          : "#10B981"
+                        : "#F59E0B",
+                    },
+                  ]}
+                  onPress={togglePause}
+                >
+                  <Ionicons
+                    name={paused ? "play" : "pause"}
+                    size={s(20)}
+                    color="white"
+                  />
+                  <Text
+                    style={[styles.primaryButtonText, { fontSize: s(16) }]}
+                  >
+                    {paused
                       ? timerDuration === timeLeft
-                        ? "#7C3AED"
-                        : "#10B981"
-                      : "#F59E0B",
-                  },
-                ]}
-                onPress={togglePause}
+                        ? "Start"
+                        : "Resume"
+                      : "Pause"}
+                  </Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={[styles.resetButton, { paddingVertical: s(12) }]}
+                  onPress={resetTimer}
+                >
+                  <Ionicons name="refresh" size={s(20)} color="white" />
+                </TouchableOpacity>
+              </View>
+
+              {/* Blind Controls */}
+              <View style={[styles.blindControls, { marginBottom: s(24) }]}>
+                <TouchableOpacity
+                  style={[
+                    styles.blindButton,
+                    styles.decreaseButton,
+                    { paddingVertical: s(12) },
+                    currentBlindIndex === 0 && styles.disabledButton,
+                  ]}
+                  onPress={decreaseBlinds}
+                  disabled={currentBlindIndex === 0}
+                >
+                  <Ionicons name="chevron-down" size={s(20)} color="white" />
+                  <Text style={[styles.blindButtonText, { fontSize: s(14) }]}>
+                    Previous
+                  </Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={[
+                    styles.blindButton,
+                    styles.increaseButton,
+                    { paddingVertical: s(12) },
+                    currentBlindIndex >= blindLevels.length - 1 &&
+                      styles.disabledButton,
+                  ]}
+                  onPress={increaseBlinds}
+                  disabled={currentBlindIndex >= blindLevels.length - 1}
+                >
+                  <Ionicons name="chevron-up" size={s(20)} color="white" />
+                  <Text style={[styles.blindButtonText, { fontSize: s(14) }]}>
+                    Next
+                  </Text>
+                </TouchableOpacity>
+              </View>
+
+              {/* Settings Button */}
+              <TouchableOpacity
+                style={[styles.settingsButton, { paddingVertical: s(12) }]}
+                onPress={() => router.navigate("/settings")}
               >
-                <Ionicons
-                  name={paused ? "play" : "pause"}
-                  size={20}
-                  color="white"
-                />
-                <Text style={styles.primaryButtonText}>
-                  {paused
-                    ? timerDuration === timeLeft
-                      ? "Start"
-                      : "Resume"
-                    : "Pause"}
+                <Ionicons name="settings" size={s(20)} color="white" />
+                <Text style={[styles.settingsButtonText, { fontSize: s(16) }]}>
+                  Settings
                 </Text>
               </TouchableOpacity>
-
-              <TouchableOpacity
-                style={[styles.resetButton, { paddingVertical: s(12) }]}
-                onPress={resetTimer}
-              >
-                <Ionicons name="refresh" size={20} color="white" />
-              </TouchableOpacity>
             </View>
 
-            {/* Blind Controls */}
-            <View style={[styles.blindControls, { marginBottom: s(24) }]}>
-              <TouchableOpacity
-                style={[
-                  styles.blindButton,
-                  styles.decreaseButton,
-                  { paddingVertical: s(12) },
-                  currentBlindIndex === 0 && styles.disabledButton,
-                ]}
-                onPress={decreaseBlinds}
-                disabled={currentBlindIndex === 0}
-              >
-                <Ionicons name="chevron-down" size={20} color="white" />
-                <Text style={styles.blindButtonText}>Previous</Text>
-              </TouchableOpacity>
+            {/* Banner ad — between the card and the share row, hidden for Pro users */}
+            <BannerAdSlot style={{ marginBottom: s(24) }} />
 
-              <TouchableOpacity
-                style={[
-                  styles.blindButton,
-                  styles.increaseButton,
-                  { paddingVertical: s(12) },
-                  currentBlindIndex >= blindLevels.length - 1 &&
-                    styles.disabledButton,
-                ]}
-                onPress={increaseBlinds}
-                disabled={currentBlindIndex >= blindLevels.length - 1}
-              >
-                <Ionicons name="chevron-up" size={20} color="white" />
-                <Text style={styles.blindButtonText}>Next</Text>
-              </TouchableOpacity>
-            </View>
-
-            {/* Settings Button */}
+            {/* Subtle brand + share row — helps players at the table find the app */}
             <TouchableOpacity
-              style={[styles.settingsButton, { paddingVertical: s(12) }]}
-              onPress={() => router.navigate("/settings")}
+              style={styles.shareRow}
+              onPress={handleShare}
+              accessibilityLabel="Share Poker Blinds Buzzer"
             >
-              <Ionicons name="settings" size={20} color="white" />
-              <Text style={styles.settingsButtonText}>Settings</Text>
+              <Ionicons
+                name="share-social-outline"
+                size={s(14)}
+                color="rgba(255,255,255,0.7)"
+              />
+              <Text style={[styles.shareRowText, { fontSize: s(12) }]}>
+                Share Poker Blinds Buzzer
+              </Text>
             </TouchableOpacity>
           </View>
-
-          {/* Subtle brand + share row — helps players at the table find the app */}
-          <TouchableOpacity
-            style={[styles.shareRow, { marginTop: s(16) }]}
-            onPress={handleShare}
-            accessibilityLabel="Share Poker Blinds Buzzer"
-          >
-            <Ionicons
-              name="share-social-outline"
-              size={14}
-              color="rgba(255,255,255,0.7)"
-            />
-            <Text style={styles.shareRowText}>Share Poker Blinds Buzzer</Text>
-          </TouchableOpacity>
         </View>
-
-        {/* Banner ad — pinned below the content, hidden for Pro users */}
-        <BannerAdSlot />
       </LinearGradient>
 
       {/* Timer Expiration Alert */}

@@ -24,10 +24,11 @@ platform-tagged heading (e.g. `## [1.1.3] - 2026-07-20 — Android`) when you cu
 - Android: settings screen now pads for the left/right safe-area inset (previously only handled
   by the OS-provided header), fixing content clipping under the navigation bar on large-screen
   devices.
-- Android: the timer screen now scales its font sizes and spacing to fit one screen without
-  scrolling when the ad banner is showing (previously the ad banner could push the "Share" row
-  off-screen with no way to reach it) and pads for all four safe-area insets instead of only the
-  top.
+- Android: the timer screen now measures its own content and scales font sizes/spacing to fit one
+  screen without scrolling — previously the ad banner could push the "Share" row off-screen with
+  no way to reach it. The ad banner also moved to sit between the timer card and the share row
+  instead of below both, and the screen now pads for all four safe-area insets instead of only
+  the top.
 
 ## [1.1.3] - 2026-07-21 — iOS & Android
 

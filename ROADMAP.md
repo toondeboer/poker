@@ -92,16 +92,19 @@ forced/user-visible later. PR each item into `release/1.1.3` normally, with a `C
   regardless of the manifest attribute.
 - ✅ **Timer screen fits one screen without scrolling, responsively** — found during the same
   on-device pass: the timer screen wasn't scrollable and only padded for the top inset, so the ad
-  banner could push the share row off-screen with no way to reach it, and it didn't account for
-  the ad banner or shorter available height. Rather than making it scrollable (rejected — the
-  screen's content is minimal enough that scrolling reads as a bug, not a feature, for a poker
-  timer glanced at across a table), `PokerTimer.tsx` now computes a `scale` factor from available
-  height (window height minus insets minus the ad banner's reserved height when shown) and applies
-  it to font sizes and vertical spacing, so the card compresses just enough to fit — full size
-  when there's room (matches the original design), compact when the ad banner and/or a landscape
-  height (moot now that phones are portrait-only, but tablets/foldables can still get resized to
-  a shorter height by Android 16) leave less room. Verified live on-device: fits without scrolling
-  in both the Pro (no ad) and free (ad shown) cases.
+  banner could push the share row off-screen with no way to reach it. Rejected making it
+  scrollable — the screen's content is minimal enough that scrolling reads as a bug, not a
+  feature, for a poker timer glanced at across a table. First pass estimated the ad banner's
+  height with a guessed constant, which undershot the real adaptive-banner size (confirmed
+  on-device: still didn't fit with the actual test ad). Replaced with a **measured** approach
+  instead of a guess: `PokerTimer.tsx` measures the actual rendered height of the card + ad +
+  share row via `onLayout` and computes a `scale` factor (`available height ÷ measured natural
+  height`, clamped to a 0.6 floor) applied to font sizes and spacing throughout — self-corrects
+  once the adaptive banner reports its real size (which it doesn't know until it's loaded), so
+  there's no constant to keep re-tuning. Also moved the ad banner to sit **between the card and
+  the share row** (was previously pinned below both, separate from the scaled column) per product
+  direction. Verified live on-device with the real (larger, 468×60) test ad: fits one screen with
+  no scrolling, ad correctly positioned above the share row.
 - ✅ **Enable R8** — set `android.enableProguardInReleaseBuilds=true` and
   `android.enableShrinkResourcesInReleaseBuilds=true` in
   `apps/mobile/android/gradle.properties` (previously unset/`false`, so release builds shipped
