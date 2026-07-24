@@ -41,15 +41,19 @@ full design.
     fixed), installed it on a `Pixel_10` emulator, and confirmed via screenshot that the launcher
     icon renders as a clean circle — matches Phone/Messages/Chrome exactly, no sharp corners.
     Nothing left on this item.
-- ⬜ **New: `android.edgeToEdgeEnabled` in `app.json` is stale/no-op** — Android 16 makes
-  edge-to-edge mandatory, and the version of the edge-to-edge config plugin bundled with this
-  Expo SDK no longer honors that app.json key (logs a deprecation warning and, when prebuild
-  regenerates `styles.xml` from scratch, drops back to the pre-v1.1.3 `Theme.AppCompat` + manual
-  transparent-bar-color approach instead of `Theme.EdgeToEdge`). Currently harmless only because
-  the committed `styles.xml` still has the correct `Theme.EdgeToEdge` setup and nothing has
-  re-run prebuild clean since — but the next prebuild (e.g. an unrelated native-config change)
-  will silently regress this again unless the `edgeToEdgeEnabled` key is removed/replaced with
-  whatever the current plugin actually expects.
+- ✅ **Fixed: `android.edgeToEdgeEnabled` in `app.json` was stale/no-op** — confirmed root cause
+  by reading `@expo/prebuild-config`'s `withEdgeToEdge`/`withRestoreDefaultTheme` source: every
+  prebuild now unconditionally resets `AppTheme` to `Theme.AppCompat.DayNight.NoActionBar` and
+  warns that `edgeToEdgeEnabled` is no longer honored (Android 16 makes edge-to-edge mandatory),
+  *unless* the `react-native-edge-to-edge` config plugin is explicitly listed in `plugins` — in
+  which case it reapplies `Theme.EdgeToEdge` afterward. That plugin was never added to `app.json`,
+  so the correct theme only survived because the v1.1.3 icon-fix commit manually patched
+  `styles.xml` by hand after a prebuild; the next clean prebuild would have silently wiped it
+  again. Fix: removed the dead `android.edgeToEdgeEnabled` key and added
+  `"react-native-edge-to-edge"` to `plugins`. Verified with a clean `expo prebuild --platform
+  android` — `styles.xml` regenerates with `parent="Theme.EdgeToEdge"` automatically, no
+  deprecation warning, no manual patch needed — followed by a full `./gradlew :app:assembleDebug`
+  (after clearing the build dirs) which succeeded.
 - ✅ **Fixed: local Android Gradle builds were broken on a fresh checkout** —
   `./gradlew :app:assembleDebug` was failing during `processDebugResources` with
   `resource style/Theme.EdgeToEdge ... not found` / `resource style/Theme.SplashScreen ... not

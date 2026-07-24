@@ -18,6 +18,12 @@ platform-tagged heading (e.g. `## [1.1.3] - 2026-07-20 — Android`) when you cu
 - Android: app icon now has proper round/squircle corners matching the rest of the launcher —
   added the missing adaptive-icon config (`app.json` had none), so the OS was rendering the flat
   legacy square icon with no mask applied at all.
+- Android: edge-to-edge display now survives a clean `expo prebuild` instead of silently
+  reverting to the pre-v1.1.3 `Theme.AppCompat` theme. The `android.edgeToEdgeEnabled` app.json
+  key stopped being honored by this Expo SDK (Android 16 makes edge-to-edge mandatory, so Expo's
+  base prebuild config always resets `AppTheme` to the default theme now) and needed the
+  `react-native-edge-to-edge` config plugin registered in `plugins` to reapply `Theme.EdgeToEdge`
+  afterward — removed the stale key and added the plugin.
 
 ## [1.1.3] - 2026-07-21 — iOS & Android
 
