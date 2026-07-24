@@ -16,8 +16,9 @@ full design.
   [STORE_LISTING.md](./STORE_LISTING.md#android--google-play-reuse-at-launch--p1-item-4).
   **Still needed:** upload it to the Play Console store listing (manual console step) and confirm
   it renders correctly there.
-- 🚧 **App icon has sharp corners on Android instead of the OS mask (round/squircle)** — fixed,
-  pending on-device verification. Root cause was confirmed: `mipmap-anydpi-v26/` was empty (no
+- ✅ **App icon has sharp corners on Android instead of the OS mask (round/squircle)** — fixed and
+  verified on-device (Pixel_10 emulator, launcher screenshot: icon renders as a clean circle,
+  matching Phone/Messages/Chrome). Root cause was confirmed: `mipmap-anydpi-v26/` was empty (no
   `ic_launcher.xml`/`ic_launcher_round.xml`) and `app.json` had no `android.adaptiveIcon` at all, so
   Android rendered the flat legacy square icon with no mask applied. Fix landed:
   - Added a safe-zone-compliant foreground layer
@@ -36,10 +37,10 @@ full design.
     `EDGE_TO_EDGE_PLUGIN: 'edgeToEdgeEnabled' customization is no longer available` while running).
     Manually reverted `styles.xml` back to `Theme.EdgeToEdge` so that regression didn't ship. See
     the new item below — `edgeToEdgeEnabled` needs a real fix, this was just contained.
-  - **Still needed:** on-device confirmation the round icon actually shows (**local
-    `./gradlew assembleDebug` currently fails on this checkout** for an unrelated,
-    **pre-existing** reason — see below — so verify via an EAS build instead, or a working local
-    setup).
+  - **Verified:** built `app-debug.apk` locally (now that the local-build breakage below is
+    fixed), installed it on a `Pixel_10` emulator, and confirmed via screenshot that the launcher
+    icon renders as a clean circle — matches Phone/Messages/Chrome exactly, no sharp corners.
+    Nothing left on this item.
 - ⬜ **New: `android.edgeToEdgeEnabled` in `app.json` is stale/no-op** — Android 16 makes
   edge-to-edge mandatory, and the version of the edge-to-edge config plugin bundled with this
   Expo SDK no longer honors that app.json key (logs a deprecation warning and, when prebuild
@@ -49,16 +50,37 @@ full design.
   re-run prebuild clean since — but the next prebuild (e.g. an unrelated native-config change)
   will silently regress this again unless the `edgeToEdgeEnabled` key is removed/replaced with
   whatever the current plugin actually expects.
-- ⬜ **New: local Android Gradle builds are currently broken on a fresh checkout, independent of
-  the above** — `cd apps/mobile/android && ./gradlew :app:assembleDebug` fails during
-  `processDebugResources` with `resource style/Theme.EdgeToEdge ... not found` /
-  `resource style/Theme.SplashScreen ... not found`, even on an unmodified `release/1.1.4`
-  checkout (confirmed by stashing all icon-fix changes and reproducing the same failure) — so
-  it's pre-existing, not caused by this fix. `react-native-edge-to-edge` and `expo-splash-screen`
-  are both present in `node_modules` and do provide those styles, so this looks like an
-  autolinking-resolution problem rather than a missing dependency. Not investigated further here
-  since it's outside this fix's scope, but it blocks verifying *any* native Android resource
-  change locally (including this one) until fixed — worth prioritizing.
+- ✅ **Fixed: local Android Gradle builds were broken on a fresh checkout** —
+  `./gradlew :app:assembleDebug` was failing during `processDebugResources` with
+  `resource style/Theme.EdgeToEdge ... not found` / `resource style/Theme.SplashScreen ... not
+  found`, reproducible even on an unmodified `release/1.1.4` checkout. Root cause: Gradle caches
+  the resolved native-module autolinking list at
+  `apps/mobile/android/build/generated/autolinking/autolinking.json`, and only re-runs the
+  resolution command when a lockfile hash changes (see `ReactSettingsExtension.kt` in
+  `@react-native/gradle-plugin`) — it does **not** re-run just because the cache is wrong. That
+  cache had been captured at some point while the documented broken-shim state (see the
+  `expo run:android` gotcha elsewhere in this doc / CLAUDE.md) was active, which truncated the
+  resolved dependency list to 9 entries and silently dropped `react-native-edge-to-edge` (and
+  anything else affected) from it — so every subsequent build kept reading that same wrong,
+  cached list, no matter how many times the node_modules shims themselves got cleaned up
+  afterward. Confirmed by inspecting the cached JSON directly (`node -e` one-liner parsing
+  `autolinking.json`, showing only 9 deps, no `react-native-edge-to-edge` entry) and by walking
+  `ReactSettingsExtension.checkAndUpdateCache` to see it's keyed on lockfile hashes, not content
+  correctness.
+  - **Fix:** `rm -rf apps/mobile/android/build apps/mobile/android/app/build` (a gitignored build
+    directory — safe to delete) forces the cache to regenerate. Combined with the existing
+    documented shim fix, `./gradlew :app:assembleDebug` now succeeds cleanly and reproducibly —
+    verified twice in a row including after a full `./gradlew --stop` (cold daemon).
+  - **Also worth knowing for next time:** the shim corruption this cache captured wasn't only
+    triggered by `expo run:android` as CLAUDE.md's existing note says — it recurred here purely
+    from background Gradle syncs. This machine had **Android Studio and the VS Code Gradle
+    extension both open against this project simultaneously**, each running its own Gradle
+    daemon (four different Gradle versions were running at once: 8.9, 8.13, 9.2.0, 9.3.1) and
+    independently re-triggering the autolinking resolution in the background, outside of any
+    terminal command. If local Android builds seem to spontaneously re-break after being fixed,
+    check for concurrent IDE Gradle syncs before assuming the shim fix didn't take.
+  - Folded into CLAUDE.md's existing shim gotcha (the `expo run:android` bullet under "Things that
+    bite in this monorepo") so this doesn't need rediscovering next time.
 - ⬜ Update Play Store long description / screenshots to reflect current feature set once the
   website/app feature-parity pass (bottom of this list) is done.
 
