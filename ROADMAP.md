@@ -89,15 +89,53 @@ full design.
   website/app feature-parity pass (bottom of this list) is done.
 
 ## Cross-device QA
-- ⬜ Confirm the app works correctly on **small phones** (e.g. iPhone SE-class, small Android
-  screens) — check the timer and settings layouts don't clip or require scrolling.
-- ⬜ Confirm the app works correctly on **tablets**, both iPad and Android — `PokerSettings.tsx`
-  already has an `isTablet` layout branch and `useWindowDimensions()`-based reactive sizing (from
-  the v1.1.3 Play Console large-screen fixes), but that hasn't been re-verified against the newer
-  settings/blind-level UI changes since.
-- ⬜ Spot-check both platforms on at least one physical small device and one tablet each — a
-  simulator/emulator pass alone previously missed real inset/rotation behavior (see v1.1.3
-  edge-to-edge history in git log).
+- ✅ **Small phones (iPhone SE-class) — confirmed fine.** Booted a fresh iPhone SE (3rd gen)
+  simulator (matches the iPhone 8 form factor, 375×667pt — the smallest iOS screen still sold) and
+  loaded the Timer screen. `PokerTimer.tsx`'s measure-and-scale approach (`handleColumnLayout` /
+  `MIN_SCALE = 0.6`) holds up: the whole card — timer, blinds, next-level preview, Start/Reset,
+  Previous/Next, Settings button, ad banner, and the share row — fits in one screen with no
+  clipping or scrolling, even at this smallest width. Nothing to fix here.
+- 🔍 **Tablets — found a real gap: `PokerTimer.tsx` has no tablet layout, unlike
+  `PokerSettings.tsx`.** Booted an iPad mini (A17 Pro) simulator (744×1133pt) and loaded both
+  screens:
+  - Settings (`PokerSettings.tsx`) is fine as-is — confirmed by reading the source, not just
+    screenshotting: it has an `isTablet = screenWidth > 768` branch that switches the Timer
+    Settings / Blind Levels cards to side-by-side (`cardsContainerTablet`, `flexDirection: "row"`,
+    `maxWidth: 1200`), which is exactly the large-screen fix from v1.1.3 mentioned in the old
+    version of this item.
+  - **Timer (`PokerTimer.tsx`) has no equivalent.** `mainCard` and its parent `content` view have
+    no `maxWidth`/`alignSelf` at any screen size, so on the iPad mini it stretches to ~1200pt wide
+    edge-to-edge — confirmed visually (screenshot showed the "10:00" timer, blind values, and
+    Start/Previous/Next/Settings buttons all stretched near-full-width). Nothing clips or
+    overflows (the existing scale-to-fit logic still keeps it on one screen), but it reads as an
+    unpolished phone layout blown up rather than a tablet-designed one — long thin buttons, blind
+    values far apart from their labels. Needs the same treatment as Settings: cap `mainCard` at a
+    `maxWidth` (e.g. ~500-600pt) and center it via `alignSelf: "center"` on the outer `content`
+    view when `isTablet`.
+  - Didn't get to Android tablet (Play Store large-screen requirements from v1.1.3 apply here too)
+    — see tooling note below.
+- 🔍 **Physical-device spot-check and Android emulator pass still outstanding — blocked by
+  tooling, not attempted findings.** Two separate issues came up automating this:
+  - iOS Simulator: synthetic taps (`cliclick`/`CGEvent`) reliably hit native UIKit chrome (Safari's
+    "Open in App?" handoff, the Expo dev-menu's own close button) but never registered on the
+    RN-rendered app content itself (Timer's Start/Settings buttons) or on the iOS notification
+    permission alert, across many precisely-computed coordinate attempts. Root cause unconfirmed —
+    possibly the system notification-permission alert (triggered on app launch) staying logically
+    presented and eating touches even after visually appearing dismissed. Didn't chase further; a
+    real device or Xcode's own UI-testing driver would sidestep this.
+  - Android emulator (Pixel 10, API level matching current `compileSdk`): the debug APK
+    (`app-debug.apk`) crash-loops on launch — `expo-dev-launcher` hits a connection error (Metro
+    reachability from the emulator wasn't fully sorted despite `adb reverse tcp:8081 tcp:8081`),
+    which triggers a real `NullPointerException` in
+    `com.facebook.react.ReactActivityDelegate.onUserLeaveHint` (`mReactDelegate` is null) when the
+    system backgrounds the erroring `DevLauncherActivity` mid-transition to
+    `DevLauncherErrorActivity`. Reproduced identically after `pm clear` (ruled out stale cached
+    dev-server URL). This is a dev-client-only failure mode — production/release builds don't
+    bundle `expo-dev-launcher` — so it's not a shipped-app bug, but it did block getting any
+    Android screenshots this session. Worth a from-scratch look (e.g. a release-config local build,
+    or fixing the Metro/emulator networking) before the next attempt.
+  - Physical-device spot-check (small phone + tablet, both platforms) from the original checklist
+    is still untouched — needs an actual device in hand.
 
 ## Android notification-permission double prompt
 - 🔍 **Likely still present** — `TimerContext.tsx` uses both `useTimerNotification()` and

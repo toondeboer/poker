@@ -30,7 +30,8 @@ const MIN_SCALE = 0.6;
 export default function PokerTimer() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const { height: windowHeight } = useWindowDimensions();
+  const { width: windowWidth, height: windowHeight } = useWindowDimensions();
+  const isTablet = windowWidth > 768;
   const { currentBlindIndex, blindLevels, increaseBlinds, decreaseBlinds } =
     useBlinds();
   const {
@@ -118,7 +119,10 @@ export default function PokerTimer() {
             },
           ]}
         >
-          <View onLayout={handleColumnLayout}>
+          <View
+            onLayout={handleColumnLayout}
+            style={isTablet && styles.columnTablet}
+          >
             {/* Main Timer Card */}
             <View
               style={[
@@ -363,6 +367,11 @@ const styles = StyleSheet.create({
   content: {
     flex: 1,
     justifyContent: "center",
+  },
+  columnTablet: {
+    width: "100%",
+    maxWidth: 500,
+    alignSelf: "center",
   },
   mainCard: {
     backgroundColor: "rgba(255, 255, 255, 0.95)",
