@@ -89,12 +89,16 @@ full design.
   website/app feature-parity pass (bottom of this list) is done.
 
 ## Cross-device QA
-- ✅ **Small phones — confirmed fine on both platforms.** iPhone SE (3rd gen, 375×667pt — the
-  smallest iOS screen still sold): `PokerTimer.tsx`'s measure-and-scale approach
-  (`handleColumnLayout` / `MIN_SCALE = 0.6`) holds up, the whole card fits one screen with no
-  clipping/scrolling. Android (a `small_phone` AVD profile, API 35, 720×1280): same — Timer and
-  Settings both render cleanly, nothing clipped, real AdMob test ad renders correctly at the
-  bottom of Timer. Nothing to fix here on small phones.
+- ✅ **Fixed: Timer didn't quite fit on the smallest phones.** Initially reported this as fine
+  based on an iPhone SE (3rd gen) screenshot, but on a live look the user caught that it was
+  actually tight — margins between the progress bar, Current Blinds, and Next Level were touching
+  the readable-text floor (`MIN_SCALE = 0.6`) without room left to compress further. Fixed by
+  decoupling whitespace from font-size scaling: card padding and section margins now follow
+  `scale ** 3` (its own lower floor, `0.35`) instead of the same `scale` used for text, so gaps
+  compress noticeably faster than text does as the screen gets tighter — verified visually,
+  visibly tighter gaps on the same device. Android small phone (a `small_phone` AVD profile, API
+  35, 720×1280) was checked too — Timer and Settings both render cleanly there, nothing clipped,
+  real AdMob test ad renders correctly at the bottom of Timer.
 - ✅ **Fixed: `PokerTimer.tsx` had no tablet layout, unlike `PokerSettings.tsx`** — see the
   "Timer card stretches full-width on iPad" fix already landed (CHANGELOG `[Unreleased]`,
   `fix/tablet-timer-layout`). Added the same `isTablet` / `maxWidth` + centering pattern Settings
