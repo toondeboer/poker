@@ -13,7 +13,11 @@
         "android.permission.WRITE_EXTERNAL_STORAGE"
       ],
       "package": "com.toondeboer.pokerkit",
-      "edgeToEdgeEnabled": true
+      "edgeToEdgeEnabled": true,
+      "adaptiveIcon": {
+        "foregroundImage": "./src/assets/images/icon-adaptive-foreground.png",
+        "backgroundColor": "#0D3827"
+      }
     },
     "experiments": {
       "typedRoutes": true
