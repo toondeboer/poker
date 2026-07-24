@@ -16,14 +16,49 @@ full design.
   [STORE_LISTING.md](./STORE_LISTING.md#android--google-play-reuse-at-launch--p1-item-4).
   **Still needed:** upload it to the Play Console store listing (manual console step) and confirm
   it renders correctly there.
-- 🔍 **App icon has sharp corners on Android instead of the OS mask (round/squircle)** —
-  root cause found: `apps/mobile/android/app/src/main/res/mipmap-anydpi-v26/` exists but is
-  **empty** (no `ic_launcher.xml` / `ic_launcher_round.xml`), and `app.json`'s `android` block has
-  no `adaptiveIcon` key at all — only `icon.png` is set. Without an adaptive-icon XML + background/
-  foreground layers, Android falls back to the flat legacy mipmap webp icons instead of letting
-  the launcher mask the shape, which is exactly this symptom. Fix: add an `android.adaptiveIcon`
-  (`foregroundImage` + `backgroundColor` or `backgroundImage`) to `app.json`, run `expo prebuild`
-  to regenerate `mipmap-anydpi-v26/ic_launcher.xml` + `ic_launcher_round.xml`, verify on-device.
+- 🚧 **App icon has sharp corners on Android instead of the OS mask (round/squircle)** — fixed,
+  pending on-device verification. Root cause was confirmed: `mipmap-anydpi-v26/` was empty (no
+  `ic_launcher.xml`/`ic_launcher_round.xml`) and `app.json` had no `android.adaptiveIcon` at all, so
+  Android rendered the flat legacy square icon with no mask applied. Fix landed:
+  - Added a safe-zone-compliant foreground layer
+    (`apps/mobile/src/assets/images/icon-adaptive-foreground.png` — chip artwork chroma-keyed
+    transparent and scaled to ~62% of the canvas, comfortably inside Android's ~66% adaptive-icon
+    safe zone) plus `android.adaptiveIcon.backgroundColor` (`#0D3827`, matching the icon's own
+    background) in `app.json`.
+  - Ran `expo prebuild --platform android` to regenerate the native resources:
+    `mipmap-anydpi-v26/ic_launcher.xml` + `ic_launcher_round.xml` now exist, `AndroidManifest.xml`
+    gained `android:roundIcon`, `colors.xml`'s `iconBackground` updated, and per-density
+    `ic_launcher_foreground.webp`/new `ic_launcher_round.webp` regenerated correctly (spot-checked
+    visually — chip renders masked into a clean circle).
+  - Prebuild also silently reverted `styles.xml`'s `AppTheme` from `Theme.EdgeToEdge` back to the
+    old `Theme.AppCompat.DayNight.NoActionBar` + manual transparent bar colors — i.e. it undid the
+    v1.1.3 edge-to-edge fix (the prebuild logged
+    `EDGE_TO_EDGE_PLUGIN: 'edgeToEdgeEnabled' customization is no longer available` while running).
+    Manually reverted `styles.xml` back to `Theme.EdgeToEdge` so that regression didn't ship. See
+    the new item below — `edgeToEdgeEnabled` needs a real fix, this was just contained.
+  - **Still needed:** on-device confirmation the round icon actually shows (**local
+    `./gradlew assembleDebug` currently fails on this checkout** for an unrelated,
+    **pre-existing** reason — see below — so verify via an EAS build instead, or a working local
+    setup).
+- ⬜ **New: `android.edgeToEdgeEnabled` in `app.json` is stale/no-op** — Android 16 makes
+  edge-to-edge mandatory, and the version of the edge-to-edge config plugin bundled with this
+  Expo SDK no longer honors that app.json key (logs a deprecation warning and, when prebuild
+  regenerates `styles.xml` from scratch, drops back to the pre-v1.1.3 `Theme.AppCompat` + manual
+  transparent-bar-color approach instead of `Theme.EdgeToEdge`). Currently harmless only because
+  the committed `styles.xml` still has the correct `Theme.EdgeToEdge` setup and nothing has
+  re-run prebuild clean since — but the next prebuild (e.g. an unrelated native-config change)
+  will silently regress this again unless the `edgeToEdgeEnabled` key is removed/replaced with
+  whatever the current plugin actually expects.
+- ⬜ **New: local Android Gradle builds are currently broken on a fresh checkout, independent of
+  the above** — `cd apps/mobile/android && ./gradlew :app:assembleDebug` fails during
+  `processDebugResources` with `resource style/Theme.EdgeToEdge ... not found` /
+  `resource style/Theme.SplashScreen ... not found`, even on an unmodified `release/1.1.4`
+  checkout (confirmed by stashing all icon-fix changes and reproducing the same failure) — so
+  it's pre-existing, not caused by this fix. `react-native-edge-to-edge` and `expo-splash-screen`
+  are both present in `node_modules` and do provide those styles, so this looks like an
+  autolinking-resolution problem rather than a missing dependency. Not investigated further here
+  since it's outside this fix's scope, but it blocks verifying *any* native Android resource
+  change locally (including this one) until fixed — worth prioritizing.
 - ⬜ Update Play Store long description / screenshots to reflect current feature set once the
   website/app feature-parity pass (bottom of this list) is done.
 
