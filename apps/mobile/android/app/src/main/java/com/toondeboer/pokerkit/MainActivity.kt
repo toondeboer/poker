@@ -6,6 +6,7 @@ import expo.modules.splashscreen.SplashScreenManager
 import android.os.Build
 import android.os.Bundle
 import android.content.Intent
+import android.content.pm.ActivityInfo
 
 import com.facebook.react.ReactActivity
 import com.facebook.react.ReactActivityDelegate
@@ -24,6 +25,24 @@ class MainActivity : ReactActivity() {
         SplashScreenManager.registerOnActivity(this)
         // @generated end expo-splashscreen
         super.onCreate(null)
+
+        // Phones: portrait-only, no exceptions (product decision — see git
+        // history on fix/android-large-screen-orientation). Tablets get
+        // SCREEN_ORIENTATION_UNSPECIFIED instead of a manifest-level fixed
+        // orientation: Android 12L+ letterboxes activities with a *declared*
+        // fixed orientation on large screens rather than ignoring it, so the
+        // manifest has no android:screenOrientation at all and this runtime
+        // check locks phones only, leaving tablets free to use the sensor
+        // orientation (and the whole screen) without the OS letterboxing them.
+        requestedOrientation = if (isLargeScreen()) {
+            ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED
+        } else {
+            ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
+        }
+    }
+
+    private fun isLargeScreen(): Boolean {
+        return resources.configuration.smallestScreenWidthDp >= 600
     }
 
     override fun onNewIntent(intent: Intent) {

@@ -23,6 +23,14 @@ platform-tagged heading (e.g. `## [1.1.3] - 2026-07-20 — Android`) when you cu
   cramped or overflowing — the whitespace between sections (progress bar, Current Blinds, Next
   Level, etc.) now shrinks faster than text does as the screen gets tighter, instead of both
   shrinking at the same rate down to the same floor.
+- Android: fixed tablets being letterboxed into a narrow portrait strip (black bars either side)
+  regardless of the device's actual screen size. `MainActivity` locked the whole app to portrait
+  via the manifest, but Android 12L+ letterboxes fixed-orientation activities on large screens
+  instead of ignoring the restriction (the opposite of what an earlier fix assumed) — moved the
+  portrait lock into code (`MainActivity.kt`, based on `smallestScreenWidthDp`) so it still applies
+  to phones with no exceptions, while tablets get `SCREEN_ORIENTATION_UNSPECIFIED` and the OS stops
+  letterboxing them. Tablets now use the full landscape screen, correctly triggering the existing
+  tablet layouts (Settings' side-by-side cards, Timer's centered column).
 - Android: app icon now has proper round/squircle corners matching the rest of the launcher —
   added the missing adaptive-icon config (`app.json` had none), so the OS was rendering the flat
   legacy square icon with no mask applied at all.

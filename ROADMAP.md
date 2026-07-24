@@ -116,21 +116,40 @@ full design.
     unambiguous, so the tablet branch reliably activates there; iPad mini is the one edge case
     sitting just under the line. If iPad mini should also get the tablet treatment, that's a
     one-line threshold change in both files, but it's a deliberate call, not a bug fix.
-- 🔍 **New finding: Android tablets are portrait-locked at the manifest level, so `isTablet` never
-  actually fires on Android regardless of screen size.** Booted a `pixel_tablet` AVD (API 35,
-  2560×1600 landscape-native, a real 11" Android tablet) and installed the release build.
-  `AndroidManifest.xml`'s `<activity>` has `android:screenOrientation="portrait"` hardcoded (added
-  by the earlier "lock iPhone to portrait, matching Android phones" fix) — since Android tablets
-  default to **landscape**, the OS letterboxes the whole app into a narrow portrait-width strip in
-  the middle of the screen (confirmed visually: big black bars either side, with the system's
-  "Double-tap to move this app" split-screen hint overlaid on them). The activity's own window —
-  and therefore `useWindowDimensions()` — only ever sees that narrow letterboxed width, never the
-  tablet's real screen, so `isTablet` evaluates false and Settings renders single-column/stacked
-  even on this genuinely large tablet. This affects **every** Android tablet, not an edge case like
-  iPad mini — worth a real decision: either unlock/allow landscape specifically for Android tablets
-  (`android:screenOrientation` can be set per-`sw`-qualifier via a `values-sw600dp` resource
-  override, or handled in code), or explicitly accept phone-style portrait-only on Android tablets
-  and drop the tablet-detection code path there. Right now it's dead code on that platform.
+- ✅ **Fixed: Android tablets were letterboxed into a narrow portrait strip (black bars either
+  side), so `isTablet` never fired on Android regardless of screen size.** Found on a `pixel_tablet`
+  AVD (API 35, 2560×1600 landscape-native, a real 11" Android tablet) with the release build:
+  `AndroidManifest.xml`'s `<activity>` had `android:screenOrientation="portrait"` hardcoded (added
+  by the earlier "lock iPhone to portrait, matching Android phones" fix), and since Android tablets
+  default to **landscape**, the OS letterboxed the whole app into a narrow portrait-width strip
+  (confirmed visually: black bars either side, system's "Double-tap to move this app" split-screen
+  hint overlaid on them). The activity's own window — and therefore `useWindowDimensions()` — only
+  ever saw that narrow letterboxed width, never the tablet's real screen, so `isTablet` evaluated
+  false and both Timer and Settings rendered phone-style even on a genuinely large tablet.
+  - **Root cause of the root cause:** an earlier commit (`1db000f`) removed this same manifest
+    lock specifically because "Android 16 ignores resizability/orientation restrictions on
+    large-screen devices outright" — then a later one (`9b6ab49`) restored it for phones,
+    reasoning that the ignore-on-large-screens behavior would still protect tablets. That
+    assumption was backwards: Android 12L+'s actual large-screen policy for a *declared* fixed
+    orientation is to **letterbox** the activity, not ignore the restriction — which is exactly the
+    symptom reproduced here (and the AVD was API 35 either way, one version behind the "Android 16"
+    the commit named, though the letterboxing turned out to be unrelated to that gap).
+  - **Fix:** removed `android:screenOrientation` from the manifest entirely (so large screens are
+    never letterboxed at the static/declared level) and moved the portrait lock into
+    `MainActivity.onCreate` instead — `requestedOrientation = SCREEN_ORIENTATION_PORTRAIT` when
+    `resources.configuration.smallestScreenWidthDp < 600`, `SCREEN_ORIENTATION_UNSPECIFIED`
+    otherwise. Phones still lock to portrait with no exceptions (unchanged product decision);
+    tablets get sensor/current orientation and the OS stops letterboxing them.
+  - **Verified visually** on the same tablet AVD (release build, rebuilt after the fix): Timer's
+    card is now centered with the app's own green gradient filling the rest of the screen (no
+    black bars), and Settings correctly renders its side-by-side tablet layout — both previously
+    dead code paths on Android now actually reachable. Confirmed the small-phone AVD is still
+    portrait-only, unaffected.
+  - First attempt tried gating `android:screenOrientation` per-screen-size via a `@string`
+    resource + `values-sw600dp` override — `aapt` rejected this at install (`For input string:
+    "portrait"`): unlike most manifest attributes, `screenOrientation` is compiled to an enum
+    constant, not resolved as a plain string reference, so resource-qualified overrides don't work
+    for it. The runtime `requestedOrientation` approach above is the one that actually works.
 - ✅ **Android emulator dev-client crash-loop — root cause found and worked around, unblocking all
   the above.** The only local AVD (`Pixel_10`) targets `android-37.0`/16KB-page-size — a preview
   image far ahead of any stable Android release. The debug APK crash-looped on it within ~1s of
