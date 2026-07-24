@@ -27,6 +27,7 @@ export function useLiveActivitySync(
       isActive
         ? "App is active, updating Live Activity"
         : "App is in background, updating Live Activity with alert on expiry",
+      { paused, endTime, timeLeft, timerDuration },
     );
 
     liveActivityService.startOrUpdateActivity(

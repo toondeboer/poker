@@ -8,6 +8,7 @@
 //
 
 import Foundation
+import os
 
 @objc(LiveActivityActionListener)
 public final class LiveActivityActionListener: NSObject {
@@ -18,6 +19,7 @@ public final class LiveActivityActionListener: NSObject {
   }
 
   @objc public func start() {
+    Logger.liveActivity.log("LiveActivityActionListener.start() called")
     LiveActivityActionBridge.startObservingIfNeeded()
     NotificationCenter.default.addObserver(
       self,
@@ -28,7 +30,11 @@ public final class LiveActivityActionListener: NSObject {
   }
 
   @objc private func handleActionReceived() {
-    guard let action = LiveActivityActionBridge.consumePendingAction() else { return }
+    guard let action = LiveActivityActionBridge.consumePendingAction() else {
+      Logger.liveActivity.log("handleActionReceived() — consumePendingAction returned nil, nothing to emit")
+      return
+    }
+    Logger.liveActivity.log("handleActionReceived() — emitting \(action, privacy: .public) to JS")
     RNLiveActivity.emitAction(action)
   }
 }

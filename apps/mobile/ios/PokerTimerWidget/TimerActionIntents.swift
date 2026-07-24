@@ -12,6 +12,7 @@
 
 import ActivityKit
 import AppIntents
+import os
 
 // A single toggle intent, not two separate Pause/Resume intent types (WidgetKit's interactive
 // buttons can lose their binding when a button swaps between two *different* intent types across
@@ -39,22 +40,33 @@ struct TogglePauseTimerIntent: LiveActivityIntent {
   }
 
   func perform() async throws -> some IntentResult {
-    if let activity = Activity<PokerTimerWidgetAttributes>.activities.first {
-      var state = activity.content.state
-      if shouldPause {
-        state.timeLeft = max(0, state.timeRemaining)
-        state.paused = true
-      } else {
-        // Resume. Mirror the JS timer state machine's own `startTimer` fallback: resuming from
-        // an already-expired/zero timeLeft restarts a full round rather than an
-        // instantly-expired one.
-        let remaining = state.timeLeft > 0 ? state.timeLeft : state.timerDuration
-        state.endTime = Date().addingTimeInterval(remaining)
-        state.paused = false
-      }
-      await activity.update(ActivityContent(state: state, staleDate: nil))
+    Logger.liveActivity.log("TogglePauseTimerIntent.perform() shouldPause=\(shouldPause)")
+    guard let activity = Activity<PokerTimerWidgetAttributes>.activities.first else {
+      Logger.liveActivity.error("TogglePauseTimerIntent.perform() — no active Activity found")
       LiveActivityActionBridge.postAction(shouldPause ? "pause" : "resume")
+      return .result()
     }
+    var state = activity.content.state
+    Logger.liveActivity.log(
+      "before: paused=\(state.paused) timeLeft=\(state.timeLeft) endTime=\(state.endTime.timeIntervalSince1970) timerDuration=\(state.timerDuration)"
+    )
+    if shouldPause {
+      state.timeLeft = max(0, state.timeRemaining)
+      state.paused = true
+    } else {
+      // Resume. Mirror the JS timer state machine's own `startTimer` fallback: resuming from
+      // an already-expired/zero timeLeft restarts a full round rather than an
+      // instantly-expired one.
+      let remaining = state.timeLeft > 0 ? state.timeLeft : state.timerDuration
+      state.endTime = Date().addingTimeInterval(remaining)
+      state.paused = false
+    }
+    Logger.liveActivity.log(
+      "after: paused=\(state.paused) timeLeft=\(state.timeLeft) endTime=\(state.endTime.timeIntervalSince1970)"
+    )
+    await activity.update(ActivityContent(state: state, staleDate: nil))
+    Logger.liveActivity.log("activity.update() awaited/returned")
+    LiveActivityActionBridge.postAction(shouldPause ? "pause" : "resume")
     return .result()
   }
 }
@@ -63,6 +75,7 @@ struct StopTimerIntent: LiveActivityIntent {
   static var title: LocalizedStringResource = "Stop Timer"
 
   func perform() async throws -> some IntentResult {
+    Logger.liveActivity.log("StopTimerIntent.perform()")
     if let activity = Activity<PokerTimerWidgetAttributes>.activities.first {
       // Same call shape as `LiveActivityManager.endActivity`, so JS-driven stop and
       // button-driven stop look identical.
@@ -70,6 +83,8 @@ struct StopTimerIntent: LiveActivityIntent {
         ActivityContent(state: activity.content.state, staleDate: Date()),
         dismissalPolicy: .immediate
       )
+    } else {
+      Logger.liveActivity.error("StopTimerIntent.perform() — no active Activity found")
     }
     LiveActivityActionBridge.postAction("stop")
     return .result()

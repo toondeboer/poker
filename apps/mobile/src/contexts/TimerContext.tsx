@@ -163,6 +163,7 @@ export function TimerProvider({ children }: Readonly<{ children: ReactNode }>) {
   // live-event fast path (below) and the sequenced persisted-flag reconciliation
   // (`reconcileNativeAction`).
   const applyNativeAction = (action?: "pause" | "resume" | "stop" | null) => {
+    logger.log("applyNativeAction:", action);
     switch (action) {
       case "pause":
         void enginePause().then(() => handleNotificationScheduling(true, timeLeft));
@@ -191,6 +192,7 @@ export function TimerProvider({ children }: Readonly<{ children: ReactNode }>) {
   // reconciled action back to whatever was persisted before backgrounding.
   const reconcileNativeAction = async () => {
     const pendingAction = await liveActivityService.consumePendingAction();
+    logger.log("reconcileNativeAction: consumePendingAction ->", pendingAction);
     applyNativeAction(pendingAction);
   };
 

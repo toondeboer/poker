@@ -45,9 +45,16 @@ RCT_EXPORT_MODULE();
 
 + (void)emitAction:(NSString *)action
 {
-  if (sharedInstance != nil && sharedInstance->hasListeners) {
-    [sharedInstance sendEventWithName:@"onLiveActivityAction" body:@{@"action": action}];
+  if (sharedInstance == nil) {
+    NSLog(@"[LiveActivity] emitAction:%@ — sharedInstance is nil, RNLiveActivity module never instantiated yet, dropping", action);
+    return;
   }
+  if (!sharedInstance->hasListeners) {
+    NSLog(@"[LiveActivity] emitAction:%@ — no JS listener attached (hasListeners=NO), dropping", action);
+    return;
+  }
+  NSLog(@"[LiveActivity] emitAction:%@ — sending to JS", action);
+  [sharedInstance sendEventWithName:@"onLiveActivityAction" body:@{@"action": action}];
 }
 
 
