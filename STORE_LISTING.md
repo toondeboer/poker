@@ -80,6 +80,13 @@ Go Pro to remove ads, save tournament presets, and pick your alarm sound — or 
 
 ## Android — Google Play (reuse at launch — P1 item 4)
 
+- **Feature graphic (1024×500, required for the store listing):**
+  [`store-assets/android/feature-graphic.png`](./store-assets/android/feature-graphic.png) —
+  reuses the app icon's own colors (sampled directly from
+  `apps/mobile/src/assets/images/icon.png`) so it reads as the same brand rather than a redesign.
+  Generated from `store-assets/android/generate-feature-graphic.js` (an SVG built in code,
+  rasterized with `sharp`) rather than a static PNG, so copy/color tweaks are a text edit + re-run
+  (`node store-assets/android/generate-feature-graphic.js`) instead of redoing it in a design tool.
 - **Title (≤30 chars):** `Poker Blinds Timer & Buzzer`
 - **Short description (≤80 chars):**
   ```
