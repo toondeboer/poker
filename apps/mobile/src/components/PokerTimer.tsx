@@ -25,7 +25,16 @@ import { BannerAdSlot } from "./ads/BannerAdSlot";
 // ad + share row and scale font-size/spacing down to fit whatever's actually
 // available — this also self-corrects once the ad banner reports its real
 // size (adaptive banners don't know their height until they've loaded).
+//
+// Two separate floors: MIN_SCALE bounds font sizes (and anything else that
+// needs to stay readable/tappable), MIN_SPACING_SCALE bounds the whitespace
+// between sections (card padding, margins between cards). Spacing has more
+// room to give than text does, so on the smallest screens (e.g. iPhone SE)
+// the gaps between the progress bar / Current Blinds / Next Level compress
+// further before text would, which is what actually buys back the vertical
+// space needed to fit without scrolling.
 const MIN_SCALE = 0.6;
+const MIN_SPACING_SCALE = 0.35;
 
 export default function PokerTimer() {
   const router = useRouter();
@@ -49,9 +58,18 @@ export default function PokerTimer() {
   const [scale, setScale] = useState(1);
   const availableHeight = windowHeight - insets.top - insets.bottom;
 
-  // Scales vertical spacing/font-size so the card fits one screen without
-  // scrolling — see MIN_SCALE above.
+  // Scales font sizes (and other elements that need to stay readable/tappable)
+  // so the card fits one screen without scrolling — see MIN_SCALE above.
   const s = useCallback((value: number) => value * scale, [scale]);
+  // Scales whitespace (card padding, margins between sections). Derived from
+  // `scale` with a steeper (cubed) curve and its own lower floor, so gaps
+  // between sections compress noticeably faster than text does as the screen
+  // gets tighter — deriving it from `scale` instead of measuring it
+  // separately keeps the fit computation single-sourced on one variable.
+  const g = useCallback(
+    (value: number) => value * Math.max(MIN_SPACING_SCALE, scale ** 3),
+    [scale],
+  );
 
   const handleColumnLayout = useCallback(
     (e: LayoutChangeEvent) => {
@@ -127,15 +145,15 @@ export default function PokerTimer() {
             <View
               style={[
                 styles.mainCard,
-                { padding: s(32), marginBottom: s(24) },
+                { padding: g(32), marginBottom: g(24) },
               ]}
             >
               {/* Timer Display */}
-              <View style={[styles.timerSection, { marginBottom: s(32) }]}>
+              <View style={[styles.timerSection, { marginBottom: g(32) }]}>
                 <Text
                   style={[
                     styles.timerText,
-                    { fontSize: s(72), marginBottom: s(8) },
+                    { fontSize: s(72), marginBottom: g(8) },
                   ]}
                 >
                   {formatTime(timeLeft)}
@@ -143,7 +161,7 @@ export default function PokerTimer() {
                 <Text
                   style={[
                     styles.levelText,
-                    { fontSize: s(14), marginBottom: s(16) },
+                    { fontSize: s(14), marginBottom: g(16) },
                   ]}
                 >
                   Level {currentBlindIndex + 1}
@@ -153,7 +171,7 @@ export default function PokerTimer() {
                 <View
                   style={[
                     styles.progressBarContainer,
-                    { marginBottom: s(8) },
+                    { marginBottom: g(8) },
                   ]}
                 >
                   <View
@@ -176,13 +194,13 @@ export default function PokerTimer() {
               <View
                 style={[
                   styles.blindsCard,
-                  { padding: s(24), marginBottom: s(24) },
+                  { padding: g(24), marginBottom: g(24) },
                 ]}
               >
                 <Text
                   style={[
                     styles.blindsTitle,
-                    { fontSize: s(18), marginBottom: s(12) },
+                    { fontSize: s(18), marginBottom: g(12) },
                   ]}
                 >
                   Current Blinds
@@ -213,13 +231,13 @@ export default function PokerTimer() {
                 <View
                   style={[
                     styles.nextBlindsCard,
-                    { padding: s(16), marginBottom: s(24) },
+                    { padding: g(16), marginBottom: g(24) },
                   ]}
                 >
                   <Text
                     style={[
                       styles.nextBlindsTitle,
-                      { fontSize: s(14), marginBottom: s(8) },
+                      { fontSize: s(14), marginBottom: g(8) },
                     ]}
                   >
                     Next Level
@@ -236,7 +254,7 @@ export default function PokerTimer() {
               )}
 
               {/* Timer Controls */}
-              <View style={[styles.timerControls, { marginBottom: s(24) }]}>
+              <View style={[styles.timerControls, { marginBottom: g(24) }]}>
                 <TouchableOpacity
                   style={[
                     styles.primaryButton,
@@ -276,7 +294,7 @@ export default function PokerTimer() {
               </View>
 
               {/* Blind Controls */}
-              <View style={[styles.blindControls, { marginBottom: s(24) }]}>
+              <View style={[styles.blindControls, { marginBottom: g(24) }]}>
                 <TouchableOpacity
                   style={[
                     styles.blindButton,
@@ -324,7 +342,7 @@ export default function PokerTimer() {
             </View>
 
             {/* Banner ad — between the card and the share row, hidden for Pro users */}
-            <BannerAdSlot style={{ marginBottom: s(24) }} />
+            <BannerAdSlot style={{ marginBottom: g(24) }} />
 
             {/* Subtle brand + share row — helps players at the table find the app */}
             <TouchableOpacity

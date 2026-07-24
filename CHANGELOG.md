@@ -18,8 +18,11 @@ platform-tagged heading (e.g. `## [1.1.3] - 2026-07-20 — Android`) when you cu
 - Mobile: the Timer screen card no longer stretches edge-to-edge on tablets — capped it at the
   same tablet-aware `maxWidth` + centered layout `PokerSettings.tsx` already used, so blind values
   and buttons don't end up spread across the full iPad-width card. Found during a cross-device QA
-  pass (see `ROADMAP.md`); small phones (iPhone SE-class) were confirmed already fine via the
-  existing measure-and-scale layout.
+  pass (see `ROADMAP.md`).
+- Mobile: the Timer screen now fits on the smallest phones (iPhone SE-class) without feeling
+  cramped or overflowing — the whitespace between sections (progress bar, Current Blinds, Next
+  Level, etc.) now shrinks faster than text does as the screen gets tighter, instead of both
+  shrinking at the same rate down to the same floor.
 - Android: app icon now has proper round/squircle corners matching the rest of the launcher —
   added the missing adaptive-icon config (`app.json` had none), so the OS was rendering the flat
   legacy square icon with no mask applied at all.
