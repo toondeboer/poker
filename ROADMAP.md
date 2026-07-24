@@ -245,17 +245,32 @@ full design.
     "Provisioning Profile ... does not support the App Groups capability" until the capability was
     added there for both targets. EAS's remote-managed credentials are expected to handle this
     automatically for device/TestFlight builds, but that hasn't been confirmed.
-  - **Verified on a real device (iPhone 13 Pro): Pause and Stop worked correctly, Resume did not**
-    — tapping it had no effect. Root cause: `TimerActionButtons` swapped between two *different*
-    `LiveActivityIntent` types (`PauseTimerIntent` vs `ResumeTimerIntent`) depending on `paused`;
-    WidgetKit's interactive buttons can lose their binding when a button swaps between different
-    intent types across re-renders, and the branch that only appears after the first state change
-    (Resume, since the activity always starts unpaused) was the one that stopped responding. Fixed
-    by replacing both with a single `TogglePauseTimerIntent` whose `perform()` reads the activity's
-    own current `paused` state and flips it, so the button always uses the same intent type and
-    only its label changes (mirrors the in-app UI's own `togglePause()`). **Not yet re-verified on
-    device** — needs another real-device pass to confirm Resume now works, plus the cold-launch
-    `consumePendingAction()` path (force-quit the app, tap a button, reopen, confirm state syncs).
+  - **Verified on a real device (iPhone 13 Pro), round 1: Pause and Stop worked correctly, Resume
+    did not** — tapping it had no effect. First (partial) diagnosis: `TimerActionButtons` swapped
+    between two *different* `LiveActivityIntent` types (`PauseTimerIntent` vs `ResumeTimerIntent`)
+    depending on `paused` — WidgetKit's interactive buttons can lose their binding when a button
+    swaps between different intent types across re-renders, and the branch that only appears
+    after the first state change (Resume, since the activity always starts unpaused) was the one
+    that stopped responding. Merged both into a single `TogglePauseTimerIntent`.
+  - **Verified on device, round 2: now Pause didn't work either, and Resume still didn't work
+    after the timer expired** — the single-intent merge alone didn't fix it, meaning the round-1
+    diagnosis was incomplete. Root-caused properly this time: `TimerContext` had two independent,
+    unsequenced async reconciliations firing on the same foreground transition —
+    `useNativeTimerActionSync`'s `consumePendingAction()` (reads the App Group flag a native tap
+    writes) racing against `TimerContext`'s own `loadTimerState()` (reads AsyncStorage — a
+    completely separate, stale source a native tap never touches). AsyncStorage I/O is
+    consistently slower than the native UserDefaults/SharedPreferences read behind
+    `consumePendingAction()`, so `loadTimerState()` reliably resolved *last* and silently
+    overwrote the reconciled action — not a flaky race, a losing one every time. Fixed by moving
+    the persisted-flag reconciliation out of `useNativeTimerActionSync` (now just the live-event
+    fast path) and into `TimerContext`, explicitly sequenced *after* `loadTimerState()` resolves.
+    Also hardened `TogglePauseTimerIntent` defensively: it now takes `shouldPause` as an
+    `@Parameter` tied to the same `paused` value that decided the button's label, rather than
+    re-reading `Activity` state fresh inside `perform()` (Lock Screen content can render slightly
+    behind the true state, so a stale read could disagree with what the user saw and tapped).
+  - **Not yet re-verified on device** — needs another real-device pass: Pause, Resume (including
+    resuming an already-expired timer), and Stop, plus the cold-launch `consumePendingAction()`
+    path (force-quit the app, tap a button, reopen, confirm state syncs).
 
 ## Website landing page
 - 🔍 **Confirm contact email is correct** — currently `poker.blinds.buzzer@gmail.com`, hardcoded in
