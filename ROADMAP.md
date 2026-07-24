@@ -89,15 +89,94 @@ full design.
   website/app feature-parity pass (bottom of this list) is done.
 
 ## Cross-device QA
-- ⬜ Confirm the app works correctly on **small phones** (e.g. iPhone SE-class, small Android
-  screens) — check the timer and settings layouts don't clip or require scrolling.
-- ⬜ Confirm the app works correctly on **tablets**, both iPad and Android — `PokerSettings.tsx`
-  already has an `isTablet` layout branch and `useWindowDimensions()`-based reactive sizing (from
-  the v1.1.3 Play Console large-screen fixes), but that hasn't been re-verified against the newer
-  settings/blind-level UI changes since.
-- ⬜ Spot-check both platforms on at least one physical small device and one tablet each — a
-  simulator/emulator pass alone previously missed real inset/rotation behavior (see v1.1.3
-  edge-to-edge history in git log).
+- ✅ **Fixed: Timer didn't quite fit on the smallest phones.** Initially reported this as fine
+  based on an iPhone SE (3rd gen) screenshot, but on a live look the user caught that it was
+  actually tight — margins between the progress bar, Current Blinds, and Next Level were touching
+  the readable-text floor (`MIN_SCALE = 0.6`) without room left to compress further. Fixed by
+  decoupling whitespace from font-size scaling: card padding and section margins now follow
+  `scale ** 3` (its own lower floor, `0.35`) instead of the same `scale` used for text, so gaps
+  compress noticeably faster than text does as the screen gets tighter — verified visually,
+  visibly tighter gaps on the same device. Android small phone (a `small_phone` AVD profile, API
+  35, 720×1280) was checked too — Timer and Settings both render cleanly there, nothing clipped,
+  real AdMob test ad renders correctly at the bottom of Timer.
+- ✅ **Fixed: `PokerTimer.tsx` had no tablet layout, unlike `PokerSettings.tsx`** — see the
+  "Timer card stretches full-width on iPad" fix already landed (CHANGELOG `[Unreleased]`,
+  `fix/tablet-timer-layout`). Added the same `isTablet` / `maxWidth` + centering pattern Settings
+  already used.
+  - **Important nuance found while double-checking this fix (worth knowing before touching this
+    threshold again):** both Settings' existing `isTablet = screenWidth > 768` and the new Timer
+    one use the same cutoff, and it does **not** trigger on iPad mini specifically — an iPad mini
+    (A17 Pro) in portrait is 744×1133pt, just *under* 768. Confirmed by measuring the rendered card
+    width in screenshots pixel-for-pixel before/after the fix: identical (1392px both times) on
+    that device. So iPad mini currently gets the same un-capped phone-style layout on **both**
+    Timer and Settings — this isn't a Timer-specific gap, it's how the existing `768` threshold
+    already behaves, and changing it also changes Settings' long-shipped behavior, so left as-is
+    rather than changed unilaterally here. Re-verified the threshold *does* fire correctly on a
+    genuinely large tablet (iPad Pro 11", 834×1194pt portrait, comfortably over 768) — 834 > 768 is
+    unambiguous, so the tablet branch reliably activates there; iPad mini is the one edge case
+    sitting just under the line. If iPad mini should also get the tablet treatment, that's a
+    one-line threshold change in both files, but it's a deliberate call, not a bug fix.
+- ✅ **Fixed: Android tablets were letterboxed into a narrow portrait strip (black bars either
+  side), so `isTablet` never fired on Android regardless of screen size.** Found on a `pixel_tablet`
+  AVD (API 35, 2560×1600 landscape-native, a real 11" Android tablet) with the release build:
+  `AndroidManifest.xml`'s `<activity>` had `android:screenOrientation="portrait"` hardcoded (added
+  by the earlier "lock iPhone to portrait, matching Android phones" fix), and since Android tablets
+  default to **landscape**, the OS letterboxed the whole app into a narrow portrait-width strip
+  (confirmed visually: black bars either side, system's "Double-tap to move this app" split-screen
+  hint overlaid on them). The activity's own window — and therefore `useWindowDimensions()` — only
+  ever saw that narrow letterboxed width, never the tablet's real screen, so `isTablet` evaluated
+  false and both Timer and Settings rendered phone-style even on a genuinely large tablet.
+  - **Root cause of the root cause:** an earlier commit (`1db000f`) removed this same manifest
+    lock specifically because "Android 16 ignores resizability/orientation restrictions on
+    large-screen devices outright" — then a later one (`9b6ab49`) restored it for phones,
+    reasoning that the ignore-on-large-screens behavior would still protect tablets. That
+    assumption was backwards: Android 12L+'s actual large-screen policy for a *declared* fixed
+    orientation is to **letterbox** the activity, not ignore the restriction — which is exactly the
+    symptom reproduced here (and the AVD was API 35 either way, one version behind the "Android 16"
+    the commit named, though the letterboxing turned out to be unrelated to that gap).
+  - **Fix:** removed `android:screenOrientation` from the manifest entirely (so large screens are
+    never letterboxed at the static/declared level) and moved the portrait lock into
+    `MainActivity.onCreate` instead — `requestedOrientation = SCREEN_ORIENTATION_PORTRAIT` when
+    `resources.configuration.smallestScreenWidthDp < 600`, `SCREEN_ORIENTATION_UNSPECIFIED`
+    otherwise. Phones still lock to portrait with no exceptions (unchanged product decision);
+    tablets get sensor/current orientation and the OS stops letterboxing them.
+  - **Verified visually** on the same tablet AVD (release build, rebuilt after the fix): Timer's
+    card is now centered with the app's own green gradient filling the rest of the screen (no
+    black bars), and Settings correctly renders its side-by-side tablet layout — both previously
+    dead code paths on Android now actually reachable. Confirmed the small-phone AVD is still
+    portrait-only, unaffected.
+  - First attempt tried gating `android:screenOrientation` per-screen-size via a `@string`
+    resource + `values-sw600dp` override — `aapt` rejected this at install (`For input string:
+    "portrait"`): unlike most manifest attributes, `screenOrientation` is compiled to an enum
+    constant, not resolved as a plain string reference, so resource-qualified overrides don't work
+    for it. The runtime `requestedOrientation` approach above is the one that actually works.
+- ✅ **Android emulator dev-client crash-loop — root cause found and worked around, unblocking all
+  the above.** The only local AVD (`Pixel_10`) targets `android-37.0`/16KB-page-size — a preview
+  image far ahead of any stable Android release. The debug APK crash-looped on it within ~1s of
+  every launch (`NullPointerException` in `ReactActivityDelegate.onUserLeaveHint`, `mReactDelegate`
+  null). Installed a stable API 35 system image locally (`sdkmanager --sdk_root=~/Library/Android/
+  sdk --install "system-images;android-35;google_apis;arm64-v8a"` — the Homebrew-installed
+  `sdkmanager` defaults to a *different* SDK root than `~/Library/Android/sdk`, which is what
+  `avdmanager`/the emulator actually reads from, so the `--sdk_root` flag matters) and created
+  fresh `small_phone` and `pixel_tablet` AVDs on it — **same crash reproduced there too**, ruling
+  out the preview-API-level theory: it's a genuine `expo-dev-launcher`/RN 0.85 dev-client
+  compatibility bug, not an emulator/API-level issue, and it'll hit a physical device on this
+  dependency version just the same. Production builds don't bundle `expo-dev-launcher` though, so
+  as a workaround, built a local **release** APK instead (`./gradlew :app:assembleRelease`, debug
+  keystore, no code changes needed) — hit the monorepo's already-documented broken-shim gotcha
+  (CLAUDE.md) along the way (`Project with path ':expo-dev-launcher' could not be found`), fixed
+  with the documented shim-clean + `npm install` + build-cache-clear steps, then a `lintVital*`
+  OutOfMemory failure (worked around with `-x lintVitalAnalyzeRelease -x lintVitalReportRelease -x
+  lintVitalRelease`, not a real bug — just constrained lint worker memory on this machine). The
+  resulting release APK installs and runs cleanly on both stable-API AVDs above with no crash.
+- 🔍 **Physical-device spot-check (small phone + tablet, both platforms) still outstanding** —
+  needs an actual device in hand, not attempted this session.
+- 🔍 **iOS Simulator touch-automation note (tooling limitation, not a product finding):**
+  synthetic taps (`cliclick`/`CGEvent`) reliably hit native UIKit chrome (Safari's "Open in App?"
+  handoff, the Expo dev-menu's own close button) but were unreliable against RN-rendered app
+  content and the iOS notification-permission alert — worked sometimes, not others, no pattern
+  found. Android's `adb shell input tap` had no such issue (real HID-level injection) — reliable
+  every time. A real device or Xcode's own UI-testing driver would sidestep this for iOS.
 
 ## Android notification-permission double prompt
 - 🔍 **Likely still present** — `TimerContext.tsx` uses both `useTimerNotification()` and
