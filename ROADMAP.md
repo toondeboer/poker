@@ -123,17 +123,22 @@ full design.
     possibly the system notification-permission alert (triggered on app launch) staying logically
     presented and eating touches even after visually appearing dismissed. Didn't chase further; a
     real device or Xcode's own UI-testing driver would sidestep this.
-  - Android emulator (Pixel 10, API level matching current `compileSdk`): the debug APK
-    (`app-debug.apk`) crash-loops on launch — `expo-dev-launcher` hits a connection error (Metro
-    reachability from the emulator wasn't fully sorted despite `adb reverse tcp:8081 tcp:8081`),
-    which triggers a real `NullPointerException` in
-    `com.facebook.react.ReactActivityDelegate.onUserLeaveHint` (`mReactDelegate` is null) when the
-    system backgrounds the erroring `DevLauncherActivity` mid-transition to
-    `DevLauncherErrorActivity`. Reproduced identically after `pm clear` (ruled out stale cached
-    dev-server URL). This is a dev-client-only failure mode — production/release builds don't
-    bundle `expo-dev-launcher` — so it's not a shipped-app bug, but it did block getting any
-    Android screenshots this session. Worth a from-scratch look (e.g. a release-config local build,
-    or fixing the Metro/emulator networking) before the next attempt.
+  - **Android emulator — root cause found: the only local AVD (`Pixel_10`) targets a
+    bleeding-edge preview system image, not a supported Android version.** The debug APK
+    (`app-debug.apk`) crash-loops within ~1s of every launch with a `NullPointerException` in
+    `com.facebook.react.ReactActivityDelegate.onUserLeaveHint` (`mReactDelegate` null) — too fast
+    to be a Metro-connectivity timeout, and it reproduced identically after `pm clear` (rules out a
+    stale cached dev-server URL) and with `adb reverse tcp:8081 tcp:8081` in place. Checked the
+    AVD's actual image: `~/.android/avd/Pixel_10.avd/config.ini` is
+    `target=android-37.0`/`tag.ids=google_apis_playstore,page_size_16kb,...` — API 37 with 16KB
+    page sizes, both far ahead of any stable Android release and well beyond what
+    `expo-dev-launcher`/RN 0.85 (current versions here) are likely validated against. That's the
+    real culprit, not the app or this repo's config — `~/Library/Android/sdk/system-images/` only
+    has that one `android-37.0` image installed locally, so there's no already-downloaded stable
+    image (e.g. API 34/35) to fall back to. **Next attempt should create an AVD on a stable,
+    currently-shipping API level** (`sdkmanager` install + `avdmanager create avd`) rather than
+    reusing `Pixel_10` — this is a local dev-environment gap, not a shipped-app bug (production
+    builds don't bundle `expo-dev-launcher` at all).
   - Physical-device spot-check (small phone + tablet, both platforms) from the original checklist
     is still untouched — needs an actual device in hand.
 
