@@ -7,8 +7,6 @@ import {
   Platform,
 } from "react-native";
 import { logger } from "@/src/utils/logger";
-import { liveActivityService } from "@/src/services/LiveActivityService";
-import { useAppState } from "@/src/contexts/AppStateContext";
 import type { PendingTimerAction } from "@/src/modules/LiveActivityModule";
 
 export interface NativeTimerActionCallbacks {
@@ -23,13 +21,19 @@ const IOS_EVENT = "onLiveActivityAction";
 /**
  * Applies a pause/resume/stop action that originated natively — an Android foreground-service
  * notification button, or an iOS Live Activity/Dynamic Island button — rather than the in-app
- * UI. Two delivery paths, both routed through the same callbacks:
- *  - A live event, while a JS/bridge instance happens to already be running (fast path; the
- *    native side has already updated its own visible UI immediately, independent of this).
- *  - A persisted "pending action" flag, consumed on mount and whenever the app returns to the
- *    foreground. This is what makes reconciliation work when the app was backgrounded or fully
- *    killed at the moment of the tap — the live event can't be (or wasn't) delivered in that
- *    case, but the flag survives until JS next reads it.
+ * UI, as it happens live while a JS/bridge instance is already running (the native side has
+ * already updated its own visible UI immediately, independent of this — this is purely so JS's
+ * timer state catches up).
+ *
+ * This is the fast path only. The persisted "pending action" flag (for when the app was
+ * backgrounded/killed at the moment of the tap) is deliberately NOT handled here — it's consumed
+ * by `TimerContext` itself, sequenced *after* `loadTimerState()` on mount/foreground. Racing the
+ * two independently (as an earlier version of this hook did) meant `loadTimerState()`'s
+ * AsyncStorage read — a completely separate, stale data source a native tap never touches —
+ * would reliably resolve after the pending-action reconciliation and silently overwrite it,
+ * since AsyncStorage I/O is consistently slower than the native UserDefaults/SharedPreferences
+ * read behind `consumePendingAction()`. Sequencing them in one place, load-then-reconcile,
+ * removes that race entirely.
  *
  * Callers must pass *absolute* pause/resume (not an unconditional toggle) — an out-of-band
  * native action racing against in-app state must not risk flipping the wrong way.
@@ -39,7 +43,6 @@ export function useNativeTimerActionSync({
   onResume,
   onStop,
 }: NativeTimerActionCallbacks) {
-  const { isActive } = useAppState();
   const callbacksRef = useRef({ onPause, onResume, onStop });
   useEffect(() => {
     callbacksRef.current = { onPause, onResume, onStop };
@@ -59,7 +62,6 @@ export function useNativeTimerActionSync({
     }
   };
 
-  // Live event fast path.
   useEffect(() => {
     if (Platform.OS === "android") {
       const subscription = DeviceEventEmitter.addListener(
@@ -83,23 +85,4 @@ export function useNativeTimerActionSync({
     }
     return undefined;
   }, []);
-
-  // Persisted-flag reconciliation on mount (cold launch).
-  useEffect(() => {
-    liveActivityService.consumePendingAction().then(applyAction);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  // Persisted-flag reconciliation on background -> foreground (app was alive but backgrounded,
-  // or was killed and just relaunched into an already-mounted provider tree).
-  const wasActiveRef = useRef(isActive);
-  useEffect(() => {
-    const cameToForeground = isActive && !wasActiveRef.current;
-    wasActiveRef.current = isActive;
-
-    if (cameToForeground) {
-      liveActivityService.consumePendingAction().then(applyAction);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isActive]);
 }

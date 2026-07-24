@@ -156,21 +156,43 @@ export function TimerProvider({ children }: Readonly<{ children: ReactNode }>) {
     await clearAlert();
   };
 
-  // Apply pause/resume/stop actions that originated from the Android foreground-service
+  // Apply a pause/resume/stop action that originated from the Android foreground-service
   // notification or the iOS Live Activity/Dynamic Island, rather than the in-app UI. Uses the
   // absolute pause()/resume() (not togglePause) since these arrive out-of-band and must not
-  // risk flipping the wrong way if they race against an in-app state change.
+  // risk flipping the wrong way if they race against an in-app state change. Shared by both the
+  // live-event fast path (below) and the sequenced persisted-flag reconciliation
+  // (`reconcileNativeAction`).
+  const applyNativeAction = (action?: "pause" | "resume" | "stop" | null) => {
+    switch (action) {
+      case "pause":
+        void enginePause().then(() => handleNotificationScheduling(true, timeLeft));
+        break;
+      case "resume":
+        void engineResume().then(() => handleNotificationScheduling(false, timeLeft));
+        break;
+      case "stop":
+        void resetTimer();
+        break;
+    }
+  };
+
   useNativeTimerActionSync({
-    onPause: () => {
-      void enginePause().then(() => handleNotificationScheduling(true, timeLeft));
-    },
-    onResume: () => {
-      void engineResume().then(() => handleNotificationScheduling(false, timeLeft));
-    },
-    onStop: () => {
-      void resetTimer();
-    },
+    onPause: () => applyNativeAction("pause"),
+    onResume: () => applyNativeAction("resume"),
+    onStop: () => applyNativeAction("stop"),
   });
+
+  // Persisted-flag reconciliation for a native action that arrived while the app was
+  // backgrounded or fully killed (the live-event listener above only catches one that arrives
+  // while JS is already running). Deliberately sequenced *after* `loadTimerState()` finishes,
+  // not raced against it — `loadTimerState()` reads AsyncStorage, a separate, stale data source
+  // a native button tap never touches, and it reliably resolves *after* a native action check
+  // (AsyncStorage I/O is consistently slower), so racing them let it silently clobber the
+  // reconciled action back to whatever was persisted before backgrounding.
+  const reconcileNativeAction = async () => {
+    const pendingAction = await liveActivityService.consumePendingAction();
+    applyNativeAction(pendingAction);
+  };
 
   // Dismiss timer alert (advance to next blind level, keep timer paused, stop sound)
   const dismissTimerAlert = async () => {
@@ -230,8 +252,9 @@ export function TimerProvider({ children }: Readonly<{ children: ReactNode }>) {
     wasActiveRef.current = isActive;
 
     if (cameToForeground) {
-      // App has come to the foreground, reload timer state
-      loadTimerState();
+      // App has come to the foreground: reload persisted state, THEN reconcile any native
+      // action on top of it (not in parallel — see reconcileNativeAction).
+      loadTimerState().then(reconcileNativeAction);
       liveActivityService.syncActivityState();
     }
 
@@ -246,9 +269,11 @@ export function TimerProvider({ children }: Readonly<{ children: ReactNode }>) {
     }
   }, [isActive, isBackground, isInactive, loadTimerState, showTimerAlert]);
 
-  // Load initial state on mount
+  // Load initial state on mount, then reconcile any native action left pending from before
+  // this launch (see reconcileNativeAction — sequenced, not raced, against the load).
   useEffect(() => {
-    loadTimerState();
+    loadTimerState().then(reconcileNativeAction);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // Cleanup on unmount

@@ -13,30 +13,47 @@
 import ActivityKit
 import AppIntents
 
-// A single toggle intent, not two separate Pause/Resume intent types. WidgetKit's interactive
+// A single toggle intent, not two separate Pause/Resume intent types (WidgetKit's interactive
 // buttons can lose their binding when a button swaps between two *different* intent types across
-// re-renders (the branch that only appears after the first state change — Resume, here — stops
-// responding); a single intent type whose `perform()` reads the activity's own current `paused`
-// state and flips it avoids that entirely, matching the in-app UI's own `togglePause()`.
+// re-renders — the branch that only appears after the first state change stops responding).
+//
+// `shouldPause` is a *parameter*, supplied by the button at the exact moment it's rendered (see
+// `TimerActionButtons` in PokerTimerWidget.swift), rather than re-derived from a fresh
+// `Activity.activities.first!.content.state.paused` read inside `perform()`. Lock Screen Live
+// Activity content can render slightly behind the true underlying state, so a fresh read could
+// disagree with what the user actually saw and tapped; tying the intent to the same `paused`
+// value that decided the button's label guarantees perform() always does what was displayed,
+// with a same-state tap degrading to a harmless no-op instead of firing the wrong direction.
 struct TogglePauseTimerIntent: LiveActivityIntent {
   static var title: LocalizedStringResource = "Toggle Timer Pause"
+
+  @Parameter(title: "Pause")
+  var shouldPause: Bool
+
+  init() {
+    self.shouldPause = true
+  }
+
+  init(shouldPause: Bool) {
+    self.shouldPause = shouldPause
+  }
 
   func perform() async throws -> some IntentResult {
     if let activity = Activity<PokerTimerWidgetAttributes>.activities.first {
       var state = activity.content.state
-      if state.paused {
+      if shouldPause {
+        state.timeLeft = max(0, state.timeRemaining)
+        state.paused = true
+      } else {
         // Resume. Mirror the JS timer state machine's own `startTimer` fallback: resuming from
         // an already-expired/zero timeLeft restarts a full round rather than an
         // instantly-expired one.
         let remaining = state.timeLeft > 0 ? state.timeLeft : state.timerDuration
         state.endTime = Date().addingTimeInterval(remaining)
         state.paused = false
-      } else {
-        state.timeLeft = max(0, state.timeRemaining)
-        state.paused = true
       }
       await activity.update(ActivityContent(state: state, staleDate: nil))
-      LiveActivityActionBridge.postAction(state.paused ? "pause" : "resume")
+      LiveActivityActionBridge.postAction(shouldPause ? "pause" : "resume")
     }
     return .result()
   }

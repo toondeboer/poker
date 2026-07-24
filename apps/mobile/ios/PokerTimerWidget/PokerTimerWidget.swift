@@ -209,7 +209,7 @@ struct TimerActionButtons: View {
 
   var body: some View {
     HStack(spacing: 12) {
-      Button(intent: TogglePauseTimerIntent()) {
+      Button(intent: TogglePauseTimerIntent(shouldPause: !paused)) {
         Label(paused ? "Resume" : "Pause", systemImage: paused ? "play.fill" : "pause.fill")
       }
 
