@@ -194,16 +194,35 @@ full design.
   every time. A real device or Xcode's own UI-testing driver would sidestep this for iOS.
 
 ## Android notification-permission double prompt
-- 🔍 **Likely still present** — `TimerContext.tsx` uses both `useTimerNotification()` and
-  `useNotificationPermission()` at once. `useTimerNotification`'s
-  `registerForPushNotificationsAsync` calls `Notifications.getPermissionsAsync()` /
-  `requestPermissionsAsync()` (expo-notifications) on mount; independently,
-  `useNotificationPermission`'s `checkPermission()` runs in its own `useEffect` on mount and calls
-  `liveActivityService.requestNotificationPermission()`, which (on Android) goes through
-  `PermissionsAndroid.request(POST_NOTIFICATIONS)`. Two independent permission-request code paths
-  firing near-simultaneously on mount would produce exactly the double-prompt symptom reported
-  previously. Needs on-device confirmation, then consolidating to a single permission-request path
-  (have one hook own the request, the other just read status).
+- ✅ **Investigated on-device — not reproducible, no bug present.** The previous write-up's theory
+  (two independent request paths firing on mount) doesn't hold up once the full call graph is
+  traced:
+  - `useTimerNotification.ts` early-returns a stub (`{ scheduleNotification, cancelNotification }`)
+    for `Platform.OS === "android"` **before** the `useEffect` that calls
+    `registerForPushNotificationsAsync` (and therefore `Notifications.getPermissionsAsync()` /
+    `requestPermissionsAsync()`) is even declared. That effect is iOS-only in practice — easy to
+    miss reading top-to-bottom since the guard clause sits above the hooks it's skipping. This
+    early return isn't new; it's been there since the initial Android notification work (`98479f2`
+    and earlier), well before this item was investigated.
+  - `useNotificationPermission`'s own mount effect (`checkPermission`) calls
+    `liveActivityService.requestNotificationPermission()`, which on Android resolves to
+    `ForegroundServiceModule.hasNotificationPermission()` — despite the "request" name on both
+    functions, that native method only does `ContextCompat.checkSelfPermission(...)`. It reads
+    status, it never shows a dialog.
+  - The **only** call in the app that actually triggers the Android system dialog is
+    `TimerContext.tsx`'s `checkBackgroundSupport` mount effect, which calls `requestPermission`
+    (destructured as `requestNotificationPermission`) from `useNotificationPermission` →
+    `PermissionsAndroid.request(POST_NOTIFICATIONS)`. One path, one dialog.
+  - **Verified on two API 35 emulators** (`Android_small`, `Android_tablet`): `pm revoke
+    POST_NOTIFICATIONS` + `pm clear` to reset to a first-install state, then fresh launch.
+    Screenshots confirm exactly one system permission dialog appears; tapping **Allow** dismisses
+    it and the app proceeds straight to the Timer screen with no second prompt (foreground-service
+    notification icon appears in the status bar once the timer starts). Repeated the same reset
+    tapping **Don't allow** instead — also no second prompt, no crash, no immediate re-prompt loop.
+  - **Minor readability nit, not a functional bug:** `LiveActivityService.requestNotificationPermission`
+    and `ForegroundServiceModule.hasNotificationPermission` are named inconsistently with what they
+    do (one's a "request" that only checks; the other's correctly named "has"). Worth a rename for
+    clarity if touching this code again, but doesn't affect behavior.
 
 ## Live Activity / foreground service controls
 - 🔍 **Pause is not currently exposed as an action** — the Android foreground-service notification
