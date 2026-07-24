@@ -118,7 +118,19 @@ Mobile releases are batched on a short-lived branch per version, not shipped str
   apps/mobile/node_modules/{expo,expo-constants,expo-modules-autolinking}`, confirm with `cd
   apps/mobile && npx expo-modules-autolinking resolve -p ios --json | grep -c
   '"packageName":"expo"'` → should be `1`, then `npm install` (Android) or `npm run pods -w
-  @poker/mobile` (iOS) and rebuild.
+  @poker/mobile` (iOS) and rebuild. **Also clear
+  `apps/mobile/android/build/generated/autolinking/`** (or just `rm -rf
+  apps/mobile/android/build apps/mobile/android/app/build`) after fixing the shims — Gradle caches
+  the resolved autolinking list there and only re-runs the resolution command when a lockfile hash
+  changes (`ReactSettingsExtension.checkAndUpdateCache`), so if the cache was written while the
+  shims were broken it keeps serving that same truncated dependency list (symptom: `resource
+  style/Theme.EdgeToEdge`/`Theme.SplashScreen ... not found` during `processDebugResources`, from
+  `react-native-edge-to-edge`/`expo-splash-screen` silently missing from the linked modules) even
+  after the shims themselves are cleaned up. This surfaced here from **background Gradle syncs
+  alone** (Android Studio + the VS Code Gradle extension both open against the project, each
+  running their own daemon) re-triggering the shim bug with no `expo run:android` or other
+  explicit command involved — if a local Android build seems to spontaneously re-break after
+  being fixed, check for a concurrent IDE Gradle sync before assuming the fix didn't take.
 - **iOS must build from source.** SDK-56 precompiled XCFrameworks break this hoisted monorepo
   (archive fails on `Build ExpoModulesJSI xcframework` / safe-area-context "Directory not found",
   even with `--clear-cache`). `apps/mobile/ios/Podfile` bakes
