@@ -88,6 +88,21 @@ full design.
 - ⬜ Update Play Store long description / screenshots to reflect current feature set once the
   website/app feature-parity pass (bottom of this list) is done.
 
+## Store assets refresh — screenshots for all platforms & device sizes
+- ⬜ Existing App Store / Play Store screenshots predate the cross-device QA pass below (tablet
+  layout fix for Timer, small-phone spacing fix, Android tablet no longer letterboxed) — capture
+  fresh screenshots so the listings reflect what the app actually looks like now, not the
+  pre-fix layouts.
+- ⬜ **iOS App Store:** iPhone screenshots (6.9"/6.5" size classes Apple requires) plus iPad
+  screenshots (`supportsTablet: true` means the listing needs its own iPad set, not just scaled
+  iPhone shots) — capture Timer, Settings, and Paywall on at least one iPhone and one iPad size.
+- ⬜ **Google Play:** phone screenshots plus a tablet set (Play Console separates these) — same
+  screens, phone and tablet, now that the tablet orientation fix means tablet screenshots will
+  actually show the intended side-by-side/centered layouts instead of a letterboxed phone view.
+- ⬜ Decide whether to keep hand-picked simulator/emulator screenshots or invest in an automated
+  screenshot pipeline (e.g. `fastlane snapshot`/`fastlane frameit`) given how many size
+  combinations this now covers (iPhone × iPad × Android phone × Android tablet).
+
 ## Cross-device QA
 - ✅ **Fixed: Timer didn't quite fit on the smallest phones.** Initially reported this as fine
   based on an iPhone SE (3rd gen) screenshot, but on a live look the user caught that it was
