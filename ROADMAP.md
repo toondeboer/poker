@@ -239,20 +239,23 @@ full design.
     tapped Resume/Pause/Stop from the notification, and confirmed both the notification and the
     reopened app's UI reflected the change each time (including a full reset to `10:00`/`Start`
     after Stop).
-  - **iOS: verified the build only, not interactively.** A clean Xcode build succeeds for both the
-    main app and widget-extension targets (App Intents metadata extraction runs against the three
-    new `LiveActivityIntent`s, entitlements/App-Group synthesis for the simulator is correct on
-    inspection), but this environment has no way to simulate taps on the iOS Simulator (no `idb`,
-    no GUI window session for AppleScript/`cliclick`), so the Live Activity/Dynamic Island buttons
-    themselves haven't been interactively exercised. **Needs a real interactive pass** (simulator
-    or device) before shipping — start a timer, background the app, tap Pause/Resume/Stop on the
-    Lock Screen and Dynamic Island, confirm the app's state matches on reopen, and repeat after
-    force-quitting to exercise the cold-launch `consumePendingAction()` path.
-  - Also worth confirming before shipping: a real device build (not just simulator) actually gets
-    the App Group capability provisioned — local Xcode automatic signing appears to have synced it
-    without any manual Apple Developer Portal step for the simulator build tested here, and EAS's
-    remote-managed credentials should do the same for device/TestFlight builds, but neither was
-    confirmed on a real device.
+  - **iOS: real device build required a one-time manual step** — local Xcode automatic signing
+    didn't auto-register the new App Groups capability from the entitlements files alone (that
+    only happens via Xcode's own Signing & Capabilities UI); the device build failed with
+    "Provisioning Profile ... does not support the App Groups capability" until the capability was
+    added there for both targets. EAS's remote-managed credentials are expected to handle this
+    automatically for device/TestFlight builds, but that hasn't been confirmed.
+  - **Verified on a real device (iPhone 13 Pro): Pause and Stop worked correctly, Resume did not**
+    — tapping it had no effect. Root cause: `TimerActionButtons` swapped between two *different*
+    `LiveActivityIntent` types (`PauseTimerIntent` vs `ResumeTimerIntent`) depending on `paused`;
+    WidgetKit's interactive buttons can lose their binding when a button swaps between different
+    intent types across re-renders, and the branch that only appears after the first state change
+    (Resume, since the activity always starts unpaused) was the one that stopped responding. Fixed
+    by replacing both with a single `TogglePauseTimerIntent` whose `perform()` reads the activity's
+    own current `paused` state and flips it, so the button always uses the same intent type and
+    only its label changes (mirrors the in-app UI's own `togglePause()`). **Not yet re-verified on
+    device** — needs another real-device pass to confirm Resume now works, plus the cold-launch
+    `consumePendingAction()` path (force-quit the app, tap a button, reopen, confirm state syncs).
 
 ## Website landing page
 - 🔍 **Confirm contact email is correct** — currently `poker.blinds.buzzer@gmail.com`, hardcoded in
