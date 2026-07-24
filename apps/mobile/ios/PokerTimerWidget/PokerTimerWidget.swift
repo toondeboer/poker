@@ -46,37 +46,41 @@ struct PokerTimerWidget: Widget {
         }
                 
         DynamicIslandExpandedRegion(.bottom) {
-          HStack {
-            // Timer - most prominent element
-            HStack(spacing: 4) {
-              Image(
-                systemName: context.state.paused ? "pause.circle.fill" : "timer"
-              )
-              .foregroundColor(context.state.paused ? .orange : .green)
-              
-              if context.state.paused {
-                Text(formatTime(context.state.timeLeft))
+          VStack(spacing: 8) {
+            HStack {
+              // Timer - most prominent element
+              HStack(spacing: 4) {
+                Image(
+                  systemName: context.state.paused ? "pause.circle.fill" : "timer"
+                )
+                .foregroundColor(context.state.paused ? .orange : .green)
+
+                if context.state.paused {
+                  Text(formatTime(context.state.timeLeft))
+                    .font(.title2)
+                    .bold()
+                    .monospacedDigit()
+                    .foregroundColor(.orange)
+                } else {
+                  Text(
+                    timerInterval: Date()...context.state.endTime,
+                    countsDown: true
+                  )
                   .font(.title2)
                   .bold()
                   .monospacedDigit()
-                  .foregroundColor(.orange)
-              } else {
-                Text(
-                  timerInterval: Date()...context.state.endTime,
-                  countsDown: true
-                )
-                .font(.title2)
-                .bold()
-                .monospacedDigit()
-                .foregroundColor(.primary)
+                  .foregroundColor(.primary)
+                }
               }
+
+              Spacer()
+
+              Text("Level \(context.state.currentBlindLevel)")
+                .font(.caption)
+                .foregroundColor(.secondary)
             }
-                        
-            Spacer()
-                        
-            Text("Level \(context.state.currentBlindLevel)")
-              .font(.caption)
-              .foregroundColor(.secondary)
+
+            TimerActionButtons(paused: context.state.paused)
           }
         }
       } compactLeading: {
@@ -189,9 +193,40 @@ struct PokerTimerLiveActivityView: View {
         }
         .frame(maxWidth: .infinity, alignment: .trailing)
       }
+
+      TimerActionButtons(paused: context.state.paused)
     }
     .padding(12)
     .background(Color(UIColor.systemBackground))
+  }
+}
+
+// Pause/Resume + Stop row shared between the lock-screen view and the Dynamic Island's
+// expanded UI. Each button drives a `LiveActivityIntent` (see TimerActionIntents.swift), which
+// updates the Activity directly without opening the app.
+struct TimerActionButtons: View {
+  let paused: Bool
+
+  var body: some View {
+    HStack(spacing: 12) {
+      if paused {
+        Button(intent: ResumeTimerIntent()) {
+          Label("Resume", systemImage: "play.fill")
+        }
+      } else {
+        Button(intent: PauseTimerIntent()) {
+          Label("Pause", systemImage: "pause.fill")
+        }
+      }
+
+      Button(intent: StopTimerIntent()) {
+        Label("Stop", systemImage: "stop.fill")
+      }
+      .tint(.red)
+    }
+    .buttonStyle(.bordered)
+    .controlSize(.small)
+    .labelStyle(.titleAndIcon)
   }
 }
 

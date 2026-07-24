@@ -9,11 +9,46 @@
 #import "RNLiveActivity.h"
 #import "PokerTimer-Swift.h"
 
+static RNLiveActivity *sharedInstance = nil;
 
-@implementation RNLiveActivity
+@implementation RNLiveActivity {
+  BOOL hasListeners;
+}
 
 
 RCT_EXPORT_MODULE();
+
+
+- (instancetype)init
+{
+  self = [super init];
+  if (self) {
+    sharedInstance = self;
+  }
+  return self;
+}
+
+- (NSArray<NSString *> *)supportedEvents
+{
+  return @[@"onLiveActivityAction"];
+}
+
+- (void)startObserving
+{
+  hasListeners = YES;
+}
+
+- (void)stopObserving
+{
+  hasListeners = NO;
+}
+
++ (void)emitAction:(NSString *)action
+{
+  if (sharedInstance != nil && sharedInstance->hasListeners) {
+    [sharedInstance sendEventWithName:@"onLiveActivityAction" body:@{@"action": action}];
+  }
+}
 
 
 RCT_EXPORT_METHOD(startActivity:(NSDictionary *)activityData
@@ -102,6 +137,18 @@ RCT_EXPORT_METHOD(getActiveActivities:(RCTPromiseResolveBlock)resolve
     resolve(activeIds);
   } @catch (NSException *exception) {
     reject(@"get_activities_error", exception.reason, nil);
+  }
+}
+
+
+RCT_EXPORT_METHOD(consumePendingAction:(RCTPromiseResolveBlock)resolve
+                  rejecter:(RCTPromiseRejectBlock)reject)
+{
+  @try {
+    NSString *action = [LiveActivityActionBridge consumePendingAction];
+    resolve(action);
+  } @catch (NSException *exception) {
+    reject(@"consume_pending_action_error", exception.reason, nil);
   }
 }
 

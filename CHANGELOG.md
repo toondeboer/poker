@@ -13,6 +13,14 @@ platform-tagged heading (e.g. `## [1.1.3] - 2026-07-20 — Android`) when you cu
 - Web: new `/guide` page — "How to Run a Home Poker Tournament" — covering buy-ins, blind
   structures, payouts, and a blind-structure explainer, with `HowTo`/`FAQPage` structured data.
   Cross-linked from `/timer`.
+- Mobile: Pause/Resume and Stop buttons on the Android foreground-service timer notification and
+  the iOS Live Activity/Dynamic Island — previously read-only display, with no way to control the
+  timer without reopening the app. Each side updates its own visible UI immediately (no
+  round-trip through JS needed) and separately persists the action so the app reconciles its timer
+  state next time it's foregrounded or launched, covering both "app still running in the
+  background" and "app was fully killed" cases. iOS additionally required adding an App Group
+  entitlement (`group.com.toondeboer.pokerkit`) shared between the app and widget extension, since
+  a Live Activity button's `LiveActivityIntent` runs in the widget extension's own process.
 
 ### Fixed
 - Mobile: the Timer screen card no longer stretches edge-to-edge on tablets — capped it at the

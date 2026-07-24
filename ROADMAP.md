@@ -225,12 +225,34 @@ full design.
     clarity if touching this code again, but doesn't affect behavior.
 
 ## Live Activity / foreground service controls
-- 🔍 **Pause is not currently exposed as an action** — the Android foreground-service notification
-  category (`NOTIFICATION_CATEGORY = "timerActions"` in `useTimerNotification.ts`) only defines a
-  `"stop"` action button; there's no pause/resume action wired in, even though `LiveActivityService`
-  already tracks a `paused` state internally. Investigate adding pause/resume + stop actions to
-  both the Android foreground-service notification and the iOS Live Activity/Dynamic Island UI, and
-  wire them back to `TimerContext`.
+- ✅ **Pause/Resume + Stop actions added** to both the Android foreground-service notification and
+  the iOS Live Activity/Dynamic Island. Both platforms update their own visible UI immediately on
+  a button tap (no dependency on a live JS/bridge instance) and persist the action
+  (`SharedPreferences` on Android, App Group `UserDefaults` on iOS) so `TimerContext` reconciles it
+  on next app foreground/launch via a new `consumePendingAction()` — covering both "app
+  backgrounded, JS still alive" (fast path, live `DeviceEventEmitter`/`NativeEventEmitter` event)
+  and "app killed" (persisted-flag fallback). Along the way, fixed a pre-existing bug where
+  `ForegroundServiceModule.isServiceRunning` was a stale JS-side flag never updated by the service
+  itself — harmless before (nothing but JS ever stopped the service), but would have caused a
+  resurrected notification once the service could stop itself from a tap.
+  - **Verified end-to-end on Android** (API 35 emulator): started a timer, backgrounded the app,
+    tapped Resume/Pause/Stop from the notification, and confirmed both the notification and the
+    reopened app's UI reflected the change each time (including a full reset to `10:00`/`Start`
+    after Stop).
+  - **iOS: verified the build only, not interactively.** A clean Xcode build succeeds for both the
+    main app and widget-extension targets (App Intents metadata extraction runs against the three
+    new `LiveActivityIntent`s, entitlements/App-Group synthesis for the simulator is correct on
+    inspection), but this environment has no way to simulate taps on the iOS Simulator (no `idb`,
+    no GUI window session for AppleScript/`cliclick`), so the Live Activity/Dynamic Island buttons
+    themselves haven't been interactively exercised. **Needs a real interactive pass** (simulator
+    or device) before shipping — start a timer, background the app, tap Pause/Resume/Stop on the
+    Lock Screen and Dynamic Island, confirm the app's state matches on reopen, and repeat after
+    force-quitting to exercise the cold-launch `consumePendingAction()` path.
+  - Also worth confirming before shipping: a real device build (not just simulator) actually gets
+    the App Group capability provisioned — local Xcode automatic signing appears to have synced it
+    without any manual Apple Developer Portal step for the simulator build tested here, and EAS's
+    remote-managed credentials should do the same for device/TestFlight builds, but neither was
+    confirmed on a real device.
 
 ## Website landing page
 - 🔍 **Confirm contact email is correct** — currently `poker.blinds.buzzer@gmail.com`, hardcoded in

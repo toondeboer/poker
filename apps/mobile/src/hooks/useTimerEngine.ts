@@ -86,16 +86,28 @@ export function useTimerEngine(
     }
   };
 
+  // Absolute pause/resume — unlike togglePause, these don't assume the current `paused` value,
+  // which matters for a native-triggered action (notification/Live-Activity button) racing
+  // against in-app state: an unconditional toggle could flip the wrong way if they land at
+  // nearly the same time.
+  const pause = async (): Promise<void> => {
+    logger.log("Pausing timer at time left:", timeLeft);
+    setState((s) => pauseTimer(s));
+  };
+
+  const resume = async (): Promise<void> => {
+    logger.log("Resuming timer with time left:", timeLeft);
+    setState((s) => startTimer(s));
+    // Reset completion flag when starting timer
+    hasHandledTimerCompleteRef.current = false;
+  };
+
   // Toggle pause/resume
   const togglePause = async (): Promise<void> => {
     if (!paused) {
-      logger.log("Pausing timer at time left:", timeLeft);
-      setState((s) => pauseTimer(s));
+      await pause();
     } else {
-      logger.log("Resuming timer with time left:", timeLeft);
-      setState((s) => startTimer(s));
-      // Reset completion flag when starting timer
-      hasHandledTimerCompleteRef.current = false;
+      await resume();
     }
   };
 
@@ -183,6 +195,8 @@ export function useTimerEngine(
     timeLeft,
     paused,
     togglePause,
+    pause,
+    resume,
     resetTimer,
     isLoading,
     loadTimerState,

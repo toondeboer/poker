@@ -20,6 +20,7 @@ import androidx.core.app.NotificationCompat;
 import androidx.annotation.Nullable;
 import android.os.Handler;
 import android.os.Looper;
+import android.content.SharedPreferences;
 
 public class PokerTimerService extends Service {
     // Intent extras
@@ -31,6 +32,7 @@ public class PokerTimerService extends Service {
     public static final String EXTRA_NEXT_BIG_BLIND = "nextBigBlind";
     public static final String EXTRA_END_TIME = "endTime";
     public static final String EXTRA_TIME_LEFT = "timeLeft";
+    public static final String EXTRA_TIMER_DURATION = "timerDuration";
     public static final String EXTRA_PAUSED = "paused";
     public static final String EXTRA_SHOULD_ALERT_ON_EXPIRY = "shouldAlertOnExpiry";
     public static final String EXTRA_SOUND_ID = "soundId";
@@ -43,6 +45,17 @@ public class PokerTimerService extends Service {
     public static final String ACTION_UPDATE = "UPDATE_TIMER_SERVICE";
     public static final String ACTION_STOP = "STOP_TIMER_SERVICE";
     public static final String ACTION_DISMISS_ALERT = "DISMISS_ALERT";
+    // Notification-button-initiated actions (distinct from the JS-driven ones above so we know
+    // to persist + emit an event back to JS only for user-initiated taps).
+    public static final String ACTION_PAUSE = "PAUSE_TIMER_SERVICE";
+    public static final String ACTION_RESUME = "RESUME_TIMER_SERVICE";
+    public static final String ACTION_STOP_FROM_NOTIFICATION = "STOP_TIMER_SERVICE_FROM_NOTIFICATION";
+
+    // Pending-action persistence, read by JS (ForegroundServiceModule#consumePendingAction) to
+    // reconcile state when the app was backgrounded/killed at the moment of a notification tap.
+    static final String PREFS_NAME = "PokerTimerServicePrefs";
+    static final String KEY_PENDING_ACTION = "pendingAction";
+    static final String KEY_PENDING_TIMESTAMP = "pendingActionTimestamp";
 
     private static final String CHANNEL_ID = "PokerTimerChannel";
     private static final String ALERT_CHANNEL_ID = "PokerTimerAlertChannel";
@@ -68,6 +81,7 @@ public class PokerTimerService extends Service {
     private int nextBigBlind = 0;
     private long endTime = 0;
     private int timeLeft = 0;
+    private int timerDuration = 0;
     private boolean paused = true;
     private boolean shouldAlertOnExpiry = true;
     private String soundId = DEFAULT_SOUND_ID;
@@ -82,6 +96,7 @@ public class PokerTimerService extends Service {
         createNotificationChannels();
         handler = new Handler(Looper.getMainLooper());
         alertHandler = new Handler(Looper.getMainLooper());
+        ForegroundServiceBridge.setRunning(true);
     }
 
     @Override
@@ -100,10 +115,42 @@ public class PokerTimerService extends Service {
                 stopSelf();
             } else if (ACTION_DISMISS_ALERT.equals(action)) {
                 dismissAlert();
+            } else if (ACTION_PAUSE.equals(action)) {
+                paused = true;
+                stopTimer();
+                updateNotification();
+                persistAndEmit("pause");
+            } else if (ACTION_RESUME.equals(action)) {
+                paused = false;
+                endTime = System.currentTimeMillis()
+                        + (long) (timeLeft > 0 ? timeLeft : timerDuration) * 1000L;
+                updateNotification();
+                startTimer();
+                persistAndEmit("resume");
+            } else if (ACTION_STOP_FROM_NOTIFICATION.equals(action)) {
+                stopTimer();
+                stopAlert();
+                stopForeground(true);
+                stopSelf();
+                persistAndEmit("stop");
             }
         }
 
         return START_STICKY;
+    }
+
+    /**
+     * Persists the notification-button action so JS can reconcile on next foreground/launch
+     * (the app may be backgrounded or fully killed at the moment of the tap — this service
+     * outlives the JS/Catalyst instance), and best-effort emits it live if JS is reachable now.
+     */
+    private void persistAndEmit(String action) {
+        SharedPreferences prefs = getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE);
+        prefs.edit()
+                .putString(KEY_PENDING_ACTION, action)
+                .putLong(KEY_PENDING_TIMESTAMP, System.currentTimeMillis())
+                .apply();
+        ForegroundServiceBridge.emit(action);
     }
 
     private void updateTimerData(Intent intent) {
@@ -117,6 +164,7 @@ public class PokerTimerService extends Service {
         nextBigBlind = intent.getIntExtra(EXTRA_NEXT_BIG_BLIND, 0);
         endTime = intent.getLongExtra(EXTRA_END_TIME, 0);
         timeLeft = intent.getIntExtra(EXTRA_TIME_LEFT, 0);
+        timerDuration = intent.getIntExtra(EXTRA_TIMER_DURATION, timerDuration);
         boolean newPaused = intent.getBooleanExtra(EXTRA_PAUSED, true);
         shouldAlertOnExpiry = intent.getBooleanExtra(EXTRA_SHOULD_ALERT_ON_EXPIRY, true);
         String newSoundId = intent.getStringExtra(EXTRA_SOUND_ID);
@@ -409,6 +457,24 @@ public class PokerTimerService extends Service {
         String content = formatNotificationContent();
         String bigText = formatBigText();
 
+        Intent pauseResumeIntent = new Intent(this, PokerTimerService.class);
+        pauseResumeIntent.setAction(paused ? ACTION_RESUME : ACTION_PAUSE);
+        PendingIntent pauseResumePendingIntent = PendingIntent.getService(
+                this,
+                3,
+                pauseResumeIntent,
+                PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE
+        );
+
+        Intent stopIntent = new Intent(this, PokerTimerService.class);
+        stopIntent.setAction(ACTION_STOP_FROM_NOTIFICATION);
+        PendingIntent stopPendingIntent = PendingIntent.getService(
+                this,
+                4,
+                stopIntent,
+                PendingIntent.FLAG_IMMUTABLE
+        );
+
         NotificationCompat.Builder builder = new NotificationCompat.Builder(this, CHANNEL_ID)
                 .setContentTitle(title)
                 .setContentText(content)
@@ -424,7 +490,12 @@ public class PokerTimerService extends Service {
                         .bigText(bigText)
                         .setBigContentTitle(title))
                 .setShowWhen(false)
-                .setOnlyAlertOnce(true); // Don't repeatedly alert for updates
+                .setOnlyAlertOnce(true) // Don't repeatedly alert for updates
+                .addAction(
+                        paused ? R.drawable.ic_notification_play : R.drawable.ic_notification_pause,
+                        paused ? "Resume" : "Pause",
+                        pauseResumePendingIntent)
+                .addAction(R.drawable.ic_notification_clear, "Stop", stopPendingIntent);
 
         // Add custom large icon if available
         try {
@@ -559,6 +630,7 @@ public class PokerTimerService extends Service {
         super.onDestroy();
         stopTimer();
         stopAlert();
+        ForegroundServiceBridge.setRunning(false);
     }
 }
 

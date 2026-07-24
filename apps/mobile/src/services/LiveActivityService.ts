@@ -6,6 +6,7 @@ import {
   ForegroundService,
   LiveActivityData,
   LiveActivityDataAndroid,
+  PendingTimerAction,
 } from "../modules/LiveActivityModule";
 import { DEFAULT_SOUND_PACK_ID, PokerTimerState, SoundPackId } from "@poker/core";
 
@@ -90,6 +91,7 @@ class LiveActivityService {
         nextSmallBlind: state.nextSmallBlind,
         nextBigBlind: state.nextBigBlind,
         paused: state.paused,
+        timerDuration: state.timerDuration,
       };
 
       // Handle timing - iOS expects milliseconds
@@ -158,6 +160,7 @@ class LiveActivityService {
         nextSmallBlind: state.nextSmallBlind,
         nextBigBlind: state.nextBigBlind,
         paused: state.paused,
+        timerDuration: state.timerDuration,
         shouldAlertOnExpiry,
         soundId: soundPackId,
       };
@@ -314,6 +317,24 @@ class LiveActivityService {
         logger.warn("Error syncing Android service state:", error);
       }
     }
+  }
+
+  // Reads and clears a pending pause/resume/stop action recorded natively — the
+  // reconciliation path for when a notification/Live-Activity button was tapped while JS
+  // wasn't reachable (app backgrounded or fully killed). Called on mount and on
+  // foreground-resume by useNativeTimerActionSync.
+  async consumePendingAction(): Promise<PendingTimerAction | null> {
+    try {
+      if (Platform.OS === "ios") {
+        if (!this.isIOSSupported) return null;
+        return await LiveActivity.consumePendingAction();
+      } else if (Platform.OS === "android") {
+        return await ForegroundService.consumePendingAction();
+      }
+    } catch (error) {
+      logger.warn("Error consuming pending native timer action:", error);
+    }
+    return null;
   }
 
   // Request notification permission for Android 13+

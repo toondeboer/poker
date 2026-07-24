@@ -12,6 +12,7 @@ import { DEFAULT_SOUND_PACK_ID } from "@poker/core";
 import { useBlinds } from "@/src/contexts/BlindsContext";
 import { useTimerNotification } from "@/src/hooks/useTimerNotification";
 import { useTimerEngine } from "@/src/hooks/useTimerEngine";
+import { useNativeTimerActionSync } from "@/src/hooks/useNativeTimerActionSync";
 import { useTimerAlert } from "@/src/hooks/useTimerAlert";
 import { useSoundPack } from "@/src/contexts/SoundPackContext";
 import { useNotificationPermission } from "@/src/hooks/useNotificationPermission";
@@ -125,6 +126,8 @@ export function TimerProvider({ children }: Readonly<{ children: ReactNode }>) {
     timeLeft,
     paused,
     togglePause: engineTogglePause,
+    pause: enginePause,
+    resume: engineResume,
     resetTimer: engineResetTimer,
     isLoading,
     loadTimerState,
@@ -152,6 +155,22 @@ export function TimerProvider({ children }: Readonly<{ children: ReactNode }>) {
     // Dismiss alert and stop sound if active
     await clearAlert();
   };
+
+  // Apply pause/resume/stop actions that originated from the Android foreground-service
+  // notification or the iOS Live Activity/Dynamic Island, rather than the in-app UI. Uses the
+  // absolute pause()/resume() (not togglePause) since these arrive out-of-band and must not
+  // risk flipping the wrong way if they race against an in-app state change.
+  useNativeTimerActionSync({
+    onPause: () => {
+      void enginePause().then(() => handleNotificationScheduling(true, timeLeft));
+    },
+    onResume: () => {
+      void engineResume().then(() => handleNotificationScheduling(false, timeLeft));
+    },
+    onStop: () => {
+      void resetTimer();
+    },
+  });
 
   // Dismiss timer alert (advance to next blind level, keep timer paused, stop sound)
   const dismissTimerAlert = async () => {

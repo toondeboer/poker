@@ -17,7 +17,7 @@ export function useLiveActivitySync(
   isLoading: boolean,
   soundPackId: SoundPackId,
 ) {
-  const { endTime, timeLeft, paused } = state;
+  const { endTime, timeLeft, paused, timerDuration } = state;
   const { isActive } = useAppState();
 
   useEffect(() => {
@@ -34,6 +34,7 @@ export function useLiveActivitySync(
         endTime,
         timeLeft,
         paused,
+        timerDuration,
         currentBlindLevel: currentBlindLevel + 1, // Display as 1-based index
         currentSmallBlind: blindLevels[currentBlindLevel]?.small || 0,
         currentBigBlind: blindLevels[currentBlindLevel]?.big || 0,
@@ -47,6 +48,7 @@ export function useLiveActivitySync(
   }, [
     endTime,
     paused,
+    timerDuration,
     currentBlindLevel,
     blindLevels,
     isLoading,
