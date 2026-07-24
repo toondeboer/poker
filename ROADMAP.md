@@ -8,10 +8,14 @@ full design.
 **Legend:** ✅ done · 🚧 in progress · 🔍 investigated, not yet fixed · ⬜ not started
 
 ## Android Play Store listing refresh
-- ⬜ **Feature graphic** — Play Console requires a 1024×500 feature graphic for the store listing;
-  none exists in the repo yet (checked, no `feature-graphic`/`play-store-assets` files anywhere).
-  Needs to be designed from scratch and added under an assets folder (e.g. alongside
-  [STORE_LISTING.md](./STORE_LISTING.md)).
+- ✅ **Feature graphic** — added at
+  [`store-assets/android/feature-graphic.png`](./store-assets/android/feature-graphic.png)
+  (1024×500, no alpha, verified via `sharp` metadata). Generated from
+  `store-assets/android/generate-feature-graphic.js` rather than hand-drawn, reusing the exact
+  colors sampled from the app icon so it reads as the same brand. Documented in
+  [STORE_LISTING.md](./STORE_LISTING.md#android--google-play-reuse-at-launch--p1-item-4).
+  **Still needed:** upload it to the Play Console store listing (manual console step) and confirm
+  it renders correctly there.
 - 🔍 **App icon has sharp corners on Android instead of the OS mask (round/squircle)** —
   root cause found: `apps/mobile/android/app/src/main/res/mipmap-anydpi-v26/` exists but is
   **empty** (no `ic_launcher.xml` / `ic_launcher_round.xml`), and `app.json`'s `android` block has
