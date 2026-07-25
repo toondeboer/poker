@@ -274,12 +274,38 @@ full design.
     Group read/write path, the Darwin-notification observer, and the RN bridge's emit) were left
     in place — they're per-tap, not per-tick, so they're cheap, and they're valuable if this area
     regresses later.
-  - **Still not explicitly re-verified**: resuming an *already-expired* timer specifically (the
-    `state.timerDuration` fallback path in `TogglePauseTimerIntent`/`ForegroundServiceModule`), and
-    the cold-launch case (force-quit the app entirely, tap a Live Activity/notification button,
-    then relaunch — confirms `consumePendingAction()` catches an action that arrived while no
-    process was alive to receive the live event at all). Worth a quick pass next time this area is
-    touched, but the core feature is done.
+  - **Confirmed: iOS Live Activity buttons go dead after the user force-quits the app — this is
+    an Apple platform restriction, not fixable in app code.** `LiveActivityIntent` is built on the
+    App Intents framework, and Apple explicitly refuses to run *any* of an app's App Intents
+    (Live Activity buttons, interactive widgets, Shortcuts alike) once the user has force-quit
+    that app from the app switcher, until they manually reopen it at least once — the Live
+    Activity itself stays visible and tappable (it's a system surface, not tied to the app's
+    process), but the tap silently goes nowhere. Verified this matches the reported symptom
+    exactly (buttons visible and tappable, no effect) and there's no API to override it.
+    - The "timer expired" notification still arriving during this window is correct, not a bug:
+      it's scheduled ahead of time through iOS's own notification system
+      (`scheduleNotificationAsync` in `useTimerNotification.ts`) specifically so it's delivered
+      regardless of the app's process state — that's the point, so the user isn't left unaware
+      the timer ended just because they force-quit the app.
+    - Reopening the app after a force-quit already cleans up correctly with no further changes
+      needed: `useTimerNotification.ts`'s foreground effect calls `clearAllNotifications()` as
+      soon as the app becomes active, and `loadTimerState()`/`hydrateTimerState()` resync the UI
+      from whatever the timer's actual last real (non-force-quit) state was.
+    - Resuming an *already-expired* timer via the button (the `state.timerDuration` fallback path
+      in `TogglePauseTimerIntent`/`ForegroundServiceModule`) has not been separately re-verified,
+      but isn't affected by the above — worth a quick pass next time this area is touched.
+
+## Live Activity / foreground service UI/UX polish
+- ⬜ Now that Pause/Resume/Stop are functional (see above), pass over the visual design of both
+  surfaces — they were originally built as read-only displays, and the current button styling
+  (`.buttonStyle(.bordered)`, small system icons) was chosen for speed, not polish. Consider:
+  layout/spacing once three tappable elements share space with the countdown and blind info on
+  both the Lock Screen view and the Dynamic Island's compact/expanded regions; whether the
+  Android notification's default two-action-button layout (`NotificationCompat` stock styling) is
+  the best fit versus a more custom layout; iconography and color consistent with the rest of the
+  app rather than generic SF Symbols / stock Android icons; and how (or whether) to visually
+  communicate the force-quit limitation documented above, so a user who taps a dead button after
+  swiping the app away isn't left wondering why nothing happened.
 
 ## Website landing page
 - 🔍 **Confirm contact email is correct** — currently `poker.blinds.buzzer@gmail.com`, hardcoded in
