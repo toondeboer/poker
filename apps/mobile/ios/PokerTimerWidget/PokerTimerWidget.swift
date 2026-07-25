@@ -107,91 +107,65 @@ struct PokerTimerWidget: Widget {
   }
 }
 
+// Rewritten to be meaningfully more compact than the original read-only-display design: the
+// Lock Screen presentation has a real (if not precisely documented) height budget, and stacking
+// a full header row, a full timer row, a full blinds row, the action buttons, AND the force-quit
+// caption as five independent rows overflowed it, clipping content at the top and bottom.
+// Timer + blinds are now one row instead of two, redundant labels ("Current Blinds", "Next",
+// "Time Remaining") are gone in favor of visual hierarchy (size/weight/color) doing that job, and
+// the caption lost its icon and its own row's worth of top padding.
 struct PokerTimerLiveActivityView: View {
   let context: ActivityViewContext<PokerTimerWidgetAttributes>
-    
+
   var body: some View {
-    VStack(spacing: 8) {
-      // Header with tournament name and level
+    VStack(alignment: .leading, spacing: 6) {
+      // Header: tournament name + level, single thin line.
       HStack {
         Text(context.attributes.tournamentName)
-          .font(.subheadline)
-          .foregroundColor(.primary)
+          .font(.caption2)
+          .foregroundColor(.secondary)
+          .lineLimit(1)
         Spacer()
         Text("Level \(context.state.currentBlindLevel)")
-          .font(.caption)
+          .font(.caption2)
           .foregroundColor(.secondary)
       }
-      
-      // Main timer section - most prominent
-      HStack(spacing: 8) {
-        Image(systemName: context.state.paused ? "pause.circle.fill" : "timer")
-          .font(.headline)
-          .foregroundColor(context.state.paused ? .orange : .green)
-        
-        if context.state.paused {
-          VStack(alignment: .leading, spacing: 1) {
-            Text("PAUSED")
-              .font(.headline)
-              .bold()
-              .foregroundColor(.orange)
-            Text("Time left: \(formatTime(context.state.timeLeft))")
+
+      // Timer + blinds, one row instead of two.
+      HStack(alignment: .firstTextBaseline, spacing: 12) {
+        HStack(spacing: 6) {
+          Image(systemName: context.state.paused ? "pause.circle.fill" : "timer")
+            .foregroundColor(context.state.paused ? .orange : .green)
+
+          if context.state.paused {
+            Text(formatTime(context.state.timeLeft))
               .font(.title2)
               .bold()
               .monospacedDigit()
-              .foregroundColor(.primary)
-          }
-        } else {
-          VStack(alignment: .leading, spacing: 1) {
-            Text("Time Remaining")
-              .font(.caption2)
-              .foregroundColor(.secondary)
+              .foregroundColor(.orange)
+          } else {
             Text(
               timerInterval: Date()...context.state.endTime,
               countsDown: true
             )
-            .font(.title)
+            .font(.title2)
             .bold()
             .monospacedDigit()
             .foregroundColor(.primary)
           }
         }
-        
+
         Spacer()
-      }
-      
-      // Blinds section - current more prominent than next
-      HStack(spacing: 12) {
-        // Current blinds - larger and more prominent
-        VStack(alignment: .leading, spacing: 2) {
-          Text("Current Blinds")
-            .font(.caption)
+
+        VStack(alignment: .trailing, spacing: 0) {
+          Text("\(context.state.currentSmallBlind)/\(context.state.currentBigBlind)")
+            .font(.subheadline)
             .bold()
             .foregroundColor(.primary)
-          Text(
-            "\(context.state.currentSmallBlind)/\(context.state.currentBigBlind)"
-          )
-          .font(.headline)
-          .bold()
-          .foregroundColor(.primary)
-        }
-        .frame(maxWidth: .infinity, alignment: .leading)
-        
-        // Arrow
-        Image(systemName: "arrow.right")
-          .font(.subheadline)
-          .foregroundColor(.secondary)
-        
-        // Next blinds - smaller and less prominent
-        VStack(alignment: .trailing, spacing: 2) {
-          Text("Next")
+          Text("→ \(context.state.nextSmallBlind)/\(context.state.nextBigBlind)")
             .font(.caption2)
-            .foregroundColor(Color.secondary.opacity(0.7))
-          Text("\(context.state.nextSmallBlind)/\(context.state.nextBigBlind)")
-            .font(.subheadline)
             .foregroundColor(.secondary)
         }
-        .frame(maxWidth: .infinity, alignment: .trailing)
       }
 
       TimerActionButtons(paused: context.state.paused)
@@ -200,13 +174,10 @@ struct PokerTimerLiveActivityView: View {
       // user force-quits the app from the app switcher, until they manually reopen it. There's
       // no API to detect that a tap was attempted and blocked, so this is a permanent, always-on
       // notice rather than a one-time/conditional one.
-      HStack(spacing: 4) {
-        Image(systemName: "info.circle")
-          .font(.caption2)
-        Text("Don't force quit the app, or these buttons may stop responding")
-          .font(.caption2)
-      }
-      .foregroundColor(.secondary)
+      Text("Force quitting the app may stop these buttons from responding.")
+        .font(.caption2)
+        .foregroundColor(.secondary)
+        .lineLimit(2)
     }
     .padding(12)
     .background(Color(UIColor.systemBackground))
