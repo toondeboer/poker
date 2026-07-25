@@ -268,9 +268,18 @@ full design.
     `@Parameter` tied to the same `paused` value that decided the button's label, rather than
     re-reading `Activity` state fresh inside `perform()` (Lock Screen content can render slightly
     behind the true state, so a stale read could disagree with what the user saw and tapped).
-  - **Not yet re-verified on device** — needs another real-device pass: Pause, Resume (including
-    resuming an already-expired timer), and Stop, plus the cold-launch `consumePendingAction()`
-    path (force-quit the app, tap a button, reopen, confirm state syncs).
+  - **Confirmed fixed on a real device (iPhone 13 Pro)**: Pause, Resume, and Stop all work as
+    expected from the Lock Screen/Dynamic Island, matching the in-app UI afterward. Diagnostic
+    `os.Logger`/`NSLog` calls added while chasing round 2 (widget intent `perform()`, the App
+    Group read/write path, the Darwin-notification observer, and the RN bridge's emit) were left
+    in place — they're per-tap, not per-tick, so they're cheap, and they're valuable if this area
+    regresses later.
+  - **Still not explicitly re-verified**: resuming an *already-expired* timer specifically (the
+    `state.timerDuration` fallback path in `TogglePauseTimerIntent`/`ForegroundServiceModule`), and
+    the cold-launch case (force-quit the app entirely, tap a Live Activity/notification button,
+    then relaunch — confirms `consumePendingAction()` catches an action that arrived while no
+    process was alive to receive the live event at all). Worth a quick pass next time this area is
+    touched, but the core feature is done.
 
 ## Website landing page
 - 🔍 **Confirm contact email is correct** — currently `poker.blinds.buzzer@gmail.com`, hardcoded in
