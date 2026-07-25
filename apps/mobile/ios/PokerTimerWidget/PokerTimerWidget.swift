@@ -195,6 +195,18 @@ struct PokerTimerLiveActivityView: View {
       }
 
       TimerActionButtons(paused: context.state.paused)
+
+      // iOS stops running any of the app's App Intents — including these buttons — once the
+      // user force-quits the app from the app switcher, until they manually reopen it. There's
+      // no API to detect that a tap was attempted and blocked, so this is a permanent, always-on
+      // notice rather than a one-time/conditional one.
+      HStack(spacing: 4) {
+        Image(systemName: "info.circle")
+          .font(.caption2)
+        Text("Don't force quit the app, or these buttons may stop responding")
+          .font(.caption2)
+      }
+      .foregroundColor(.secondary)
     }
     .padding(12)
     .background(Color(UIColor.systemBackground))
