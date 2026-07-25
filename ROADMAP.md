@@ -296,16 +296,22 @@ full design.
       but isn't affected by the above — worth a quick pass next time this area is touched.
 
 ## Live Activity / foreground service UI/UX polish
+- ✅ **Force-quit limitation communicated** — considered detecting a force-quit and prompting
+  about it, but there's no API to know a button tap was even attempted (App Intents that never
+  ran leave no trace to check for), so no conditional/one-time message is possible. Added a
+  small, permanent caption to the iOS Lock Screen Live Activity card instead: "Don't force quit
+  the app, or these buttons may stop responding." Not added to the Dynamic Island's expanded
+  region (already tight on space — leading/trailing blinds, timer, level, and the buttons
+  themselves) or to Android (force-stopping there kills the notification along with the service,
+  so there's no dead-button state to warn about — see the force-quit item above).
 - ⬜ Now that Pause/Resume/Stop are functional (see above), pass over the visual design of both
   surfaces — they were originally built as read-only displays, and the current button styling
   (`.buttonStyle(.bordered)`, small system icons) was chosen for speed, not polish. Consider:
-  layout/spacing once three tappable elements share space with the countdown and blind info on
-  both the Lock Screen view and the Dynamic Island's compact/expanded regions; whether the
-  Android notification's default two-action-button layout (`NotificationCompat` stock styling) is
-  the best fit versus a more custom layout; iconography and color consistent with the rest of the
-  app rather than generic SF Symbols / stock Android icons; and how (or whether) to visually
-  communicate the force-quit limitation documented above, so a user who taps a dead button after
-  swiping the app away isn't left wondering why nothing happened.
+  layout/spacing once three tappable elements (plus the new force-quit caption) share space with
+  the countdown and blind info on the Lock Screen view; whether the Android notification's
+  default two-action-button layout (`NotificationCompat` stock styling) is the best fit versus a
+  more custom layout; and iconography/color consistent with the rest of the app rather than
+  generic SF Symbols / stock Android icons.
 
 ## Website landing page
 - 🔍 **Confirm contact email is correct** — currently `poker.blinds.buzzer@gmail.com`, hardcoded in
