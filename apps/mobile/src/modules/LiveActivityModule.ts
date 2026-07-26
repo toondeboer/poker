@@ -16,7 +16,28 @@ export interface LiveActivityData {
   paused: boolean;
 }
 
-export type PendingTimerAction = "pause" | "resume" | "stop";
+export type PendingTimerActionKind = "pause" | "resume" | "stop";
+
+/**
+ * What a notification/Live-Activity button tap actually did, at the moment it happened — not
+ * just which button. `timeLeft`/`endTime` are the native side's own authoritative values at that
+ * instant, needed because reconciling from the action name alone would mean re-deriving
+ * `timeLeft` from AsyncStorage's stale, pre-tap `endTime` continuing to count down all the way to
+ * "now" (whenever the app happens to reopen) — pausing/resuming at the wrong instant instead of
+ * the one actually tapped.
+ *
+ * Unit note: `endTime` here is in the units the *native side* returns it in — iOS reports
+ * seconds (`Date.timeIntervalSince1970`), Android reports milliseconds
+ * (`System.currentTimeMillis()`). `LiveActivityService.consumePendingAction()` normalizes this to
+ * milliseconds (matching `@poker/core`'s `TimerMachineState.endTime` convention) before handing
+ * it to platform-agnostic code — nothing above that layer should have to think about it.
+ */
+export interface PendingTimerAction {
+  action: PendingTimerActionKind;
+  paused: boolean;
+  timeLeft: number;
+  endTime: number;
+}
 
 export interface LiveActivityDataAndroid extends LiveActivityData {
   shouldAlertOnExpiry: boolean;

@@ -53,9 +53,14 @@ public class PokerTimerService extends Service {
 
     // Pending-action persistence, read by JS (ForegroundServiceModule#consumePendingAction) to
     // reconcile state when the app was backgrounded/killed at the moment of a notification tap.
+    // Carries the service's own authoritative timer snapshot alongside the action name — see
+    // the comment on ForegroundServiceBridge#emit for why the action name alone isn't enough.
     static final String PREFS_NAME = "PokerTimerServicePrefs";
     static final String KEY_PENDING_ACTION = "pendingAction";
     static final String KEY_PENDING_TIMESTAMP = "pendingActionTimestamp";
+    static final String KEY_PENDING_PAUSED = "pendingPaused";
+    static final String KEY_PENDING_TIME_LEFT = "pendingTimeLeft";
+    static final String KEY_PENDING_END_TIME = "pendingEndTime";
 
     private static final String CHANNEL_ID = "PokerTimerChannel";
     private static final String ALERT_CHANNEL_ID = "PokerTimerAlertChannel";
@@ -140,17 +145,22 @@ public class PokerTimerService extends Service {
     }
 
     /**
-     * Persists the notification-button action so JS can reconcile on next foreground/launch
-     * (the app may be backgrounded or fully killed at the moment of the tap — this service
-     * outlives the JS/Catalyst instance), and best-effort emits it live if JS is reachable now.
+     * Persists the notification-button action, plus this service's own authoritative
+     * paused/timeLeft/endTime at the moment it happened, so JS can reconcile on next
+     * foreground/launch (the app may be backgrounded or fully killed at the moment of the tap —
+     * this service outlives the JS/Catalyst instance) without re-deriving a stale value from its
+     * own last-persisted (pre-pause) state. Also best-effort emits it live if JS is reachable now.
      */
     private void persistAndEmit(String action) {
         SharedPreferences prefs = getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE);
         prefs.edit()
                 .putString(KEY_PENDING_ACTION, action)
                 .putLong(KEY_PENDING_TIMESTAMP, System.currentTimeMillis())
+                .putBoolean(KEY_PENDING_PAUSED, paused)
+                .putInt(KEY_PENDING_TIME_LEFT, timeLeft)
+                .putLong(KEY_PENDING_END_TIME, endTime)
                 .apply();
-        ForegroundServiceBridge.emit(action);
+        ForegroundServiceBridge.emit(action, paused, timeLeft, endTime);
     }
 
     private void updateTimerData(Intent intent) {

@@ -90,14 +90,29 @@ export function useTimerEngine(
   // which matters for a native-triggered action (notification/Live-Activity button) racing
   // against in-app state: an unconditional toggle could flip the wrong way if they land at
   // nearly the same time.
-  const pause = async (): Promise<void> => {
-    logger.log("Pausing timer at time left:", timeLeft);
-    setState((s) => pauseTimer(s));
+  //
+  // Both accept an optional exact override, used when reconciling a native-originated
+  // pause/resume: the native side (foreground service / Live Activity) is the authoritative
+  // source for *when* it actually paused/resumed, since JS may not have been running at that
+  // moment at all. Applying pauseTimer/startTimer to whatever JS's own (possibly long-stale)
+  // state currently is would silently re-derive the wrong instant — e.g. a pause reconciled this
+  // way would freeze at "now" instead of freezing at the moment the button was actually tapped,
+  // since core's `pauseTimer` just keeps whatever `timeLeft` the current state happens to have.
+  const pause = async (timeLeftOverride?: number): Promise<void> => {
+    logger.log("Pausing timer at time left:", timeLeftOverride ?? timeLeft);
+    setState((s) => {
+      const next = pauseTimer(s);
+      return timeLeftOverride !== undefined ? { ...next, timeLeft: timeLeftOverride } : next;
+    });
   };
 
-  const resume = async (): Promise<void> => {
-    logger.log("Resuming timer with time left:", timeLeft);
-    setState((s) => startTimer(s));
+  const resume = async (endTimeOverride?: number): Promise<void> => {
+    logger.log("Resuming timer with endTime override:", endTimeOverride);
+    setState((s) =>
+      endTimeOverride !== undefined
+        ? { ...s, endTime: endTimeOverride, paused: false }
+        : startTimer(s),
+    );
     // Reset completion flag when starting timer
     hasHandledTimerCompleteRef.current = false;
   };

@@ -19,6 +19,7 @@ import { useNotificationPermission } from "@/src/hooks/useNotificationPermission
 import { usePremium } from "@/src/contexts/PremiumContext";
 import { liveActivityService } from "@/src/services/LiveActivityService";
 import { recordRoundPlayed } from "@/src/services/reviewService";
+import type { PendingTimerAction } from "@/src/modules/LiveActivityModule";
 import { useAppState } from "./AppStateContext";
 
 type TimerContextType = {
@@ -158,18 +159,26 @@ export function TimerProvider({ children }: Readonly<{ children: ReactNode }>) {
 
   // Apply a pause/resume/stop action that originated from the Android foreground-service
   // notification or the iOS Live Activity/Dynamic Island, rather than the in-app UI. Uses the
-  // absolute pause()/resume() (not togglePause) since these arrive out-of-band and must not
-  // risk flipping the wrong way if they race against an in-app state change. Shared by both the
-  // live-event fast path (below) and the sequenced persisted-flag reconciliation
-  // (`reconcileNativeAction`).
-  const applyNativeAction = (action?: "pause" | "resume" | "stop" | null) => {
-    logger.log("applyNativeAction:", action);
-    switch (action) {
+  // absolute pause()/resume() (not togglePause) since these arrive out-of-band and must not risk
+  // flipping the wrong way if they race against an in-app state change — and passes the native
+  // side's own timeLeft/endTime through as an exact override, not just the action name: without
+  // it, pause()/resume() would derive from JS's own (possibly long-stale) current state, freezing
+  // at "whenever the app happens to reopen" instead of "whenever the button was actually tapped".
+  // Shared by both the live-event fast path (below) and the sequenced persisted-flag
+  // reconciliation (`reconcileNativeAction`).
+  const applyNativeAction = (pending?: PendingTimerAction | null) => {
+    if (!pending) return;
+    logger.log("applyNativeAction:", pending);
+    switch (pending.action) {
       case "pause":
-        void enginePause().then(() => handleNotificationScheduling(true, timeLeft));
+        void enginePause(pending.timeLeft).then(() =>
+          handleNotificationScheduling(true, pending.timeLeft),
+        );
         break;
       case "resume":
-        void engineResume().then(() => handleNotificationScheduling(false, timeLeft));
+        void engineResume(pending.endTime).then(() =>
+          handleNotificationScheduling(false, pending.timeLeft),
+        );
         break;
       case "stop":
         void resetTimer();
@@ -177,11 +186,7 @@ export function TimerProvider({ children }: Readonly<{ children: ReactNode }>) {
     }
   };
 
-  useNativeTimerActionSync({
-    onPause: () => applyNativeAction("pause"),
-    onResume: () => applyNativeAction("resume"),
-    onStop: () => applyNativeAction("stop"),
-  });
+  useNativeTimerActionSync({ onAction: applyNativeAction });
 
   // Persisted-flag reconciliation for a native action that arrived while the app was
   // backgrounded or fully killed (the live-event listener above only catches one that arrives
@@ -191,9 +196,9 @@ export function TimerProvider({ children }: Readonly<{ children: ReactNode }>) {
   // (AsyncStorage I/O is consistently slower), so racing them let it silently clobber the
   // reconciled action back to whatever was persisted before backgrounding.
   const reconcileNativeAction = async () => {
-    const pendingAction = await liveActivityService.consumePendingAction();
-    logger.log("reconcileNativeAction: consumePendingAction ->", pendingAction);
-    applyNativeAction(pendingAction);
+    const pending = await liveActivityService.consumePendingAction();
+    logger.log("reconcileNativeAction: consumePendingAction ->", pending);
+    applyNativeAction(pending);
   };
 
   // Dismiss timer alert (advance to next blind level, keep timer paused, stop sound)

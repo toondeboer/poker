@@ -30,11 +30,11 @@ public final class LiveActivityActionListener: NSObject {
   }
 
   @objc private func handleActionReceived() {
-    guard let action = LiveActivityActionBridge.consumePendingAction() else {
+    guard let pending = LiveActivityActionBridge.consumePendingAction() else {
       Logger.liveActivity.log("handleActionReceived() — consumePendingAction returned nil, nothing to emit")
       return
     }
-    Logger.liveActivity.log("handleActionReceived() — emitting \(action, privacy: .public) to JS")
-    RNLiveActivity.emitAction(action)
+    Logger.liveActivity.log("handleActionReceived() — emitting \(pending) to JS")
+    RNLiveActivity.emitAction(pending)
   }
 }

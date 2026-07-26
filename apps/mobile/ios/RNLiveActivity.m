@@ -43,18 +43,18 @@ RCT_EXPORT_MODULE();
   hasListeners = NO;
 }
 
-+ (void)emitAction:(NSString *)action
++ (void)emitAction:(NSDictionary *)payload
 {
   if (sharedInstance == nil) {
-    NSLog(@"[LiveActivity] emitAction:%@ — sharedInstance is nil, RNLiveActivity module never instantiated yet, dropping", action);
+    NSLog(@"[LiveActivity] emitAction:%@ — sharedInstance is nil, RNLiveActivity module never instantiated yet, dropping", payload);
     return;
   }
   if (!sharedInstance->hasListeners) {
-    NSLog(@"[LiveActivity] emitAction:%@ — no JS listener attached (hasListeners=NO), dropping", action);
+    NSLog(@"[LiveActivity] emitAction:%@ — no JS listener attached (hasListeners=NO), dropping", payload);
     return;
   }
-  NSLog(@"[LiveActivity] emitAction:%@ — sending to JS", action);
-  [sharedInstance sendEventWithName:@"onLiveActivityAction" body:@{@"action": action}];
+  NSLog(@"[LiveActivity] emitAction:%@ — sending to JS", payload);
+  [sharedInstance sendEventWithName:@"onLiveActivityAction" body:payload];
 }
 
 
@@ -152,8 +152,8 @@ RCT_EXPORT_METHOD(consumePendingAction:(RCTPromiseResolveBlock)resolve
                   rejecter:(RCTPromiseRejectBlock)reject)
 {
   @try {
-    NSString *action = [LiveActivityActionBridge consumePendingAction];
-    resolve(action);
+    NSDictionary *pending = [LiveActivityActionBridge consumePendingAction];
+    resolve(pending);
   } @catch (NSException *exception) {
     reject(@"consume_pending_action_error", exception.reason, nil);
   }

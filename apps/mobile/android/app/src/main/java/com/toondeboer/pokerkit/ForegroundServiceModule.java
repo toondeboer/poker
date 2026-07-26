@@ -1,10 +1,12 @@
 package com.toondeboer.pokerkit;
 
+import com.facebook.react.bridge.Arguments;
 import com.facebook.react.bridge.ReactApplicationContext;
 import com.facebook.react.bridge.ReactContextBaseJavaModule;
 import com.facebook.react.bridge.ReactMethod;
 import com.facebook.react.bridge.Promise;
 import com.facebook.react.bridge.ReadableMap;
+import com.facebook.react.bridge.WritableMap;
 import android.content.Intent;
 import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
@@ -226,13 +228,23 @@ public class ForegroundServiceModule extends ReactContextBaseJavaModule {
         SharedPreferences prefs = reactContext.getSharedPreferences(
                 PokerTimerService.PREFS_NAME, android.content.Context.MODE_PRIVATE);
         String action = prefs.getString(PokerTimerService.KEY_PENDING_ACTION, null);
-        if (action != null) {
-            prefs.edit()
-                    .remove(PokerTimerService.KEY_PENDING_ACTION)
-                    .remove(PokerTimerService.KEY_PENDING_TIMESTAMP)
-                    .apply();
+        if (action == null) {
+            promise.resolve(null);
+            return;
         }
-        promise.resolve(action);
+        WritableMap result = Arguments.createMap();
+        result.putString("action", action);
+        result.putBoolean("paused", prefs.getBoolean(PokerTimerService.KEY_PENDING_PAUSED, true));
+        result.putInt("timeLeft", prefs.getInt(PokerTimerService.KEY_PENDING_TIME_LEFT, 0));
+        result.putDouble("endTime", (double) prefs.getLong(PokerTimerService.KEY_PENDING_END_TIME, 0));
+        prefs.edit()
+                .remove(PokerTimerService.KEY_PENDING_ACTION)
+                .remove(PokerTimerService.KEY_PENDING_TIMESTAMP)
+                .remove(PokerTimerService.KEY_PENDING_PAUSED)
+                .remove(PokerTimerService.KEY_PENDING_TIME_LEFT)
+                .remove(PokerTimerService.KEY_PENDING_END_TIME)
+                .apply();
+        promise.resolve(result);
     }
 }
 

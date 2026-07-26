@@ -10,9 +10,10 @@ import { logger } from "@/src/utils/logger";
 import type { PendingTimerAction } from "@/src/modules/LiveActivityModule";
 
 export interface NativeTimerActionCallbacks {
-  onPause: () => void;
-  onResume: () => void;
-  onStop: () => void;
+  /** Receives the full snapshot (not just which button), so the caller can apply the exact
+   * paused/timeLeft/endTime the native side had at the moment of the tap, rather than deriving
+   * a value from whatever JS's own (possibly stale) state currently is. */
+  onAction: (pending: PendingTimerAction) => void;
 }
 
 const ANDROID_EVENT = "onForegroundServiceAction";
@@ -34,41 +35,20 @@ const IOS_EVENT = "onLiveActivityAction";
  * since AsyncStorage I/O is consistently slower than the native UserDefaults/SharedPreferences
  * read behind `consumePendingAction()`. Sequencing them in one place, load-then-reconcile,
  * removes that race entirely.
- *
- * Callers must pass *absolute* pause/resume (not an unconditional toggle) — an out-of-band
- * native action racing against in-app state must not risk flipping the wrong way.
  */
-export function useNativeTimerActionSync({
-  onPause,
-  onResume,
-  onStop,
-}: NativeTimerActionCallbacks) {
-  const callbacksRef = useRef({ onPause, onResume, onStop });
+export function useNativeTimerActionSync({ onAction }: NativeTimerActionCallbacks) {
+  const onActionRef = useRef(onAction);
   useEffect(() => {
-    callbacksRef.current = { onPause, onResume, onStop };
+    onActionRef.current = onAction;
   });
-
-  const applyAction = (action?: PendingTimerAction | string | null) => {
-    switch (action) {
-      case "pause":
-        callbacksRef.current.onPause();
-        break;
-      case "resume":
-        callbacksRef.current.onResume();
-        break;
-      case "stop":
-        callbacksRef.current.onStop();
-        break;
-    }
-  };
 
   useEffect(() => {
     if (Platform.OS === "android") {
       const subscription = DeviceEventEmitter.addListener(
         ANDROID_EVENT,
-        (action: PendingTimerAction) => {
-          logger.log("Native foreground-service action:", action);
-          applyAction(action);
+        (pending: PendingTimerAction) => {
+          logger.log("Native foreground-service action:", pending);
+          onActionRef.current(pending);
         },
       );
       return () => subscription.remove();
@@ -76,9 +56,13 @@ export function useNativeTimerActionSync({
       const emitter = new NativeEventEmitter(NativeModules.RNLiveActivity);
       const subscription = emitter.addListener(
         IOS_EVENT,
-        (event: { action?: PendingTimerAction }) => {
-          logger.log("Native Live Activity action:", event?.action);
-          applyAction(event?.action);
+        (pending: PendingTimerAction) => {
+          // iOS reports endTime in seconds (Date.timeIntervalSince1970); normalize to
+          // milliseconds here too, same as LiveActivityService.consumePendingAction() does for
+          // the persisted-flag path — @poker/core always works in milliseconds.
+          const normalized = { ...pending, endTime: pending.endTime * 1000 };
+          logger.log("Native Live Activity action:", normalized);
+          onActionRef.current(normalized);
         },
       );
       return () => subscription.remove();

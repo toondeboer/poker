@@ -43,7 +43,8 @@ struct TogglePauseTimerIntent: LiveActivityIntent {
     Logger.liveActivity.log("TogglePauseTimerIntent.perform() shouldPause=\(shouldPause)")
     guard let activity = Activity<PokerTimerWidgetAttributes>.activities.first else {
       Logger.liveActivity.error("TogglePauseTimerIntent.perform() — no active Activity found")
-      LiveActivityActionBridge.postAction(shouldPause ? "pause" : "resume")
+      LiveActivityActionBridge.postAction(
+        shouldPause ? "pause" : "resume", paused: shouldPause, timeLeft: 0, endTime: 0)
       return .result()
     }
     var state = activity.content.state
@@ -66,7 +67,12 @@ struct TogglePauseTimerIntent: LiveActivityIntent {
     )
     await activity.update(ActivityContent(state: state, staleDate: nil))
     Logger.liveActivity.log("activity.update() awaited/returned")
-    LiveActivityActionBridge.postAction(shouldPause ? "pause" : "resume")
+    LiveActivityActionBridge.postAction(
+      shouldPause ? "pause" : "resume",
+      paused: state.paused,
+      timeLeft: state.timeLeft,
+      endTime: state.endTime.timeIntervalSince1970
+    )
     return .result()
   }
 }
@@ -86,7 +92,9 @@ struct StopTimerIntent: LiveActivityIntent {
     } else {
       Logger.liveActivity.error("StopTimerIntent.perform() — no active Activity found")
     }
-    LiveActivityActionBridge.postAction("stop")
+    // Stop doesn't need a precise snapshot — JS's resetTimer() always goes back to a fresh full
+    // round using its own known timerDuration, regardless of what timeLeft/endTime were.
+    LiveActivityActionBridge.postAction("stop", paused: true, timeLeft: 0, endTime: 0)
     return .result()
   }
 }
