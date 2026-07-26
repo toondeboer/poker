@@ -278,14 +278,15 @@ export function TimerProvider({ children }: Readonly<{ children: ReactNode }>) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Cleanup on unmount
-  useEffect(() => {
-    return () => {
-      // End background activity when component unmounts (the alarm sound is
-      // stopped by useTimerAlert's own unmount cleanup).
-      liveActivityService.endActivity();
-    };
-  }, []);
+  // Deliberately no "end activity on unmount" effect here (there used to be one). The whole
+  // point of the Android foreground service / iOS Live Activity is to keep running independent
+  // of this component's lifecycle — and on Android, swiping the app away from Recents destroys
+  // the Activity, which tears down the entire React Native host and unmounts this component,
+  // which made that cleanup fire on every swipe-away and immediately kill the very foreground
+  // service that's supposed to survive it (confirmed via logcat: "Foreground Service updated
+  // successfully" followed by "ReactHost.onHostDestroy" followed by "Foreground Service
+  // stopped", all within the same task-removal event). Ending the activity belongs solely to
+  // explicit user intent — see resetTimer() above, which already calls endActivity().
 
   return (
     <TimerContext.Provider
