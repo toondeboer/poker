@@ -294,6 +294,23 @@ full design.
     - Resuming an *already-expired* timer via the button (the `state.timerDuration` fallback path
       in `TogglePauseTimerIntent`/`ForegroundServiceModule`) has not been separately re-verified,
       but isn't affected by the above — worth a quick pass next time this area is touched.
+  - **Found via adb automation, not manual testing: Android had its own version of this bug, and
+    it was worse — self-inflicted, not a platform limit, and happening on the ordinary
+    swipe-away-from-Recents gesture, not just a deliberate "force stop."** `TimerContext` had a
+    leftover "cleanup on unmount" effect calling `liveActivityService.endActivity()`. On Android,
+    swiping the task away destroys the Activity, which tears down the whole React Native host and
+    unmounts every component — including this one — so that cleanup fired and explicitly stopped
+    the very foreground service that's supposed to survive exactly that gesture. Confirmed via
+    logcat: `"Foreground Service updated successfully"` → `ReactHost.onHostDestroy` →
+    `"Foreground Service stopped"`, all inside the same task-removal event. This predates the
+    pause/resume/stop work (it's been in `TimerContext.tsx` since the original read-only Live
+    Activity feature) but went unnoticed until this feature made surviving backgrounding actually
+    matter. Very likely also the explanation for a separately-reported "app sometimes quits
+    unexpectedly" — no crash appears in any captured log, but the foreground presence and the
+    background service both vanishing together on every swipe-away would read as exactly that.
+    Fixed by removing the unmount cleanup entirely; ending the activity is solely `resetTimer()`'s
+    job now. Verified end-to-end via `adb`: start timer, swipe away from Recents, confirm the
+    notification survives, Pause/Resume/Stop still work, reopening the app shows synced state.
 
 ## Live Activity / foreground service UI/UX polish
 - ✅ **Force-quit limitation communicated** — considered detecting a force-quit and prompting
