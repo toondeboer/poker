@@ -311,6 +311,22 @@ full design.
     Fixed by removing the unmount cleanup entirely; ending the activity is solely `resetTimer()`'s
     job now. Verified end-to-end via `adb`: start timer, swipe away from Recents, confirm the
     notification survives, Pause/Resume/Stop still work, reopening the app shows synced state.
+  - **Found via the same `adb` testing: pausing/resuming natively while the app was backgrounded
+    froze the timer at the wrong instant** — reported as "the timer keeps running past when I
+    paused it, and shows paused at whatever time it happened to be at when I reopen the app."
+    Root cause: the native side only ever persisted the bare action name ("pause"/"resume") for
+    JS to reconcile, not the actual frozen `timeLeft`/`endTime` it computed at that instant. On
+    reopen, `loadTimerState()` re-derives `timeLeft` by continuing to count down from the
+    *original pre-pause* `endTime` all the way to "now" — entirely unaware a native pause/resume
+    happened in between — and only *then* applied `pauseTimer()`/`startTimer()` on top of that
+    already-wrong value. This affected both platforms identically (a shared `TimerContext` bug,
+    not Android-specific), just surfaced first here. Fixed by threading the native side's own
+    authoritative snapshot through end-to-end (SharedPreferences/App Group `UserDefaults` +
+    the emitted event, not just the action name) and giving `useTimerEngine`'s `pause()`/
+    `resume()` an optional exact override, applied directly instead of re-derived from JS's own
+    stale state. Verified via `adb`: paused via notification at a recorded value, waited 20s,
+    reopened — showed the exact paused value, not a decayed one; resumed, waited 15s, reopened —
+    correctly showed the timer had legitimately expired from continuing the *correct* countdown.
 
 ## Live Activity / foreground service UI/UX polish
 - ✅ **Force-quit limitation communicated** — considered detecting a force-quit and prompting
