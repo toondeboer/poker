@@ -49,7 +49,7 @@
   "devDependencies": {
     "@babel/core": "^8.0.1",
     "@types/react": "~19.2.0",
-    "eslint": "^9.25.0",
+    "eslint": "^10.8.0",
     "eslint-config-expo": "~56.0.4",
     "typescript": "~5.8.3"
   },
