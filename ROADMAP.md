@@ -418,8 +418,14 @@ full design.
       duplicating blind-level math into Java/Swift, against this repo's "shared logic lives in
       `@poker/core`, platform code stays in the app" boundary (`CLAUDE.md`) — considered not
       worth it for a scenario that requires the user to never check their phone across multiple
-      full rounds. Left as-is; worth a small caption similar to iOS's force-quit notice if this
-      surfaces as a recurring complaint (see the UI/UX polish section below).
+      full rounds.
+    - ✅ **Communicated via a small permanent caption**, matching the existing iOS force-quit
+      notice but worded for Android's actual (narrower) limitation — buttons keep working, only
+      the displayed blind level can lag: "Blind level may lag behind here if more than one round
+      expires before you reopen the app." Added unconditionally to the end of
+      `PokerTimerService.formatBigText()`, so it shows in the notification's expanded view
+      regardless of state. Verified via `adb`: renders as its own paragraph below "Next Level",
+      above the Resume/Stop buttons, no clipping or crowding.
 
 ## Live Activity / foreground service UI/UX polish
 - ✅ **Force-quit limitation communicated** — considered detecting a force-quit and prompting

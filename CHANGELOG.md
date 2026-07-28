@@ -21,6 +21,11 @@ platform-tagged heading (e.g. `## [1.1.3] - 2026-07-20 — Android`) when you cu
   background" and "app was fully killed" cases. iOS additionally required adding an App Group
   entitlement (`group.com.toondeboer.pokerkit`) shared between the app and widget extension, since
   a Live Activity button's `LiveActivityIntent` runs in the widget extension's own process.
+- Mobile: Android's foreground-service notification now has a small permanent note — "Blind level
+  may lag behind here if more than one round expires before you reopen the app" — matching the
+  iOS Live Activity's existing force-quit caption. Covers a narrow, accepted limitation: the
+  notification can't advance its own displayed blind level across multiple expire-and-resume
+  cycles while the app stays fully killed (reopening always catches it up correctly).
 
 ### Fixed
 - Mobile: the Timer screen card no longer stretches edge-to-edge on tablets — capped it at the

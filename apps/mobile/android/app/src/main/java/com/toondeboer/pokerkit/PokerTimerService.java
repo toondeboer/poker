@@ -657,6 +657,15 @@ public class PokerTimerService extends Service {
             bigText.append("\n⬆️ Next Level: ").append(formatBlinds(nextSmallBlind, nextBigBlind));
         }
 
+        // Permanent notice, not conditional on any state: this service has no way to advance the
+        // blind level on its own (that math lives only in the app), so if the app stays fully
+        // killed (swiped away) across more than one expire-and-resume cycle, the level shown here
+        // can't keep up. Reopening the app always catches it up correctly — this just tells the
+        // user why the number in front of them might look stale in the meantime, matching the
+        // iOS Live Activity's equivalent permanent caption.
+        bigText.append("\n\nBlind level may lag behind here if more than one round expires " +
+                "before you reopen the app.");
+
         return bigText.toString();
     }
 
