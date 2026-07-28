@@ -657,14 +657,18 @@ public class PokerTimerService extends Service {
             bigText.append("\n⬆️ Next Level: ").append(formatBlinds(nextSmallBlind, nextBigBlind));
         }
 
-        // Permanent notice, not conditional on any state: this service has no way to advance the
-        // blind level on its own (that math lives only in the app), so if the app stays fully
-        // killed (swiped away) across more than one expire-and-resume cycle, the level shown here
-        // can't keep up. Reopening the app always catches it up correctly — this just tells the
-        // user why the number in front of them might look stale in the meantime, matching the
-        // iOS Live Activity's equivalent permanent caption.
-        bigText.append("\n\nBlind level may lag behind here if more than one round expires " +
-                "before you reopen the app.");
+        // Permanent notice, not conditional on any state. Ordinary backgrounding (Home button,
+        // switching apps) is fine: the JS side stays alive and reconciles each native
+        // pause/resume/stop live, keeping this notification's blind level in sync in real time.
+        // The lag only happens if the task is actually swiped away from Recents — that destroys
+        // the RN host (confirmed via logcat: ReactHost.onHostDestroy fires on task removal), and
+        // this service has no way to advance the blind level on its own (that math lives only in
+        // the app), so consecutive expire-and-resume cycles while the app stays fully killed
+        // can't be reflected here. Reopening the app always catches it up correctly. Worded to
+        // match the iOS Live Activity's equivalent permanent caption (name the action to avoid,
+        // not just the symptom).
+        bigText.append("\n\nDon't force quit the app, or the blind level shown here may fall " +
+                "behind.");
 
         return bigText.toString();
     }

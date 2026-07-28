@@ -404,26 +404,32 @@ full design.
     its own), then reopened the app cold: correctly showed Level 4 (advanced once, matching the
     single pending action) at the correct 6-second duration, not reset to Level 2/10 minutes.
     - **Reported at the same time, but a separate, narrower architectural limitation, not a bug:
-      while the app stays fully killed, the notification's own displayed blind level/blinds text
-      can't advance across *multiple* expire-and-resume cycles.** Neither native side tracks
-      blind levels at all (by design — see the `wasExpired` fix above), and the pending-action
-      mechanism is a single-slot "last action" cache, not a queue — so if a round expires, gets
-      resumed from the notification, runs out again, and gets resumed *again*, all without the
-      app ever being reopened, only the most recent action is remembered. On next reopen, JS
-      correctly advances by the one pending action, but the notification's own text stays frozen
-      at whatever blind level JS last pushed to it throughout that whole dead stretch, and
-      doesn't reflect intermediate advances the user couldn't see anyway. Confirmed via `adb`:
-      after two consecutive native-only resumes, the notification still read "Level 3" both
-      times, but reopening correctly caught up to "Level 4." Fixing this fully would mean
-      duplicating blind-level math into Java/Swift, against this repo's "shared logic lives in
-      `@poker/core`, platform code stays in the app" boundary (`CLAUDE.md`) — considered not
-      worth it for a scenario that requires the user to never check their phone across multiple
-      full rounds.
+      while the app stays fully killed (task swiped away from Recents), the notification's own
+      displayed blind level/blinds text can't advance across *multiple* expire-and-resume
+      cycles.** Neither native side tracks blind levels at all (by design — see the `wasExpired`
+      fix above), and the pending-action mechanism is a single-slot "last action" cache, not a
+      queue — so if a round expires, gets resumed from the notification, runs out again, and gets
+      resumed *again*, all without the app ever being reopened, only the most recent action is
+      remembered. On next reopen, JS correctly advances by the one pending action, but the
+      notification's own text stays frozen at whatever blind level JS last pushed to it
+      throughout that whole dead stretch, and doesn't reflect intermediate advances the user
+      couldn't see anyway. Confirmed via `adb`: after two consecutive native-only resumes, the
+      notification still read "Level 3" both times, but reopening correctly caught up to
+      "Level 4." **Only triggered by an actual task removal, not ordinary backgrounding** —
+      pressing Home leaves the RN host alive, so the live-event listener still catches each
+      native action immediately and pushes the update back to the notification in real time;
+      the lag specifically needs the Activity destroyed (confirmed via logcat:
+      `ReactHost.onHostDestroy` fires on task removal, not on a plain Home-button background).
+      Fixing this fully would mean duplicating blind-level math into Java/Swift, against this
+      repo's "shared logic lives in `@poker/core`, platform code stays in the app" boundary
+      (`CLAUDE.md`) — considered not worth it for a scenario that requires the user to swipe the
+      app away *and* never check their phone across multiple full rounds.
     - ✅ **Communicated via a small permanent caption**, matching the existing iOS force-quit
-      notice but worded for Android's actual (narrower) limitation — buttons keep working, only
-      the displayed blind level can lag: "Blind level may lag behind here if more than one round
-      expires before you reopen the app." Added unconditionally to the end of
-      `PokerTimerService.formatBigText()`, so it shows in the notification's expanded view
+      notice's style — name the action to avoid, not just the symptom — but worded for Android's
+      actual (narrower) limitation: buttons keep working regardless, only the displayed blind
+      level can lag, and only after an actual force-quit (not plain backgrounding): "Don't force
+      quit the app, or the blind level shown here may fall behind." Added unconditionally to the
+      end of `PokerTimerService.formatBigText()`, so it shows in the notification's expanded view
       regardless of state. Verified via `adb`: renders as its own paragraph below "Next Level",
       above the Resume/Stop buttons, no clipping or crowding.
 
