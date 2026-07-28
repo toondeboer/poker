@@ -101,9 +101,20 @@ Mobile releases are batched on a short-lived branch per version, not shipped str
   Expo's own dev-menu trigger** (`expo-dev-client`/`expo-dev-menu`), not app UI — it doesn't exist
   in the app's source and never ships in a release build. Ignore it when reviewing screenshots or
   debugging layout; it's not a bug to fix and not a system accessibility overlay either.
-- **`expo run:android` plants broken package shims that also break iOS.** Expo's autolinking
-  creates partial proxy directories — missing `package.json` and the platform folder, just a stray
-  `android/` — at `node_modules/expo-dev-client/node_modules/expo-dev-launcher` and directly under
+- **`expo run:android` plants broken package shims that also break iOS.** `npm run
+  android`/`android:device`/`ios`/`ios:device` (the ones in root `package.json`, proxying into
+  `apps/mobile`) now self-heal this automatically — each runs `preandroid`/`preandroid:device`/
+  `preios`/`preios:device` first, which calls `apps/mobile/scripts/clean-expo-shims.js` to detect
+  (checked via a missing `package.json`, not just presence) and remove the broken shims plus the
+  stale Gradle autolinking cache before the real build starts. That covers shims left over from a
+  *previous* run; if it still recurs mid-build (a concurrent IDE Gradle sync replanting them
+  *during* the same invocation — see the note at the bottom of this entry — or you built via some
+  other entrypoint like a bare `npx expo run:android` that skips the npm script), the manual fix
+  below still applies; `node apps/mobile/scripts/clean-expo-shims.js` on its own is equivalent to
+  the `rm -rf`+cache-clear steps and safe to re-run any time. Root cause, for when the automatic
+  fix isn't enough: Expo's autolinking creates partial proxy directories — missing `package.json`
+  and the platform folder, just a stray `android/` — at
+  `node_modules/expo-dev-client/node_modules/expo-dev-launcher` and directly under
   `apps/mobile/node_modules/{expo,expo-constants,expo-modules-autolinking}`. These shadow the
   real, correctly-hoisted copies at root `node_modules/` for *any* Node-based resolution,
   including CocoaPods' iOS autolinking. Symptoms: Android — `Project with path
