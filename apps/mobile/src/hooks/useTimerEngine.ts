@@ -12,6 +12,7 @@ import {
   isExpired,
   withDuration,
   clampToDuration,
+  calculateTimeLeft,
   type SoundPackId,
   type TimerMachineState,
 } from "@poker/core";
@@ -86,16 +87,53 @@ export function useTimerEngine(
     }
   };
 
+  // Absolute pause/resume — unlike togglePause, these don't assume the current `paused` value,
+  // which matters for a native-triggered action (notification/Live-Activity button) racing
+  // against in-app state: an unconditional toggle could flip the wrong way if they land at
+  // nearly the same time.
+  //
+  // Both accept an optional exact override, used when reconciling a native-originated
+  // pause/resume: the native side (foreground service / Live Activity) is the authoritative
+  // source for *when* it actually paused/resumed, since JS may not have been running at that
+  // moment at all. Applying pauseTimer/startTimer to whatever JS's own (possibly long-stale)
+  // state currently is would silently re-derive the wrong instant — e.g. a pause reconciled this
+  // way would freeze at "now" instead of freezing at the moment the button was actually tapped,
+  // since core's `pauseTimer` just keeps whatever `timeLeft` the current state happens to have.
+  const pause = async (timeLeftOverride?: number): Promise<void> => {
+    logger.log("Pausing timer at time left:", timeLeftOverride ?? timeLeft);
+    setState((s) => {
+      const next = pauseTimer(s);
+      return timeLeftOverride !== undefined ? { ...next, timeLeft: timeLeftOverride } : next;
+    });
+  };
+
+  const resume = async (endTimeOverride?: number): Promise<void> => {
+    logger.log("Resuming timer with endTime override:", endTimeOverride);
+    setState((s) =>
+      endTimeOverride !== undefined
+        ? {
+            // Recompute timeLeft from the override endTime in the same update, rather than
+            // leaving whatever (possibly 0, if reconciling a native resume-from-expired) timeLeft
+            // the state already had — same failure mode as core's startTimer: a transient
+            // timeLeft === 0 with paused === false reads as "just expired" to the completion
+            // effect below and immediately resets the timer that was only just resumed.
+            ...s,
+            endTime: endTimeOverride,
+            timeLeft: calculateTimeLeft(endTimeOverride),
+            paused: false,
+          }
+        : startTimer(s),
+    );
+    // Reset completion flag when starting timer
+    hasHandledTimerCompleteRef.current = false;
+  };
+
   // Toggle pause/resume
   const togglePause = async (): Promise<void> => {
     if (!paused) {
-      logger.log("Pausing timer at time left:", timeLeft);
-      setState((s) => pauseTimer(s));
+      await pause();
     } else {
-      logger.log("Resuming timer with time left:", timeLeft);
-      setState((s) => startTimer(s));
-      // Reset completion flag when starting timer
-      hasHandledTimerCompleteRef.current = false;
+      await resume();
     }
   };
 
@@ -183,6 +221,8 @@ export function useTimerEngine(
     timeLeft,
     paused,
     togglePause,
+    pause,
+    resume,
     resetTimer,
     isLoading,
     loadTimerState,

@@ -1,11 +1,14 @@
 package com.toondeboer.pokerkit;
 
+import com.facebook.react.bridge.Arguments;
 import com.facebook.react.bridge.ReactApplicationContext;
 import com.facebook.react.bridge.ReactContextBaseJavaModule;
 import com.facebook.react.bridge.ReactMethod;
 import com.facebook.react.bridge.Promise;
 import com.facebook.react.bridge.ReadableMap;
+import com.facebook.react.bridge.WritableMap;
 import android.content.Intent;
+import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
 import android.os.Build;
 import androidx.core.content.ContextCompat;
@@ -14,11 +17,11 @@ import android.Manifest;
 public class ForegroundServiceModule extends ReactContextBaseJavaModule {
     private static final String MODULE_NAME = "RNForegroundService";
     private ReactApplicationContext reactContext;
-    private boolean isServiceRunning = false;
 
     public ForegroundServiceModule(ReactApplicationContext reactContext) {
         super(reactContext);
         this.reactContext = reactContext;
+        ForegroundServiceBridge.setReactContext(reactContext);
     }
 
     @Override
@@ -74,6 +77,10 @@ public class ForegroundServiceModule extends ReactContextBaseJavaModule {
                 serviceIntent.putExtra(PokerTimerService.EXTRA_TIME_LEFT,
                         data.getInt("timeLeft"));
             }
+            if (data.hasKey("timerDuration")) {
+                serviceIntent.putExtra(PokerTimerService.EXTRA_TIMER_DURATION,
+                        data.getInt("timerDuration"));
+            }
             if (data.hasKey("paused")) {
                 serviceIntent.putExtra(PokerTimerService.EXTRA_PAUSED,
                         data.getBoolean("paused"));
@@ -88,7 +95,6 @@ public class ForegroundServiceModule extends ReactContextBaseJavaModule {
             }
 
             reactContext.startForegroundService(serviceIntent);
-            isServiceRunning = true;
             promise.resolve("Service started successfully");
 
         } catch (Exception e) {
@@ -99,7 +105,7 @@ public class ForegroundServiceModule extends ReactContextBaseJavaModule {
     @ReactMethod
     public void updateService(ReadableMap data, Promise promise) {
         try {
-            if (!isServiceRunning) {
+            if (!ForegroundServiceBridge.isRunning()) {
                 // If service isn't running, start it instead
                 startService(data, promise);
                 return;
@@ -141,6 +147,10 @@ public class ForegroundServiceModule extends ReactContextBaseJavaModule {
                 serviceIntent.putExtra(PokerTimerService.EXTRA_TIME_LEFT,
                         data.getInt("timeLeft"));
             }
+            if (data.hasKey("timerDuration")) {
+                serviceIntent.putExtra(PokerTimerService.EXTRA_TIMER_DURATION,
+                        data.getInt("timerDuration"));
+            }
             if (data.hasKey("paused")) {
                 serviceIntent.putExtra(PokerTimerService.EXTRA_PAUSED,
                         data.getBoolean("paused"));
@@ -169,7 +179,6 @@ public class ForegroundServiceModule extends ReactContextBaseJavaModule {
             serviceIntent.setAction(PokerTimerService.ACTION_STOP);
             reactContext.startService(serviceIntent);
 
-            isServiceRunning = false;
             promise.resolve("Service stopped successfully");
 
         } catch (Exception e) {
@@ -211,7 +220,33 @@ public class ForegroundServiceModule extends ReactContextBaseJavaModule {
 
     @ReactMethod
     public void isServiceRunning(Promise promise) {
-        promise.resolve(isServiceRunning);
+        promise.resolve(ForegroundServiceBridge.isRunning());
+    }
+
+    @ReactMethod
+    public void consumePendingAction(Promise promise) {
+        SharedPreferences prefs = reactContext.getSharedPreferences(
+                PokerTimerService.PREFS_NAME, android.content.Context.MODE_PRIVATE);
+        String action = prefs.getString(PokerTimerService.KEY_PENDING_ACTION, null);
+        if (action == null) {
+            promise.resolve(null);
+            return;
+        }
+        WritableMap result = Arguments.createMap();
+        result.putString("action", action);
+        result.putBoolean("paused", prefs.getBoolean(PokerTimerService.KEY_PENDING_PAUSED, true));
+        result.putInt("timeLeft", prefs.getInt(PokerTimerService.KEY_PENDING_TIME_LEFT, 0));
+        result.putDouble("endTime", (double) prefs.getLong(PokerTimerService.KEY_PENDING_END_TIME, 0));
+        result.putBoolean("wasExpired", prefs.getBoolean(PokerTimerService.KEY_PENDING_WAS_EXPIRED, false));
+        prefs.edit()
+                .remove(PokerTimerService.KEY_PENDING_ACTION)
+                .remove(PokerTimerService.KEY_PENDING_TIMESTAMP)
+                .remove(PokerTimerService.KEY_PENDING_PAUSED)
+                .remove(PokerTimerService.KEY_PENDING_TIME_LEFT)
+                .remove(PokerTimerService.KEY_PENDING_END_TIME)
+                .remove(PokerTimerService.KEY_PENDING_WAS_EXPIRED)
+                .apply();
+        promise.resolve(result);
     }
 }
 

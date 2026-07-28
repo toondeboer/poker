@@ -13,6 +13,20 @@ platform-tagged heading (e.g. `## [1.1.3] - 2026-07-20 — Android`) when you cu
 - Web: new `/guide` page — "How to Run a Home Poker Tournament" — covering buy-ins, blind
   structures, payouts, and a blind-structure explainer, with `HowTo`/`FAQPage` structured data.
   Cross-linked from `/timer`.
+- Mobile: Pause/Resume and Stop buttons on the Android foreground-service timer notification and
+  the iOS Live Activity/Dynamic Island — previously read-only display, with no way to control the
+  timer without reopening the app. Each side updates its own visible UI immediately (no
+  round-trip through JS needed) and separately persists the action so the app reconciles its timer
+  state next time it's foregrounded or launched, covering both "app still running in the
+  background" and "app was fully killed" cases. iOS additionally required adding an App Group
+  entitlement (`group.com.toondeboer.pokerkit`) shared between the app and widget extension, since
+  a Live Activity button's `LiveActivityIntent` runs in the widget extension's own process.
+- Mobile: Android's foreground-service notification now has a small permanent note — "Don't force
+  quit the app, or the blind level shown here may fall behind" — matching the iOS Live Activity's
+  existing force-quit caption. Covers a narrow, accepted limitation specific to actually force-
+  quitting (not ordinary backgrounding): the notification can't advance its own displayed blind
+  level across multiple expire-and-resume cycles while the app stays fully killed (reopening
+  always catches it up correctly).
 
 ### Fixed
 - Mobile: the Timer screen card no longer stretches edge-to-edge on tablets — capped it at the
@@ -40,6 +54,18 @@ platform-tagged heading (e.g. `## [1.1.3] - 2026-07-20 — Android`) when you cu
   base prebuild config always resets `AppTheme` to the default theme now) and needed the
   `react-native-edge-to-edge` config plugin registered in `plugins` to reapply `Theme.EdgeToEdge`
   afterward — removed the stale key and added the plugin.
+- Mobile: the Android notification/iOS Live Activity Pause/Resume button no longer gets stuck
+  offering "Pause" once a round expires — it now correctly switches to "Resume" (Android also
+  restores the "Active"/green title once resumed). Resuming an already-expired round no longer
+  instantly re-expires it, and now correctly advances to the next blind level and starts a fresh
+  round instead of restarting the same (already-finished) one.
+- Mobile: the in-app "Time's Up" alert (and its alarm sound) could silently fail to show when a
+  round expired while the app was genuinely in the foreground — it would auto-advance the blind
+  level with no alert or sound instead, as if the app had been backgrounded the whole time.
+- Android: reopening the app after force-quitting (swiping away from Recents) mid-round no longer
+  resets the timer to the default 10-minute duration and blind Level 2 — a stale-closure race
+  meant a pending notification action could be reconciled against pre-load default values instead
+  of what was actually persisted.
 
 ## [1.1.3] - 2026-07-21 — iOS & Android
 

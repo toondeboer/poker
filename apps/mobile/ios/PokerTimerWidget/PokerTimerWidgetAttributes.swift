@@ -18,9 +18,23 @@ struct PokerTimerWidgetAttributes: ActivityAttributes {
     var endTime: Date
     var paused: Bool
     var timeLeft: TimeInterval  // Added for paused state
-        
+    // Total configured round length in seconds. Lets the Resume button's `LiveActivityIntent`
+    // recompute a fresh `endTime` from `timeLeft` without a JS round-trip, falling back to a
+    // full round when resuming from an already-expired timer (mirrors the JS timer state
+    // machine's own `startTimer` fallback).
+    var timerDuration: TimeInterval
+
     var timeRemaining: TimeInterval {
       return paused ? timeLeft : endTime.timeIntervalSinceNow
+    }
+
+    // True once the round has actually finished (still "running" per `paused`, but its endTime
+    // has already passed) — treated the same as `paused` for button purposes, since "Pause"
+    // doesn't make sense on a timer that's no longer counting down. Unlike Android's foreground
+    // service, the widget extension has no code running once per second to flip a stored flag on
+    // expiry, so this is computed from `timeRemaining` on every render instead.
+    var isExpired: Bool {
+      !paused && timeRemaining <= 0
     }
   }
     
@@ -44,10 +58,11 @@ extension PokerTimerWidgetAttributes.ContentState {
       nextBigBlind: 300,
       endTime: Date().addingTimeInterval(3600),
       paused: false,
-      timeLeft: 0
+      timeLeft: 0,
+      timerDuration: 3600
     )
   }
-    
+
   static var pausedState: PokerTimerWidgetAttributes.ContentState {
     PokerTimerWidgetAttributes.ContentState(
       currentBlindLevel: 5,
@@ -57,10 +72,11 @@ extension PokerTimerWidgetAttributes.ContentState {
       nextBigBlind: 800,
       endTime: Date().addingTimeInterval(800),
       paused: true,
-      timeLeft: 800  // 13 minutes 20 seconds remaining
+      timeLeft: 800,  // 13 minutes 20 seconds remaining
+      timerDuration: 1200
     )
   }
-    
+
   static var lowTimeState: PokerTimerWidgetAttributes.ContentState {
     PokerTimerWidgetAttributes.ContentState(
       currentBlindLevel: 8,
@@ -70,7 +86,8 @@ extension PokerTimerWidgetAttributes.ContentState {
       nextBigBlind: 3000,
       endTime: Date().addingTimeInterval(45),
       paused: false,
-      timeLeft: 0
+      timeLeft: 0,
+      timerDuration: 1200
     )
   }
 }

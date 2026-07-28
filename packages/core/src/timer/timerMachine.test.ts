@@ -36,7 +36,7 @@ describe("startTimer", () => {
     const next = startTimer(state, NOW);
     expect(next.paused).toBe(false);
     expect(next.endTime).toBe(NOW + 120_000);
-    expect(next.timeLeft).toBe(120); // left as-is; tick recomputes it
+    expect(next.timeLeft).toBe(120);
   });
 
   it("resumes from a partially-elapsed round without resetting timeLeft", () => {
@@ -51,7 +51,7 @@ describe("startTimer", () => {
     expect(next.timeLeft).toBe(45);
   });
 
-  it("falls back to a full round when nothing is left", () => {
+  it("falls back to a full round when nothing is left, syncing timeLeft too", () => {
     const state: TimerMachineState = {
       timerDuration: 120,
       endTime: undefined,
@@ -60,6 +60,11 @@ describe("startTimer", () => {
     };
     const next = startTimer(state, NOW);
     expect(next.endTime).toBe(NOW + 120_000);
+    // Regression: timeLeft must be set in the same update as endTime/paused, not left at 0 for
+    // tickTimer to recompute a second later — a transient timeLeft === 0 with paused === false
+    // reads as "just expired" to callers' completion-detection effects, which would immediately
+    // reset the timer that was only just resumed.
+    expect(next.timeLeft).toBe(120);
   });
 });
 

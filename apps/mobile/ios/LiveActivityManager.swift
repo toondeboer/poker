@@ -40,7 +40,8 @@ import ActivityKit
       nextBigBlind: data["nextBigBlind"] as? Int ?? 100,
       endTime: endTime,
       paused: data["paused"] as? Bool ?? false,
-      timeLeft: data["timeLeft"] as? Double ?? 0
+      timeLeft: data["timeLeft"] as? Double ?? 0,
+      timerDuration: data["timerDuration"] as? Double ?? 0
     )
         
     do {
@@ -77,7 +78,8 @@ import ActivityKit
       nextBigBlind: data["nextBigBlind"] as? Int ?? 100,
       endTime: endTime,
       paused: data["paused"] as? Bool ?? false,
-      timeLeft: data["timeLeft"] as? Double ?? 0
+      timeLeft: data["timeLeft"] as? Double ?? 0,
+      timerDuration: data["timerDuration"] as? Double ?? 0
     )
         
     Task {

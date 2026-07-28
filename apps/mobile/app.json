@@ -53,6 +53,9 @@
       "bundleIdentifier": "com.toondeboer.pokerkit",
       "config": {
         "usesNonExemptEncryption": false
+      },
+      "entitlements": {
+        "com.apple.security.application-groups": ["group.com.toondeboer.pokerkit"]
       }
     }
   }

@@ -20,6 +20,7 @@ import androidx.core.app.NotificationCompat;
 import androidx.annotation.Nullable;
 import android.os.Handler;
 import android.os.Looper;
+import android.content.SharedPreferences;
 
 public class PokerTimerService extends Service {
     // Intent extras
@@ -31,6 +32,7 @@ public class PokerTimerService extends Service {
     public static final String EXTRA_NEXT_BIG_BLIND = "nextBigBlind";
     public static final String EXTRA_END_TIME = "endTime";
     public static final String EXTRA_TIME_LEFT = "timeLeft";
+    public static final String EXTRA_TIMER_DURATION = "timerDuration";
     public static final String EXTRA_PAUSED = "paused";
     public static final String EXTRA_SHOULD_ALERT_ON_EXPIRY = "shouldAlertOnExpiry";
     public static final String EXTRA_SOUND_ID = "soundId";
@@ -43,6 +45,27 @@ public class PokerTimerService extends Service {
     public static final String ACTION_UPDATE = "UPDATE_TIMER_SERVICE";
     public static final String ACTION_STOP = "STOP_TIMER_SERVICE";
     public static final String ACTION_DISMISS_ALERT = "DISMISS_ALERT";
+    // Notification-button-initiated actions (distinct from the JS-driven ones above so we know
+    // to persist + emit an event back to JS only for user-initiated taps).
+    public static final String ACTION_PAUSE = "PAUSE_TIMER_SERVICE";
+    public static final String ACTION_RESUME = "RESUME_TIMER_SERVICE";
+    public static final String ACTION_STOP_FROM_NOTIFICATION = "STOP_TIMER_SERVICE_FROM_NOTIFICATION";
+
+    // Pending-action persistence, read by JS (ForegroundServiceModule#consumePendingAction) to
+    // reconcile state when the app was backgrounded/killed at the moment of a notification tap.
+    // Carries the service's own authoritative timer snapshot alongside the action name — see
+    // the comment on ForegroundServiceBridge#emit for why the action name alone isn't enough.
+    static final String PREFS_NAME = "PokerTimerServicePrefs";
+    static final String KEY_PENDING_ACTION = "pendingAction";
+    static final String KEY_PENDING_TIMESTAMP = "pendingActionTimestamp";
+    static final String KEY_PENDING_PAUSED = "pendingPaused";
+    static final String KEY_PENDING_TIME_LEFT = "pendingTimeLeft";
+    static final String KEY_PENDING_END_TIME = "pendingEndTime";
+    // Set only on a "resume" action tapped while the round had already expired — lets JS tell
+    // this apart from an ordinary mid-round pause/resume, since only the app knows about blind
+    // levels (this service doesn't) and needs to advance to the next one instead of restarting
+    // the same round. See ForegroundServiceBridge#emit.
+    static final String KEY_PENDING_WAS_EXPIRED = "pendingWasExpired";
 
     private static final String CHANNEL_ID = "PokerTimerChannel";
     private static final String ALERT_CHANNEL_ID = "PokerTimerAlertChannel";
@@ -68,6 +91,7 @@ public class PokerTimerService extends Service {
     private int nextBigBlind = 0;
     private long endTime = 0;
     private int timeLeft = 0;
+    private int timerDuration = 0;
     private boolean paused = true;
     private boolean shouldAlertOnExpiry = true;
     private String soundId = DEFAULT_SOUND_ID;
@@ -82,6 +106,7 @@ public class PokerTimerService extends Service {
         createNotificationChannels();
         handler = new Handler(Looper.getMainLooper());
         alertHandler = new Handler(Looper.getMainLooper());
+        ForegroundServiceBridge.setRunning(true);
     }
 
     @Override
@@ -100,10 +125,68 @@ public class PokerTimerService extends Service {
                 stopSelf();
             } else if (ACTION_DISMISS_ALERT.equals(action)) {
                 dismissAlert();
+            } else if (ACTION_PAUSE.equals(action)) {
+                paused = true;
+                stopTimer();
+                updateNotification();
+                persistAndEmit("pause", false);
+            } else if (ACTION_RESUME.equals(action)) {
+                // Capture before it's cleared below — tells JS this resume follows an expired
+                // round (as opposed to an ordinary mid-round pause/resume), so it knows to advance
+                // to the next blind level rather than restart the same one. This service has no
+                // notion of blind levels itself, so it can't make that call — it just reports what
+                // happened and lets the app decide.
+                boolean wasExpired = timerExpired;
+                paused = false;
+                // Resuming from an already-expired timer (timeLeft == 0, e.g. the button was
+                // tapped while at "TIME'S UP") restarts a full round rather than an
+                // instantly-expired one. timeLeft must be synced to the same fallback value used
+                // for endTime here, not left at its stale 0 — otherwise the persisted/emitted
+                // snapshot tells JS "resumed, 0 seconds left", which JS's own completion-detection
+                // reads as "just expired" and immediately resets the timer that was only just
+                // resumed. (JS disregards this timeLeft/endTime when wasExpired is true and
+                // computes its own fresh round for the new blind level instead — this is just for
+                // this service's own immediate notification content.)
+                int remaining = timeLeft > 0 ? timeLeft : timerDuration;
+                timeLeft = remaining;
+                endTime = System.currentTimeMillis() + (long) remaining * 1000L;
+                // Resuming acknowledges the expiry — stop the alarm/vibration loop and clear the
+                // expired flag so the notification's title/color go back to "Active".
+                timerExpired = false;
+                dismissAlert();
+                updateNotification();
+                startTimer();
+                persistAndEmit("resume", wasExpired);
+            } else if (ACTION_STOP_FROM_NOTIFICATION.equals(action)) {
+                stopTimer();
+                stopAlert();
+                stopForeground(true);
+                stopSelf();
+                persistAndEmit("stop", false);
             }
         }
 
         return START_STICKY;
+    }
+
+    /**
+     * Persists the notification-button action, plus this service's own authoritative
+     * paused/timeLeft/endTime at the moment it happened, so JS can reconcile on next
+     * foreground/launch (the app may be backgrounded or fully killed at the moment of the tap —
+     * this service outlives the JS/Catalyst instance) without re-deriving a stale value from its
+     * own last-persisted (pre-pause) state. Also best-effort emits it live if JS is reachable now.
+     */
+    private void persistAndEmit(String action, boolean wasExpired) {
+        SharedPreferences prefs = getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE);
+        prefs.edit()
+                .putString(KEY_PENDING_ACTION, action)
+                .putBoolean(KEY_PENDING_WAS_EXPIRED, wasExpired)
+                .putLong(KEY_PENDING_TIMESTAMP, System.currentTimeMillis())
+                .putBoolean(KEY_PENDING_PAUSED, paused)
+                .putInt(KEY_PENDING_TIME_LEFT, timeLeft)
+                .putLong(KEY_PENDING_END_TIME, endTime)
+                .apply();
+        ForegroundServiceBridge.emit(action, paused, timeLeft, endTime, wasExpired);
     }
 
     private void updateTimerData(Intent intent) {
@@ -117,6 +200,7 @@ public class PokerTimerService extends Service {
         nextBigBlind = intent.getIntExtra(EXTRA_NEXT_BIG_BLIND, 0);
         endTime = intent.getLongExtra(EXTRA_END_TIME, 0);
         timeLeft = intent.getIntExtra(EXTRA_TIME_LEFT, 0);
+        timerDuration = intent.getIntExtra(EXTRA_TIMER_DURATION, timerDuration);
         boolean newPaused = intent.getBooleanExtra(EXTRA_PAUSED, true);
         shouldAlertOnExpiry = intent.getBooleanExtra(EXTRA_SHOULD_ALERT_ON_EXPIRY, true);
         String newSoundId = intent.getStringExtra(EXTRA_SOUND_ID);
@@ -143,13 +227,23 @@ public class PokerTimerService extends Service {
 
                     if (newTimeLeft != timeLeft) {
                         timeLeft = newTimeLeft;
-                        updateNotification();
 
-                        // Check if timer just expired
-                        if (timeLeft == 0 && !timerExpired && shouldAlertOnExpiry) {
+                        // Flip timerExpired (and rebuild the notification off the back of it)
+                        // *before* the notification is rebuilt below — this is also the very last
+                        // tick this runnable ever reschedules (see the `timeLeft > 0` guard
+                        // below), so if the flag flipped after updateNotification() instead, the
+                        // "Pause" button/title would be frozen showing the pre-expiry state
+                        // forever, since nothing rebuilds the notification again on its own once
+                        // ticking stops. shouldAlertOnExpiry only gates the alarm/vibration, not
+                        // whether the round is considered over.
+                        if (timeLeft == 0 && !timerExpired) {
                             timerExpired = true;
-                            startAlert();
+                            if (shouldAlertOnExpiry) {
+                                startAlert();
+                            }
                         }
+
+                        updateNotification();
                     }
 
                     if (timeLeft > 0) {
@@ -409,6 +503,29 @@ public class PokerTimerService extends Service {
         String content = formatNotificationContent();
         String bigText = formatBigText();
 
+        // Once the round has expired, "Pause" no longer makes sense — nothing is running to
+        // pause. Treat expired the same as paused for the button's label/action: it becomes
+        // "Resume", which restarts a full round (see ACTION_RESUME's expired-fallback above).
+        boolean showResume = paused || timerExpired;
+
+        Intent pauseResumeIntent = new Intent(this, PokerTimerService.class);
+        pauseResumeIntent.setAction(showResume ? ACTION_RESUME : ACTION_PAUSE);
+        PendingIntent pauseResumePendingIntent = PendingIntent.getService(
+                this,
+                3,
+                pauseResumeIntent,
+                PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE
+        );
+
+        Intent stopIntent = new Intent(this, PokerTimerService.class);
+        stopIntent.setAction(ACTION_STOP_FROM_NOTIFICATION);
+        PendingIntent stopPendingIntent = PendingIntent.getService(
+                this,
+                4,
+                stopIntent,
+                PendingIntent.FLAG_IMMUTABLE
+        );
+
         NotificationCompat.Builder builder = new NotificationCompat.Builder(this, CHANNEL_ID)
                 .setContentTitle(title)
                 .setContentText(content)
@@ -424,7 +541,12 @@ public class PokerTimerService extends Service {
                         .bigText(bigText)
                         .setBigContentTitle(title))
                 .setShowWhen(false)
-                .setOnlyAlertOnce(true); // Don't repeatedly alert for updates
+                .setOnlyAlertOnce(true) // Don't repeatedly alert for updates
+                .addAction(
+                        showResume ? R.drawable.ic_notification_play : R.drawable.ic_notification_pause,
+                        showResume ? "Resume" : "Pause",
+                        pauseResumePendingIntent)
+                .addAction(R.drawable.ic_notification_clear, "Stop", stopPendingIntent);
 
         // Add custom large icon if available
         try {
@@ -535,6 +657,19 @@ public class PokerTimerService extends Service {
             bigText.append("\n⬆️ Next Level: ").append(formatBlinds(nextSmallBlind, nextBigBlind));
         }
 
+        // Permanent notice, not conditional on any state. Ordinary backgrounding (Home button,
+        // switching apps) is fine: the JS side stays alive and reconciles each native
+        // pause/resume/stop live, keeping this notification's blind level in sync in real time.
+        // The lag only happens if the task is actually swiped away from Recents — that destroys
+        // the RN host (confirmed via logcat: ReactHost.onHostDestroy fires on task removal), and
+        // this service has no way to advance the blind level on its own (that math lives only in
+        // the app), so consecutive expire-and-resume cycles while the app stays fully killed
+        // can't be reflected here. Reopening the app always catches it up correctly. Worded to
+        // match the iOS Live Activity's equivalent permanent caption (name the action to avoid,
+        // not just the symptom).
+        bigText.append("\n\nDon't force quit the app, or the blind level shown here may fall " +
+                "behind.");
+
         return bigText.toString();
     }
 
@@ -559,6 +694,7 @@ public class PokerTimerService extends Service {
         super.onDestroy();
         stopTimer();
         stopAlert();
+        ForegroundServiceBridge.setRunning(false);
     }
 }
 

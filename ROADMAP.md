@@ -225,12 +225,259 @@ full design.
     clarity if touching this code again, but doesn't affect behavior.
 
 ## Live Activity / foreground service controls
-- 🔍 **Pause is not currently exposed as an action** — the Android foreground-service notification
-  category (`NOTIFICATION_CATEGORY = "timerActions"` in `useTimerNotification.ts`) only defines a
-  `"stop"` action button; there's no pause/resume action wired in, even though `LiveActivityService`
-  already tracks a `paused` state internally. Investigate adding pause/resume + stop actions to
-  both the Android foreground-service notification and the iOS Live Activity/Dynamic Island UI, and
-  wire them back to `TimerContext`.
+- ✅ **Pause/Resume + Stop actions added** to both the Android foreground-service notification and
+  the iOS Live Activity/Dynamic Island. Both platforms update their own visible UI immediately on
+  a button tap (no dependency on a live JS/bridge instance) and persist the action
+  (`SharedPreferences` on Android, App Group `UserDefaults` on iOS) so `TimerContext` reconciles it
+  on next app foreground/launch via a new `consumePendingAction()` — covering both "app
+  backgrounded, JS still alive" (fast path, live `DeviceEventEmitter`/`NativeEventEmitter` event)
+  and "app killed" (persisted-flag fallback). Along the way, fixed a pre-existing bug where
+  `ForegroundServiceModule.isServiceRunning` was a stale JS-side flag never updated by the service
+  itself — harmless before (nothing but JS ever stopped the service), but would have caused a
+  resurrected notification once the service could stop itself from a tap.
+  - **Verified end-to-end on Android** (API 35 emulator): started a timer, backgrounded the app,
+    tapped Resume/Pause/Stop from the notification, and confirmed both the notification and the
+    reopened app's UI reflected the change each time (including a full reset to `10:00`/`Start`
+    after Stop).
+  - **iOS: real device build required a one-time manual step** — local Xcode automatic signing
+    didn't auto-register the new App Groups capability from the entitlements files alone (that
+    only happens via Xcode's own Signing & Capabilities UI); the device build failed with
+    "Provisioning Profile ... does not support the App Groups capability" until the capability was
+    added there for both targets. EAS's remote-managed credentials are expected to handle this
+    automatically for device/TestFlight builds, but that hasn't been confirmed.
+  - **Verified on a real device (iPhone 13 Pro), round 1: Pause and Stop worked correctly, Resume
+    did not** — tapping it had no effect. First (partial) diagnosis: `TimerActionButtons` swapped
+    between two *different* `LiveActivityIntent` types (`PauseTimerIntent` vs `ResumeTimerIntent`)
+    depending on `paused` — WidgetKit's interactive buttons can lose their binding when a button
+    swaps between different intent types across re-renders, and the branch that only appears
+    after the first state change (Resume, since the activity always starts unpaused) was the one
+    that stopped responding. Merged both into a single `TogglePauseTimerIntent`.
+  - **Verified on device, round 2: now Pause didn't work either, and Resume still didn't work
+    after the timer expired** — the single-intent merge alone didn't fix it, meaning the round-1
+    diagnosis was incomplete. Root-caused properly this time: `TimerContext` had two independent,
+    unsequenced async reconciliations firing on the same foreground transition —
+    `useNativeTimerActionSync`'s `consumePendingAction()` (reads the App Group flag a native tap
+    writes) racing against `TimerContext`'s own `loadTimerState()` (reads AsyncStorage — a
+    completely separate, stale source a native tap never touches). AsyncStorage I/O is
+    consistently slower than the native UserDefaults/SharedPreferences read behind
+    `consumePendingAction()`, so `loadTimerState()` reliably resolved *last* and silently
+    overwrote the reconciled action — not a flaky race, a losing one every time. Fixed by moving
+    the persisted-flag reconciliation out of `useNativeTimerActionSync` (now just the live-event
+    fast path) and into `TimerContext`, explicitly sequenced *after* `loadTimerState()` resolves.
+    Also hardened `TogglePauseTimerIntent` defensively: it now takes `shouldPause` as an
+    `@Parameter` tied to the same `paused` value that decided the button's label, rather than
+    re-reading `Activity` state fresh inside `perform()` (Lock Screen content can render slightly
+    behind the true state, so a stale read could disagree with what the user saw and tapped).
+  - **Confirmed fixed on a real device (iPhone 13 Pro)**: Pause, Resume, and Stop all work as
+    expected from the Lock Screen/Dynamic Island, matching the in-app UI afterward. Diagnostic
+    `os.Logger`/`NSLog` calls added while chasing round 2 (widget intent `perform()`, the App
+    Group read/write path, the Darwin-notification observer, and the RN bridge's emit) were left
+    in place — they're per-tap, not per-tick, so they're cheap, and they're valuable if this area
+    regresses later.
+  - **Confirmed: iOS Live Activity buttons go dead after the user force-quits the app — this is
+    an Apple platform restriction, not fixable in app code.** `LiveActivityIntent` is built on the
+    App Intents framework, and Apple explicitly refuses to run *any* of an app's App Intents
+    (Live Activity buttons, interactive widgets, Shortcuts alike) once the user has force-quit
+    that app from the app switcher, until they manually reopen it at least once — the Live
+    Activity itself stays visible and tappable (it's a system surface, not tied to the app's
+    process), but the tap silently goes nowhere. Verified this matches the reported symptom
+    exactly (buttons visible and tappable, no effect) and there's no API to override it.
+    - The "timer expired" notification still arriving during this window is correct, not a bug:
+      it's scheduled ahead of time through iOS's own notification system
+      (`scheduleNotificationAsync` in `useTimerNotification.ts`) specifically so it's delivered
+      regardless of the app's process state — that's the point, so the user isn't left unaware
+      the timer ended just because they force-quit the app.
+    - Reopening the app after a force-quit already cleans up correctly with no further changes
+      needed: `useTimerNotification.ts`'s foreground effect calls `clearAllNotifications()` as
+      soon as the app becomes active, and `loadTimerState()`/`hydrateTimerState()` resync the UI
+      from whatever the timer's actual last real (non-force-quit) state was.
+    - Resuming an *already-expired* timer via the button (the `state.timerDuration` fallback path
+      in `TogglePauseTimerIntent`/`ForegroundServiceModule`) has not been separately re-verified,
+      but isn't affected by the above — worth a quick pass next time this area is touched.
+  - **Found via adb automation, not manual testing: Android had its own version of this bug, and
+    it was worse — self-inflicted, not a platform limit, and happening on the ordinary
+    swipe-away-from-Recents gesture, not just a deliberate "force stop."** `TimerContext` had a
+    leftover "cleanup on unmount" effect calling `liveActivityService.endActivity()`. On Android,
+    swiping the task away destroys the Activity, which tears down the whole React Native host and
+    unmounts every component — including this one — so that cleanup fired and explicitly stopped
+    the very foreground service that's supposed to survive exactly that gesture. Confirmed via
+    logcat: `"Foreground Service updated successfully"` → `ReactHost.onHostDestroy` →
+    `"Foreground Service stopped"`, all inside the same task-removal event. This predates the
+    pause/resume/stop work (it's been in `TimerContext.tsx` since the original read-only Live
+    Activity feature) but went unnoticed until this feature made surviving backgrounding actually
+    matter. Very likely also the explanation for a separately-reported "app sometimes quits
+    unexpectedly" — no crash appears in any captured log, but the foreground presence and the
+    background service both vanishing together on every swipe-away would read as exactly that.
+    Fixed by removing the unmount cleanup entirely; ending the activity is solely `resetTimer()`'s
+    job now. Verified end-to-end via `adb`: start timer, swipe away from Recents, confirm the
+    notification survives, Pause/Resume/Stop still work, reopening the app shows synced state.
+  - **Found via the same `adb` testing: pausing/resuming natively while the app was backgrounded
+    froze the timer at the wrong instant** — reported as "the timer keeps running past when I
+    paused it, and shows paused at whatever time it happened to be at when I reopen the app."
+    Root cause: the native side only ever persisted the bare action name ("pause"/"resume") for
+    JS to reconcile, not the actual frozen `timeLeft`/`endTime` it computed at that instant. On
+    reopen, `loadTimerState()` re-derives `timeLeft` by continuing to count down from the
+    *original pre-pause* `endTime` all the way to "now" — entirely unaware a native pause/resume
+    happened in between — and only *then* applied `pauseTimer()`/`startTimer()` on top of that
+    already-wrong value. This affected both platforms identically (a shared `TimerContext` bug,
+    not Android-specific), just surfaced first here. Fixed by threading the native side's own
+    authoritative snapshot through end-to-end (SharedPreferences/App Group `UserDefaults` +
+    the emitted event, not just the action name) and giving `useTimerEngine`'s `pause()`/
+    `resume()` an optional exact override, applied directly instead of re-derived from JS's own
+    stale state. Verified via `adb`: paused via notification at a recorded value, waited 20s,
+    reopened — showed the exact paused value, not a decayed one; resumed, waited 15s, reopened —
+    correctly showed the timer had legitimately expired from continuing the *correct* countdown.
+  - **Two more bugs found testing the timing-precision fix above, both specific to resuming a
+    round that had already expired natively (button tapped after "TIME'S UP"):**
+    1. The Android notification (and iOS Live Activity) kept showing a "Pause" button/label after
+       the round expired — nonsensical, since nothing was running to pause. Root cause on
+       Android: `timerExpired` was flipped *after* the notification's last rebuild (the tick that
+       hits `timeLeft == 0` is also the last one this service ever reschedules), so the stale
+       "Pause" button froze forever. Fixed the ordering, and both platforms now show "Resume"
+       once expired (`isEffectivelyPaused`/`isExpired` computed alongside `paused`).
+    2. Resuming from that expired state (via the notification, or the equivalent in-app "Resume"
+       button after a native-originated pause) restarted the round but instantly reset it to
+       expired again. Root cause: `@poker/core`'s `startTimer` computed a fresh `endTime` (falling
+       back to a full `timerDuration`) but left `timeLeft` at its stale `0`, and every completion
+       effect (`timeLeft === 0 && !paused && endTime`) reads that combination as "just expired."
+       Fixed at the source (`startTimer` now sets `timeLeft` in the same update) plus the two
+       other places with the identical pattern: `useTimerEngine`'s native-resume override and both
+       native sides' own `ACTION_RESUME`/`TogglePauseTimerIntent` resume branches.
+    - **Found via a third round of testing: resuming an expired round didn't advance the blind
+      level** — it restarted the *same* round instead of moving to the next level, unlike every
+      other expiry path in the app (background auto-advance, the in-app "Next Blinds" button).
+      Root cause: neither native side tracks blind levels at all (that's app-only business logic
+      by design — see `CLAUDE.md`'s "shared logic" boundary), so native's own resume fallback
+      could only ever restart the same round it already knew about. Fixed by adding a `wasExpired`
+      flag to the pending-action payload (Android: `KEY_PENDING_WAS_EXPIRED`; iOS: captured from
+      `ContentState.isExpired` before the intent mutates state) — set only when a "resume" follows
+      an expired round, not an ordinary mid-round pause/resume. `TimerContext.applyNativeAction`
+      branches on it: when true, calls `increaseBlinds()` and starts a fresh full-duration round
+      computed in JS, disregarding native's same-level `endTime`/`timeLeft` entirely. Verified via
+      `adb`: expired a 6s test round, tapped Resume from the notification, confirmed both the
+      notification and the reopened app advanced from Level 1 to Level 2 (not a restarted Level
+      1). iOS has the equivalent fix in place but hasn't been separately verified on-device yet.
+  - **A fourth bug, unrelated to the native side: the in-app "Time's Up" alert (overlay + alarm
+    sound) could silently fail to show when a round expired while the app was genuinely in the
+    foreground** — instead it auto-advanced the blind level with no alert and no sound, as if the
+    app had been backgrounded, even though it was on-screen the whole time. Two separate causes in
+    `TimerContext.tsx`, both tracing back to the same root issue — cached `AppState` flags that
+    only update on a "change" event and can end up stuck if one is ever missed or arrives out of
+    order (a transient system dialog/notification/overlay momentarily stealing focus):
+    1. `handleTimerComplete` decided whether to show the alert using the cached `isActive` from
+       `AppStateContext` instead of checking live. Fixed by reading `AppState.currentState`
+       directly at the decision point — a live getter can't go stale the way an event-driven cache
+       can.
+    2. A separate effect that auto-dismisses the alert when backgrounded
+       (`if ((isBackground || isInactive) && showTimerAlert)`) was level-triggered, not
+       edge-triggered — it re-runs the instant `showTimerAlert` flips true (it's in the effect's
+       own deps), so if `isBackground`/`isInactive` merely *happened* to already read true on that
+       render, it would immediately dismiss+advance the alert the moment it appeared. Fixed to
+       only fire on the actual active→background/inactive transition (`!isActive &&
+       wasActiveRef.current`), mirroring the `cameToForeground` edge-detection already used just
+       above it in the same effect.
+    Verified via a temporary on-screen debug readout (`AppState.currentState`, `isAlarmLoaded`,
+    `showTimerAlert` at the moment `handleTimerComplete` fires) across two consecutive foreground
+    expiries — both correctly showed the "Time's Up!" overlay. Not separately stress-tested for a
+    round expiring within the first few seconds of a cold app launch (before `AppState`/audio
+    loading has settled) — inherently lower-risk in real usage since rounds run minutes, not
+    seconds, but flagged here in case this area gets revisited.
+  - **A fifth bug, reported after force-quitting (swiping away from Recents) and reopening: the
+    timer reset to the default 10-minute duration and blind Level 2, regardless of what was
+    actually configured/persisted before the kill.** Root cause: a genuine stale-closure race, not
+    a platform limitation. `TimerContext`'s mount effect (`useEffect(() => {
+    loadTimerState().then(reconcileNativeAction); }, [])`) runs exactly once, at the very first
+    render — before `BlindsContext`'s own persisted `currentBlindIndex` has loaded (defaults to
+    `0`) and before `timerDuration` has loaded (defaults to `DEFAULT_TIMER_DURATION`, 10 minutes).
+    Since this effect never re-runs, `reconcileNativeAction`/`applyNativeAction` stay permanently
+    bound to those pre-load default values — a `wasExpired` resume reconciled through it computed
+    a fresh endTime from the *default* duration and called the *default*-index `increaseBlinds()`,
+    landing on "10:00, Level 2" no matter what was actually persisted. Fixed two ways: (1)
+    `applyNativeAction` is now dereferenced through a ref updated every render
+    (`applyNativeActionRef`, same pattern as `useTimerEngine`'s `callbacksRef`), so it's never
+    bound to a stale render; (2) the mount effect now waits for `BlindsContext`'s own `isLoading`
+    to clear (guarded by a ref so it still only fires once) before reconciling at all, since
+    `BlindsContext` loads independently of `TimerContext` and a "fresh" closure alone doesn't
+    help if the data it reads hasn't actually loaded yet. Verified via `adb`: force-quit
+    mid-round (Level 3, 6s test duration), let it expire and resumed from the notification twice
+    while still fully killed (confirming — see below — that native's own display can't advance on
+    its own), then reopened the app cold: correctly showed Level 4 (advanced once, matching the
+    single pending action) at the correct 6-second duration, not reset to Level 2/10 minutes.
+    - **Reported at the same time, but a separate, narrower architectural limitation, not a bug:
+      while the app stays fully killed (task swiped away from Recents), the notification's own
+      displayed blind level/blinds text can't advance across *multiple* expire-and-resume
+      cycles.** Neither native side tracks blind levels at all (by design — see the `wasExpired`
+      fix above), and the pending-action mechanism is a single-slot "last action" cache, not a
+      queue — so if a round expires, gets resumed from the notification, runs out again, and gets
+      resumed *again*, all without the app ever being reopened, only the most recent action is
+      remembered. On next reopen, JS correctly advances by the one pending action, but the
+      notification's own text stays frozen at whatever blind level JS last pushed to it
+      throughout that whole dead stretch, and doesn't reflect intermediate advances the user
+      couldn't see anyway. Confirmed via `adb`: after two consecutive native-only resumes, the
+      notification still read "Level 3" both times, but reopening correctly caught up to
+      "Level 4." **Only triggered by an actual task removal, not ordinary backgrounding** —
+      pressing Home leaves the RN host alive, so the live-event listener still catches each
+      native action immediately and pushes the update back to the notification in real time;
+      the lag specifically needs the Activity destroyed (confirmed via logcat:
+      `ReactHost.onHostDestroy` fires on task removal, not on a plain Home-button background).
+      Fixing this fully would mean duplicating blind-level math into Java/Swift, against this
+      repo's "shared logic lives in `@poker/core`, platform code stays in the app" boundary
+      (`CLAUDE.md`) — considered not worth it for a scenario that requires the user to swipe the
+      app away *and* never check their phone across multiple full rounds.
+    - ✅ **Communicated via a small permanent caption**, matching the existing iOS force-quit
+      notice's style — name the action to avoid, not just the symptom — but worded for Android's
+      actual (narrower) limitation: buttons keep working regardless, only the displayed blind
+      level can lag, and only after an actual force-quit (not plain backgrounding): "Don't force
+      quit the app, or the blind level shown here may fall behind." Added unconditionally to the
+      end of `PokerTimerService.formatBigText()`, so it shows in the notification's expanded view
+      regardless of state. Verified via `adb`: renders as its own paragraph below "Next Level",
+      above the Resume/Stop buttons, no clipping or crowding.
+
+## Live Activity / foreground service UI/UX polish
+- ✅ **Force-quit limitation communicated** — considered detecting a force-quit and prompting
+  about it, but there's no API to know a button tap was even attempted (App Intents that never
+  ran leave no trace to check for), so no conditional/one-time message is possible. Added a
+  small, permanent caption to the iOS Lock Screen Live Activity card instead: "Don't force quit
+  the app, or these buttons may stop responding." Not added to the Dynamic Island's expanded
+  region (already tight on space — leading/trailing blinds, timer, level, and the buttons
+  themselves) or to Android (force-stopping there kills the notification along with the service,
+  so there's no dead-button state to warn about — see the force-quit item above).
+- ⬜ Now that Pause/Resume/Stop are functional (see above), pass over the visual design of both
+  surfaces — they were originally built as read-only displays, and the current button styling
+  (`.buttonStyle(.bordered)`, small system icons) was chosen for speed, not polish. Consider:
+  layout/spacing once three tappable elements (plus the new force-quit caption) share space with
+  the countdown and blind info on the Lock Screen view; whether the Android notification's
+  default two-action-button layout (`NotificationCompat` stock styling) is the best fit versus a
+  more custom layout; and iconography/color consistent with the rest of the app rather than
+  generic SF Symbols / stock Android icons.
+
+## Mobile app launch — visible resize before layout settles
+- 🔍 **On a fresh launch, the main timer card visibly resizes a few times before settling at its
+  final size** — reported during manual testing. Root cause identified: `PokerTimer.tsx`'s
+  auto-fit-to-screen mechanism (`handleColumnLayout`/`scale`, `MIN_SCALE`/`MIN_SPACING_SCALE`)
+  starts every render at `scale = 1`, measures the actual rendered height via `onLayout`, then
+  calls `setScale` to shrink fonts/spacing down to whatever fits `availableHeight` — each
+  `setScale` call is a visible re-render at a new size, and the design's own comment already
+  acknowledges this "self-corrects once the ad banner reports its real size" (adaptive banners
+  don't know their height until they've loaded), meaning at least one resize pass is baked into
+  the current approach by design, not just an accident of first paint. Compounding it: nothing
+  currently holds the native splash screen open while this settles — `expo-splash-screen` is an
+  installed dependency but is never actually called (`SplashScreen.preventAutoHideAsync`/
+  `hideAsync` don't appear anywhere in the app), so Expo's default auto-hide behavior hides the
+  splash immediately and the resize passes happen visibly in the already-visible app rather than
+  behind a placeholder. Several contexts already track their own `isLoading` (`TimerContext`,
+  `BlindsContext`, `SoundPackContext`) but none of them currently gate initial render — each is
+  only consumed locally today.
+  - Two directions worth weighing, not mutually exclusive: (a) reduce the number of visible
+    passes — e.g. seed `scale` from a cached last-known-good value (persisted, like the other
+    timer state) instead of always restarting from `1`, and/or reserve the ad banner's expected
+    height up front instead of reflowing once it loads; (b) hold a placeholder/splash screen
+    (either the native one via `SplashScreen.preventAutoHideAsync()` + `hideAsync()` once
+    layout/fonts/persisted state are ready, or a lightweight in-JS loading view) until the
+    relevant `isLoading` flags clear and the first layout pass has converged, so whatever
+    resizing still happens is invisible to the user. (b) is the more reliable fix since (a) can
+    only ever reduce, not eliminate, the number of passes (the ad banner's real height is
+    fundamentally unknown until it loads).
 
 ## Website landing page
 - 🔍 **Confirm contact email is correct** — currently `poker.blinds.buzzer@gmail.com`, hardcoded in

@@ -5,9 +5,13 @@
   "scripts": {
     "start": "expo start",
     "reset-project": "node ./scripts/reset-project.js",
+    "preandroid": "node ./scripts/clean-expo-shims.js",
     "android": "expo run:android",
+    "preandroid:device": "node ./scripts/clean-expo-shims.js",
     "android:device": "expo run:android --device",
+    "preios": "node ./scripts/clean-expo-shims.js",
     "ios": "expo run:ios",
+    "preios:device": "node ./scripts/clean-expo-shims.js",
     "ios:device": "expo run:ios --device",
     "prebuild": "expo prebuild",
     "pods": "cd ios && pod install",
