@@ -31,6 +31,11 @@ public final class LiveActivityActionBridge: NSObject {
   private static let pendingPausedKey = "pendingLiveActivityPaused"
   private static let pendingTimeLeftKey = "pendingLiveActivityTimeLeft"
   private static let pendingEndTimeKey = "pendingLiveActivityEndTime"
+  // Set only on a "resume" action tapped while the round had already expired — lets JS tell this
+  // apart from an ordinary mid-round pause/resume, since only the app knows about blind levels
+  // (the widget extension doesn't) and needs to advance to the next one instead of restarting
+  // the same round.
+  private static let pendingWasExpiredKey = "pendingLiveActivityWasExpired"
 
   /// Re-posted (as a regular `NotificationCenter` notification, safe for capturing observers)
   /// once the raw Darwin notification arrives — see `startObservingIfNeeded()`.
@@ -55,7 +60,9 @@ public final class LiveActivityActionBridge: NSObject {
   /// `consumePendingAction()` by re-deriving `timeLeft` from AsyncStorage's stale, pre-pause
   /// `endTime` continuing to count down all the way to "now" (whenever the app happens to
   /// reopen) — pausing/resuming at the wrong instant instead of the one actually tapped.
-  @objc public static func postAction(_ action: String, paused: Bool, timeLeft: Double, endTime: Double) {
+  @objc public static func postAction(
+    _ action: String, paused: Bool, timeLeft: Double, endTime: Double, wasExpired: Bool = false
+  ) {
     guard let defaults = sharedDefaults else {
       Logger.liveActivity.error("postAction(\(action, privacy: .public)) — no shared defaults, action NOT persisted")
       return
@@ -65,6 +72,7 @@ public final class LiveActivityActionBridge: NSObject {
     defaults.set(paused, forKey: pendingPausedKey)
     defaults.set(timeLeft, forKey: pendingTimeLeftKey)
     defaults.set(endTime, forKey: pendingEndTimeKey)
+    defaults.set(wasExpired, forKey: pendingWasExpiredKey)
     defaults.synchronize()
     // Read back immediately as a sanity check — confirms the write actually landed in the
     // shared container, not just an in-memory UserDefaults instance.
@@ -96,12 +104,14 @@ public final class LiveActivityActionBridge: NSObject {
       "paused": defaults.bool(forKey: pendingPausedKey),
       "timeLeft": defaults.double(forKey: pendingTimeLeftKey),
       "endTime": defaults.double(forKey: pendingEndTimeKey),
+      "wasExpired": defaults.bool(forKey: pendingWasExpiredKey),
     ]
     defaults.removeObject(forKey: pendingActionKey)
     defaults.removeObject(forKey: pendingTimestampKey)
     defaults.removeObject(forKey: pendingPausedKey)
     defaults.removeObject(forKey: pendingTimeLeftKey)
     defaults.removeObject(forKey: pendingEndTimeKey)
+    defaults.removeObject(forKey: pendingWasExpiredKey)
     Logger.liveActivity.log("consumePendingAction() — consumed \(action, privacy: .public)")
     return result
   }

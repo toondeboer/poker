@@ -7,7 +7,7 @@ import React, {
   useRef,
   useState,
 } from "react";
-import { Platform } from "react-native";
+import { AppState, Platform } from "react-native";
 import { DEFAULT_SOUND_PACK_ID } from "@poker/core";
 import { useBlinds } from "@/src/contexts/BlindsContext";
 import { useTimerNotification } from "@/src/hooks/useTimerNotification";
@@ -72,9 +72,18 @@ export function TimerProvider({ children }: Readonly<{ children: ReactNode }>) {
 
   // Handle timer completion
   const handleTimerComplete = async () => {
+    // Read AppState directly here rather than trusting the cached `isActive` from
+    // AppStateContext. That value only updates on a "change" event — if one is ever missed or
+    // arrives out of order (a transient system dialog/notification/overlay stealing focus
+    // momentarily, common on some OEM builds), `isActive` can get stuck reporting the wrong
+    // value indefinitely, since nothing else re-syncs it. That would silently and permanently
+    // flip every future expiry — even ones that happen while the user is clearly looking at the
+    // app — onto the "background" branch below: no alert, no sound, straight to the next blind
+    // level. AppState.currentState is a live getter, not an event cache, so it can't go stale.
+    const isCurrentlyActive = AppState.currentState === "active";
     try {
       // Only play sound and show alert if app is active (in foreground)
-      if (isActive && isAlarmLoaded) {
+      if (isCurrentlyActive && isAlarmLoaded) {
         await showAlert(true);
         logger.log("Timer completed - showing alert and playing alarm");
       } else {
@@ -87,7 +96,7 @@ export function TimerProvider({ children }: Readonly<{ children: ReactNode }>) {
     } catch (error) {
       logger.error("Failed to play completion sound:", error);
       // Still show alert even if sound fails
-      if (isActive) {
+      if (isCurrentlyActive) {
         await showAlert(false);
       }
     } finally {
@@ -95,7 +104,7 @@ export function TimerProvider({ children }: Readonly<{ children: ReactNode }>) {
       // enough rounds are in, ask for a review. Foreground only (isActive) —
       // the OS won't show the sheet while backgrounded. Gated + throttled in
       // @poker/core.
-      void recordRoundPlayed(isActive);
+      void recordRoundPlayed(isCurrentlyActive);
     }
   };
 
@@ -176,9 +185,23 @@ export function TimerProvider({ children }: Readonly<{ children: ReactNode }>) {
         );
         break;
       case "resume":
-        void engineResume(pending.endTime).then(() =>
-          handleNotificationScheduling(false, pending.timeLeft),
-        );
+        if (pending.wasExpired) {
+          // Resuming a round that had already expired — neither native side tracks blind
+          // levels, so `pending.endTime`/`timeLeft` just restart the *same* round (see
+          // PokerTimerService's ACTION_RESUME / TogglePauseTimerIntent's resume branch).
+          // Advance to the next level here instead, matching how the rest of the app treats
+          // expiry (background auto-advance, the in-app "Next Blinds" button), and start a
+          // fresh full-duration round for it rather than trusting native's stale same-level
+          // endTime.
+          increaseBlinds();
+          void engineResume(Date.now() + timerDuration * 1000).then(() =>
+            handleNotificationScheduling(false, timerDuration),
+          );
+        } else {
+          void engineResume(pending.endTime).then(() =>
+            handleNotificationScheduling(false, pending.timeLeft),
+          );
+        }
         break;
       case "stop":
         void resetTimer();
@@ -256,6 +279,15 @@ export function TimerProvider({ children }: Readonly<{ children: ReactNode }>) {
   const wasActiveRef = useRef(isActive);
   useEffect(() => {
     const cameToForeground = isActive && !wasActiveRef.current;
+    // Edge-triggered (just transitioned away from active), not level-triggered (currently
+    // reports non-active). This effect also re-runs the instant `showTimerAlert` flips true
+    // (it's in the deps below) — a level-triggered check here would auto-dismiss+advance the
+    // alert the moment it appears if isBackground/isInactive simply *happened* to already be
+    // true on that render (e.g. a stale/stuck AppState flag, or the app genuinely still settling
+    // right at expiry), even though nothing actually just backgrounded. That reads to the user
+    // as "no alert ever showed, it just silently advanced" — this was found to be one of two
+    // causes behind exactly that report (see handleTimerComplete's isActive fix for the other).
+    const wentToBackground = !isActive && wasActiveRef.current;
     wasActiveRef.current = isActive;
 
     if (cameToForeground) {
@@ -266,7 +298,7 @@ export function TimerProvider({ children }: Readonly<{ children: ReactNode }>) {
     }
 
     // If app goes to background while alert is showing, auto-dismiss and advance
-    if ((isBackground || isInactive) && showTimerAlert) {
+    if (wentToBackground && showTimerAlert) {
       logger.log("App is going to background, auto-dismiss timer alert");
       // Reacting to an AppState transition (app backgrounded while the alert is
       // visible); clearing the alert here is intentional. The alert's setState

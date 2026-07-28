@@ -12,6 +12,7 @@ import {
   isExpired,
   withDuration,
   clampToDuration,
+  calculateTimeLeft,
   type SoundPackId,
   type TimerMachineState,
 } from "@poker/core";
@@ -110,7 +111,17 @@ export function useTimerEngine(
     logger.log("Resuming timer with endTime override:", endTimeOverride);
     setState((s) =>
       endTimeOverride !== undefined
-        ? { ...s, endTime: endTimeOverride, paused: false }
+        ? {
+            // Recompute timeLeft from the override endTime in the same update, rather than
+            // leaving whatever (possibly 0, if reconciling a native resume-from-expired) timeLeft
+            // the state already had — same failure mode as core's startTimer: a transient
+            // timeLeft === 0 with paused === false reads as "just expired" to the completion
+            // effect below and immediately resets the timer that was only just resumed.
+            ...s,
+            endTime: endTimeOverride,
+            timeLeft: calculateTimeLeft(endTimeOverride),
+            paused: false,
+          }
         : startTimer(s),
     );
     // Reset completion flag when starting timer

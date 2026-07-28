@@ -80,7 +80,7 @@ struct PokerTimerWidget: Widget {
                 .foregroundColor(.secondary)
             }
 
-            TimerActionButtons(paused: context.state.paused)
+            TimerActionButtons(paused: context.state.paused || context.state.isExpired)
           }
         }
       } compactLeading: {
@@ -168,7 +168,7 @@ struct PokerTimerLiveActivityView: View {
         }
       }
 
-      TimerActionButtons(paused: context.state.paused)
+      TimerActionButtons(paused: context.state.paused || context.state.isExpired)
 
       // iOS stops running any of the app's App Intents — including these buttons — once the
       // user force-quits the app from the app switcher, until they manually reopen it. There's

@@ -237,12 +237,14 @@ public class ForegroundServiceModule extends ReactContextBaseJavaModule {
         result.putBoolean("paused", prefs.getBoolean(PokerTimerService.KEY_PENDING_PAUSED, true));
         result.putInt("timeLeft", prefs.getInt(PokerTimerService.KEY_PENDING_TIME_LEFT, 0));
         result.putDouble("endTime", (double) prefs.getLong(PokerTimerService.KEY_PENDING_END_TIME, 0));
+        result.putBoolean("wasExpired", prefs.getBoolean(PokerTimerService.KEY_PENDING_WAS_EXPIRED, false));
         prefs.edit()
                 .remove(PokerTimerService.KEY_PENDING_ACTION)
                 .remove(PokerTimerService.KEY_PENDING_TIMESTAMP)
                 .remove(PokerTimerService.KEY_PENDING_PAUSED)
                 .remove(PokerTimerService.KEY_PENDING_TIME_LEFT)
                 .remove(PokerTimerService.KEY_PENDING_END_TIME)
+                .remove(PokerTimerService.KEY_PENDING_WAS_EXPIRED)
                 .apply();
         promise.resolve(result);
     }

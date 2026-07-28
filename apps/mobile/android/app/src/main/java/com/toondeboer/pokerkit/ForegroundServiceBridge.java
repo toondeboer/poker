@@ -44,7 +44,7 @@ final class ForegroundServiceBridge {
      * count down all the way to "now" (whenever the app happens to reopen), pausing/resuming at
      * the wrong instant instead of the one the button was actually tapped at.
      */
-    static void emit(String action, boolean paused, int timeLeft, long endTime) {
+    static void emit(String action, boolean paused, int timeLeft, long endTime, boolean wasExpired) {
         ReactApplicationContext context = reactContextRef != null ? reactContextRef.get() : null;
         if (context != null && context.hasActiveReactInstance()) {
             WritableMap payload = Arguments.createMap();
@@ -52,6 +52,7 @@ final class ForegroundServiceBridge {
             payload.putBoolean("paused", paused);
             payload.putInt("timeLeft", timeLeft);
             payload.putDouble("endTime", (double) endTime);
+            payload.putBoolean("wasExpired", wasExpired);
             context
                     .getJSModule(DeviceEventManagerModule.RCTDeviceEventEmitter.class)
                     .emit(EVENT_ACTION, payload);

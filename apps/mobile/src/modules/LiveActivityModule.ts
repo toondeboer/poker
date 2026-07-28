@@ -37,6 +37,13 @@ export interface PendingTimerAction {
   paused: boolean;
   timeLeft: number;
   endTime: number;
+  /**
+   * True only for a "resume" tapped while the round had already expired (as opposed to an
+   * ordinary mid-round pause/resume). Neither native side tracks blind levels itself, so it can't
+   * decide to advance one — this just reports what happened and lets `TimerContext` decide to
+   * advance to the next blind level and start a fresh round, instead of restarting the same one.
+   */
+  wasExpired: boolean;
 }
 
 export interface LiveActivityDataAndroid extends LiveActivityData {

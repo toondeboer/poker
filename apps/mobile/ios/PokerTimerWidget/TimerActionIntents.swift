@@ -48,6 +48,11 @@ struct TogglePauseTimerIntent: LiveActivityIntent {
       return .result()
     }
     var state = activity.content.state
+    // Captured before any mutation below — tells JS this resume follows an expired round (as
+    // opposed to an ordinary mid-round pause/resume), so it knows to advance to the next blind
+    // level rather than restart the same one. The widget extension has no notion of blind levels
+    // itself, so it can't make that call — it just reports what happened and lets the app decide.
+    let wasExpired = state.isExpired
     Logger.liveActivity.log(
       "before: paused=\(state.paused) timeLeft=\(state.timeLeft) endTime=\(state.endTime.timeIntervalSince1970) timerDuration=\(state.timerDuration)"
     )
@@ -57,8 +62,12 @@ struct TogglePauseTimerIntent: LiveActivityIntent {
     } else {
       // Resume. Mirror the JS timer state machine's own `startTimer` fallback: resuming from
       // an already-expired/zero timeLeft restarts a full round rather than an
-      // instantly-expired one.
+      // instantly-expired one. timeLeft must be synced to the same `remaining` value used for
+      // endTime here, not left at its stale (possibly 0) value — the persisted/emitted snapshot
+      // is what JS applies as an exact override, and a stale 0 there reads as "just expired",
+      // immediately re-resetting the timer that was only just resumed.
       let remaining = state.timeLeft > 0 ? state.timeLeft : state.timerDuration
+      state.timeLeft = remaining
       state.endTime = Date().addingTimeInterval(remaining)
       state.paused = false
     }
@@ -71,7 +80,8 @@ struct TogglePauseTimerIntent: LiveActivityIntent {
       shouldPause ? "pause" : "resume",
       paused: state.paused,
       timeLeft: state.timeLeft,
-      endTime: state.endTime.timeIntervalSince1970
+      endTime: state.endTime.timeIntervalSince1970,
+      wasExpired: shouldPause ? false : wasExpired
     )
     return .result()
   }

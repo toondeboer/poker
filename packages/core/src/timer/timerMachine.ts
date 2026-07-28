@@ -36,15 +36,25 @@ export function createTimerState(
 
 /**
  * Start or resume: anchor an absolute `endTime` from the remaining time (falling
- * back to a full round if nothing is left) and run. `timeLeft` is left as-is and
- * recomputed from `endTime` by {@link tickTimer}.
+ * back to a full round if nothing is left) and run. `timeLeft` is set to the same
+ * `seconds` value immediately, not left for {@link tickTimer} to recompute a second
+ * later — resuming from an expired (`timeLeft === 0`) state falls back to a full
+ * `timerDuration` in `endTime`, but if `timeLeft` were left at 0 in the interim, the
+ * very next render would see `timeLeft === 0 && !paused && endTime`, which callers'
+ * completion-detection effects read as "just expired" and immediately reset the
+ * timer that was only just started.
  */
 export function startTimer(
   state: TimerMachineState,
   now: number = Date.now(),
 ): TimerMachineState {
   const seconds = state.timeLeft > 0 ? state.timeLeft : state.timerDuration;
-  return { ...state, endTime: computeEndTime(seconds, now), paused: false };
+  return {
+    ...state,
+    timeLeft: seconds,
+    endTime: computeEndTime(seconds, now),
+    paused: false,
+  };
 }
 
 /** Pause: drop the anchor (freezing the current `timeLeft`) and mark paused. */

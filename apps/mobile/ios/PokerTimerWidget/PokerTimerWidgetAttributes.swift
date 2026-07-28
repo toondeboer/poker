@@ -27,6 +27,15 @@ struct PokerTimerWidgetAttributes: ActivityAttributes {
     var timeRemaining: TimeInterval {
       return paused ? timeLeft : endTime.timeIntervalSinceNow
     }
+
+    // True once the round has actually finished (still "running" per `paused`, but its endTime
+    // has already passed) — treated the same as `paused` for button purposes, since "Pause"
+    // doesn't make sense on a timer that's no longer counting down. Unlike Android's foreground
+    // service, the widget extension has no code running once per second to flip a stored flag on
+    // expiry, so this is computed from `timeRemaining` on every render instead.
+    var isExpired: Bool {
+      !paused && timeRemaining <= 0
+    }
   }
     
   var tournamentName: String

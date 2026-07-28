@@ -48,6 +48,14 @@ platform-tagged heading (e.g. `## [1.1.3] - 2026-07-20 — Android`) when you cu
   base prebuild config always resets `AppTheme` to the default theme now) and needed the
   `react-native-edge-to-edge` config plugin registered in `plugins` to reapply `Theme.EdgeToEdge`
   afterward — removed the stale key and added the plugin.
+- Mobile: the Android notification/iOS Live Activity Pause/Resume button no longer gets stuck
+  offering "Pause" once a round expires — it now correctly switches to "Resume" (Android also
+  restores the "Active"/green title once resumed). Resuming an already-expired round no longer
+  instantly re-expires it, and now correctly advances to the next blind level and starts a fresh
+  round instead of restarting the same (already-finished) one.
+- Mobile: the in-app "Time's Up" alert (and its alarm sound) could silently fail to show when a
+  round expired while the app was genuinely in the foreground — it would auto-advance the blind
+  level with no alert or sound instead, as if the app had been backgrounded the whole time.
 
 ## [1.1.3] - 2026-07-21 — iOS & Android
 

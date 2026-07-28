@@ -327,6 +327,61 @@ full design.
     stale state. Verified via `adb`: paused via notification at a recorded value, waited 20s,
     reopened — showed the exact paused value, not a decayed one; resumed, waited 15s, reopened —
     correctly showed the timer had legitimately expired from continuing the *correct* countdown.
+  - **Two more bugs found testing the timing-precision fix above, both specific to resuming a
+    round that had already expired natively (button tapped after "TIME'S UP"):**
+    1. The Android notification (and iOS Live Activity) kept showing a "Pause" button/label after
+       the round expired — nonsensical, since nothing was running to pause. Root cause on
+       Android: `timerExpired` was flipped *after* the notification's last rebuild (the tick that
+       hits `timeLeft == 0` is also the last one this service ever reschedules), so the stale
+       "Pause" button froze forever. Fixed the ordering, and both platforms now show "Resume"
+       once expired (`isEffectivelyPaused`/`isExpired` computed alongside `paused`).
+    2. Resuming from that expired state (via the notification, or the equivalent in-app "Resume"
+       button after a native-originated pause) restarted the round but instantly reset it to
+       expired again. Root cause: `@poker/core`'s `startTimer` computed a fresh `endTime` (falling
+       back to a full `timerDuration`) but left `timeLeft` at its stale `0`, and every completion
+       effect (`timeLeft === 0 && !paused && endTime`) reads that combination as "just expired."
+       Fixed at the source (`startTimer` now sets `timeLeft` in the same update) plus the two
+       other places with the identical pattern: `useTimerEngine`'s native-resume override and both
+       native sides' own `ACTION_RESUME`/`TogglePauseTimerIntent` resume branches.
+    - **Found via a third round of testing: resuming an expired round didn't advance the blind
+      level** — it restarted the *same* round instead of moving to the next level, unlike every
+      other expiry path in the app (background auto-advance, the in-app "Next Blinds" button).
+      Root cause: neither native side tracks blind levels at all (that's app-only business logic
+      by design — see `CLAUDE.md`'s "shared logic" boundary), so native's own resume fallback
+      could only ever restart the same round it already knew about. Fixed by adding a `wasExpired`
+      flag to the pending-action payload (Android: `KEY_PENDING_WAS_EXPIRED`; iOS: captured from
+      `ContentState.isExpired` before the intent mutates state) — set only when a "resume" follows
+      an expired round, not an ordinary mid-round pause/resume. `TimerContext.applyNativeAction`
+      branches on it: when true, calls `increaseBlinds()` and starts a fresh full-duration round
+      computed in JS, disregarding native's same-level `endTime`/`timeLeft` entirely. Verified via
+      `adb`: expired a 6s test round, tapped Resume from the notification, confirmed both the
+      notification and the reopened app advanced from Level 1 to Level 2 (not a restarted Level
+      1). iOS has the equivalent fix in place but hasn't been separately verified on-device yet.
+  - **A fourth bug, unrelated to the native side: the in-app "Time's Up" alert (overlay + alarm
+    sound) could silently fail to show when a round expired while the app was genuinely in the
+    foreground** — instead it auto-advanced the blind level with no alert and no sound, as if the
+    app had been backgrounded, even though it was on-screen the whole time. Two separate causes in
+    `TimerContext.tsx`, both tracing back to the same root issue — cached `AppState` flags that
+    only update on a "change" event and can end up stuck if one is ever missed or arrives out of
+    order (a transient system dialog/notification/overlay momentarily stealing focus):
+    1. `handleTimerComplete` decided whether to show the alert using the cached `isActive` from
+       `AppStateContext` instead of checking live. Fixed by reading `AppState.currentState`
+       directly at the decision point — a live getter can't go stale the way an event-driven cache
+       can.
+    2. A separate effect that auto-dismisses the alert when backgrounded
+       (`if ((isBackground || isInactive) && showTimerAlert)`) was level-triggered, not
+       edge-triggered — it re-runs the instant `showTimerAlert` flips true (it's in the effect's
+       own deps), so if `isBackground`/`isInactive` merely *happened* to already read true on that
+       render, it would immediately dismiss+advance the alert the moment it appeared. Fixed to
+       only fire on the actual active→background/inactive transition (`!isActive &&
+       wasActiveRef.current`), mirroring the `cameToForeground` edge-detection already used just
+       above it in the same effect.
+    Verified via a temporary on-screen debug readout (`AppState.currentState`, `isAlarmLoaded`,
+    `showTimerAlert` at the moment `handleTimerComplete` fires) across two consecutive foreground
+    expiries — both correctly showed the "Time's Up!" overlay. Not separately stress-tested for a
+    round expiring within the first few seconds of a cold app launch (before `AppState`/audio
+    loading has settled) — inherently lower-risk in real usage since rounds run minutes, not
+    seconds, but flagged here in case this area gets revisited.
 
 ## Live Activity / foreground service UI/UX polish
 - ✅ **Force-quit limitation communicated** — considered detecting a force-quit and prompting
@@ -345,6 +400,34 @@ full design.
   default two-action-button layout (`NotificationCompat` stock styling) is the best fit versus a
   more custom layout; and iconography/color consistent with the rest of the app rather than
   generic SF Symbols / stock Android icons.
+
+## Mobile app launch — visible resize before layout settles
+- 🔍 **On a fresh launch, the main timer card visibly resizes a few times before settling at its
+  final size** — reported during manual testing. Root cause identified: `PokerTimer.tsx`'s
+  auto-fit-to-screen mechanism (`handleColumnLayout`/`scale`, `MIN_SCALE`/`MIN_SPACING_SCALE`)
+  starts every render at `scale = 1`, measures the actual rendered height via `onLayout`, then
+  calls `setScale` to shrink fonts/spacing down to whatever fits `availableHeight` — each
+  `setScale` call is a visible re-render at a new size, and the design's own comment already
+  acknowledges this "self-corrects once the ad banner reports its real size" (adaptive banners
+  don't know their height until they've loaded), meaning at least one resize pass is baked into
+  the current approach by design, not just an accident of first paint. Compounding it: nothing
+  currently holds the native splash screen open while this settles — `expo-splash-screen` is an
+  installed dependency but is never actually called (`SplashScreen.preventAutoHideAsync`/
+  `hideAsync` don't appear anywhere in the app), so Expo's default auto-hide behavior hides the
+  splash immediately and the resize passes happen visibly in the already-visible app rather than
+  behind a placeholder. Several contexts already track their own `isLoading` (`TimerContext`,
+  `BlindsContext`, `SoundPackContext`) but none of them currently gate initial render — each is
+  only consumed locally today.
+  - Two directions worth weighing, not mutually exclusive: (a) reduce the number of visible
+    passes — e.g. seed `scale` from a cached last-known-good value (persisted, like the other
+    timer state) instead of always restarting from `1`, and/or reserve the ad banner's expected
+    height up front instead of reflowing once it loads; (b) hold a placeholder/splash screen
+    (either the native one via `SplashScreen.preventAutoHideAsync()` + `hideAsync()` once
+    layout/fonts/persisted state are ready, or a lightweight in-JS loading view) until the
+    relevant `isLoading` flags clear and the first layout pass has converged, so whatever
+    resizing still happens is invisible to the user. (b) is the more reliable fix since (a) can
+    only ever reduce, not eliminate, the number of passes (the ad banner's real height is
+    fundamentally unknown until it loads).
 
 ## Website landing page
 - 🔍 **Confirm contact email is correct** — currently `poker.blinds.buzzer@gmail.com`, hardcoded in
