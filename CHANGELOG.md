@@ -56,6 +56,10 @@ platform-tagged heading (e.g. `## [1.1.3] - 2026-07-20 — Android`) when you cu
 - Mobile: the in-app "Time's Up" alert (and its alarm sound) could silently fail to show when a
   round expired while the app was genuinely in the foreground — it would auto-advance the blind
   level with no alert or sound instead, as if the app had been backgrounded the whole time.
+- Android: reopening the app after force-quitting (swiping away from Recents) mid-round no longer
+  resets the timer to the default 10-minute duration and blind Level 2 — a stale-closure race
+  meant a pending notification action could be reconciled against pre-load default values instead
+  of what was actually persisted.
 
 ## [1.1.3] - 2026-07-21 — iOS & Android
 

@@ -46,7 +46,12 @@ type TimerContextType = {
 const TimerContext = createContext<TimerContextType | null>(null);
 
 export function TimerProvider({ children }: Readonly<{ children: ReactNode }>) {
-  const { increaseBlinds, currentBlindIndex, blindLevels } = useBlinds();
+  const {
+    increaseBlinds,
+    currentBlindIndex,
+    blindLevels,
+    isLoading: isBlindsLoading,
+  } = useBlinds();
   const { scheduleNotification, cancelNotification } = useTimerNotification();
   const { isActive, isBackground, isInactive } = useAppState();
 
@@ -211,6 +216,23 @@ export function TimerProvider({ children }: Readonly<{ children: ReactNode }>) {
 
   useNativeTimerActionSync({ onAction: applyNativeAction });
 
+  // `applyNativeAction` is recreated every render, closing over that render's `timerDuration`/
+  // `increaseBlinds`/etc. The mount-time reconciliation below only runs *once* ([] deps), so
+  // without this ref it would be permanently bound to whatever those values were at the very
+  // first render — i.e. their pre-load defaults (timerDuration=DEFAULT_TIMER_DURATION,
+  // increaseBlinds closing over currentBlindIndex=0) — regardless of how much later
+  // `loadTimerState()`/`useBlinds()`'s own persisted loads actually resolve. A `wasExpired`
+  // resume reconciled through that stale closure would compute a fresh endTime from the
+  // *default* 10-minute duration and call the *default*-index `increaseBlinds()`, landing on
+  // "10:00, Level 2" regardless of what was actually persisted before the app was killed. Always
+  // dereferencing via `.current` at call time (updated every render, same pattern as
+  // `useTimerEngine`'s `callbacksRef`) guarantees the freshest closure regardless of which
+  // render's effect happens to invoke it.
+  const applyNativeActionRef = useRef(applyNativeAction);
+  useEffect(() => {
+    applyNativeActionRef.current = applyNativeAction;
+  });
+
   // Persisted-flag reconciliation for a native action that arrived while the app was
   // backgrounded or fully killed (the live-event listener above only catches one that arrives
   // while JS is already running). Deliberately sequenced *after* `loadTimerState()` finishes,
@@ -221,7 +243,7 @@ export function TimerProvider({ children }: Readonly<{ children: ReactNode }>) {
   const reconcileNativeAction = async () => {
     const pending = await liveActivityService.consumePendingAction();
     logger.log("reconcileNativeAction: consumePendingAction ->", pending);
-    applyNativeAction(pending);
+    applyNativeActionRef.current(pending);
   };
 
   // Dismiss timer alert (advance to next blind level, keep timer paused, stop sound)
@@ -310,10 +332,23 @@ export function TimerProvider({ children }: Readonly<{ children: ReactNode }>) {
 
   // Load initial state on mount, then reconcile any native action left pending from before
   // this launch (see reconcileNativeAction — sequenced, not raced, against the load).
+  //
+  // Deliberately waits for `isBlindsLoading` to clear before doing either: `BlindsContext` loads
+  // its own persisted `currentBlindIndex` asynchronously, completely independently of this
+  // provider's `loadTimerState()` — with no gate here, a `wasExpired` resume reconciled on a
+  // cold launch (app was fully killed, e.g. force-quit, then reopened with a pending native
+  // action) would apply `increaseBlinds()` against whatever `currentBlindIndex` happened to be
+  // *at that instant*, which is its pre-load default (0) if `BlindsContext` hasn't finished
+  // loading yet — landing on "Level 2" regardless of what was actually persisted. The `hasRunRef`
+  // guard keeps this firing exactly once despite `isBlindsLoading` being a dependency (it starts
+  // `true` and flips to `false` once, but re-renders for *other* reasons must not re-trigger it).
+  const hasReconciledOnMountRef = useRef(false);
   useEffect(() => {
+    if (isBlindsLoading || hasReconciledOnMountRef.current) return;
+    hasReconciledOnMountRef.current = true;
     loadTimerState().then(reconcileNativeAction);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [isBlindsLoading]);
 
   // Deliberately no "end activity on unmount" effect here (there used to be one). The whole
   // point of the Android foreground service / iOS Live Activity is to keep running independent

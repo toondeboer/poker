@@ -382,6 +382,44 @@ full design.
     round expiring within the first few seconds of a cold app launch (before `AppState`/audio
     loading has settled) — inherently lower-risk in real usage since rounds run minutes, not
     seconds, but flagged here in case this area gets revisited.
+  - **A fifth bug, reported after force-quitting (swiping away from Recents) and reopening: the
+    timer reset to the default 10-minute duration and blind Level 2, regardless of what was
+    actually configured/persisted before the kill.** Root cause: a genuine stale-closure race, not
+    a platform limitation. `TimerContext`'s mount effect (`useEffect(() => {
+    loadTimerState().then(reconcileNativeAction); }, [])`) runs exactly once, at the very first
+    render — before `BlindsContext`'s own persisted `currentBlindIndex` has loaded (defaults to
+    `0`) and before `timerDuration` has loaded (defaults to `DEFAULT_TIMER_DURATION`, 10 minutes).
+    Since this effect never re-runs, `reconcileNativeAction`/`applyNativeAction` stay permanently
+    bound to those pre-load default values — a `wasExpired` resume reconciled through it computed
+    a fresh endTime from the *default* duration and called the *default*-index `increaseBlinds()`,
+    landing on "10:00, Level 2" no matter what was actually persisted. Fixed two ways: (1)
+    `applyNativeAction` is now dereferenced through a ref updated every render
+    (`applyNativeActionRef`, same pattern as `useTimerEngine`'s `callbacksRef`), so it's never
+    bound to a stale render; (2) the mount effect now waits for `BlindsContext`'s own `isLoading`
+    to clear (guarded by a ref so it still only fires once) before reconciling at all, since
+    `BlindsContext` loads independently of `TimerContext` and a "fresh" closure alone doesn't
+    help if the data it reads hasn't actually loaded yet. Verified via `adb`: force-quit
+    mid-round (Level 3, 6s test duration), let it expire and resumed from the notification twice
+    while still fully killed (confirming — see below — that native's own display can't advance on
+    its own), then reopened the app cold: correctly showed Level 4 (advanced once, matching the
+    single pending action) at the correct 6-second duration, not reset to Level 2/10 minutes.
+    - **Reported at the same time, but a separate, narrower architectural limitation, not a bug:
+      while the app stays fully killed, the notification's own displayed blind level/blinds text
+      can't advance across *multiple* expire-and-resume cycles.** Neither native side tracks
+      blind levels at all (by design — see the `wasExpired` fix above), and the pending-action
+      mechanism is a single-slot "last action" cache, not a queue — so if a round expires, gets
+      resumed from the notification, runs out again, and gets resumed *again*, all without the
+      app ever being reopened, only the most recent action is remembered. On next reopen, JS
+      correctly advances by the one pending action, but the notification's own text stays frozen
+      at whatever blind level JS last pushed to it throughout that whole dead stretch, and
+      doesn't reflect intermediate advances the user couldn't see anyway. Confirmed via `adb`:
+      after two consecutive native-only resumes, the notification still read "Level 3" both
+      times, but reopening correctly caught up to "Level 4." Fixing this fully would mean
+      duplicating blind-level math into Java/Swift, against this repo's "shared logic lives in
+      `@poker/core`, platform code stays in the app" boundary (`CLAUDE.md`) — considered not
+      worth it for a scenario that requires the user to never check their phone across multiple
+      full rounds. Left as-is; worth a small caption similar to iOS's force-quit notice if this
+      surfaces as a recurring complaint (see the UI/UX polish section below).
 
 ## Live Activity / foreground service UI/UX polish
 - ✅ **Force-quit limitation communicated** — considered detecting a force-quit and prompting
