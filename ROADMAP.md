@@ -442,14 +442,40 @@ full design.
   region (already tight on space — leading/trailing blinds, timer, level, and the buttons
   themselves) or to Android (force-stopping there kills the notification along with the service,
   so there's no dead-button state to warn about — see the force-quit item above).
-- ⬜ Now that Pause/Resume/Stop are functional (see above), pass over the visual design of both
+- 🚧 Now that Pause/Resume/Stop are functional (see above), pass over the visual design of both
   surfaces — they were originally built as read-only displays, and the current button styling
-  (`.buttonStyle(.bordered)`, small system icons) was chosen for speed, not polish. Consider:
-  layout/spacing once three tappable elements (plus the new force-quit caption) share space with
-  the countdown and blind info on the Lock Screen view; whether the Android notification's
-  default two-action-button layout (`NotificationCompat` stock styling) is the best fit versus a
-  more custom layout; and iconography/color consistent with the rest of the app rather than
-  generic SF Symbols / stock Android icons.
+  (`.buttonStyle(.bordered)`, small system icons) was chosen for speed, not polish.
+  - ✅ **Color consistency, both platforms** — the Live Activity's Pause/Resume button had no
+    `.tint()` at all (rendered in the system default blue, clashing with the app's own palette),
+    and neither surface's state colors lined up with each other or with the app's own in-JS
+    gradient (`PokerTimer.tsx`'s `getGradientColors`/`getProgressBarColor`) or Android's own
+    `getStatusColor`. Both now derive from the same brand hex values (`#10B981` green /
+    `#F59E0B` amber / `#DC2626` red, plus `#6B7280` gray for paused): iOS via a new
+    `TimerVisualState` enum (`PokerTimerWidget.swift`) shared across the Lock Screen view and all
+    three Dynamic Island presentations (previously each had its own `paused ? .orange : .green`
+    ternary), Android via `PokerTimerService#getStatusColor`. This also added two visual states
+    that didn't exist before: an expired round now shows red + an alarm icon (previously
+    indistinguishable from "active" in color/icon, only the button label changed), and a
+    low-time warning (`isLowTime`, ≤60s remaining) matching Android's existing threshold — iOS
+    computes this reactively off `endTime` the same way `isExpired` already did, so it updates
+    live without the widget extension needing to run code every second.
+  - ✅ **Android Stop icon fixed** — `createNotification()`'s "Stop" action was reusing
+    `ic_notification_clear` (an X/dismiss glyph, correctly used elsewhere for the alert
+    notification's "Dismiss" action), which reads as "cancel/close" rather than "stop". Added a
+    dedicated `ic_notification_stop.xml` (filled square) used only for this action.
+  - Verified via `swiftc -typecheck` (widget target's Swift files) and a full
+    `:app:compileDebugJavaWithJavac` + `:app:mergeDebugResources` Gradle build (Android) — both
+    clean. **Not yet visually confirmed** on a simulator/device (no booted simulator/emulator was
+    available to capture the Lock Screen/Dynamic Island or the Android notification directly).
+  - ⬜ Layout/spacing pass once three tappable elements (plus the force-quit caption) share space
+    with the countdown and blind info on the Lock Screen view — not addressed here; a prior fix
+    already resolved outright clipping (see the compact-layout commit above), but no further
+    spacing/hierarchy polish beyond that has been attempted.
+  - ⬜ Whether Android's default two-action-button layout (`NotificationCompat` stock styling) is
+    the best fit versus a more custom `RemoteViews` layout — left as an open design decision
+    rather than decided unilaterally here, since it's a materially bigger lift (custom layout XML,
+    dark/light + OEM-skin testing) than the color/icon fixes above, and the roadmap itself framed
+    it as a question rather than a direction.
 
 ## Mobile app launch — visible resize before layout settles
 - 🔍 **On a fresh launch, the main timer card visibly resizes a few times before settling at its

@@ -28,6 +28,16 @@ platform-tagged heading (e.g. `## [1.1.3] - 2026-07-20 — Android`) when you cu
   level across multiple expire-and-resume cycles while the app stays fully killed (reopening
   always catches it up correctly).
 
+### Changed
+- Mobile: recolored the Android foreground-service notification and iOS Live Activity/Dynamic
+  Island to match the app's own timer palette (`#10B981` green / `#F59E0B` amber / `#DC2626` red)
+  instead of each platform's own approximate shades — the iOS Live Activity's Pause/Resume button
+  previously had no tint at all and rendered in the system default blue. Also added two visual
+  states neither platform distinguished before: an expired round (red + alarm icon on iOS) and a
+  low-time warning at 60s or less remaining (amber, matching Android's existing threshold).
+  Android's "Stop" notification action no longer reuses the alert notification's X/dismiss icon —
+  it has its own stop-square icon now.
+
 ### Fixed
 - Mobile: the Timer screen card no longer stretches edge-to-edge on tablets — capped it at the
   same tablet-aware `maxWidth` + centered layout `PokerSettings.tsx` already used, so blind values

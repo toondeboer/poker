@@ -546,7 +546,7 @@ public class PokerTimerService extends Service {
                         showResume ? R.drawable.ic_notification_play : R.drawable.ic_notification_pause,
                         showResume ? "Resume" : "Pause",
                         pauseResumePendingIntent)
-                .addAction(R.drawable.ic_notification_clear, "Stop", stopPendingIntent);
+                .addAction(R.drawable.ic_notification_stop, "Stop", stopPendingIntent);
 
         // Add custom large icon if available
         try {
@@ -563,15 +563,18 @@ public class PokerTimerService extends Service {
         return builder.build();
     }
 
+    // Exact hex values the app itself already uses for this timer's countdown states
+    // (PokerTimer.tsx's getGradientColors/getProgressBarColor) and the iOS Live Activity's
+    // TimerVisualState, rather than this notification picking its own approximate shades.
     private int getStatusColor() {
         if (timerExpired) {
             return 0xFFDC2626; // Red for expired
         } else if (paused) {
             return 0xFF6B7280; // Gray for paused
         } else if (timeLeft <= 60) {
-            return 0xFFEA580C; // Orange for low time
+            return 0xFFF59E0B; // Amber for low time
         } else {
-            return 0xFF059669; // Green for active
+            return 0xFF10B981; // Green for active
         }
     }
 
