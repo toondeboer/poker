@@ -294,6 +294,25 @@ full design.
     - Resuming an *already-expired* timer via the button (the `state.timerDuration` fallback path
       in `TogglePauseTimerIntent`/`ForegroundServiceModule`) has not been separately re-verified,
       but isn't affected by the above — worth a quick pass next time this area is touched.
+      - 🔍 **Partially investigated (2026-07-29), reported via iOS Simulator**: resuming with
+        ~1 minute left showed the Live Activity immediately jump to "expired" and start counting
+        down from 15 minutes instead of the actual remaining time. Read through the full path
+        (`TogglePauseTimerIntent`'s resume branch, `applyNativeAction`/
+        `handleNotificationScheduling` in `TimerContext.tsx`) and found no logic bug — the resume
+        branch correctly computes `remaining = timeLeft > 0 ? timeLeft : timerDuration` and sets
+        `endTime = now + remaining`; pause cancels the scheduled "time's up" local notification,
+        resume reschedules it `timeLeft` seconds out. Suspected cause is **Simulator-specific
+        ActivityKit flakiness, not app code**: Apple's Live Activities have documented reliability
+        gaps in Simulator (no push-token path at all; local `Activity.update()` propagation
+        between the main app process and the widget extension process can lag/desync in ways real
+        hardware doesn't show), and this exact scenario was never verified end-to-end on a real
+        device in the original Pause/Resume/Stop work above (only the ordinary, non-expired case
+        was confirmed on an iPhone 13 Pro). Not re-investigated further in the Simulator — the
+        diagnostic `os.Logger` calls already in `TogglePauseTimerIntent` (see above) are the next
+        step, watched live via Console.app on a **real device** reproducing the same steps
+        (pause with time left, wait, resume from Lock Screen); if it reproduces there too, treat
+        as a genuine bug and dig into the logged `state.timeLeft`/`timerDuration` values at the
+        moment of the tap. If it's Simulator-only, no app-code fix is needed.
   - **Found via adb automation, not manual testing: Android had its own version of this bug, and
     it was worse — self-inflicted, not a platform limit, and happening on the ordinary
     swipe-away-from-Recents gesture, not just a deliberate "force stop."** `TimerContext` had a
