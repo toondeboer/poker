@@ -155,3 +155,19 @@ Mobile releases are batched on a short-lived branch per version, not shipped str
   removed the Podfile `ENV` lines — restore them rather than just reverting the lock file.
 - **Keep `ios.supportsTablet: true`.** The app shipped universal (iPhone + iPad); an update that
   drops iPad is rejected at upload with App Store error 90101.
+- **Android dev-client builds can crash on launch with `java.lang.NullPointerException` at
+  `ReactActivityDelegate.onUserLeaveHint` / `DevLauncherErrorActivity`** — a race in `expo`'s own
+  `ReactActivityDelegateWrapper.kt` (`node_modules/expo/android/src/main/java/expo/modules/`), not
+  app code. `onCreate()` signals `loadAppReady.complete(Unit)` *before* it reflectively sets the
+  underlying `ReactActivityDelegate`'s private `mReactDelegate` field; `onUserLeaveHint()` awaits
+  `loadAppReady` and then calls straight into `delegate.onUserLeaveHint()` with no null-check.
+  `onPause()`, right above it in the same file, already has a defensive `try/catch` for exactly
+  this scenario (its own comment: "we stop before the ReactActivityDelegate gets a chance to set
+  up... we should catch the exceptions") — `onUserLeaveHint()` is missing the same guard. Narrow
+  timing window: only bites when something pauses `MainActivity` (another activity opening on top,
+  a permission dialog, backgrounding) before the JS bundle finishes its very first load, so it
+  doesn't reproduce every launch. Not patchable in-repo without hand-editing vendored
+  `node_modules` (wiped on next `npm install`) — workaround is to wait for the Timer screen to
+  actually render before triggering anything that could pause the activity right after a fresh
+  launch; otherwise a real fix means bumping the installed `expo`/`expo-dev-client` version (both
+  `56.0.20` as of this note) once upstream addresses it.
