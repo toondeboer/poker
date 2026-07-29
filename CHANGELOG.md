@@ -35,8 +35,13 @@ platform-tagged heading (e.g. `## [1.1.3] - 2026-07-20 — Android`) when you cu
   previously had no tint at all and rendered in the system default blue. Also added two visual
   states neither platform distinguished before: an expired round (red + alarm icon on iOS) and a
   low-time warning at 60s or less remaining (amber, matching Android's existing threshold).
-  Android's "Stop" notification action no longer reuses the alert notification's X/dismiss icon —
-  it has its own stop-square icon now.
+- Mobile: the Android foreground-service notification's Pause/Resume and Stop actions are no
+  longer stock `NotificationCompat` text-link actions (which can't be individually colored) — a
+  custom `RemoteViews` layout gives them real colored pill/circle buttons (green/gray to
+  resume/pause, red to stop), matching the iOS Live Activity's button styling instead of looking
+  like generic platform chrome next to it. Collapsed view keeps icon-only circular buttons to fit
+  the narrower space; expanded view mirrors the iOS Lock Screen's layout (header, timer+blinds,
+  buttons, force-quit caption).
 
 ### Fixed
 - Mobile: the Timer screen card no longer stretches edge-to-edge on tablets — capped it at the

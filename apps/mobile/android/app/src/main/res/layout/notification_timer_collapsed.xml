@@ -1,0 +1,79 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Collapsed body for the timer notification's DecoratedCustomViewStyle. The system still
+     draws the header (small icon in its colored circle, app label, timestamp, expand chevron)
+     above this — this only supplies the content row, which stock NotificationCompat.addAction
+     could never render as colored buttons (those always come out as plain platform-accent text
+     links, see ROADMAP.md's "Live Activity / foreground service UI/UX polish" item). -->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="horizontal"
+    android:gravity="center_vertical"
+    android:paddingStart="12dp"
+    android:paddingEnd="12dp"
+    android:paddingTop="8dp"
+    android:paddingBottom="8dp">
+
+    <LinearLayout
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_weight="1"
+        android:layout_marginEnd="8dp"
+        android:orientation="vertical">
+
+        <TextView
+            android:id="@+id/timer_collapsed_title"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:singleLine="true"
+            android:ellipsize="end"
+            android:textSize="14sp"
+            android:textStyle="bold"
+            android:textColor="?android:attr/textColorPrimary"/>
+
+        <TextView
+            android:id="@+id/timer_collapsed_subtitle"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:singleLine="true"
+            android:ellipsize="end"
+            android:textSize="12sp"
+            android:textColor="?android:attr/textColorSecondary"/>
+    </LinearLayout>
+
+    <LinearLayout
+        android:id="@+id/timer_collapsed_pause_container"
+        android:layout_width="36dp"
+        android:layout_height="36dp"
+        android:gravity="center"
+        android:background="@drawable/bg_pill_gray">
+
+        <ImageView
+            android:id="@+id/timer_collapsed_pause_icon"
+            android:layout_width="18dp"
+            android:layout_height="18dp"
+            android:tint="@android:color/white"
+            android:src="@drawable/ic_notification_pause"/>
+    </LinearLayout>
+
+    <!-- android.widget.Space isn't on RemoteViews' allowed-view-class list (only a fixed set of
+         system widgets can be inflated in a notification's RemoteViews) — plain View works fine
+         as a fixed-size spacer instead. -->
+    <View
+        android:layout_width="10dp"
+        android:layout_height="1dp"/>
+
+    <LinearLayout
+        android:id="@+id/timer_collapsed_stop_container"
+        android:layout_width="36dp"
+        android:layout_height="36dp"
+        android:gravity="center"
+        android:background="@drawable/bg_pill_red">
+
+        <ImageView
+            android:layout_width="16dp"
+            android:layout_height="16dp"
+            android:tint="@android:color/white"
+            android:src="@drawable/ic_notification_stop"/>
+    </LinearLayout>
+</LinearLayout>

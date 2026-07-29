@@ -1,0 +1,10 @@
+<!-- android/app/src/main/res/drawable/bg_pill_green.xml -->
+<!-- Rounded rect with a corner radius larger than any button's half-height renders as a
+     stadium/pill on a wide button and a perfect circle on a square one — reused as both in
+     notification_timer_collapsed.xml (circular icon buttons) and notification_timer_expanded.xml
+     (labeled pill buttons). -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android"
+       android:shape="rectangle">
+    <solid android:color="@color/pokerTimerGreen"/>
+    <corners android:radius="100dp"/>
+</shape>

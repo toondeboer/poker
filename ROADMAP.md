@@ -463,19 +463,42 @@ full design.
     `ic_notification_clear` (an X/dismiss glyph, correctly used elsewhere for the alert
     notification's "Dismiss" action), which reads as "cancel/close" rather than "stop". Added a
     dedicated `ic_notification_stop.xml` (filled square) used only for this action.
-  - Verified via `swiftc -typecheck` (widget target's Swift files) and a full
-    `:app:compileDebugJavaWithJavac` + `:app:mergeDebugResources` Gradle build (Android) — both
-    clean. **Not yet visually confirmed** on a simulator/device (no booted simulator/emulator was
-    available to capture the Lock Screen/Dynamic Island or the Android notification directly).
+  - Screenshotted on real devices (iPhone 17 simulator + an Android emulator): iOS matched the
+    intended design (green icon, gray Pause, red Stop). Android didn't — `NotificationCompat`'s
+    stock action buttons render as plain platform-accent text links with no per-button color API,
+    so the color/icon fixes above never reached the buttons themselves, leaving them looking like
+    generic Android chrome next to iOS's colored pills.
+  - ✅ **Custom Android `RemoteViews` layout** — resolved the open design question below in favor
+    of matching iOS: replaced the stock two-action layout with `notification_timer_collapsed.xml`
+    (text + two small circular icon buttons) and `notification_timer_expanded.xml` (full layout
+    mirroring the iOS Lock Screen's header/timer+blinds/buttons/caption rows), wired up via
+    `NotificationCompat.DecoratedCustomViewStyle` + `setCustomContentView`/
+    `setCustomBigContentView` in `PokerTimerService#createNotification`. Buttons are real
+    `LinearLayout`s with a solid-color pill/circle background (`bg_pill_green/gray/red.xml`,
+    swapped per state via `RemoteViews#setInt(..., "setBackgroundResource", ...)`) and a
+    `setOnClickPendingIntent` reusing the same Pause/Resume/Stop `PendingIntent`s as before — the
+    stock `.addAction()` calls are kept alongside for Wear OS/Android Auto surfaces that can't
+    render a custom view.
+    - Hit and fixed a real bug along the way: `android.widget.Space` (used for spacers in both
+      layouts) isn't on RemoteViews' allow-list of inflatable view classes — notifications crash
+      with `InflateException: Class not allowed to be inflated android.widget.Space` at runtime
+      (a restriction that only surfaces when the notification is actually displayed, not at
+      compile time). Fixed by using plain `<View>` instead, which is allowed.
+  - Verified via `swiftc -typecheck` (widget target's Swift files) and full
+    `:app:compileDebugJavaWithJavac` + `:app:mergeDebugResources` + `:app:assembleDebug` Gradle
+    builds (Android) — all clean. **Android's new custom layout itself is not yet visually
+    confirmed rendering on-device** — installing the rebuilt debug APK on a local emulator and
+    driving it via `adb` hit a pre-existing, unrelated dev-client crash (`ReactActivityDelegate
+    .onUserLeaveHint` NPE, `DevLauncherActivity`) that fires whenever `MainActivity` loses
+    foreground focus for *any* reason on this particular install (a permission dialog, another
+    activity opening on top) — confirmed unrelated to this change since the crash is entirely
+    inside React/dev-client internals with no frames touching `PokerTimerService` or the new
+    layouts. Please check the actual rendered notification (both collapsed and expanded) on a
+    device/emulator that doesn't hit that dev-client issue before merging.
   - ⬜ Layout/spacing pass once three tappable elements (plus the force-quit caption) share space
     with the countdown and blind info on the Lock Screen view — not addressed here; a prior fix
     already resolved outright clipping (see the compact-layout commit above), but no further
     spacing/hierarchy polish beyond that has been attempted.
-  - ⬜ Whether Android's default two-action-button layout (`NotificationCompat` stock styling) is
-    the best fit versus a more custom `RemoteViews` layout — left as an open design decision
-    rather than decided unilaterally here, since it's a materially bigger lift (custom layout XML,
-    dark/light + OEM-skin testing) than the color/icon fixes above, and the roadmap itself framed
-    it as a question rather than a direction.
 
 ## Mobile app launch — visible resize before layout settles
 - 🔍 **On a fresh launch, the main timer card visibly resizes a few times before settling at its
