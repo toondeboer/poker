@@ -169,7 +169,11 @@ struct PokerTimerLiveActivityView: View {
 
   var body: some View {
     let visualState = TimerVisualState(context.state)
-    VStack(alignment: .leading, spacing: 6) {
+    // Tight, uniform 4pt rhythm groups header+timer/blinds as one "info" block and
+    // buttons+caption as one "controls" block (the caption is specifically about the buttons
+    // above it, so keeping them close reads as one unit) — the extra .padding(.top, 6) on the
+    // buttons below is what actually separates the two blocks from each other.
+    VStack(alignment: .leading, spacing: 4) {
       // Header: tournament name + level, single thin line.
       HStack {
         Text(context.attributes.tournamentName)
@@ -220,14 +224,17 @@ struct PokerTimerLiveActivityView: View {
       }
 
       TimerActionButtons(paused: context.state.paused || context.state.isExpired)
+        .padding(.top, 6)
 
       // iOS stops running any of the app's App Intents — including these buttons — once the
       // user force-quits the app from the app switcher, until they manually reopen it. There's
       // no API to detect that a tap was attempted and blocked, so this is a permanent, always-on
-      // notice rather than a one-time/conditional one.
+      // notice rather than a one-time/conditional one. Slightly dimmed beyond the standard
+      // .secondary color so it reads as fine print, not a peer of the buttons it's describing.
       Text("Force quitting the app may stop these buttons from responding.")
         .font(.caption2)
         .foregroundColor(.secondary)
+        .opacity(0.85)
         .lineLimit(2)
     }
     .padding(12)

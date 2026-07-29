@@ -514,10 +514,16 @@ full design.
     inside React/dev-client internals with no frames touching `PokerTimerService` or the new
     layouts. Please check the actual rendered notification (both collapsed and expanded) on a
     device/emulator that doesn't hit that dev-client issue before merging.
-  - ⬜ Layout/spacing pass once three tappable elements (plus the force-quit caption) share space
-    with the countdown and blind info on the Lock Screen view — not addressed here; a prior fix
-    already resolved outright clipping (see the compact-layout commit above), but no further
-    spacing/hierarchy polish beyond that has been attempted.
+  - ✅ **Layout/spacing pass, Lock Screen view** — a prior fix already resolved outright clipping
+    (see the compact-layout commit above) but used flat, uniform 6pt spacing between all four
+    rows regardless of relationship. Regrouped into two visual blocks with a tighter 4pt rhythm
+    within each and deliberate extra separation between them: header + timer/blinds read as one
+    "info" block, buttons + force-quit caption read as one "controls" block (the caption
+    specifically describes the buttons above it, so keeping them close reads as a unit rather
+    than four independent, equally-spaced rows). Also dimmed the caption slightly beyond standard
+    `.secondary` (`opacity(0.85)`) so it reads as fine print rather than a peer of the buttons.
+    Didn't touch `TimerActionButtons`' own internal sizing (shared with the Dynamic Island's
+    already-tight expanded region — bumping it there risks the overflow this area was fixed for).
 
 ## Mobile app launch — visible resize before layout settles
 - 🔍 **On a fresh launch, the main timer card visibly resizes a few times before settling at its
