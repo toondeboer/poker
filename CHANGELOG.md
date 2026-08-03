@@ -88,6 +88,12 @@ platform-tagged heading (e.g. `## [1.1.3] - 2026-07-20 — Android`) when you cu
   `ReactActivityDelegate`) that could happen whenever the app was paused, resumed, or reconfigured
   before the JS bridge finished attaching — most likely right after a fresh launch. `MainActivity`
   now guards the affected lifecycle callbacks. See CLAUDE.md for the full root-cause writeup.
+- Mobile: the Timer card no longer visibly resizes a few times right after a fresh launch while
+  its auto-fit-to-screen pass converges and the ad banner reports its real size. The native splash
+  screen (installed but never actually invoked before now) now stays up until the Blinds/Sound
+  Pack/Timer contexts finish loading and a short settle window elapses, so the resize happens
+  behind the splash instead of in the already-visible app. Capped at 4s so a stuck load can't hold
+  the splash indefinitely.
 
 ## [1.1.3] - 2026-07-21 — iOS & Android
 

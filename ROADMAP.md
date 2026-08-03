@@ -555,32 +555,40 @@ full design.
     already-tight expanded region — bumping it there risks the overflow this area was fixed for).
 
 ## Mobile app launch — visible resize before layout settles
-- 🔍 **On a fresh launch, the main timer card visibly resizes a few times before settling at its
-  final size** — reported during manual testing. Root cause identified: `PokerTimer.tsx`'s
-  auto-fit-to-screen mechanism (`handleColumnLayout`/`scale`, `MIN_SCALE`/`MIN_SPACING_SCALE`)
-  starts every render at `scale = 1`, measures the actual rendered height via `onLayout`, then
-  calls `setScale` to shrink fonts/spacing down to whatever fits `availableHeight` — each
-  `setScale` call is a visible re-render at a new size, and the design's own comment already
-  acknowledges this "self-corrects once the ad banner reports its real size" (adaptive banners
-  don't know their height until they've loaded), meaning at least one resize pass is baked into
-  the current approach by design, not just an accident of first paint. Compounding it: nothing
-  currently holds the native splash screen open while this settles — `expo-splash-screen` is an
-  installed dependency but is never actually called (`SplashScreen.preventAutoHideAsync`/
-  `hideAsync` don't appear anywhere in the app), so Expo's default auto-hide behavior hides the
-  splash immediately and the resize passes happen visibly in the already-visible app rather than
-  behind a placeholder. Several contexts already track their own `isLoading` (`TimerContext`,
-  `BlindsContext`, `SoundPackContext`) but none of them currently gate initial render — each is
-  only consumed locally today.
-  - Two directions worth weighing, not mutually exclusive: (a) reduce the number of visible
-    passes — e.g. seed `scale` from a cached last-known-good value (persisted, like the other
-    timer state) instead of always restarting from `1`, and/or reserve the ad banner's expected
-    height up front instead of reflowing once it loads; (b) hold a placeholder/splash screen
-    (either the native one via `SplashScreen.preventAutoHideAsync()` + `hideAsync()` once
-    layout/fonts/persisted state are ready, or a lightweight in-JS loading view) until the
-    relevant `isLoading` flags clear and the first layout pass has converged, so whatever
-    resizing still happens is invisible to the user. (b) is the more reliable fix since (a) can
-    only ever reduce, not eliminate, the number of passes (the ad banner's real height is
-    fundamentally unknown until it loads).
+- ✅ **Fixed via direction (b) from the original write-up** — hold the native splash screen open
+  until initial state is ready, so the resize happens behind it instead of in the visible app.
+  New `AppReadyGate` (`apps/mobile/src/components/AppReadyGate.tsx`), mounted just inside
+  `TimerProvider` wrapping the `Stack` in `_layout.tsx`, which now also calls
+  `SplashScreen.preventAutoHideAsync()` at module scope (before first render — a `useEffect` would
+  fire too late, after the first paint already happened). `AppReadyGate` calls `hideAsync()` once
+  `BlindsContext`/`SoundPackContext`/`TimerContext`'s `isLoading` flags are all `false` plus a
+  300ms settle buffer (empirically enough for `PokerTimer.tsx`'s `handleColumnLayout`/`setScale`
+  convergence loop's few onLayout↔setScale round trips), capped by a hard 4s max-wait fallback
+  from mount so a stuck context load can never hold the splash indefinitely.
+  - **Deliberately does not gate on the ad banner's async real-size arrival** (the other
+    contributor to visible resize, per the original investigation) — `BannerAdSlot` exposes no
+    `isLoading`/`onAdLoaded` signal today, and ad network load time is unbounded (slow network, no
+    fill), so blocking splash-hide on it risked hanging the splash indefinitely for a comparatively
+    minor, later, smaller relayout. The fixed part is the multi-pass *initial* scale-fit-from-1
+    resize on every fresh launch; the ad-banner relayout (already-visible content resizing slightly
+    once a real ad loads) is a smaller, separate, lower-priority issue left as a possible follow-up
+    if it proves noticeable in practice — see `BannerAdProps.onAdLoaded`/`onSizeChange` in
+    `react-native-google-mobile-ads` if picking this up later.
+  - Direction (a) (seed `scale` from a cached value, reserve the ad banner's expected height
+    up front) was not implemented — (b) alone addresses the reported symptom without touching
+    `PokerTimer.tsx`'s layout math.
+  - Verified via `npm run typecheck -w @poker/mobile` (clean). Lint (`npm run lint -w
+    @poker/mobile`) currently fails on this branch independent of this change — pre-existing
+    `Error: File 'expo/tsconfig.base' not found` in `eslint-import-resolver-typescript`,
+    reproduces identically on a clean stash, so not attributable to this fix.
+  - **Verified on iOS Simulator** (iPhone SE, existing dev-client debug build + Metro):
+    confirmed the native splash (dark green background, poker-chip logo) stays visible while JS
+    loads — caught it still on-screen behind the one-time dev-client onboarding sheet — and the
+    app then renders the Timer screen fully settled (card, blinds, ad banner all in their final
+    positions, nothing clipped), no crash. The dev-client onboarding overlay made a clean
+    frame-by-frame resize comparison impractical this session, so the specific "no visible
+    flicker" claim isn't frame-verified — only that the splash-hold mechanism itself fires
+    correctly and the app is stable afterward.
 
 ## Website landing page
 - 🔍 **Confirm contact email is correct** — currently `poker.blinds.buzzer@gmail.com`, hardcoded in
