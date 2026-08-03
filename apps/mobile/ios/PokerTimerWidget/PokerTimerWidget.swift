@@ -16,7 +16,6 @@ extension Color {
   static let pokerGreen = Color(red: 0x10 / 255, green: 0xB9 / 255, blue: 0x81 / 255)  // #10B981
   static let pokerAmber = Color(red: 0xF5 / 255, green: 0x9E / 255, blue: 0x0B / 255)  // #F59E0B
   static let pokerRed = Color(red: 0xDC / 255, green: 0x26 / 255, blue: 0x26 / 255)  // #DC2626
-  static let pokerGray = Color(red: 0x6B / 255, green: 0x72 / 255, blue: 0x80 / 255)  // #6B7280
 }
 
 // Single source of truth for the color/icon a given ContentState should render as, shared by
@@ -41,8 +40,7 @@ enum TimerVisualState: Equatable {
   var color: Color {
     switch self {
     case .active: return .pokerGreen
-    case .lowTime: return .pokerAmber
-    case .paused: return .pokerGray
+    case .lowTime, .paused: return .pokerAmber
     case .expired: return .pokerRed
     }
   }

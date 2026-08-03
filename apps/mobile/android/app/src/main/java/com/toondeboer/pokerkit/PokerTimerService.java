@@ -641,7 +641,7 @@ public class PokerTimerService extends Service {
         if (timerExpired) {
             return ContextCompat.getColor(this, R.color.pokerTimerRed);
         } else if (paused) {
-            return ContextCompat.getColor(this, R.color.pokerTimerGray);
+            return ContextCompat.getColor(this, R.color.pokerTimerAmber);
         } else if (timeLeft <= 60) {
             return ContextCompat.getColor(this, R.color.pokerTimerAmber);
         } else {
