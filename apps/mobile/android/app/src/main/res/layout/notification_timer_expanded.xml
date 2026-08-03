@@ -93,7 +93,7 @@
             android:layout_marginEnd="8dp"
             android:gravity="center"
             android:orientation="horizontal"
-            android:background="@drawable/bg_pill_gray">
+            android:background="@drawable/bg_pill_amber">
 
             <ImageView
                 android:id="@+id/timer_expanded_pause_icon"

@@ -46,7 +46,7 @@
         android:layout_width="36dp"
         android:layout_height="36dp"
         android:gravity="center"
-        android:background="@drawable/bg_pill_gray">
+        android:background="@drawable/bg_pill_amber">
 
         <ImageView
             android:id="@+id/timer_collapsed_pause_icon"

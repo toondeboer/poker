@@ -583,13 +583,13 @@ public class PokerTimerService extends Service {
         views.setTextViewText(R.id.timer_collapsed_title, getModernTitle());
         views.setTextViewText(R.id.timer_collapsed_subtitle, formatNotificationContent());
 
-        // Green when tapping it will resume (a "go" action); gray when tapping it will pause (a
-        // neutral action, not a warning) — same convention as the iOS Live Activity's
-        // TimerActionButtons.
+        // Green when tapping it will resume (a "go" action); amber when tapping it will pause (a
+        // caution color, not gray, since gray read as dull/washed-out against the notification's
+        // background) — same convention as the iOS Live Activity's TimerActionButtons.
         views.setInt(
                 R.id.timer_collapsed_pause_container,
                 "setBackgroundResource",
-                showResume ? R.drawable.bg_pill_green : R.drawable.bg_pill_gray);
+                showResume ? R.drawable.bg_pill_green : R.drawable.bg_pill_amber);
         views.setImageViewResource(
                 R.id.timer_collapsed_pause_icon,
                 showResume ? R.drawable.ic_notification_play : R.drawable.ic_notification_pause);
@@ -621,7 +621,7 @@ public class PokerTimerService extends Service {
         views.setInt(
                 R.id.timer_expanded_pause_container,
                 "setBackgroundResource",
-                showResume ? R.drawable.bg_pill_green : R.drawable.bg_pill_gray);
+                showResume ? R.drawable.bg_pill_green : R.drawable.bg_pill_amber);
         views.setImageViewResource(
                 R.id.timer_expanded_pause_icon,
                 showResume ? R.drawable.ic_notification_play : R.drawable.ic_notification_pause);

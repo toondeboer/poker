@@ -250,12 +250,13 @@ struct TimerActionButtons: View {
 
   var body: some View {
     HStack(spacing: 12) {
-      // Green when tapping it will resume (a "go" action); gray — matching Android's paused
-      // notification accent — when tapping it will pause (a neutral action, not a warning).
+      // Green when tapping it will resume (a "go" action); amber when tapping it will pause (a
+      // caution color — gray read as dull/washed-out against the Live Activity's dark-mode
+      // background, and this also matches Android's own Pause pill now).
       Button(intent: TogglePauseTimerIntent(shouldPause: !paused)) {
         Label(paused ? "Resume" : "Pause", systemImage: paused ? "play.fill" : "pause.fill")
       }
-      .tint(paused ? .pokerGreen : .pokerGray)
+      .tint(paused ? .pokerGreen : .pokerAmber)
 
       Button(intent: StopTimerIntent()) {
         Label("Stop", systemImage: "stop.fill")
