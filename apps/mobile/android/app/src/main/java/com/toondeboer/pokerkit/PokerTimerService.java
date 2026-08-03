@@ -18,9 +18,11 @@ import android.os.VibrationEffect;
 import android.os.Vibrator;
 import androidx.core.app.NotificationCompat;
 import androidx.annotation.Nullable;
+import androidx.core.content.ContextCompat;
 import android.os.Handler;
 import android.os.Looper;
 import android.content.SharedPreferences;
+import android.widget.RemoteViews;
 
 public class PokerTimerService extends Service {
     // Intent extras
@@ -501,7 +503,6 @@ public class PokerTimerService extends Service {
 
         String title = getModernTitle();
         String content = formatNotificationContent();
-        String bigText = formatBigText();
 
         // Once the round has expired, "Pause" no longer makes sense — nothing is running to
         // pause. Treat expired the same as paused for the button's label/action: it becomes
@@ -527,6 +528,9 @@ public class PokerTimerService extends Service {
         );
 
         NotificationCompat.Builder builder = new NotificationCompat.Builder(this, CHANNEL_ID)
+                // contentTitle/contentText aren't shown once a custom view is supplied below —
+                // kept as the fallback the system uses for a redacted lock-screen notification
+                // and for accessibility services.
                 .setContentTitle(title)
                 .setContentText(content)
                 .setSmallIcon(getNotificationIcon())
@@ -537,16 +541,22 @@ public class PokerTimerService extends Service {
                 .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
                 .setColor(getStatusColor()) // Dynamic color based on state
                 .setColorized(false)
-                .setStyle(new NotificationCompat.BigTextStyle()
-                        .bigText(bigText)
-                        .setBigContentTitle(title))
+                // DecoratedCustomViewStyle keeps the system-drawn header (small icon in its
+                // colored circle, app label, timestamp, expand chevron) while handing the content
+                // area to the custom RemoteViews below — needed because
+                // NotificationCompat.addAction() can never render an individually colored button,
+                // only a plain platform-accent text link (see ROADMAP.md).
+                .setStyle(new NotificationCompat.DecoratedCustomViewStyle())
+                .setCustomContentView(buildCollapsedRemoteViews(showResume, pauseResumePendingIntent, stopPendingIntent))
+                .setCustomBigContentView(buildExpandedRemoteViews(showResume, pauseResumePendingIntent, stopPendingIntent))
                 .setShowWhen(false)
-                .setOnlyAlertOnce(true) // Don't repeatedly alert for updates
-                .addAction(
-                        showResume ? R.drawable.ic_notification_play : R.drawable.ic_notification_pause,
-                        showResume ? "Resume" : "Pause",
-                        pauseResumePendingIntent)
-                .addAction(R.drawable.ic_notification_clear, "Stop", stopPendingIntent);
+                .setOnlyAlertOnce(true); // Don't repeatedly alert for updates
+        // No .addAction() calls here — DecoratedCustomViewStyle renders the system's own action
+        // row *in addition to* the custom RemoteViews above, not instead of it, so adding actions
+        // duplicated every button as a second, plain-text row directly below the colored pills
+        // (confirmed on-device). This app has no Wear OS/Android Auto surface today to justify
+        // that cost — see ROADMAP.md's Apple Watch companion item; no Android equivalent exists
+        // either.
 
         // Add custom large icon if available
         try {
@@ -563,15 +573,79 @@ public class PokerTimerService extends Service {
         return builder.build();
     }
 
+    // Collapsed body for the DecoratedCustomViewStyle notification (see createNotification) —
+    // a text column plus two small circular icon buttons, since the collapsed content area is
+    // too narrow for labeled pills alongside two lines of text.
+    private RemoteViews buildCollapsedRemoteViews(
+            boolean showResume, PendingIntent pauseResumePendingIntent, PendingIntent stopPendingIntent) {
+        RemoteViews views = new RemoteViews(getPackageName(), R.layout.notification_timer_collapsed);
+
+        views.setTextViewText(R.id.timer_collapsed_title, getModernTitle());
+        views.setTextViewText(R.id.timer_collapsed_subtitle, formatNotificationContent());
+
+        // Green when tapping it will resume (a "go" action); amber when tapping it will pause (a
+        // caution color, not gray, since gray read as dull/washed-out against the notification's
+        // background) — same convention as the iOS Live Activity's TimerActionButtons.
+        views.setInt(
+                R.id.timer_collapsed_pause_container,
+                "setBackgroundResource",
+                showResume ? R.drawable.bg_pill_green : R.drawable.bg_pill_amber);
+        views.setImageViewResource(
+                R.id.timer_collapsed_pause_icon,
+                showResume ? R.drawable.ic_notification_play : R.drawable.ic_notification_pause);
+        views.setOnClickPendingIntent(R.id.timer_collapsed_pause_container, pauseResumePendingIntent);
+        views.setOnClickPendingIntent(R.id.timer_collapsed_stop_container, stopPendingIntent);
+
+        return views;
+    }
+
+    // Expanded body — full layout mirroring the iOS Live Activity's Lock Screen view (header,
+    // timer+blinds, labeled pill buttons, force-quit caption).
+    private RemoteViews buildExpandedRemoteViews(
+            boolean showResume, PendingIntent pauseResumePendingIntent, PendingIntent stopPendingIntent) {
+        RemoteViews views = new RemoteViews(getPackageName(), R.layout.notification_timer_expanded);
+
+        views.setTextViewText(R.id.timer_expanded_title, getModernTitle());
+        views.setTextViewText(R.id.timer_expanded_level, "Level " + currentBlindLevel);
+
+        String timeText = timeLeft > 0 ? formatTime(timeLeft) : "0:00";
+        views.setTextViewText(R.id.timer_expanded_time, timeText);
+        views.setTextColor(R.id.timer_expanded_time, getStatusColor());
+
+        views.setTextViewText(
+                R.id.timer_expanded_current_blinds, formatBlinds(currentSmallBlind, currentBigBlind));
+        views.setTextViewText(
+                R.id.timer_expanded_next_blinds,
+                "→ " + formatBlinds(nextSmallBlind, nextBigBlind));
+
+        views.setInt(
+                R.id.timer_expanded_pause_container,
+                "setBackgroundResource",
+                showResume ? R.drawable.bg_pill_green : R.drawable.bg_pill_amber);
+        views.setImageViewResource(
+                R.id.timer_expanded_pause_icon,
+                showResume ? R.drawable.ic_notification_play : R.drawable.ic_notification_pause);
+        views.setTextViewText(R.id.timer_expanded_pause_label, showResume ? "Resume" : "Pause");
+        views.setOnClickPendingIntent(R.id.timer_expanded_pause_container, pauseResumePendingIntent);
+        views.setOnClickPendingIntent(R.id.timer_expanded_stop_container, stopPendingIntent);
+
+        views.setTextViewText(R.id.timer_expanded_caption, FORCE_QUIT_CAPTION);
+
+        return views;
+    }
+
+    // Same hex values the app itself already uses for this timer's countdown states
+    // (PokerTimer.tsx's getGradientColors/getProgressBarColor) and the iOS Live Activity's
+    // TimerVisualState, rather than this notification picking its own approximate shades.
     private int getStatusColor() {
         if (timerExpired) {
-            return 0xFFDC2626; // Red for expired
+            return ContextCompat.getColor(this, R.color.pokerTimerRed);
         } else if (paused) {
-            return 0xFF6B7280; // Gray for paused
+            return ContextCompat.getColor(this, R.color.pokerTimerAmber);
         } else if (timeLeft <= 60) {
-            return 0xFFEA580C; // Orange for low time
+            return ContextCompat.getColor(this, R.color.pokerTimerAmber);
         } else {
-            return 0xFF059669; // Green for active
+            return ContextCompat.getColor(this, R.color.pokerTimerGreen);
         }
     }
 
@@ -633,45 +707,18 @@ public class PokerTimerService extends Service {
         return content.toString();
     }
 
-    private String formatBigText() {
-        StringBuilder bigText = new StringBuilder();
-
-        // Current level info
-        bigText.append("📊 Current Level: ").append(currentBlindLevel).append("\n");
-        bigText.append("💰 Blinds: ").append(formatBlinds(currentSmallBlind, currentBigBlind));
-
-        // Timer info
-        if (paused) {
-            bigText.append("\n⏸️ Status: Paused");
-            if (timeLeft > 0) {
-                bigText.append("\n⏱️ Time Remaining: ").append(formatTime(timeLeft));
-            }
-        } else if (timeLeft > 0) {
-            bigText.append("\n⏱️ Time Left: ").append(formatTime(timeLeft));
-        } else if (timerExpired) {
-            bigText.append("\n🚨 TIME'S UP! Level completed");
-        }
-
-        // Next level info
-        if (nextSmallBlind > 0 || nextBigBlind > 0) {
-            bigText.append("\n⬆️ Next Level: ").append(formatBlinds(nextSmallBlind, nextBigBlind));
-        }
-
-        // Permanent notice, not conditional on any state. Ordinary backgrounding (Home button,
-        // switching apps) is fine: the JS side stays alive and reconciles each native
-        // pause/resume/stop live, keeping this notification's blind level in sync in real time.
-        // The lag only happens if the task is actually swiped away from Recents — that destroys
-        // the RN host (confirmed via logcat: ReactHost.onHostDestroy fires on task removal), and
-        // this service has no way to advance the blind level on its own (that math lives only in
-        // the app), so consecutive expire-and-resume cycles while the app stays fully killed
-        // can't be reflected here. Reopening the app always catches it up correctly. Worded to
-        // match the iOS Live Activity's equivalent permanent caption (name the action to avoid,
-        // not just the symptom).
-        bigText.append("\n\nDon't force quit the app, or the blind level shown here may fall " +
-                "behind.");
-
-        return bigText.toString();
-    }
+    // Permanent notice, not conditional on any state. Ordinary backgrounding (Home button,
+    // switching apps) is fine: the JS side stays alive and reconciles each native
+    // pause/resume/stop live, keeping this notification's blind level in sync in real time. The
+    // lag only happens if the task is actually swiped away from Recents — that destroys the RN
+    // host (confirmed via logcat: ReactHost.onHostDestroy fires on task removal), and this
+    // service has no way to advance the blind level on its own (that math lives only in the
+    // app), so consecutive expire-and-resume cycles while the app stays fully killed can't be
+    // reflected here. Reopening the app always catches it up correctly. Worded to match the iOS
+    // Live Activity's equivalent permanent caption (name the action to avoid, not just the
+    // symptom).
+    private static final String FORCE_QUIT_CAPTION =
+            "Don't force quit the app, or the blind level shown here may fall behind.";
 
     private String formatBlinds(int smallBlind, int bigBlind) {
         return String.format("%,d/%,d", smallBlind, bigBlind);

@@ -294,6 +294,25 @@ full design.
     - Resuming an *already-expired* timer via the button (the `state.timerDuration` fallback path
       in `TogglePauseTimerIntent`/`ForegroundServiceModule`) has not been separately re-verified,
       but isn't affected by the above — worth a quick pass next time this area is touched.
+      - 🔍 **Partially investigated (2026-07-29), reported via iOS Simulator**: resuming with
+        ~1 minute left showed the Live Activity immediately jump to "expired" and start counting
+        down from 15 minutes instead of the actual remaining time. Read through the full path
+        (`TogglePauseTimerIntent`'s resume branch, `applyNativeAction`/
+        `handleNotificationScheduling` in `TimerContext.tsx`) and found no logic bug — the resume
+        branch correctly computes `remaining = timeLeft > 0 ? timeLeft : timerDuration` and sets
+        `endTime = now + remaining`; pause cancels the scheduled "time's up" local notification,
+        resume reschedules it `timeLeft` seconds out. Suspected cause is **Simulator-specific
+        ActivityKit flakiness, not app code**: Apple's Live Activities have documented reliability
+        gaps in Simulator (no push-token path at all; local `Activity.update()` propagation
+        between the main app process and the widget extension process can lag/desync in ways real
+        hardware doesn't show), and this exact scenario was never verified end-to-end on a real
+        device in the original Pause/Resume/Stop work above (only the ordinary, non-expired case
+        was confirmed on an iPhone 13 Pro). Not re-investigated further in the Simulator — the
+        diagnostic `os.Logger` calls already in `TogglePauseTimerIntent` (see above) are the next
+        step, watched live via Console.app on a **real device** reproducing the same steps
+        (pause with time left, wait, resume from Lock Screen); if it reproduces there too, treat
+        as a genuine bug and dig into the logged `state.timeLeft`/`timerDuration` values at the
+        moment of the tap. If it's Simulator-only, no app-code fix is needed.
   - **Found via adb automation, not manual testing: Android had its own version of this bug, and
     it was worse — self-inflicted, not a platform limit, and happening on the ordinary
     swipe-away-from-Recents gesture, not just a deliberate "force stop."** `TimerContext` had a
@@ -442,14 +461,86 @@ full design.
   region (already tight on space — leading/trailing blinds, timer, level, and the buttons
   themselves) or to Android (force-stopping there kills the notification along with the service,
   so there's no dead-button state to warn about — see the force-quit item above).
-- ⬜ Now that Pause/Resume/Stop are functional (see above), pass over the visual design of both
+- ✅ Now that Pause/Resume/Stop are functional (see above), pass over the visual design of both
   surfaces — they were originally built as read-only displays, and the current button styling
-  (`.buttonStyle(.bordered)`, small system icons) was chosen for speed, not polish. Consider:
-  layout/spacing once three tappable elements (plus the new force-quit caption) share space with
-  the countdown and blind info on the Lock Screen view; whether the Android notification's
-  default two-action-button layout (`NotificationCompat` stock styling) is the best fit versus a
-  more custom layout; and iconography/color consistent with the rest of the app rather than
-  generic SF Symbols / stock Android icons.
+  (`.buttonStyle(.bordered)`, small system icons) was chosen for speed, not polish.
+  - ✅ **Color consistency, both platforms** — the Live Activity's Pause/Resume button had no
+    `.tint()` at all (rendered in the system default blue, clashing with the app's own palette),
+    and neither surface's state colors lined up with each other or with the app's own in-JS
+    gradient (`PokerTimer.tsx`'s `getGradientColors`/`getProgressBarColor`) or Android's own
+    `getStatusColor`. Both now derive from the same brand hex values (`#10B981` green /
+    `#F59E0B` amber / `#DC2626` red, plus `#6B7280` gray for paused): iOS via a new
+    `TimerVisualState` enum (`PokerTimerWidget.swift`) shared across the Lock Screen view and all
+    three Dynamic Island presentations (previously each had its own `paused ? .orange : .green`
+    ternary), Android via `PokerTimerService#getStatusColor`. This also added two visual states
+    that didn't exist before: an expired round now shows red + an alarm icon (previously
+    indistinguishable from "active" in color/icon, only the button label changed), and a
+    low-time warning (`isLowTime`, ≤60s remaining) matching Android's existing threshold — iOS
+    computes this reactively off `endTime` the same way `isExpired` already did, so it updates
+    live without the widget extension needing to run code every second.
+  - ✅ **Android Stop icon fixed** — `createNotification()`'s "Stop" action was reusing
+    `ic_notification_clear` (an X/dismiss glyph, correctly used elsewhere for the alert
+    notification's "Dismiss" action), which reads as "cancel/close" rather than "stop". Added a
+    dedicated `ic_notification_stop.xml` (filled square) used only for this action.
+  - Screenshotted on real devices (iPhone 17 simulator + an Android emulator): iOS matched the
+    intended design (green icon, gray Pause, red Stop). Android didn't — `NotificationCompat`'s
+    stock action buttons render as plain platform-accent text links with no per-button color API,
+    so the color/icon fixes above never reached the buttons themselves, leaving them looking like
+    generic Android chrome next to iOS's colored pills.
+  - ✅ **Custom Android `RemoteViews` layout** — resolved the open design question below in favor
+    of matching iOS: replaced the stock two-action layout with `notification_timer_collapsed.xml`
+    (text + two small circular icon buttons) and `notification_timer_expanded.xml` (full layout
+    mirroring the iOS Lock Screen's header/timer+blinds/buttons/caption rows), wired up via
+    `NotificationCompat.DecoratedCustomViewStyle` + `setCustomContentView`/
+    `setCustomBigContentView` in `PokerTimerService#createNotification`. Buttons are real
+    `LinearLayout`s with a solid-color pill/circle background (`bg_pill_green/gray/red.xml`,
+    swapped per state via `RemoteViews#setInt(..., "setBackgroundResource", ...)`) and a
+    `setOnClickPendingIntent` reusing the same Pause/Resume/Stop `PendingIntent`s as before.
+    - Hit and fixed two real bugs along the way, both only surfacing at runtime (not compile
+      time), so the passing Gradle build below didn't catch either:
+      1. `android.widget.Space` (used for spacers in both layouts) isn't on RemoteViews'
+         allow-list of inflatable view classes — crashed with `InflateException: Class not
+         allowed to be inflated android.widget.Space`. First fix attempt swapped it for plain
+         `<View>` — **also not on the allow-list**, confirmed via a second crash
+         (`BadForegroundServiceNotificationException`) once the notification was actually posted
+         for the first time (the dev-client crash below had been blocking that until now). Fixed
+         for good by dropping spacers entirely in favor of margins on the following element; the
+         one flexible push-apart gap uses an empty `LinearLayout`, which is unambiguously
+         RemoteViews-safe.
+      2. `.addAction()` calls were initially kept alongside the custom views "for Wear OS/Android
+         Auto surfaces that can't render a custom view" — wrong reasoning: `DecoratedCustomViewStyle`
+         renders the system's own action row *in addition to* the custom content, not instead of
+         it, so every button was duplicated as a second, plain-text row directly below the
+         colored pills (confirmed on-device via screenshot). This app has no Wear OS/Android Auto
+         surface today to justify that cost, so removed the calls entirely rather than keep
+         speculative future-proofing with a real, visible downside right now.
+    - ✅ **Confirmed working on-device (Pixel emulator)**: both the collapsed and expanded
+      RemoteViews layouts render correctly (green active-state color, gray Pause/red Stop pills,
+      level/blinds, force-quit caption), no crash, no duplicate action row.
+  - ✅ **Gray → amber, both platforms** — spotted on a real device: gray read as dull/washed-out
+    against the iOS Live Activity's dark-mode black background, next to the vivid green timer
+    text and red Stop button. Amber was already in the palette (the low-time warning color) and
+    reads as a caution color between green (resume/go) and red (stop) — closer to a
+    traffic-light convention, and more legible on both platforms. First applied to just the Pause
+    button (Android's `bg_pill_gray.xml` renamed to `bg_pill_amber.xml`), then extended to the
+    paused round's own accent too (iOS `TimerVisualState.color`'s `.paused` case, Android
+    `getStatusColor`'s `paused` branch — the icon/timer text color, separate from the button's
+    own tint) once the gray icon/text still looked inconsistent next to the now-amber button.
+    Palette simplifies to 3 colors: green (active), amber (caution — paused or low-time), red
+    (stop/expired). `pokerGray`/`pokerTimerGray` removed, now fully unused on both platforms.
+  - Verified via `swiftc -typecheck` (widget target's Swift files) and full
+    `:app:compileDebugJavaWithJavac` + `:app:mergeDebugResources` Gradle builds (Android) — all
+    clean.
+  - ✅ **Layout/spacing pass, Lock Screen view** — a prior fix already resolved outright clipping
+    (see the compact-layout commit above) but used flat, uniform 6pt spacing between all four
+    rows regardless of relationship. Regrouped into two visual blocks with a tighter 4pt rhythm
+    within each and deliberate extra separation between them: header + timer/blinds read as one
+    "info" block, buttons + force-quit caption read as one "controls" block (the caption
+    specifically describes the buttons above it, so keeping them close reads as a unit rather
+    than four independent, equally-spaced rows). Also dimmed the caption slightly beyond standard
+    `.secondary` (`opacity(0.85)`) so it reads as fine print rather than a peer of the buttons.
+    Didn't touch `TimerActionButtons`' own internal sizing (shared with the Dynamic Island's
+    already-tight expanded region — bumping it there risks the overflow this area was fixed for).
 
 ## Mobile app launch — visible resize before layout settles
 - 🔍 **On a fresh launch, the main timer card visibly resizes a few times before settling at its

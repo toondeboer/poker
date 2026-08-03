@@ -36,6 +36,14 @@ struct PokerTimerWidgetAttributes: ActivityAttributes {
     var isExpired: Bool {
       !paused && timeRemaining <= 0
     }
+
+    // Mirrors PokerTimerService's own low-time threshold on Android (getStatusColor's
+    // `timeLeft <= 60`) and the app's in-JS gradient breakpoints (PokerTimer.tsx's
+    // getGradientColors), so all three surfaces switch to the same amber warning at the same
+    // point rather than each platform picking its own threshold.
+    var isLowTime: Bool {
+      !paused && !isExpired && timeRemaining <= 60
+    }
   }
     
   var tournamentName: String

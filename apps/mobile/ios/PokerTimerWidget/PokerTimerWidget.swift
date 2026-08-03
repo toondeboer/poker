@@ -8,13 +8,59 @@ import ActivityKit
 import WidgetKit
 import SwiftUI
 
+// Brand palette, matching the exact hex values the app itself already uses for this timer's
+// countdown states (PokerTimer.tsx's getGradientColors/getProgressBarColor) and Android's
+// PokerTimerService#getStatusColor — kept in one place here instead of the system semantic
+// colors (.green/.orange) the widget used previously, which didn't line up with either.
+extension Color {
+  static let pokerGreen = Color(red: 0x10 / 255, green: 0xB9 / 255, blue: 0x81 / 255)  // #10B981
+  static let pokerAmber = Color(red: 0xF5 / 255, green: 0x9E / 255, blue: 0x0B / 255)  // #F59E0B
+  static let pokerRed = Color(red: 0xDC / 255, green: 0x26 / 255, blue: 0x26 / 255)  // #DC2626
+}
+
+// Single source of truth for the color/icon a given ContentState should render as, shared by
+// the Lock Screen view, the Dynamic Island's expanded/compact/minimal presentations. Previously
+// each of those four spots duplicated its own `paused ? .orange : .green` ternary and none of
+// them distinguished an expired round (red) or a low-time warning (amber) at all.
+enum TimerVisualState: Equatable {
+  case active, lowTime, paused, expired
+
+  init(_ state: PokerTimerWidgetAttributes.ContentState) {
+    if state.isExpired {
+      self = .expired
+    } else if state.paused {
+      self = .paused
+    } else if state.isLowTime {
+      self = .lowTime
+    } else {
+      self = .active
+    }
+  }
+
+  var color: Color {
+    switch self {
+    case .active: return .pokerGreen
+    case .lowTime, .paused: return .pokerAmber
+    case .expired: return .pokerRed
+    }
+  }
+
+  var systemImage: String {
+    switch self {
+    case .paused: return "pause.circle.fill"
+    case .expired: return "alarm.fill"
+    case .lowTime, .active: return "timer"
+    }
+  }
+}
+
 struct PokerTimerWidget: Widget {
   var body: some WidgetConfiguration {
     ActivityConfiguration(for: PokerTimerWidgetAttributes.self) { context in
       // Lock screen/banner UI
       PokerTimerLiveActivityView(context: context)
-        .activityBackgroundTint(Color.green.opacity(0.1))
-        .activitySystemActionForegroundColor(Color.green)
+        .activityBackgroundTint(Color.pokerGreen.opacity(0.1))
+        .activitySystemActionForegroundColor(Color.pokerGreen)
     } dynamicIsland: { context in
       DynamicIsland {
         // Expanded UI
@@ -46,21 +92,20 @@ struct PokerTimerWidget: Widget {
         }
                 
         DynamicIslandExpandedRegion(.bottom) {
+          let visualState = TimerVisualState(context.state)
           VStack(spacing: 8) {
             HStack {
               // Timer - most prominent element
               HStack(spacing: 4) {
-                Image(
-                  systemName: context.state.paused ? "pause.circle.fill" : "timer"
-                )
-                .foregroundColor(context.state.paused ? .orange : .green)
+                Image(systemName: visualState.systemImage)
+                  .foregroundColor(visualState.color)
 
                 if context.state.paused {
                   Text(formatTime(context.state.timeLeft))
                     .font(.title2)
                     .bold()
                     .monospacedDigit()
-                    .foregroundColor(.orange)
+                    .foregroundColor(visualState.color)
                 } else {
                   Text(
                     timerInterval: Date()...context.state.endTime,
@@ -69,7 +114,7 @@ struct PokerTimerWidget: Widget {
                   .font(.title2)
                   .bold()
                   .monospacedDigit()
-                  .foregroundColor(.primary)
+                  .foregroundColor(visualState == .active ? .primary : visualState.color)
                 }
               }
 
@@ -85,23 +130,26 @@ struct PokerTimerWidget: Widget {
         }
       } compactLeading: {
         Image(systemName: "suit.spade.fill")
-          .foregroundColor(.green)
+          .foregroundColor(.pokerGreen)
       } compactTrailing: {
+        let visualState = TimerVisualState(context.state)
         if context.state.paused {
           Text(formatTime(context.state.timeLeft))
             .font(.caption2)
             .bold()
             .monospacedDigit()
-            .foregroundColor(.orange)
+            .foregroundColor(visualState.color)
         } else {
           Text(timerInterval: Date()...context.state.endTime, countsDown: true)
             .font(.caption2)
             .bold()
             .monospacedDigit()
+            .foregroundColor(visualState == .active ? .primary : visualState.color)
         }
       } minimal: {
-        Image(systemName: context.state.paused ? "pause.circle.fill" : "timer")
-          .foregroundColor(context.state.paused ? .orange : .green)
+        let visualState = TimerVisualState(context.state)
+        Image(systemName: visualState.systemImage)
+          .foregroundColor(visualState.color)
       }
     }
   }
@@ -118,7 +166,12 @@ struct PokerTimerLiveActivityView: View {
   let context: ActivityViewContext<PokerTimerWidgetAttributes>
 
   var body: some View {
-    VStack(alignment: .leading, spacing: 6) {
+    let visualState = TimerVisualState(context.state)
+    // Tight, uniform 4pt rhythm groups header+timer/blinds as one "info" block and
+    // buttons+caption as one "controls" block (the caption is specifically about the buttons
+    // above it, so keeping them close reads as one unit) — the extra .padding(.top, 6) on the
+    // buttons below is what actually separates the two blocks from each other.
+    VStack(alignment: .leading, spacing: 4) {
       // Header: tournament name + level, single thin line.
       HStack {
         Text(context.attributes.tournamentName)
@@ -134,15 +187,15 @@ struct PokerTimerLiveActivityView: View {
       // Timer + blinds, one row instead of two.
       HStack(alignment: .firstTextBaseline, spacing: 12) {
         HStack(spacing: 6) {
-          Image(systemName: context.state.paused ? "pause.circle.fill" : "timer")
-            .foregroundColor(context.state.paused ? .orange : .green)
+          Image(systemName: visualState.systemImage)
+            .foregroundColor(visualState.color)
 
           if context.state.paused {
             Text(formatTime(context.state.timeLeft))
               .font(.title2)
               .bold()
               .monospacedDigit()
-              .foregroundColor(.orange)
+              .foregroundColor(visualState.color)
           } else {
             Text(
               timerInterval: Date()...context.state.endTime,
@@ -151,7 +204,7 @@ struct PokerTimerLiveActivityView: View {
             .font(.title2)
             .bold()
             .monospacedDigit()
-            .foregroundColor(.primary)
+            .foregroundColor(visualState == .active ? .primary : visualState.color)
           }
         }
 
@@ -169,14 +222,17 @@ struct PokerTimerLiveActivityView: View {
       }
 
       TimerActionButtons(paused: context.state.paused || context.state.isExpired)
+        .padding(.top, 6)
 
       // iOS stops running any of the app's App Intents — including these buttons — once the
       // user force-quits the app from the app switcher, until they manually reopen it. There's
       // no API to detect that a tap was attempted and blocked, so this is a permanent, always-on
-      // notice rather than a one-time/conditional one.
+      // notice rather than a one-time/conditional one. Slightly dimmed beyond the standard
+      // .secondary color so it reads as fine print, not a peer of the buttons it's describing.
       Text("Force quitting the app may stop these buttons from responding.")
         .font(.caption2)
         .foregroundColor(.secondary)
+        .opacity(0.85)
         .lineLimit(2)
     }
     .padding(12)
@@ -192,15 +248,22 @@ struct TimerActionButtons: View {
 
   var body: some View {
     HStack(spacing: 12) {
+      // Green when tapping it will resume (a "go" action); amber when tapping it will pause (a
+      // caution color — gray read as dull/washed-out against the Live Activity's dark-mode
+      // background, and this also matches Android's own Pause pill now).
       Button(intent: TogglePauseTimerIntent(shouldPause: !paused)) {
         Label(paused ? "Resume" : "Pause", systemImage: paused ? "play.fill" : "pause.fill")
       }
+      .tint(paused ? .pokerGreen : .pokerAmber)
 
       Button(intent: StopTimerIntent()) {
         Label("Stop", systemImage: "stop.fill")
       }
-      .tint(.red)
+      .tint(.pokerRed)
     }
+    // Previously plain `.bordered` with no `.tint()` on Pause/Resume at all, so it rendered in
+    // the system's default blue — clashing with the green/amber/red palette used everywhere
+    // else in the app and the Live Activity itself.
     .buttonStyle(.bordered)
     .controlSize(.small)
     .labelStyle(.titleAndIcon)
