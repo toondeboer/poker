@@ -461,7 +461,7 @@ full design.
   region (already tight on space — leading/trailing blinds, timer, level, and the buttons
   themselves) or to Android (force-stopping there kills the notification along with the service,
   so there's no dead-button state to warn about — see the force-quit item above).
-- 🚧 Now that Pause/Resume/Stop are functional (see above), pass over the visual design of both
+- ✅ Now that Pause/Resume/Stop are functional (see above), pass over the visual design of both
   surfaces — they were originally built as read-only displays, and the current button styling
   (`.buttonStyle(.bordered)`, small system icons) was chosen for speed, not polish.
   - ✅ **Color consistency, both platforms** — the Live Activity's Pause/Resume button had no
@@ -495,25 +495,31 @@ full design.
     `setCustomBigContentView` in `PokerTimerService#createNotification`. Buttons are real
     `LinearLayout`s with a solid-color pill/circle background (`bg_pill_green/gray/red.xml`,
     swapped per state via `RemoteViews#setInt(..., "setBackgroundResource", ...)`) and a
-    `setOnClickPendingIntent` reusing the same Pause/Resume/Stop `PendingIntent`s as before — the
-    stock `.addAction()` calls are kept alongside for Wear OS/Android Auto surfaces that can't
-    render a custom view.
-    - Hit and fixed a real bug along the way: `android.widget.Space` (used for spacers in both
-      layouts) isn't on RemoteViews' allow-list of inflatable view classes — notifications crash
-      with `InflateException: Class not allowed to be inflated android.widget.Space` at runtime
-      (a restriction that only surfaces when the notification is actually displayed, not at
-      compile time). Fixed by using plain `<View>` instead, which is allowed.
+    `setOnClickPendingIntent` reusing the same Pause/Resume/Stop `PendingIntent`s as before.
+    - Hit and fixed two real bugs along the way, both only surfacing at runtime (not compile
+      time), so the passing Gradle build below didn't catch either:
+      1. `android.widget.Space` (used for spacers in both layouts) isn't on RemoteViews'
+         allow-list of inflatable view classes — crashed with `InflateException: Class not
+         allowed to be inflated android.widget.Space`. First fix attempt swapped it for plain
+         `<View>` — **also not on the allow-list**, confirmed via a second crash
+         (`BadForegroundServiceNotificationException`) once the notification was actually posted
+         for the first time (the dev-client crash below had been blocking that until now). Fixed
+         for good by dropping spacers entirely in favor of margins on the following element; the
+         one flexible push-apart gap uses an empty `LinearLayout`, which is unambiguously
+         RemoteViews-safe.
+      2. `.addAction()` calls were initially kept alongside the custom views "for Wear OS/Android
+         Auto surfaces that can't render a custom view" — wrong reasoning: `DecoratedCustomViewStyle`
+         renders the system's own action row *in addition to* the custom content, not instead of
+         it, so every button was duplicated as a second, plain-text row directly below the
+         colored pills (confirmed on-device via screenshot). This app has no Wear OS/Android Auto
+         surface today to justify that cost, so removed the calls entirely rather than keep
+         speculative future-proofing with a real, visible downside right now.
+    - ✅ **Confirmed working on-device (Pixel emulator)**: both the collapsed and expanded
+      RemoteViews layouts render correctly (green active-state color, gray Pause/red Stop pills,
+      level/blinds, force-quit caption), no crash, no duplicate action row.
   - Verified via `swiftc -typecheck` (widget target's Swift files) and full
     `:app:compileDebugJavaWithJavac` + `:app:mergeDebugResources` + `:app:assembleDebug` Gradle
-    builds (Android) — all clean. **Android's new custom layout itself is not yet visually
-    confirmed rendering on-device** — installing the rebuilt debug APK on a local emulator and
-    driving it via `adb` hit a pre-existing, unrelated dev-client crash (`ReactActivityDelegate
-    .onUserLeaveHint` NPE, `DevLauncherActivity`) that fires whenever `MainActivity` loses
-    foreground focus for *any* reason on this particular install (a permission dialog, another
-    activity opening on top) — confirmed unrelated to this change since the crash is entirely
-    inside React/dev-client internals with no frames touching `PokerTimerService` or the new
-    layouts. Please check the actual rendered notification (both collapsed and expanded) on a
-    device/emulator that doesn't hit that dev-client issue before merging.
+    builds (Android) — all clean.
   - ✅ **Layout/spacing pass, Lock Screen view** — a prior fix already resolved outright clipping
     (see the compact-layout commit above) but used flat, uniform 6pt spacing between all four
     rows regardless of relationship. Regrouped into two visual blocks with a tighter 4pt rhythm
