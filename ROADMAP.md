@@ -517,9 +517,18 @@ full design.
     - ✅ **Confirmed working on-device (Pixel emulator)**: both the collapsed and expanded
       RemoteViews layouts render correctly (green active-state color, gray Pause/red Stop pills,
       level/blinds, force-quit caption), no crash, no duplicate action row.
+  - ✅ **Pause button recolored gray → amber, both platforms** — spotted on a real device: gray
+    read as dull/washed-out against the iOS Live Activity's dark-mode black background, next to
+    the vivid green timer text and red Stop button. Amber was already in the palette (the
+    low-time warning color) and reads as a caution color between green (resume/go) and red
+    (stop) — closer to a traffic-light convention, and more legible on both platforms. Android's
+    `bg_pill_gray.xml` renamed to `bg_pill_amber.xml` (now unused otherwise, so renamed rather
+    than left as dead weight); iOS's round-state accent mapping (`TimerVisualState.color`'s
+    `.paused` case, used for the icon/timer text, separate from the button's own tint) still uses
+    gray — this only changed the Pause *button's* color, not the overall paused-state accent.
   - Verified via `swiftc -typecheck` (widget target's Swift files) and full
-    `:app:compileDebugJavaWithJavac` + `:app:mergeDebugResources` + `:app:assembleDebug` Gradle
-    builds (Android) — all clean.
+    `:app:compileDebugJavaWithJavac` + `:app:mergeDebugResources` Gradle builds (Android) — all
+    clean.
   - ✅ **Layout/spacing pass, Lock Screen view** — a prior fix already resolved outright clipping
     (see the compact-layout commit above) but used flat, uniform 6pt spacing between all four
     rows regardless of relationship. Regrouped into two visual blocks with a tighter 4pt rhythm
