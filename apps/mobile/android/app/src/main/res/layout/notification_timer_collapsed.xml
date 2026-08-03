@@ -56,17 +56,15 @@
             android:src="@drawable/ic_notification_pause"/>
     </LinearLayout>
 
-    <!-- android.widget.Space isn't on RemoteViews' allowed-view-class list (only a fixed set of
-         system widgets can be inflated in a notification's RemoteViews) — plain View works fine
-         as a fixed-size spacer instead. -->
-    <View
-        android:layout_width="10dp"
-        android:layout_height="1dp"/>
-
+    <!-- Neither android.widget.Space nor plain android.view.View are on RemoteViews' allowed
+         view-class list (only a fixed set of system widgets can be inflated in a notification's
+         RemoteViews — confirmed at runtime via InflateException for both). A fixed-size gap like
+         this is simplest as a margin on the following element instead of a dedicated spacer. -->
     <LinearLayout
         android:id="@+id/timer_collapsed_stop_container"
         android:layout_width="36dp"
         android:layout_height="36dp"
+        android:layout_marginStart="10dp"
         android:gravity="center"
         android:background="@drawable/bg_pill_red">
 
