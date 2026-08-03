@@ -37,11 +37,14 @@ platform-tagged heading (e.g. `## [1.1.3] - 2026-07-20 — Android`) when you cu
   low-time warning at 60s or less remaining (amber, matching Android's existing threshold).
 - Mobile: the Android foreground-service notification's Pause/Resume and Stop actions are no
   longer stock `NotificationCompat` text-link actions (which can't be individually colored) — a
-  custom `RemoteViews` layout gives them real colored pill/circle buttons (green/gray to
+  custom `RemoteViews` layout gives them real colored pill/circle buttons (green/amber to
   resume/pause, red to stop), matching the iOS Live Activity's button styling instead of looking
   like generic platform chrome next to it. Collapsed view keeps icon-only circular buttons to fit
   the narrower space; expanded view mirrors the iOS Lock Screen's layout (header, timer+blinds,
   buttons, force-quit caption).
+- Mobile: the paused state's icon/timer-text color on both the Android notification and iOS Live
+  Activity changed from gray to amber, matching the Pause button and simplifying the palette to
+  green (active) / amber (paused or low-time) / red (stop/expired).
 
 ### Fixed
 - Mobile: the Timer screen card no longer stretches edge-to-edge on tablets — capped it at the
