@@ -550,14 +550,13 @@ public class PokerTimerService extends Service {
                 .setCustomContentView(buildCollapsedRemoteViews(showResume, pauseResumePendingIntent, stopPendingIntent))
                 .setCustomBigContentView(buildExpandedRemoteViews(showResume, pauseResumePendingIntent, stopPendingIntent))
                 .setShowWhen(false)
-                .setOnlyAlertOnce(true) // Don't repeatedly alert for updates
-                // Kept alongside the custom views above: Wear OS / Android Auto and other
-                // surfaces that can't render a custom RemoteViews still get functional actions.
-                .addAction(
-                        showResume ? R.drawable.ic_notification_play : R.drawable.ic_notification_pause,
-                        showResume ? "Resume" : "Pause",
-                        pauseResumePendingIntent)
-                .addAction(R.drawable.ic_notification_stop, "Stop", stopPendingIntent);
+                .setOnlyAlertOnce(true); // Don't repeatedly alert for updates
+        // No .addAction() calls here — DecoratedCustomViewStyle renders the system's own action
+        // row *in addition to* the custom RemoteViews above, not instead of it, so adding actions
+        // duplicated every button as a second, plain-text row directly below the colored pills
+        // (confirmed on-device). This app has no Wear OS/Android Auto surface today to justify
+        // that cost — see ROADMAP.md's Apple Watch companion item; no Android equivalent exists
+        // either.
 
         // Add custom large icon if available
         try {
