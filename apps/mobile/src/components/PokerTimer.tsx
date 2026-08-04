@@ -1,5 +1,5 @@
 // src/components/PokerTimer.tsx
-import React, { useCallback, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import {
   LayoutChangeEvent,
   Share,
@@ -19,12 +19,14 @@ import { useTimer } from "@/src/contexts/TimerContext";
 import { useRouter } from "expo-router";
 import { TimerExpirationAlert } from "./TimerExpirationAlert";
 import { BannerAdSlot } from "./ads/BannerAdSlot";
+import { useAppReady } from "./AppReadyGate";
 
 // The card is designed to fit one screen with no scrolling. Rather than guessing
 // at a baseline/ad height, we measure the actual rendered height of the card +
 // ad + share row and scale font-size/spacing down to fit whatever's actually
-// available — this also self-corrects once the ad banner reports its real
-// size (adaptive banners don't know their height until they've loaded).
+// available. The ad slot reserves its height up front (see `BannerAdSlot`), so
+// that measurement is stable from the first pass instead of shifting whenever a
+// banner finally loads.
 //
 // Two separate floors: MIN_SCALE bounds font sizes (and anything else that
 // needs to stay readable/tappable), MIN_SPACING_SCALE bounds the whitespace
@@ -35,6 +37,13 @@ import { BannerAdSlot } from "./ads/BannerAdSlot";
 // space needed to fit without scrolling.
 const MIN_SCALE = 0.6;
 const MIN_SPACING_SCALE = 0.35;
+
+// The fit above still takes a few onLayout -> setScale round trips to converge.
+// Remembering where it landed lets a remount — coming back from Settings, say —
+// start at the right size and settle in a single pass. Module-level rather than
+// persisted: it's only valid for this process's screen metrics, and a wrong seed
+// just costs the same convergence it would have done anyway.
+let lastConvergedScale: number | null = null;
 
 export default function PokerTimer() {
   const router = useRouter();
@@ -55,7 +64,9 @@ export default function PokerTimer() {
     handleNextBlinds,
   } = useTimer();
 
-  const [scale, setScale] = useState(1);
+  const { revealed, reportContentSettled } = useAppReady();
+  const convergedRef = useRef(false);
+  const [scale, setScale] = useState(() => lastConvergedScale ?? 1);
   const availableHeight = windowHeight - insets.top - insets.bottom;
 
   // Scales font sizes (and other elements that need to stay readable/tappable)
@@ -81,11 +92,37 @@ export default function PokerTimer() {
         Math.max(MIN_SCALE, availableHeight / naturalHeight),
       );
       if (Math.abs(nextScale - scale) > 0.01) {
-        setScale(nextScale);
+        // Damp the step rather than jumping straight to the estimate. That
+        // estimate comes from `measuredHeight / scale`, which assumes height is
+        // linear in `scale` — but spacing uses `scale ** 3`, so it consistently
+        // overshoots and the raw iteration ping-pongs around the answer, decaying
+        // so slowly it has been observed taking 11 passes and then terminating
+        // only by scraping under the threshold (0.009 vs 0.01) on a scale that
+        // still overflowed the screen by 8pt. The map's slope near the fit is
+        // ≈ -1, so halving each step drives the effective slope to ≈ 0: it
+        // converges in a couple of passes, and onto the real fit rather than
+        // whichever end of the ping-pong happened to fall inside the tolerance.
+        // The test above still uses the true, undamped error, so this changes
+        // only the path taken, never where it stops.
+        setScale(scale + (nextScale - scale) * 0.5);
+        return;
       }
+      // Converged. Hold the reveal until the persisted timer/blind state has
+      // landed too, so the splash doesn't lift on placeholder values that would
+      // then reflow into their real ones.
+      lastConvergedScale = scale;
+      convergedRef.current = true;
+      if (!isLoading) reportContentSettled();
     },
-    [scale, availableHeight],
+    [scale, availableHeight, isLoading, reportContentSettled],
   );
+
+  // The two conditions above can land in either order, and a converged layout
+  // fires no further onLayout — so if the data arrives second, report from here
+  // instead of waiting for a measurement pass that will never come.
+  useEffect(() => {
+    if (!isLoading && convergedRef.current) reportContentSettled();
+  }, [isLoading, reportContentSettled]);
 
   const handleShare = useCallback(() => {
     Share.share({
@@ -137,16 +174,20 @@ export default function PokerTimer() {
             },
           ]}
         >
+          {/* Kept mounted (and therefore measurable) but invisible until the fit
+              above has converged — otherwise its intermediate sizes are what the
+              user sees on launch. Revealed in the same commit that hides the
+              splash, so the first visible frame is the settled one. */}
           <View
             onLayout={handleColumnLayout}
-            style={isTablet && styles.columnTablet}
+            style={[
+              isTablet && styles.columnTablet,
+              { opacity: revealed ? 1 : 0 },
+            ]}
           >
             {/* Main Timer Card */}
             <View
-              style={[
-                styles.mainCard,
-                { padding: g(32), marginBottom: g(24) },
-              ]}
+              style={[styles.mainCard, { padding: g(32), marginBottom: g(24) }]}
             >
               {/* Timer Display */}
               <View style={[styles.timerSection, { marginBottom: g(32) }]}>
@@ -169,10 +210,7 @@ export default function PokerTimer() {
 
                 {/* Progress Bar */}
                 <View
-                  style={[
-                    styles.progressBarContainer,
-                    { marginBottom: g(8) },
-                  ]}
+                  style={[styles.progressBarContainer, { marginBottom: g(8) }]}
                 >
                   <View
                     style={[styles.progressBarBackground, { height: s(12) }]}
@@ -274,9 +312,7 @@ export default function PokerTimer() {
                     size={s(20)}
                     color="white"
                   />
-                  <Text
-                    style={[styles.primaryButtonText, { fontSize: s(16) }]}
-                  >
+                  <Text style={[styles.primaryButtonText, { fontSize: s(16) }]}>
                     {paused
                       ? timerDuration === timeLeft
                         ? "Start"
