@@ -7,6 +7,22 @@ and [ARCHITECTURE.md](./ARCHITECTURE.md) for the full design.
 
 - **npm workspaces + Turborepo.** Always `npm install` from the **repo root** (one lockfile);
   don't introduce yarn/pnpm. Target one workspace with `npm run <script> -w @poker/<core|web|mobile>`.
+- **Where a dependency goes: the workspace that imports it, and nowhere else.**
+  - **Root** — workspace config and cross-cutting tooling only (`turbo`; `typescript` pinned once so
+    every workspace and the editor agree). **Never app dependencies.** A package declared at the
+    root has its peers resolved in the root's context, which is how a stray `next` there floated a
+    second React (see below).
+  - **`apps/*`** — everything that app imports. `dependencies` = needed to run or build the shipped
+    artifact; `devDependencies` = tooling that never ends up in it (`@types/*`, `eslint*`,
+    `@babel/core`, `tailwindcss`). On mobile this is not cosmetic: anything Metro must bundle has
+    to be a real `dependency`.
+  - **`packages/core`** — devDependencies only, because it has no runtime dependencies at all and
+    should stay that way. If it ever needs one, it goes in `dependencies`; anything the *host* app
+    must supply belongs in `peerDependencies`, never `dependencies`.
+  - **Duplication between workspaces is fine and correct** — both apps declaring `react` is how
+    npm knows to hoist one shared copy. Don't "deduplicate" by lifting a shared dep to the root.
+  - Every workspace is `private: true`. None of them are published; `@poker/core` is consumed
+    through the workspace protocol.
 - **Shared logic goes in `@poker/core`** and must stay framework-agnostic — no `react`,
   `react-native`, or DOM imports (its tsconfig uses `lib: ["esnext"]`, `types: []`, so even
   `console` is unavailable). Put types, blind/timer math, serialization, and the ad-gating
@@ -103,12 +119,15 @@ Mobile releases are batched on a short-lived branch per version, not shipped str
 ## Things that bite in this monorepo
 
 - **React must stay a single version across web + mobile — `19.2.3`, the version Expo bundles.**
-  It is declared in **three** places and all of them matter: `apps/mobile`, `apps/web`, and the
-  **root `package.json`**. The root one is the non-obvious one. `next` lives in the root
-  devDependencies (see the next bullet) and peer-depends on `react: ^18.2.0 || ^19.0.0`; if the root
-  declares no react of its own, npm satisfies that peer by fetching the newest match — measured
-  `19.2.8` — and hoists it, pushing each workspace's exact pin into a nested copy. That's **three
-  copies of React**, and hooks/context break across copies. To change React, bump all three together.
+  Declared exactly (no `^`, no `~`) in `apps/web` and `apps/mobile`, and **nowhere else**. Bump both
+  together. With those two pins and nothing declaring react at the root, npm hoists one copy and
+  both workspaces share it.
+  - **A root react declaration is what breaks this, not what fixes it.** While `next` sat in the
+    root devDependencies it peer-depended on `react: ^18.2.0 || ^19.0.0`, and with no root react to
+    satisfy that peer npm fetched the newest match (measured `19.2.8`), hoisted *that*, and pushed
+    both apps' exact pins into nested copies — **three copies of React**, which breaks hooks and
+    context. Adding react to the root papers over it; removing `next` from the root removes the
+    cause. Keep app dependencies out of the root and this doesn't arise.
 - **There are deliberately zero `overrides` in this repo. Keep it that way.** Every override that
   used to exist turned out to be masking a declaration we control, and each was removed by fixing
   the real cause:
@@ -142,8 +161,16 @@ Mobile releases are batched on a short-lived branch per version, not shipped str
   `eslint@^10`, so npm marked the whole tree `invalid` and a lockfile-free `npm install` failed
   outright — which silently breaks the clean-install step above. `npm ls --all | grep invalid`
   catches this class of thing.
-- **`next` must be a root `devDependency`** even though only `@poker/web` imports it — otherwise
-  `eslint-config-next` can't resolve `next` and web lint dies. Don't remove it.
+- **Nothing app-specific belongs in the root `package.json`.** Root carries only the workspace
+  config and the tooling that orchestrates all of them (`turbo`, plus `typescript` pinned once so
+  every workspace and the editor agree). `next`, `react` and `react-dom` were all declared there at
+  various points and none of them needed to be — see the React entry above for what that cost.
+  - The old rule here said `next` had to be a root devDependency or `eslint-config-next` couldn't
+    resolve it. **That is no longer true** (verified: web lint runs with 21 `@next/next/*` rules
+    active with no root `next`). `apps/web` declares `next` itself and npm hoists it to the root
+    `node_modules` regardless — a declaration was never what made it resolvable. If you hit a
+    resolution error, check `require.resolve('next/package.json', { paths: ['apps/web'] })` before
+    adding anything to the root.
 - **`@types/node` leaks to mobile via hoisting** — use `ReturnType<typeof setInterval>` for interval
   refs, not `number`.
 - **Metro monorepo config** is in `apps/mobile/metro.config.js`; if Metro can't resolve a hoisted
