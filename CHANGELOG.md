@@ -94,6 +94,11 @@ platform-tagged heading (e.g. `## [1.1.3] - 2026-07-20 — Android`) when you cu
   Pack/Timer contexts finish loading and a short settle window elapses, so the resize happens
   behind the splash instead of in the already-visible app. Capped at 4s so a stuck load can't hold
   the splash indefinitely.
+- Android: the Pause/Resume and Stop buttons on the collapsed foreground-service notification no
+  longer risk getting clipped at the bottom — shrank the button circles (36dp → 30dp) and their
+  padding, since `DecoratedCustomViewStyle` imposes its own overall height budget on the
+  system-drawn header plus our custom content combined, tighter on some devices/notification-shade
+  implementations than the previous size left room for.
 
 ## [1.1.3] - 2026-07-21 — iOS & Android
 
