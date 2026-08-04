@@ -4,9 +4,11 @@ import {
   KeyboardAvoidingView,
   Modal,
   Platform,
+  ScrollView,
   StyleSheet,
   Text,
   TouchableOpacity,
+  useWindowDimensions,
   View,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
@@ -32,6 +34,7 @@ export function Sheet({
   footer?: ReactNode;
 }) {
   const insets = useSafeAreaInsets();
+  const { height } = useWindowDimensions();
 
   return (
     <Modal
@@ -63,7 +66,19 @@ export function Sheet({
                 <Ionicons name="close" size={22} color={colors.textMuted} />
               </TouchableOpacity>
             </View>
-            {children}
+            {/* A scroller here is safe and deliberate: a Modal is its own
+                scroll context, so this is never nested inside the screen's
+                list. It only engages when the sheet's controls outgrow a short
+                screen; the footer stays pinned below it either way. */}
+            <ScrollView
+              style={{ maxHeight: height * 0.6 }}
+              contentContainerStyle={styles.scrollContent}
+              keyboardShouldPersistTaps="handled"
+              showsVerticalScrollIndicator={false}
+              bounces={false}
+            >
+              {children}
+            </ScrollView>
             {footer && <View style={styles.footer}>{footer}</View>}
           </View>
         </KeyboardAvoidingView>
@@ -101,5 +116,6 @@ const styles = StyleSheet.create({
     gap: space.md,
   },
   title: { ...text.cardTitle, flex: 1 },
+  scrollContent: { gap: space.lg, paddingBottom: space.xs },
   footer: { flexDirection: "row", gap: space.md },
 });

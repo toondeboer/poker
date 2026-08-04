@@ -22,12 +22,15 @@ export {
 } from "./blinds/mutateBlinds";
 export {
   CHIP_DENOMINATIONS,
+  CHIP_UNIT_OPTIONS,
+  DEFAULT_CHIP_UNIT,
   BLIND_SPEEDS,
   DEFAULT_BLIND_SPEED_ID,
   MIN_GENERATED_LEVELS,
   MAX_GENERATED_LEVELS,
   roundToChipDenomination,
   nextChipDenominationAbove,
+  inferSmallestChip,
   averageGrowthRate,
   generateBlindStructure,
 } from "./blinds/generateStructure";

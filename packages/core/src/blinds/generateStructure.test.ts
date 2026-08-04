@@ -3,6 +3,8 @@ import {
   BLIND_SPEEDS,
   BlindSpeedId,
   CHIP_DENOMINATIONS,
+  CHIP_UNIT_OPTIONS,
+  inferSmallestChip,
   MIN_GENERATED_LEVELS,
   MAX_GENERATED_LEVELS,
   averageGrowthRate,
@@ -12,10 +14,18 @@ import {
 } from "./generateStructure";
 
 const SPEEDS: BlindSpeedId[] = ["slow", "standard", "turbo"];
-const smalls = (speed: BlindSpeedId, levelCount = 14, startingSmallBlind = 5) =>
-  generateBlindStructure({ startingSmallBlind, levelCount, speed }).map(
-    (level) => level.small,
-  );
+const smalls = (
+  speed: BlindSpeedId,
+  levelCount = 14,
+  startingSmallBlind = 5,
+  smallestChip?: number,
+) =>
+  generateBlindStructure({
+    startingSmallBlind,
+    levelCount,
+    speed,
+    smallestChip,
+  }).map((level) => level.small);
 
 describe("CHIP_DENOMINATIONS", () => {
   it("is ascending, integer-only, and drops the non-integer 2.5 step", () => {
@@ -200,5 +210,109 @@ describe("generateBlindStructure", () => {
 
   it("returns a fresh array each call", () => {
     expect(generateBlindStructure(base)).not.toBe(generateBlindStructure(base));
+  });
+});
+
+describe("smallest-chip constraint", () => {
+  it.each(CHIP_UNIT_OPTIONS)(
+    "keeps every blind a multiple of the chip unit (%s)",
+    (chip) => {
+      for (const speed of SPEEDS) {
+        const levels = generateBlindStructure({
+          startingSmallBlind: chip,
+          levelCount: MAX_GENERATED_LEVELS,
+          speed,
+          smallestChip: chip,
+        });
+        for (const level of levels) {
+          expect(level.small % chip).toBe(0);
+          expect(level.big % chip).toBe(0);
+        }
+      }
+    },
+  );
+
+  it("advances by at least one chip between levels", () => {
+    for (const chip of CHIP_UNIT_OPTIONS) {
+      const levels = smalls("slow", 20, chip, chip);
+      for (let i = 1; i < levels.length; i += 1) {
+        expect(levels[i] - levels[i - 1]).toBeGreaterThanOrEqual(chip);
+      }
+    }
+  });
+
+  // The reported problem: a slow structure from 5 offered 6/12 as level 2,
+  // which can't be posted at a table whose smallest chip is a 5.
+  it("never emits an off-grid level like 6 when the chip is 5", () => {
+    const levels = smalls("slow", 12, 5, 5);
+    expect(levels).toEqual([5, 10, 15, 20, 25, 30, 40, 50, 60, 80, 100, 120]);
+    expect(levels).not.toContain(6);
+  });
+
+  it("reproduces a published casino sheet with 25-chips at slow speed", () => {
+    // Hollywood/standard sheet: 25/50, 50/100, 75/150, 100/200, 150/300,
+    // 200/400, 300/600, 400/800 — ours matches, with one extra rung at 125.
+    expect(smalls("slow", 12, 25, 25)).toEqual([
+      25, 50, 75, 100, 125, 150, 200, 250, 300, 400, 500, 600,
+    ]);
+  });
+
+  it("snaps a starting blind that is off the grid", () => {
+    expect(smalls("slow", 3, 7, 5)[0]).toBe(5);
+    expect(smalls("slow", 3, 13, 5)[0]).toBe(15);
+  });
+
+  it("is unconstrained by default, preserving the finer ladder", () => {
+    expect(smalls("slow", 4, 5)).toEqual([5, 6, 8, 10]);
+  });
+
+  it("still gives each speed a different structure on a coarse grid", () => {
+    const [slow, standard, turbo] = SPEEDS.map((s) => smalls(s, 14, 25, 25));
+    expect(slow).not.toEqual(standard);
+    expect(standard).not.toEqual(turbo);
+  });
+
+  it("treats a nonsensical chip unit as unconstrained", () => {
+    expect(smalls("slow", 4, 5, 0)).toEqual(smalls("slow", 4, 5, 1));
+    expect(smalls("slow", 4, 5, Number.NaN)).toEqual(smalls("slow", 4, 5, 1));
+  });
+});
+
+describe("inferSmallestChip", () => {
+  it("returns the largest offered unit dividing every blind", () => {
+    expect(
+      inferSmallestChip([
+        { small: 25, big: 50 },
+        { small: 50, big: 100 },
+      ]),
+    ).toBe(25);
+    expect(
+      inferSmallestChip([
+        { small: 5, big: 10 },
+        { small: 15, big: 30 },
+      ]),
+    ).toBe(5);
+    expect(
+      inferSmallestChip([
+        { small: 3, big: 6 },
+        { small: 7, big: 14 },
+      ]),
+    ).toBe(1);
+  });
+
+  it("round-trips with a generated structure", () => {
+    for (const chip of CHIP_UNIT_OPTIONS) {
+      const levels = generateBlindStructure({
+        startingSmallBlind: chip,
+        levelCount: 12,
+        speed: "slow",
+        smallestChip: chip,
+      });
+      expect(inferSmallestChip(levels)).toBeGreaterThanOrEqual(chip);
+    }
+  });
+
+  it("falls back to the default for an empty schedule", () => {
+    expect(inferSmallestChip([])).toBe(5);
   });
 });

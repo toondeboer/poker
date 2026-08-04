@@ -25,6 +25,12 @@ platform-tagged heading (e.g. `## [1.1.3] - 2026-07-20 — Android`) when you cu
   within each decade, and the top end is predictable — the sheet states how many levels it takes to
   reach 10×. Slow keeps every step in the 20–33% band recommended for keeping players from lurching
   between deep- and short-stacked.
+- Mobile: the generator takes a **smallest chip** (1 / 5 / 25 / 100), and every blind it produces is
+  a multiple of it — no more levels like 6/12 that can't be posted at a table whose smallest chip is
+  a 5. Where the next step would round back onto the previous level, the schedule advances by exactly
+  one chip instead. It's seeded from the structure you're already editing, so it usually needs no
+  thought. With 25-chips at slow speed this reproduces the standard casino sheet almost exactly:
+  25/50 → 50/100 → 75/150 → 100/200 → 125/250 → 150/300 → 200/400 → 250/500.
 - Mobile: tap a level number in the editor to jump the running tournament straight to that level
   (the web app has had this; mobile only had next/previous).
 - Mobile: the editor marks which level the tournament is currently on, and the Settings entry point

@@ -117,13 +117,44 @@ const nextLadderValue = (ladder: readonly number[], value: number): number => {
   return value * 2;
 };
 
+/**
+ * Smallest-chip values offered in the generator. A blind you can't physically
+ * make change for is useless at a real table: if the smallest chip on the table
+ * is a 5, a level of 6/12 can't be posted.
+ */
+export const CHIP_UNIT_OPTIONS: readonly number[] = [1, 5, 25, 100];
+
+export const DEFAULT_CHIP_UNIT = 5;
+
+/**
+ * The largest offered chip unit that divides every blind in `levels` — i.e. the
+ * smallest chip this schedule could actually have been dealt with. Used to seed
+ * the generator from the structure being edited instead of guessing.
+ */
+export const inferSmallestChip = (levels: BlindLevel[]): number => {
+  if (levels.length === 0) return DEFAULT_CHIP_UNIT;
+  let best = 1;
+  for (const unit of CHIP_UNIT_OPTIONS) {
+    const divides = levels.every(
+      (level) => level.small % unit === 0 && level.big % unit === 0,
+    );
+    if (divides) best = unit;
+  }
+  return best;
+};
+
 export type BlindStructureOptions = {
-  /** Small blind of level 1, used verbatim. Rounded and floored at 1. */
+  /** Small blind of level 1, snapped to `smallestChip` and floored at it. */
   startingSmallBlind: number;
   /** How many levels to produce. Clamped to [MIN_GENERATED_LEVELS, MAX_GENERATED_LEVELS]. */
   levelCount: number;
   /** How fast the blinds climb. */
   speed: BlindSpeedId;
+  /**
+   * Smallest chip denomination in play. Every blind is a multiple of this, and
+   * consecutive levels differ by at least one of it. Defaults to 1 (unconstrained).
+   */
+  smallestChip?: number;
   /** big = small × this. Defaults to 2. */
   bigBlindMultiplier?: number;
 };
@@ -135,11 +166,21 @@ const sanitize = (value: number, fallback: number): number =>
   Number.isFinite(value) ? value : fallback;
 
 /**
- * Build a blind schedule from a starting small blind, a level count and a speed.
+ * Build a blind schedule from a starting small blind, a level count, a speed and
+ * the smallest chip in play.
  *
- * Level 1 is exactly the small blind asked for; every level after it is the next
- * rung of the speed's ladder (see {@link BLIND_SPEEDS}), so the result is always
- * strictly increasing and always made of round, chip-friendly numbers.
+ * Level 1 is the small blind asked for; every level after it is the next rung of
+ * the speed's ladder (see {@link BLIND_SPEEDS}), so the result is always strictly
+ * increasing and always made of round numbers.
+ *
+ * `smallestChip` then constrains every blind to a multiple of itself — a level of
+ * 6/12 is unpostable at a table whose smallest chip is a 5. Where the ladder's
+ * next rung would round back onto the previous level, the schedule steps up by
+ * exactly one chip instead. That's why a slow structure from 5 with 5-chips opens
+ * 5 → 10 → 15 rather than 5 → 6 → 8: at those sizes one chip *is* the smallest
+ * possible raise, so the early percentage steps are necessarily larger. It
+ * settles into the ladder's own pace as soon as the blinds are big enough to
+ * express it.
  *
  * This is the *parameterised* generator behind the in-app structure generator.
  * The app's own default schedule stays `generateBlindLevels()` — a hand-tuned
@@ -163,16 +204,39 @@ export const generateBlindStructure = (
     1,
     sanitize(options.bigBlindMultiplier ?? 2, DEFAULT_BIG_BLIND_MULTIPLIER),
   );
+  const smallestChip = Math.max(
+    1,
+    Math.round(sanitize(options.smallestChip ?? 1, 1)),
+  );
   const ladder = ladderFor(options.speed);
 
+  /**
+   * Put `value` on the chip grid, never landing on or below `previous`. When
+   * rounding would collide, advance by exactly one chip — the smallest legal
+   * step — rather than skipping a whole ladder rung.
+   */
+  const snap = (value: number, previous?: number): number => {
+    const rounded = Math.max(
+      smallestChip,
+      Math.round(value / smallestChip) * smallestChip,
+    );
+    if (previous !== undefined && rounded <= previous) {
+      return previous + smallestChip;
+    }
+    return rounded;
+  };
+
   const levels: BlindLevel[] = [];
-  let small = startingSmallBlind;
+  let small = snap(startingSmallBlind);
   for (let i = 0; i < levelCount; i += 1) {
-    if (i > 0) small = nextLadderValue(ladder, small);
-    levels.push({
-      small,
-      big: Math.max(small + 1, Math.round(small * bigBlindMultiplier)),
-    });
+    if (i > 0) small = snap(nextLadderValue(ladder, small), small);
+    // Keep the big blind on the grid too — it holds automatically for the
+    // default ×2, but not for an arbitrary multiplier.
+    const big = Math.max(
+      small + smallestChip,
+      Math.round((small * bigBlindMultiplier) / smallestChip) * smallestChip,
+    );
+    levels.push({ small, big });
   }
   return levels;
 };

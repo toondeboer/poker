@@ -10,6 +10,8 @@ export { DurationField } from "./DurationField";
 export { Badge } from "./Badge";
 export type { BadgeTone } from "./Badge";
 export { ProPill } from "./ProPill";
+export { SegmentedControl } from "./SegmentedControl";
+export type { SegmentOption } from "./SegmentedControl";
 export { ListRow } from "./ListRow";
 export { NavRow } from "./NavRow";
 export { StickyFooter } from "./StickyFooter";
