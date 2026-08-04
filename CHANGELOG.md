@@ -96,6 +96,15 @@ platform-tagged heading (e.g. `## [1.1.3] - 2026-07-20 — Android`) when you cu
   fit has genuinely settled *and* the persisted timer state has loaded, then the splash lifts and
   the card appears in the same frame — so the first thing you see is the final layout. Capped at
   4s so a slow or stuck load can't hold the splash indefinitely.
+- Mobile: the card no longer resizes when the ad banner appears, which on iOS happened around half
+  a second after the app was already on screen (and on Android could be nearly three seconds in).
+  An adaptive banner has no height until it has loaded, so the slot used to jump from nothing to
+  full height under an already-visible layout; it now reserves that space up front, so the banner
+  arriving changes nothing.
+- Mobile: the auto-fit now converges in a couple of steps instead of visibly hunting for the right
+  size — its size estimate systematically overshot, so it used to ping-pong around the answer (11
+  steps in one measured case) and could come to rest on a size that still overflowed the screen
+  slightly.
 - Android: the Pause/Resume and Stop buttons on the collapsed foreground-service notification no
   longer risk getting clipped at the bottom — shrank the button circles (36dp → 30dp) and their
   padding, since `DecoratedCustomViewStyle` imposes its own overall height budget on the

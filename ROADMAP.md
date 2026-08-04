@@ -593,18 +593,51 @@ full design.
     In practice expo-router keeps the timer screen mounted across Settings navigation (verified: a
     Settings round-trip produced *zero* layout passes), so this is a safety net rather than the
     main mechanism.
-  - **The ad banner turned out not to be a contributor**, contrary to the original investigation's
-    assumption. `BannerAd` reports its size via `onSizeChange` (`360×56`) at +353ms — *before* the
-    fit settles — and the later `onAdLoaded` at +2031ms reports the identical size, causing no
-    reflow. So no ad-height reservation was needed; the earlier note about this being a separate
-    outstanding contributor was wrong.
-  - **Verified** on a 360×640dp Android emulator (`Android_small`, API 35, dev-client + Metro):
-    two cold launches both show all intermediate scale values landing before the reveal, and the
-    first visible frame at the final size. `npm run typecheck -w @poker/mobile` clean. Lint still
-    fails repo-wide on the pre-existing `expo/tsconfig.base` resolver error, unrelated to this.
-    Not re-verified on iOS this session (the mechanism is platform-agnostic JS, but the *timing*
-    that made the old approach fragile is platform-specific, so an iOS spot-check is still worth
-    doing).
+  - **The ad banner IS a contributor after all — fixed in a follow-up.** An initial Android run
+    made it look harmless (`onSizeChange` reported `360×56` at +353ms, *before* the fit settled),
+    but that was luck: the user then reported the resize still happening on iOS, and instrumenting
+    an iPhone showed `onAdLoaded` arriving at **+591ms *after* the reveal**, taking the slot from
+    0 → 63pt under an already-visible layout and kicking off **9 visible oscillating passes**.
+    A later Android run had the ad land at **+2799ms**, so the platform difference was really just
+    timing — both were exposed. `BannerAdSlot` now reserves the banner's height up front so the
+    slot is its final size on the very first layout pass and the ad arriving changes nothing.
+    - The SDK exposes no synchronous way to ask for an anchored adaptive banner's height, so it's
+      estimated as `min(90, max(50, round(width * 0.156)))` — Google clamps these to 50..90dp, and
+      the ratio matches both measurements exactly (402pt→63 on iOS, 360dp→56 on Android). It does
+      not need to be exact: the fit ignores scale deltas under `0.01`, which on a full-height
+      column absorbs roughly ±8pt, so a few points of error still produces no reflow. A real
+      banner's reported height is cached in-process to self-correct later mounts.
+    - **The reservation had to be gated on `isPremium` alone, not the full `shouldShowAds` policy.**
+      That policy is `!isPremium && consentResolved`, and `consentResolved` flips asynchronously
+      *after* the first layout pass — so keying the slot's existence on it just reintroduced the
+      same 0 → full-height jump one step earlier. Gating on `isPremium` (which starts `false`) gives
+      free users stable space from the first pass; only the `BannerAd` itself waits for consent.
+      A Pro user whose entitlement resolves late still sees the band collapse once, but that was
+      already true before — and worse, since the slot used to mount and load a real ad first.
+  - **Also fixed the convergence itself**, which the reveal gate had been hiding rather than
+    solving. The `measuredHeight / scale` estimate assumes height is linear in `scale` while
+    spacing uses `scale ** 3`, so every step overshot: the raw iteration ping-ponged around the
+    answer (measured 11 passes on iOS: `0.951 ↔ 0.991 ↔ 0.961 ↔ 0.982 …`) and terminated only by
+    scraping under the tolerance (`0.009` vs `0.01`) — on a scale that still overflowed the screen
+    by 8pt. Since the reveal now *waits* for settle, a device where that ping-pong didn't dip under
+    the threshold would have sat on the splash until the 4s ceiling, so this was a real risk the
+    gate introduced. Halving each step fixes it: the map's slope near the fit is ≈ -1, so a 0.5
+    damping factor drives the effective slope to ≈ 0. Convergence went **11 passes → 3 on iOS** and
+    **4 monotonic passes on Android** (no oscillation at all), and it now settles on a size that
+    actually fits (`measured 776.7 < avail 778`) rather than one 8pt over. The termination test
+    still uses the true undamped error, so the fixed point — and therefore the final visual result
+    and the tuned `MIN_SCALE`/`MIN_SPACING_SCALE` behaviour — is unchanged; only the path to it is.
+  - **Verified on both platforms** via timestamped `onLayout`/reveal/ad-load instrumentation
+    (dev-client + Metro), on a 360×640dp Android emulator (`Android_small`, API 35) and an
+    iPhone 17 simulator. Final runs: every intermediate scale lands before the reveal, and the ad
+    load (+677ms iOS, +2799ms Android) produces **zero** subsequent layout passes on either.
+    Confirmed visually on both, and a Settings round-trip still produces no layout passes.
+    `typecheck` and `prettier --check` clean. Lint still fails repo-wide on the pre-existing
+    `expo/tsconfig.base` resolver error, unrelated to this.
+  - Residual, not worth chasing unless it shows up: a Pro user whose RevenueCat entitlement
+    resolves *after* the reveal will see the reserved ad band collapse once. Gating the reveal on
+    entitlement resolution too would fix it, but would put every user's launch behind a network
+    call, so it wasn't done.
 
 ## Website landing page
 - 🔍 **Confirm contact email is correct** — currently `poker.blinds.buzzer@gmail.com`, hardcoded in
