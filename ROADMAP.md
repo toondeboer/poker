@@ -184,6 +184,18 @@ full design.
   OutOfMemory failure (worked around with `-x lintVitalAnalyzeRelease -x lintVitalReportRelease -x
   lintVitalRelease`, not a real bug — just constrained lint worker memory on this machine). The
   resulting release APK installs and runs cleanly on both stable-API AVDs above with no crash.
+  - **Update: this crash is now actually fixed, not just worked around** — see CLAUDE.md's
+    "Android dev-client builds" entry for the full root-cause writeup and fix
+    (`MainActivity.kt` now guards the affected `ReactActivityDelegate` lifecycle calls). Reported
+    live by the user via a real-device "Poker Timer keeps stopping" crash dialog; reproduced
+    reliably on an emulator (rapid `adb` force-stop/start cycles hit it 100% of the time, not just
+    as an occasional race), confirmed present on `release/1.1.4` **before** this fix (so unrelated
+    to the same-day splash-hold change under review in parallel), and confirmed gone (10/10 clean)
+    after it. Only verified against a **debug** dev-client build this session (matching how the
+    live-device report came in) — the underlying `ReactActivityDelegate`/`ReactActivityDelegateWrapper`
+    code path isn't dev-launcher-specific, so release builds are likely equally exposed to the same
+    narrow timing window, but that wasn't independently re-verified against a release build here;
+    the earlier release-APK testing above may simply not have hit the window in that session.
 - 🔍 **Physical-device spot-check (small phone + tablet, both platforms) still outstanding** —
   needs an actual device in hand, not attempted this session.
 - 🔍 **iOS Simulator touch-automation note (tooling limitation, not a product finding):**

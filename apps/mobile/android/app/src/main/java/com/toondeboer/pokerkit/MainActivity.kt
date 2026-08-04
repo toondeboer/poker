@@ -3,10 +3,12 @@ package com.toondeboer.pokerkit
 
 import expo.modules.splashscreen.SplashScreenManager
 
+import android.content.res.Configuration
 import android.os.Build
 import android.os.Bundle
 import android.content.Intent
 import android.content.pm.ActivityInfo
+import android.util.Log
 
 import com.facebook.react.ReactActivity
 import com.facebook.react.ReactActivityDelegate
@@ -62,6 +64,54 @@ class MainActivity : ReactActivity() {
             // Don't reset any state - just bring app to foreground
             // The React Native side will handle state restoration
         }
+    }
+
+    // Guards against a react-native crash (NullPointerException in
+    // ReactActivityDelegate, e.g. onUserLeaveHint/onPause/onResume/onDestroy/
+    // onActivityResult/onWindowFocusChanged/onConfigurationChanged) that fires when
+    // the activity is paused/resumed/reconfigured before the JS bridge has finished
+    // attaching (e.g. backgrounded within the first second of a cold, dev-client
+    // launch). Android's own Activity-level handling for each of these already runs
+    // (synchronously, first) inside super.<method>() before react-native's own call
+    // that can throw, so catching here only skips react-native's bookkeeping for an
+    // instance that was never attached — it does not skip any real Android lifecycle
+    // work. See ReactActivity.java in react-native, which ships as a prebuilt AAR
+    // (com.facebook.react:react-android) rather than being compiled from source here,
+    // so this can't be patched at the vendored-source level (e.g. via patch-package).
+    private inline fun guardReactLifecycle(name: String, block: () -> Unit) {
+        try {
+            block()
+        } catch (e: NullPointerException) {
+            Log.w("MainActivity", "Ignoring pre-ready react-native lifecycle exception in $name", e)
+        }
+    }
+
+    override fun onUserLeaveHint() {
+        guardReactLifecycle("onUserLeaveHint") { super.onUserLeaveHint() }
+    }
+
+    override fun onPause() {
+        guardReactLifecycle("onPause") { super.onPause() }
+    }
+
+    override fun onResume() {
+        guardReactLifecycle("onResume") { super.onResume() }
+    }
+
+    override fun onDestroy() {
+        guardReactLifecycle("onDestroy") { super.onDestroy() }
+    }
+
+    override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
+        guardReactLifecycle("onActivityResult") { super.onActivityResult(requestCode, resultCode, data) }
+    }
+
+    override fun onWindowFocusChanged(hasFocus: Boolean) {
+        guardReactLifecycle("onWindowFocusChanged") { super.onWindowFocusChanged(hasFocus) }
+    }
+
+    override fun onConfigurationChanged(newConfig: Configuration) {
+        guardReactLifecycle("onConfigurationChanged") { super.onConfigurationChanged(newConfig) }
     }
 
     /**
