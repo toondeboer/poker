@@ -35,6 +35,22 @@ export function useAppReady() {
   return useContext(AppReadyContext);
 }
 
+/**
+ * For screens that have no measure-and-rescale pass of their own: mounted is as
+ * settled as they get.
+ *
+ * Every route needs to report *something*, because expo-router can restore the
+ * last route on relaunch and the app is deep-linkable — a launch landing on a
+ * screen that never reports would sit behind the splash until the ceiling below
+ * fires. Only PokerTimer needs the real convergence-based report.
+ */
+export function useReportContentSettledOnMount() {
+  const { reportContentSettled } = useAppReady();
+  useEffect(() => {
+    reportContentSettled();
+  }, [reportContentSettled]);
+}
+
 // Ceiling so a screen that never reports (slow/failed data load, or a route that
 // doesn't participate at all) can't hold the splash — or its own content —
 // hidden indefinitely.

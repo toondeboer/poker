@@ -16,6 +16,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { formatTime, SITE_URL, SHARE_MESSAGE } from "@poker/core";
 import { useBlinds } from "@/src/contexts/BlindsContext";
 import { useTimer } from "@/src/contexts/TimerContext";
+import { isTabletWidth } from "@/src/theme";
 import { useRouter } from "expo-router";
 import { TimerExpirationAlert } from "./TimerExpirationAlert";
 import { BannerAdSlot } from "./ads/BannerAdSlot";
@@ -49,9 +50,13 @@ export default function PokerTimer() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { width: windowWidth, height: windowHeight } = useWindowDimensions();
-  const isTablet = windowWidth > 768;
+  const isTablet = isTabletWidth(windowWidth);
   const { currentBlindIndex, blindLevels, increaseBlinds, decreaseBlinds } =
     useBlinds();
+  // BlindsContext clamps the index on load and on apply, so this should always
+  // resolve — the fallback is belt-and-braces against a schedule/index mismatch
+  // ever reaching here, since an undefined read would crash the whole screen.
+  const currentBlindLevel = blindLevels[currentBlindIndex] ?? blindLevels[0];
   const {
     timeLeft,
     timerDuration,
@@ -249,7 +254,7 @@ export default function PokerTimer() {
                       Small Blind
                     </Text>
                     <Text style={[styles.blindValue, { fontSize: s(32) }]}>
-                      {blindLevels[currentBlindIndex].small}
+                      {currentBlindLevel.small}
                     </Text>
                   </View>
                   <View style={[styles.divider, { height: s(48) }]} />
@@ -258,7 +263,7 @@ export default function PokerTimer() {
                       Big Blind
                     </Text>
                     <Text style={[styles.blindValue, { fontSize: s(32) }]}>
-                      {blindLevels[currentBlindIndex].big}
+                      {currentBlindLevel.big}
                     </Text>
                   </View>
                 </View>

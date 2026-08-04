@@ -4,6 +4,8 @@ import {
   nextBlindIndex,
   previousBlindIndex,
   addBlindLevel,
+  insertBlindLevel,
+  duplicateBlindLevel,
   removeBlindLevel,
   updateBlindLevel,
 } from "./mutateBlinds";
@@ -48,6 +50,85 @@ describe("addBlindLevel", () => {
   it("does not mutate the input array", () => {
     const input = sample();
     addBlindLevel(input);
+    expect(input).toHaveLength(3);
+  });
+});
+
+describe("insertBlindLevel", () => {
+  it("appending is identical to addBlindLevel", () => {
+    const input = sample();
+    expect(insertBlindLevel(input, input.length)).toEqual(addBlindLevel(input));
+  });
+
+  it("clamps an out-of-range index to an append", () => {
+    const input = sample();
+    expect(insertBlindLevel(input, 99)).toEqual(addBlindLevel(input));
+  });
+
+  it("interpolates between neighbours when inserting in the middle", () => {
+    // Between 10/20 and 15/30 — midpoints 12.5 / 25, snapped chip-friendly.
+    const result = insertBlindLevel(sample(), 2);
+    expect(result).toHaveLength(4);
+    expect(result[2].small).toBeGreaterThan(10);
+    expect(result[2].small).toBeLessThan(15);
+    expect(result[2].big).toBeGreaterThan(20);
+    expect(result[2].big).toBeLessThan(30);
+    // The rest of the schedule is untouched and shifted down.
+    expect(result[3]).toEqual({ small: 15, big: 30 });
+  });
+
+  it("keeps the schedule strictly increasing after a middle insert", () => {
+    const result = insertBlindLevel(sample(), 1);
+    for (let i = 1; i < result.length; i += 1) {
+      expect(result[i].small).toBeGreaterThan(result[i - 1].small);
+    }
+  });
+
+  it("halves the first level when inserting at the front", () => {
+    const result = insertBlindLevel(sample(), 0);
+    expect(result).toHaveLength(4);
+    expect(result[0].small).toBeLessThan(5);
+    expect(result[1]).toEqual({ small: 5, big: 10 });
+  });
+
+  it("falls back to the lower neighbour when nothing fits between", () => {
+    const adjacent: BlindLevel[] = [
+      { small: 1, big: 2 },
+      { small: 2, big: 3 },
+    ];
+    expect(insertBlindLevel(adjacent, 1)[1]).toEqual({ small: 1, big: 2 });
+  });
+
+  it("does not mutate the input array", () => {
+    const input = sample();
+    insertBlindLevel(input, 1);
+    expect(input).toHaveLength(3);
+  });
+});
+
+describe("duplicateBlindLevel", () => {
+  it("inserts a copy directly after the source level", () => {
+    const result = duplicateBlindLevel(sample(), 1);
+    expect(result).toHaveLength(4);
+    expect(result[1]).toEqual({ small: 10, big: 20 });
+    expect(result[2]).toEqual({ small: 10, big: 20 });
+    expect(result[3]).toEqual({ small: 15, big: 30 });
+  });
+
+  it("copies rather than aliasing the source level", () => {
+    const result = duplicateBlindLevel(sample(), 0);
+    expect(result[1]).not.toBe(result[0]);
+  });
+
+  it("returns the input untouched for a bad index", () => {
+    const input = sample();
+    expect(duplicateBlindLevel(input, 9)).toBe(input);
+    expect(duplicateBlindLevel(input, -1)).toBe(input);
+  });
+
+  it("does not mutate the input array", () => {
+    const input = sample();
+    duplicateBlindLevel(input, 1);
     expect(input).toHaveLength(3);
   });
 });
