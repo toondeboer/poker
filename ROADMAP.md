@@ -664,12 +664,62 @@ full design.
   interop story.
 
 ## Settings page UX — blind levels
-- 🔍 **Confirmed scroll-inside-scroll** — `PokerSettings.tsx` (~line 344) has a fixed-height inner
-  `ScrollView` (`nestedScrollEnabled={true}`, a workaround rather than a fix) for the blind-level
-  list, nested inside the screen's outer `ScrollView` (~line 210). Redesign so blind levels aren't
-  a scrollable island inside a scrollable screen — options: let the blind-level list flow inline
-  in the outer scroll (drop the inner `ScrollView` entirely), or move blind-level editing to its
-  own dedicated screen/modal instead of a card on the settings screen.
+- ✅ **Fixed — blind editing moved to its own screen.** Of the two options originally listed
+  (inline the list in the outer scroll vs. a dedicated screen), the **dedicated screen** was taken:
+  inlining 30 level rows would have pushed Presets and Sound Pack far below the fold on the
+  Settings page. `PokerSettings.tsx` (956 lines, one file) is deleted; Settings is now
+  `components/settings/*` and blind editing is a new `/blinds` route
+  (`components/blinds/BlindStructureScreen.tsx`) whose only scroller is a single `FlatList`.
+  `nestedScrollEnabled` no longer appears anywhere in `apps/mobile/src` — verify with
+  `grep -rn "nestedScrollEnabled" apps/mobile/src`.
+  - **Apply now clamps instead of resetting.** `applyCustomBlindLevels()` used to set
+    `currentBlindIndex = 0`, so editing blinds mid-tournament silently restarted you at Level 1.
+    It now clamps the index into the new schedule (core's `clampBlindIndex`), and the Apply footer
+    warns first when the level you're on would be dropped. **That reset was load-bearing** —
+    `PokerTimer.tsx` indexes `blindLevels[currentBlindIndex]` directly and zeroing was the only
+    reason a shortened schedule couldn't crash it. Replaced by three things: the clamp on apply, a
+    matching clamp when the persisted state loads in `BlindsContext`, and a `?? blindLevels[0]`
+    fallback at the read site.
+  - **`loadBlindLevels` and `resetToDefaultBlinds` deliberately still reset to Level 1** — they
+    swap in a whole different setup (a saved preset, the factory default), where "Level 12" of the
+    structure you *were* playing is meaningless. Only editing the structure you're currently
+    playing preserves your place.
+  - New editor capabilities alongside the restructure: insert/duplicate a level at any position
+    (`insertBlindLevel`/`duplicateBlindLevel` in `@poker/core`), tap-to-jump the running tournament
+    to any level (`selectBlind`, mirroring web's `useWebBlinds`), and a structure generator
+    (`generateBlindStructure` — starting small blind × level count × speed).
+  - **The generator's growth model is a mantissa ladder, not a percentage — don't "simplify" it
+    back.** The first implementation used a flat multiplier (`1.25`/`1.4`/`1.75`) plus a rounding
+    pass onto chip denominations, with a monotonicity repair for when rounding collapsed a step.
+    At realistic starting blinds that repair fired on *every* level, so it walked the denomination
+    ladder (5→10→20→25→50→100…) regardless of the rate and **all three speeds returned
+    byte-identical schedules** — while also exploding to 10⁸ by level 30. The tests missed it
+    because they asserted "strictly increasing" and "is a chip denomination", both of which the
+    broken ladder-walk satisfied; `generateStructure.test.ts` now asserts the speeds *differ* and
+    are *ordered*. Replaced with how real published structures actually work (see the standard
+    casino sheet `25/50 → 50/100 → 75/150 → 100/200 → 150/300 → 200/400 → 300/600 → 400/800`,
+    whose ratios are 2.0, 1.5, 1.33, 1.5, 1.33, 1.5, 1.33 — round numbers first, not a constant
+    percentage): each speed is a ladder of round mantissas walked within a power of ten and wrapped
+    into the next. Ladder length is levels-per-10×, so the top end is bounded and predictable —
+    slow `[1, 1.2, 1.5, 2, 2.5, 3, 4, 5, 6, 8]` (10/decade, ≈+26%/level, matching WSOP-main-event
+    pace and the 20–33% band), standard `[1, 1.5, 2, 3, 4, 6]` (6/decade), turbo `[1, 2, 3, 5]`
+    (4/decade).
+  - Also landed with it: a shared theme module (`apps/mobile/src/theme`) and UI primitives
+    (`apps/mobile/src/components/ui`) — the app previously had no design system at all, every
+    style being hand-rolled hex. Values were lifted verbatim, so the token extraction itself is
+    visually a no-op. Emoji icon stubs replaced with Ionicons; round duration is now mm:ss.
+  - **Not verified on a device/emulator yet** — `typecheck`, `test` (117 core tests) and
+    `prettier --check` are clean, and `lint` fails only on the pre-existing `expo/tsconfig.base`
+    resolver error, but nothing here has been run visually. See the manual checklist in the PR.
+- ⬜ **Two known divergences deliberately left open by the above:**
+  - Web's `applyCustomBlindLevels` (`apps/web/src/hooks/useWebBlinds.ts`) still resets to index 0,
+    so mobile and web now behave differently on the same action. Mirror the clamp there when web
+    is next touched.
+  - iOS's scheduled "time's up" notification is only rebuilt on pause/resume
+    (`handleNotificationScheduling` in `TimerContext.tsx`), so after a level jump the pending
+    notification still names the *old* next blind. Pre-existing — `increaseBlinds`/`decreaseBlinds`
+    have always had it — but a 20-level jump makes it obvious. Fix by rescheduling on a
+    `currentBlindIndex`/`blindLevels` change while running.
 
 ## Pro feature: Leaderboard
 - ⬜ Track who's won the most games among a friend group (local group, not global/online ranking).

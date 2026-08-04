@@ -129,7 +129,11 @@ export function TimerProvider({ children }: Readonly<{ children: ReactNode }>) {
       await cancelNotification();
     } else {
       const nextBlindLevel = blindLevels[currentBlindIndex + 1];
-      await scheduleNotification(timeLeft, nextBlindLevel, effectiveSoundPackId);
+      await scheduleNotification(
+        timeLeft,
+        nextBlindLevel,
+        effectiveSoundPackId,
+      );
     }
   };
 
@@ -268,6 +272,45 @@ export function TimerProvider({ children }: Readonly<{ children: ReactNode }>) {
       await handleNotificationScheduling(false, timerDuration);
     }, 100);
   };
+
+  // iOS's "time's up" notification is scheduled ahead of time and names the
+  // *next* blind level, but it was only ever (re)built on pause/resume — so any
+  // other change to the level or the schedule mid-round left it announcing a
+  // blind that is no longer next. Pre-existing for the timer's Previous/Next
+  // buttons; jumping levels from the blind editor makes it obvious.
+  //
+  // Keyed on exactly what the notification says, so editing a level the player
+  // has already passed doesn't pointlessly reschedule.
+  const nextLevel = blindLevels[currentBlindIndex + 1];
+  const notificationKey = `${currentBlindIndex}:${nextLevel?.small ?? "-"}/${nextLevel?.big ?? "-"}`;
+  const lastNotificationKeyRef = useRef<string | null>(null);
+  // Read the remaining time through a ref so the effect below isn't in the
+  // dependency list of a value that changes every second. Written in its own
+  // effect rather than during render — a ref must not be touched while
+  // rendering (react-hooks/refs).
+  const timeLeftRef = useRef(timeLeft);
+  useEffect(() => {
+    timeLeftRef.current = timeLeft;
+  }, [timeLeft]);
+
+  useEffect(() => {
+    if (Platform.OS !== "ios" || isLoading) return;
+
+    const previous = lastNotificationKeyRef.current;
+    lastNotificationKeyRef.current = notificationKey;
+    // Skip the first pass: nothing has changed yet, and pause/resume owns the
+    // initial scheduling.
+    if (previous === null || previous === notificationKey) return;
+
+    // Only a running round has a pending notification worth correcting; a
+    // paused or finished one has none scheduled.
+    if (paused || !endTime || timeLeftRef.current <= 0) return;
+
+    void handleNotificationScheduling(false, timeLeftRef.current);
+    // `handleNotificationScheduling` is redefined every render; the key guard
+    // above is what actually decides whether this runs.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [notificationKey, paused, endTime, isLoading]);
 
   // Check if background activities are supported
   useEffect(() => {

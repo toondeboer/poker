@@ -10,6 +10,31 @@ platform-tagged heading (e.g. `## [1.1.3] - 2026-07-20 — Android`) when you cu
 ## [Unreleased]
 
 ### Added
+- Mobile: blind levels now have their own **Blind structure** screen, reached from Settings,
+  replacing the fixed-height scrollable list that was nested inside the scrolling Settings page
+  (a scroll-inside-a-scroll that made a 30-level schedule awkward to edit). The new screen is a
+  single list, so the whole schedule scrolls normally.
+- Mobile: a level can now be inserted or duplicated anywhere in the schedule, not just appended to
+  the end. New levels inserted between two others are interpolated from their neighbours and
+  rounded to chip-friendly numbers.
+- Mobile: a structure **generator** — pick a starting small blind, a number of levels and a speed
+  (Slow / Standard / Turbo), preview the result, and replace the whole schedule in one go instead
+  of hand-editing every row. It follows the way real published structures are built rather than a
+  flat percentage: each speed walks a ladder of round numbers (1, 1.5, 2, 3, 4, 6 …) that wraps
+  into the next power of ten, so every blind is a value you can make with chips, the steps ease off
+  within each decade, and the top end is predictable — the sheet states how many levels it takes to
+  reach 10×. Slow keeps every step in the 20–33% band recommended for keeping players from lurching
+  between deep- and short-stacked.
+- Mobile: the generator takes a **smallest chip** (1 / 5 / 25 / 100), and every blind it produces is
+  a multiple of it — no more levels like 6/12 that can't be posted at a table whose smallest chip is
+  a 5. Where the next step would round back onto the previous level, the schedule advances by exactly
+  one chip instead. It's seeded from the structure you're already editing, so it usually needs no
+  thought. With 25-chips at slow speed this reproduces the standard casino sheet almost exactly:
+  25/50 → 50/100 → 75/150 → 100/200 → 125/250 → 150/300 → 200/400 → 250/500.
+- Mobile: tap a level number in the editor to jump the running tournament straight to that level
+  (the web app has had this; mobile only had next/previous).
+- Mobile: the editor marks which level the tournament is currently on, and the Settings entry point
+  shows an "Unapplied changes" badge when the editor holds edits that haven't been applied yet.
 - Web: new `/guide` page — "How to Run a Home Poker Tournament" — covering buy-ins, blind
   structures, payouts, and a blind-structure explainer, with `HowTo`/`FAQPage` structured data.
   Cross-linked from `/timer`.
@@ -29,6 +54,22 @@ platform-tagged heading (e.g. `## [1.1.3] - 2026-07-20 — Android`) when you cu
   always catches it up correctly).
 
 ### Changed
+- Mobile: applying edited blind levels now **keeps your place in the tournament** instead of
+  silently restarting at Level 1 — the current level is clamped into the new schedule, and you're
+  only moved (to the new last level) if the level you were on no longer exists, which the Apply
+  button warns about before you confirm. Loading a preset or resetting to defaults still restarts
+  at Level 1, since those replace the whole tournament setup rather than editing the one you're
+  playing.
+- Mobile: round duration is now a minutes + seconds pair rather than a raw seconds field, and
+  applies as you edit instead of needing a separate "Save Timer Settings" button. Changing it
+  mid-round no longer requires a save step and still leaves a running round's remaining time alone.
+- Mobile: Settings redesigned — Pro, Tournament (round length + blind structure), Presets and Sound
+  Pack sections built on a shared theme and real icons instead of emoji placeholders, with the Pro
+  card collapsing to a single line once unlocked.
+- Mobile: numeric fields no longer turn into a literal `0` when you clear them — an empty field
+  stays empty while you retype, and reverts to its previous value if you leave it blank.
+- Mobile: saving a preset now captures the *active* blind structure rather than the editor's
+  working copy, so a preset can't silently record edits you never applied.
 - Mobile: recolored the Android foreground-service notification and iOS Live Activity/Dynamic
   Island to match the app's own timer palette (`#10B981` green / `#F59E0B` amber / `#DC2626` red)
   instead of each platform's own approximate shades — the iOS Live Activity's Pause/Resume button

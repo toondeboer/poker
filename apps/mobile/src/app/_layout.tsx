@@ -56,6 +56,13 @@ export default function RootLayout() {
                         headerBackTitle: "Back",
                       }}
                     />
+                    <Stack.Screen
+                      name="blinds"
+                      options={{
+                        title: "Blind structure",
+                        headerBackTitle: "Settings",
+                      }}
+                    />
                   </Stack>
                 </AppReadyGate>
               </TimerProvider>
