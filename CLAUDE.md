@@ -102,30 +102,41 @@ Mobile releases are batched on a short-lived branch per version, not shipped str
 
 ## Things that bite in this monorepo
 
-- **React must stay a single version across web + mobile** — root `package.json` `overrides` pin
-  `react`/`react-dom` to `19.2.3` (the version Expo bundles). Both apps also *declare* `19.2.3`
-  exactly, but that isn't enough on its own: transitive `^19` ranges hoist a newer patch to the root
-  while each app keeps its pin nested, giving **three** copies (measured: root `19.2.8`,
-  `apps/web` `19.2.3`, `apps/mobile` `19.2.3`). The override is what collapses that to one.
-  To change React, bump web + mobile + the overrides together, then clean-install.
-  - **These two overrides are the only ones that should exist.** `@types/react`/`@types/react-dom`
-    used to be overridden too; the actual cause was `apps/web` declaring `^19` against
-    `apps/mobile`'s `~19.2.0`. Both apps now declare `~19.2.0`/`~19.2`, which fixes it at source —
-    keep them in step rather than reaching for an override. A `postcss` override also existed for
-    an advisory upstream has since fixed; it was removed once it started forcing Next off its own
-    exact pin. **Before adding an override, check whether a declaration you control is the real
-    cause** — and record an exit condition for any you do add.
-  - **Verify override changes from a deleted lockfile, not an existing one.** The committed
-    lockfile already encodes the correct resolutions, so removing an override against it appears to
-    change nothing. Only `rm -rf node_modules package-lock.json && npm install` reveals what the
-    overrides are actually doing — but treat the regenerated lockfile as a throwaway diagnostic:
-    a from-scratch resolve pulls newer transitives and has been observed introducing duplicate
-    *native* modules (`expo-constants`, `react-native-screens`, `expo-asset`). Restore the committed
-    lockfile afterwards and let `npm install` adjust it minimally.
-  - Check the result with `npx expo-doctor` in `apps/mobile` — its "no duplicate dependencies"
-    check is the authority here. **Clean the expo shims first** (below), or that check crashes with
-    a misleading `ENOENT` on `apps/mobile/node_modules/expo-constants/package.json` and reports as
-    a failure that has nothing to do with duplicates.
+- **React must stay a single version across web + mobile — `19.2.3`, the version Expo bundles.**
+  It is declared in **three** places and all of them matter: `apps/mobile`, `apps/web`, and the
+  **root `package.json`**. The root one is the non-obvious one. `next` lives in the root
+  devDependencies (see the next bullet) and peer-depends on `react: ^18.2.0 || ^19.0.0`; if the root
+  declares no react of its own, npm satisfies that peer by fetching the newest match — measured
+  `19.2.8` — and hoists it, pushing each workspace's exact pin into a nested copy. That's **three
+  copies of React**, and hooks/context break across copies. To change React, bump all three together.
+- **There are deliberately zero `overrides` in this repo. Keep it that way.** Every override that
+  used to exist turned out to be masking a declaration we control, and each was removed by fixing
+  the real cause:
+  - `react`/`react-dom` → the root declaration above, not an override.
+  - `@types/react`/`@types/react-dom` → `apps/web` declared `^19` against `apps/mobile`'s
+    `~19.2.0`, so npm could satisfy them separately. Both now declare `~19.2.0`/`~19.2`; keep them
+    in step.
+  - `postcss` → added for an advisory upstream has since fixed. It had started forcing Next off
+    `postcss: 8.5.23`, a version Next pins exactly and tests against.
+
+  **Before adding an override, find which declaration is actually causing the conflict** — in a
+  workspace repo it is usually one of ours. If you genuinely must add one, write down the condition
+  under which it can be removed, or it will outlive its purpose unnoticed like `postcss` did.
+- **Verify any dependency-resolution change from a deleted lockfile — then throw that lockfile
+  away.** The committed `package-lock.json` already encodes the correct resolutions, so a change
+  that removes a pin appears to change nothing when tested against it. Only
+  `rm -rf node_modules package-lock.json && npm install` shows what the declarations really produce.
+  But **do not commit the regenerated lockfile**: a from-scratch resolve pulls newer transitives and
+  has been observed introducing duplicate *native* modules (`expo-constants`, `react-native-screens`,
+  `expo-asset`). Once you've read the result, `git checkout -- package-lock.json` and re-run
+  `npm install` so the committed lockfile is adjusted minimally instead of rewritten.
+  - Check with `npx expo-doctor` in `apps/mobile` — its "no duplicate dependencies" check is the
+    authority. **Clean the expo shims immediately before running it** (below), or it crashes with a
+    misleading `ENOENT` on `apps/mobile/node_modules/expo-constants/package.json` and reports as a
+    failure unrelated to duplicates. `npm ls --all | grep -c invalid` should be `0`; if it isn't,
+    check for shims before believing it — they show up as `invalid` `expo`/`expo-constants`/
+    `expo-dev-launcher` entries. Note `npm install` itself re-plants the shims, so clean *after*
+    installing, not before.
 - **Keep every workspace's `eslint` and `@eslint/js` on the same major.** `packages/core` once
   declared `@eslint/js: ^10.0.1` beside `eslint: ^9.39.4`; `@eslint/js@10` peer-requires
   `eslint@^10`, so npm marked the whole tree `invalid` and a lockfile-free `npm install` failed
