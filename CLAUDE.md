@@ -7,6 +7,22 @@ and [ARCHITECTURE.md](./ARCHITECTURE.md) for the full design.
 
 - **npm workspaces + Turborepo.** Always `npm install` from the **repo root** (one lockfile);
   don't introduce yarn/pnpm. Target one workspace with `npm run <script> -w @poker/<core|web|mobile>`.
+- **Where a dependency goes: the workspace that imports it, and nowhere else.**
+  - **Root** — workspace config and cross-cutting tooling only (`turbo`; `typescript` pinned once so
+    every workspace and the editor agree). **Never app dependencies.** A package declared at the
+    root has its peers resolved in the root's context, which is how a stray `next` there floated a
+    second React (see below).
+  - **`apps/*`** — everything that app imports. `dependencies` = needed to run or build the shipped
+    artifact; `devDependencies` = tooling that never ends up in it (`@types/*`, `eslint*`,
+    `@babel/core`, `tailwindcss`). On mobile this is not cosmetic: anything Metro must bundle has
+    to be a real `dependency`.
+  - **`packages/core`** — devDependencies only, because it has no runtime dependencies at all and
+    should stay that way. If it ever needs one, it goes in `dependencies`; anything the *host* app
+    must supply belongs in `peerDependencies`, never `dependencies`.
+  - **Duplication between workspaces is fine and correct** — both apps declaring `react` is how
+    npm knows to hoist one shared copy. Don't "deduplicate" by lifting a shared dep to the root.
+  - Every workspace is `private: true`. None of them are published; `@poker/core` is consumed
+    through the workspace protocol.
 - **Shared logic goes in `@poker/core`** and must stay framework-agnostic — no `react`,
   `react-native`, or DOM imports (its tsconfig uses `lib: ["esnext"]`, `types: []`, so even
   `console` is unavailable). Put types, blind/timer math, serialization, and the ad-gating
@@ -16,6 +32,24 @@ and [ARCHITECTURE.md](./ARCHITECTURE.md) for the full design.
   and `EntitlementProvider` for Pro). Add a web no-op for mobile-only features (Live Activities,
   foreground service, push) instead of importing native modules on web.
 - **Imports:** cross-package → `@poker/core`; within mobile → `@/src/...`; within web → `@/...`.
+- **Mobile styling goes through the theme, not hardcoded hex.** `apps/mobile/src/theme` holds the
+  colour/spacing/radius/typography tokens and `isTabletWidth`; `apps/mobile/src/components/ui` holds
+  the shared primitives (`Card`, `Button`, `IconButton`, `TextField`, `NumberField`,
+  `DurationField`, `Badge`, `ProPill`, `ListRow`, `NavRow`, `SegmentedControl`, `StickyFooter`,
+  `Sheet`). Reach for those before writing a new `StyleSheet.create` full of literals — the app had
+  no design system until the Settings redesign and every screen re-derived the same palette by hand.
+  `PokerTimer.tsx` is the deliberate exception: it does its own measure-and-rescale layout.
+- **Numeric inputs use `NumberField`**, which keeps the raw string while editing. Binding a
+  `TextInput` straight to `Number(text)` makes a cleared field show a literal `0` that the user has
+  to select and overwrite.
+- **Only one scroller per screen.** Settings is a single `ScrollView`, the blind editor a single
+  `FlatList`. A nested scroll region (`nestedScrollEnabled`) was the defect the Settings redesign
+  removed — don't reintroduce one. A `ScrollView` inside a `Modal`/`Sheet` is fine: a modal is its
+  own scroll context.
+- **React lint rules are enforced as errors**, not warnings: no writing refs during render
+  (`react-hooks/refs`) and no `setState` in an effect body (`react-hooks/set-state-in-effect`). To
+  sync state from a prop, adjust it during render behind a previous-value comparison rather than in
+  a `useEffect` — see `DurationField` and `GenerateStructureSheet`.
 
 ## Release process
 
@@ -84,13 +118,59 @@ Mobile releases are batched on a short-lived branch per version, not shipped str
 
 ## Things that bite in this monorepo
 
-- **React must stay a single version across web + mobile** — root `package.json` `overrides` pin
-  `react`/`react-dom` (currently `19.2.3`, the version Expo bundles) and `@types/react`/
-  `@types/react-dom` (`~19.2`). Without the runtime overrides, `next`'s peer range floats a second
-  React copy and `expo-doctor` flags a duplicate. To change React, bump web + mobile + the overrides
-  together, then clean-install (`rm -rf node_modules package-lock.json && npm install`).
-- **`next` must be a root `devDependency`** even though only `@poker/web` imports it — otherwise
-  `eslint-config-next` can't resolve `next` and web lint dies. Don't remove it.
+- **React must stay a single version across web + mobile — `19.2.3`, the version Expo bundles.**
+  Declared exactly (no `^`, no `~`) in `apps/web` and `apps/mobile`, and **nowhere else**. Bump both
+  together. With those two pins and nothing declaring react at the root, npm hoists one copy and
+  both workspaces share it.
+  - **A root react declaration is what breaks this, not what fixes it.** While `next` sat in the
+    root devDependencies it peer-depended on `react: ^18.2.0 || ^19.0.0`, and with no root react to
+    satisfy that peer npm fetched the newest match (measured `19.2.8`), hoisted *that*, and pushed
+    both apps' exact pins into nested copies — **three copies of React**, which breaks hooks and
+    context. Adding react to the root papers over it; removing `next` from the root removes the
+    cause. Keep app dependencies out of the root and this doesn't arise.
+- **There are deliberately zero `overrides` in this repo. Keep it that way.** Every override that
+  used to exist turned out to be masking a declaration we control, and each was removed by fixing
+  the real cause:
+  - `react`/`react-dom` → the root declaration above, not an override.
+  - `@types/react`/`@types/react-dom` → `apps/web` declared `^19` against `apps/mobile`'s
+    `~19.2.0`, so npm could satisfy them separately. Both now declare `~19.2.0`/`~19.2`; keep them
+    in step.
+  - `postcss` → added for an advisory upstream has since fixed. It had started forcing Next off
+    `postcss: 8.5.23`, a version Next pins exactly and tests against.
+
+  **Before adding an override, find which declaration is actually causing the conflict** — in a
+  workspace repo it is usually one of ours. If you genuinely must add one, write down the condition
+  under which it can be removed, or it will outlive its purpose unnoticed like `postcss` did.
+- **Verify any dependency-resolution change from a deleted lockfile — then throw that lockfile
+  away.** The committed `package-lock.json` already encodes the correct resolutions, so a change
+  that removes a pin appears to change nothing when tested against it. Only
+  `rm -rf node_modules package-lock.json && npm install` shows what the declarations really produce.
+  But **do not commit the regenerated lockfile**: a from-scratch resolve pulls newer transitives and
+  has been observed introducing duplicate *native* modules (`expo-constants`, `react-native-screens`,
+  `expo-asset`). Once you've read the result, `git checkout -- package-lock.json` and re-run
+  `npm install` so the committed lockfile is adjusted minimally instead of rewritten.
+  - Check with `npx expo-doctor` in `apps/mobile` — its "no duplicate dependencies" check is the
+    authority. **Clean the expo shims immediately before running it** (below), or it crashes with a
+    misleading `ENOENT` on `apps/mobile/node_modules/expo-constants/package.json` and reports as a
+    failure unrelated to duplicates. `npm ls --all | grep -c invalid` should be `0`; if it isn't,
+    check for shims before believing it — they show up as `invalid` `expo`/`expo-constants`/
+    `expo-dev-launcher` entries. Note `npm install` itself re-plants the shims, so clean *after*
+    installing, not before.
+- **Keep every workspace's `eslint` and `@eslint/js` on the same major.** `packages/core` once
+  declared `@eslint/js: ^10.0.1` beside `eslint: ^9.39.4`; `@eslint/js@10` peer-requires
+  `eslint@^10`, so npm marked the whole tree `invalid` and a lockfile-free `npm install` failed
+  outright — which silently breaks the clean-install step above. `npm ls --all | grep invalid`
+  catches this class of thing.
+- **Nothing app-specific belongs in the root `package.json`.** Root carries only the workspace
+  config and the tooling that orchestrates all of them (`turbo`, plus `typescript` pinned once so
+  every workspace and the editor agree). `next`, `react` and `react-dom` were all declared there at
+  various points and none of them needed to be — see the React entry above for what that cost.
+  - The old rule here said `next` had to be a root devDependency or `eslint-config-next` couldn't
+    resolve it. **That is no longer true** (verified: web lint runs with 21 `@next/next/*` rules
+    active with no root `next`). `apps/web` declares `next` itself and npm hoists it to the root
+    `node_modules` regardless — a declaration was never what made it resolvable. If you hit a
+    resolution error, check `require.resolve('next/package.json', { paths: ['apps/web'] })` before
+    adding anything to the root.
 - **`@types/node` leaks to mobile via hoisting** — use `ReturnType<typeof setInterval>` for interval
   refs, not `number`.
 - **Metro monorepo config** is in `apps/mobile/metro.config.js`; if Metro can't resolve a hoisted
@@ -117,7 +197,18 @@ Mobile releases are batched on a short-lived branch per version, not shipped str
   `node_modules/expo-dev-client/node_modules/expo-dev-launcher` and directly under
   `apps/mobile/node_modules/{expo,expo-constants,expo-modules-autolinking}`. These shadow the
   real, correctly-hoisted copies at root `node_modules/` for *any* Node-based resolution,
-  including CocoaPods' iOS autolinking. Symptoms: Android — `Project with path
+  including CocoaPods' iOS autolinking. **Two of the symptoms don't look like the shim bug at all,
+  and will send you down the wrong path if you don't know them:**
+  - `npm run lint` dies with `Error: File 'expo/tsconfig.base' not found.` and exit code 2 — the
+    broken `apps/mobile/node_modules/expo` shadows the real hoisted copy, so `expo lint` can't load
+    its own config. **It fails before running a single rule**, so this reads as "lint is broken
+    repo-wide" and is easy to mistake for a pre-existing condition to baseline against. It isn't:
+    CI installs cleanly and lints fine, so **CI is the source of truth if local lint disagrees**.
+  - `npx expo-doctor`'s "no duplicate dependencies" check crashes with
+    `ENOENT ... apps/mobile/node_modules/expo-constants/package.json` and is reported as a *failed
+    check*, which looks like a real duplicate-dependency problem.
+  Both clear instantly with `node apps/mobile/scripts/clean-expo-shims.js`. Run that first whenever
+  lint or expo-doctor behaves strangely. The rest of the symptoms: Android — `Project with path
   ':expo-dev-launcher' could not be found in project ':expo-dev-client'` (surfaces once the Gradle
   daemon/cache goes cold; harmless while warm). iOS — `expo-modules-autolinking resolve -p ios`
   silently omits the `expo` package (every other `expo-*` package resolves fine), so `pod install`
