@@ -55,7 +55,12 @@ export function Button({
           color={tone.label.color}
         />
       )}
-      <Text style={[styles.label, size === "sm" && styles.labelSm, tone.label]}>
+      {/* One line, always. Wrapping produced a ragged two-line block with the
+          icon floating against its vertical centre — worse than shrinking. */}
+      <Text
+        numberOfLines={1}
+        style={[styles.label, size === "sm" && styles.labelSm, tone.label]}
+      >
         {label}
       </Text>
     </TouchableOpacity>
@@ -121,6 +126,15 @@ const styles = StyleSheet.create({
   sizeSm: { paddingVertical: space.sm, paddingHorizontal: space.md },
   fullWidth: { alignSelf: "stretch" },
   disabled: { opacity: 0.5 },
-  label: { fontSize: 16, fontWeight: "500" },
+  label: {
+    fontSize: 16,
+    fontWeight: "500",
+    // Android adds extra vertical padding inside the text box by default, which
+    // pushes the label a couple of pixels below the icon it sits next to.
+    includeFontPadding: false,
+    textAlignVertical: "center",
+    // Let a long label give up space rather than force the row to wrap.
+    flexShrink: 1,
+  },
   labelSm: { fontSize: 14, fontWeight: "600" },
 });

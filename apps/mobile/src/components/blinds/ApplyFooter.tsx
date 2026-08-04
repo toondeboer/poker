@@ -29,18 +29,16 @@ export function ApplyFooter({
         </Text>
       )}
       <View style={styles.buttons}>
-        <Button
-          label="Discard"
-          variant="ghost"
-          onPress={onDiscard}
-          style={styles.button}
-        />
+        {/* Discard takes only the width its word needs so the primary action
+            keeps room for "Apply changes" + its icon on one line. Splitting the
+            row evenly truncated it to "Apply chang…" on a 360dp phone. */}
+        <Button label="Discard" variant="ghost" onPress={onDiscard} />
         <Button
           label="Apply changes"
           variant="success"
           icon="checkmark"
           onPress={onApply}
-          style={styles.button}
+          style={styles.primaryButton}
         />
       </View>
     </StickyFooter>
@@ -50,5 +48,5 @@ export function ApplyFooter({
 const styles = StyleSheet.create({
   warning: { ...text.meta, color: colors.pro, lineHeight: 17 },
   buttons: { flexDirection: "row", gap: space.md },
-  button: { flex: 1 },
+  primaryButton: { flex: 1 },
 });

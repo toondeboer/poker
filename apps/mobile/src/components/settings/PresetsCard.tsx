@@ -29,11 +29,15 @@ export function PresetsCard({
   onRequestPro,
   scrollViewRef,
   scrollOffsetRef,
+  containerRef,
+  bottomInset,
   style,
 }: {
   onRequestPro: () => void;
   scrollViewRef: RefObject<ScrollView | null>;
   scrollOffsetRef: RefObject<number>;
+  containerRef: RefObject<View | null>;
+  bottomInset: number;
   style?: StyleProp<ViewStyle>;
 }) {
   const { isPremium } = usePremium();
@@ -45,6 +49,8 @@ export function PresetsCard({
   const { targetRef, setActive } = useKeyboardNudge({
     scrollViewRef,
     scrollOffsetRef,
+    containerRef,
+    bottomInset,
   });
 
   const canSavePreset = isValidPresetName(presetName, presets);

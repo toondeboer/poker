@@ -31,9 +31,12 @@ export function SettingsScreen() {
   // screen's scroller, which lives at this level.
   const scrollViewRef = useRef<ScrollView>(null);
   const scrollOffsetRef = useRef(0);
+  // Measured by useKeyboardNudge: on Android this shrinks with the window when
+  // the keyboard opens, which is the only reliable read of the visible area.
+  const containerRef = useRef<View>(null);
 
   return (
-    <View style={styles.container}>
+    <View style={styles.container} ref={containerRef}>
       <ScrollView
         ref={scrollViewRef}
         style={styles.scrollView}
@@ -66,6 +69,8 @@ export function SettingsScreen() {
             onRequestPro={openPaywall}
             scrollViewRef={scrollViewRef}
             scrollOffsetRef={scrollOffsetRef}
+            containerRef={containerRef}
+            bottomInset={insets.bottom}
             style={isTablet && styles.pairItem}
           />
         </View>

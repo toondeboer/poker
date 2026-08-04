@@ -28,7 +28,12 @@ export function useWebBlinds() {
     let active = true;
     blindsStorage.loadBlindsState().then((saved) => {
       if (!active) return;
-      setCurrentBlindIndex(saved.currentBlindIndex);
+      // Clamp on the way in: PokerTimer indexes `blindLevels[currentBlindIndex]`
+      // directly, so a stored index pointing past a stored schedule would render
+      // `undefined`. Matches mobile's `BlindsContext`.
+      setCurrentBlindIndex(
+        clampBlindIndex(saved.currentBlindIndex, saved.blindLevels.length),
+      );
       setBlindLevels(saved.blindLevels);
       setCustomBlindLevels(saved.customBlindLevels);
       setIsLoading(false);
@@ -78,13 +83,24 @@ export function useWebBlinds() {
       ),
     [],
   );
+  /**
+   * Make the draft active, keeping the player's place in the tournament: the
+   * index is clamped into the new schedule rather than reset to 0. Editing the
+   * structure you're currently playing shouldn't restart it. Kept deliberately
+   * in step with mobile's `BlindsContext.applyCustomBlindLevels`.
+   */
   const applyCustomBlindLevels = useCallback(() => {
     setCustomBlindLevels((levels) => {
-      setBlindLevels([...levels]);
+      const next = [...levels];
+      setBlindLevels(next);
+      setCurrentBlindIndex((index) => clampBlindIndex(index, next.length));
       return levels;
     });
-    setCurrentBlindIndex(0);
   }, []);
+  /**
+   * Unlike `applyCustomBlindLevels`, this swaps in a whole different setup, so
+   * the old level number is meaningless — restart at level 1.
+   */
   const resetToDefaultBlinds = useCallback(() => {
     const defaults = generateBlindLevels();
     setCustomBlindLevels(defaults);

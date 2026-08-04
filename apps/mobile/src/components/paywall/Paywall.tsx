@@ -8,6 +8,7 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { usePremium } from "@/src/contexts/PremiumContext";
 
 const PRO_FEATURES = [
@@ -29,6 +30,7 @@ export function Paywall({
   visible: boolean;
   onClose: () => void;
 }) {
+  const insets = useSafeAreaInsets();
   const { isPremium, purchasing, proPriceString, purchasePro, restore } =
     usePremium();
   const [error, setError] = useState<string | null>(null);
@@ -49,10 +51,17 @@ export function Paywall({
       visible={visible}
       animationType="slide"
       transparent
+      // Without these, Android stops the modal window above the navigation bar
+      // and the screen behind shows through in the gap below the sheet. Both are
+      // required together — RN warns otherwise.
+      statusBarTranslucent
+      navigationBarTranslucent
       onRequestClose={onClose}
     >
       <View style={styles.backdrop}>
-        <View style={styles.sheet}>
+        {/* The modal now reaches the screen edge, so the sheet has to keep its
+            own content clear of the gesture bar / navigation bar itself. */}
+        <View style={[styles.sheet, { paddingBottom: 36 + insets.bottom }]}>
           <Text style={styles.title}>Poker Blinds Buzzer Pro</Text>
           <Text style={styles.subtitle}>One-time unlock. Yours forever.</Text>
 

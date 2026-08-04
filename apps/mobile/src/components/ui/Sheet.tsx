@@ -41,6 +41,13 @@ export function Sheet({
       visible={visible}
       animationType="slide"
       transparent
+      // Android renders a Modal in its own window, which by default stops above
+      // the navigation bar — leaving a strip at the bottom where the screen
+      // behind shows through below the sheet. These make the modal window go
+      // edge-to-edge like the rest of the app. RN warns if the navigation bar is
+      // made translucent without the status bar, so both are required.
+      statusBarTranslucent
+      navigationBarTranslucent
       onRequestClose={onClose}
     >
       <View style={styles.backdrop}>

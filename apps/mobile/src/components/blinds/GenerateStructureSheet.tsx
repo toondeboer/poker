@@ -122,18 +122,16 @@ export function GenerateStructureSheet({
       title="Generate structure"
       footer={
         <>
-          <Button
-            label="Cancel"
-            variant="ghost"
-            onPress={onClose}
-            style={styles.footerButton}
-          />
+          {/* Cancel takes only the width its word needs, so the primary action
+              keeps enough room for "Replace structure" + its icon on one line
+              even on a 360dp phone. Splitting the row evenly wrapped it. */}
+          <Button label="Cancel" variant="ghost" onPress={onClose} />
           <Button
             label="Replace structure"
             variant="success"
             icon="sparkles"
             onPress={handleGenerate}
-            style={styles.footerButton}
+            style={styles.primaryFooterButton}
           />
         </>
       }
@@ -210,5 +208,5 @@ const styles = StyleSheet.create({
     padding: space.md,
   },
   helper: text.meta,
-  footerButton: { flex: 1 },
+  primaryFooterButton: { flex: 1 },
 });
