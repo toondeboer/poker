@@ -1,5 +1,5 @@
 // src/components/ui/DurationField.tsx
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { StyleSheet, Text, View } from "react-native";
 import { formatTime, joinDuration, splitDuration } from "@poker/core";
 import { space, text } from "@/src/theme";
@@ -21,10 +21,15 @@ export function DurationField({
 }) {
   const [parts, setParts] = useState(() => splitDuration(seconds));
 
-  // Re-sync when the duration changes elsewhere (loading a preset).
-  useEffect(() => {
+  // Re-sync when the duration changes elsewhere (loading a preset). Adjusting
+  // state during render rather than in an effect: React re-runs this component
+  // immediately without committing the intermediate result, so there's no
+  // cascading render — the effect version showed a stale value for one frame.
+  const [syncedSeconds, setSyncedSeconds] = useState(seconds);
+  if (syncedSeconds !== seconds) {
+    setSyncedSeconds(seconds);
     setParts(splitDuration(seconds));
-  }, [seconds]);
+  }
 
   const commit = (next: { minutes: number; seconds: number }) => {
     setParts(next);

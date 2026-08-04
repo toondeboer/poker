@@ -284,9 +284,14 @@ export function TimerProvider({ children }: Readonly<{ children: ReactNode }>) {
   const nextLevel = blindLevels[currentBlindIndex + 1];
   const notificationKey = `${currentBlindIndex}:${nextLevel?.small ?? "-"}/${nextLevel?.big ?? "-"}`;
   const lastNotificationKeyRef = useRef<string | null>(null);
-  // Read through a ref so the effect doesn't re-run on every tick.
+  // Read the remaining time through a ref so the effect below isn't in the
+  // dependency list of a value that changes every second. Written in its own
+  // effect rather than during render — a ref must not be touched while
+  // rendering (react-hooks/refs).
   const timeLeftRef = useRef(timeLeft);
-  timeLeftRef.current = timeLeft;
+  useEffect(() => {
+    timeLeftRef.current = timeLeft;
+  }, [timeLeft]);
 
   useEffect(() => {
     if (Platform.OS !== "ios" || isLoading) return;

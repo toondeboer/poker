@@ -1,5 +1,5 @@
 // src/components/blinds/GenerateStructureSheet.tsx
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { Alert, StyleSheet, Text, View } from "react-native";
 import {
   averageGrowthRate,
@@ -66,18 +66,23 @@ export function GenerateStructureSheet({
   const [smallestChip, setSmallestChip] = useState(5);
 
   // Seed from the structure being edited each time the sheet opens — including
-  // the chip unit, which the existing blinds already imply.
-  useEffect(() => {
-    if (!visible) return;
-    setStartingSmallBlind(currentLevels[0]?.small ?? 5);
-    setLevelCount(
-      Math.min(
-        MAX_GENERATED_LEVELS,
-        Math.max(MIN_GENERATED_LEVELS, currentLevels.length || 20),
-      ),
-    );
-    setSmallestChip(inferSmallestChip(currentLevels));
-  }, [visible, currentLevels]);
+  // the chip unit, which the existing blinds already imply. Done on the
+  // closed→open transition during render rather than in an effect, so the sheet
+  // never paints one frame of the previous session's values first.
+  const [wasVisible, setWasVisible] = useState(visible);
+  if (wasVisible !== visible) {
+    setWasVisible(visible);
+    if (visible) {
+      setStartingSmallBlind(currentLevels[0]?.small ?? 5);
+      setLevelCount(
+        Math.min(
+          MAX_GENERATED_LEVELS,
+          Math.max(MIN_GENERATED_LEVELS, currentLevels.length || 20),
+        ),
+      );
+      setSmallestChip(inferSmallestChip(currentLevels));
+    }
+  }
 
   const preview = useMemo(
     () =>
