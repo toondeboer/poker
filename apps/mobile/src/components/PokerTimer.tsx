@@ -1,5 +1,5 @@
 // src/components/PokerTimer.tsx
-import React, { useCallback, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import {
   LayoutChangeEvent,
   Share,
@@ -19,6 +19,7 @@ import { useTimer } from "@/src/contexts/TimerContext";
 import { useRouter } from "expo-router";
 import { TimerExpirationAlert } from "./TimerExpirationAlert";
 import { BannerAdSlot } from "./ads/BannerAdSlot";
+import { useAppReady } from "./AppReadyGate";
 
 // The card is designed to fit one screen with no scrolling. Rather than guessing
 // at a baseline/ad height, we measure the actual rendered height of the card +
@@ -35,6 +36,16 @@ import { BannerAdSlot } from "./ads/BannerAdSlot";
 // space needed to fit without scrolling.
 const MIN_SCALE = 0.6;
 const MIN_SPACING_SCALE = 0.35;
+
+// The fit above converges over several onLayout -> setScale round trips, and
+// non-monotonically (the `measuredHeight / scale` estimate assumes height is
+// linear in `scale`, but spacing uses `scale ** 3`, so each pass overshoots and
+// corrects). Remembering where it landed lets a remount — coming back from
+// Settings, say — start at the right size and settle in a single pass instead of
+// replaying that visible wobble. Module-level rather than persisted: it's only
+// valid for this process's screen metrics, and a wrong seed just costs the
+// same convergence it would have done anyway.
+let lastConvergedScale: number | null = null;
 
 export default function PokerTimer() {
   const router = useRouter();
@@ -55,7 +66,9 @@ export default function PokerTimer() {
     handleNextBlinds,
   } = useTimer();
 
-  const [scale, setScale] = useState(1);
+  const { revealed, reportContentSettled } = useAppReady();
+  const convergedRef = useRef(false);
+  const [scale, setScale] = useState(() => lastConvergedScale ?? 1);
   const availableHeight = windowHeight - insets.top - insets.bottom;
 
   // Scales font sizes (and other elements that need to stay readable/tappable)
@@ -82,10 +95,24 @@ export default function PokerTimer() {
       );
       if (Math.abs(nextScale - scale) > 0.01) {
         setScale(nextScale);
+        return;
       }
+      // Converged. Hold the reveal until the persisted timer/blind state has
+      // landed too, so the splash doesn't lift on placeholder values that would
+      // then reflow into their real ones.
+      lastConvergedScale = scale;
+      convergedRef.current = true;
+      if (!isLoading) reportContentSettled();
     },
-    [scale, availableHeight],
+    [scale, availableHeight, isLoading, reportContentSettled],
   );
+
+  // The two conditions above can land in either order, and a converged layout
+  // fires no further onLayout — so if the data arrives second, report from here
+  // instead of waiting for a measurement pass that will never come.
+  useEffect(() => {
+    if (!isLoading && convergedRef.current) reportContentSettled();
+  }, [isLoading, reportContentSettled]);
 
   const handleShare = useCallback(() => {
     Share.share({
@@ -137,9 +164,16 @@ export default function PokerTimer() {
             },
           ]}
         >
+          {/* Kept mounted (and therefore measurable) but invisible until the fit
+              above has converged — otherwise its intermediate sizes are what the
+              user sees on launch. Revealed in the same commit that hides the
+              splash, so the first visible frame is the settled one. */}
           <View
             onLayout={handleColumnLayout}
-            style={isTablet && styles.columnTablet}
+            style={[
+              isTablet && styles.columnTablet,
+              { opacity: revealed ? 1 : 0 },
+            ]}
           >
             {/* Main Timer Card */}
             <View

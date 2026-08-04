@@ -555,40 +555,56 @@ full design.
     already-tight expanded region — bumping it there risks the overflow this area was fixed for).
 
 ## Mobile app launch — visible resize before layout settles
-- ✅ **Fixed via direction (b) from the original write-up** — hold the native splash screen open
-  until initial state is ready, so the resize happens behind it instead of in the visible app.
-  New `AppReadyGate` (`apps/mobile/src/components/AppReadyGate.tsx`), mounted just inside
-  `TimerProvider` wrapping the `Stack` in `_layout.tsx`, which now also calls
-  `SplashScreen.preventAutoHideAsync()` at module scope (before first render — a `useEffect` would
-  fire too late, after the first paint already happened). `AppReadyGate` calls `hideAsync()` once
-  `BlindsContext`/`SoundPackContext`/`TimerContext`'s `isLoading` flags are all `false` plus a
-  300ms settle buffer (empirically enough for `PokerTimer.tsx`'s `handleColumnLayout`/`setScale`
-  convergence loop's few onLayout↔setScale round trips), capped by a hard 4s max-wait fallback
-  from mount so a stuck context load can never hold the splash indefinitely.
-  - **Deliberately does not gate on the ad banner's async real-size arrival** (the other
-    contributor to visible resize, per the original investigation) — `BannerAdSlot` exposes no
-    `isLoading`/`onAdLoaded` signal today, and ad network load time is unbounded (slow network, no
-    fill), so blocking splash-hide on it risked hanging the splash indefinitely for a comparatively
-    minor, later, smaller relayout. The fixed part is the multi-pass *initial* scale-fit-from-1
-    resize on every fresh launch; the ad-banner relayout (already-visible content resizing slightly
-    once a real ad loads) is a smaller, separate, lower-priority issue left as a possible follow-up
-    if it proves noticeable in practice — see `BannerAdProps.onAdLoaded`/`onSizeChange` in
-    `react-native-google-mobile-ads` if picking this up later.
-  - Direction (a) (seed `scale` from a cached value, reserve the ad banner's expected height
-    up front) was not implemented — (b) alone addresses the reported symptom without touching
-    `PokerTimer.tsx`'s layout math.
-  - Verified via `npm run typecheck -w @poker/mobile` (clean). Lint (`npm run lint -w
-    @poker/mobile`) currently fails on this branch independent of this change — pre-existing
-    `Error: File 'expo/tsconfig.base' not found` in `eslint-import-resolver-typescript`,
-    reproduces identically on a clean stash, so not attributable to this fix.
-  - **Verified on iOS Simulator** (iPhone SE, existing dev-client debug build + Metro):
-    confirmed the native splash (dark green background, poker-chip logo) stays visible while JS
-    loads — caught it still on-screen behind the one-time dev-client onboarding sheet — and the
-    app then renders the Timer screen fully settled (card, blinds, ad banner all in their final
-    positions, nothing clipped), no crash. The dev-client onboarding overlay made a clean
-    frame-by-frame resize comparison impractical this session, so the specific "no visible
-    flicker" claim isn't frame-verified — only that the splash-hold mechanism itself fires
-    correctly and the app is stable afterward.
+- ✅ **Fixed — the screen now stays hidden until its layout has actually converged**, rather than
+  trying to out-race the convergence with a timer. `SplashScreen.preventAutoHideAsync()` is called
+  at module scope in `_layout.tsx` (before first render — a `useEffect` fires too late, after the
+  first paint), and `AppReadyGate` (`apps/mobile/src/components/AppReadyGate.tsx`) provides a
+  `revealed` flag + `reportContentSettled()` callback via context to everything inside the `Stack`.
+  `PokerTimer` renders its measured column at `opacity: 0` until `revealed`, and calls
+  `reportContentSettled()` once its fit has converged *and* `TimerContext.isLoading` is false;
+  `AppReadyGate` then flips `revealed` and calls `hideAsync()` in the same commit, so the splash
+  lifts and the settled card appears in one frame. A 4s ceiling still bounds the worst case.
+  - **Why the first attempt wasn't enough (and what the instrumentation showed).** The original fix
+    hid the splash on "contexts loaded + a 300ms settle buffer", which was a *guess* at how long
+    convergence takes. Timestamped logging of every `onLayout`/`setScale` on a 360×640dp Android
+    emulator showed the real behaviour: **four passes, `1.000 → 0.778 → 0.917 → 0.808`, taking
+    ~470–600ms** — and, importantly, **non-monotonic**: it overshoots down, corrects back up, then
+    settles. That wobble is exactly the reported "resizes a few times". The 300ms guess did happen
+    to win the race in the runs measured (settled +465ms, splash hid +854ms) — but only by ~390ms,
+    with nothing guaranteeing it, which is why it still showed up in real use.
+  - **Root cause of the oscillation** (left in place, now just invisible): `handleColumnLayout`
+    estimates `naturalHeight = measuredHeight / scale`, which assumes height is *linear* in `scale`
+    — but spacing uses `g() = scale ** 3`. So each pass' estimate is wrong in a direction that
+    overshoots, and it converges by damped oscillation instead of directly. Fixing the estimate
+    itself would mean re-tuning the whole fit (and its carefully tuned `MIN_SCALE` /
+    `MIN_SPACING_SCALE` visual result), so the reveal gate makes it moot instead — any number of
+    passes, however long they take, are now unobservable.
+  - **Both completion orders are handled.** Convergence and data-loading can finish in either
+    order, and a converged layout fires no further `onLayout` — so if data lands *second* there'd be
+    no measurement pass left to report from. A `useEffect` on `isLoading` covers that. Both paths
+    were exercised in testing: cold launch #1 settled with `isLoading` already false (reported from
+    the layout handler, +517ms); cold launch #2 settled while still loading and reported from the
+    effect 52ms later (+654ms) — neither fell through to the ceiling.
+  - `settings.tsx` also calls `reportContentSettled()` on mount. It has no measure-and-rescale pass
+    to wait for, but without it a launch that opens straight to Settings (deep link / restored
+    route) would have nothing to report and would sit on the splash until the 4s ceiling.
+  - Also seeds `scale` from a module-level `lastConvergedScale` so a remount starts at the right
+    size and settles in one pass — direction (a) from the original write-up, in its cheap form.
+    In practice expo-router keeps the timer screen mounted across Settings navigation (verified: a
+    Settings round-trip produced *zero* layout passes), so this is a safety net rather than the
+    main mechanism.
+  - **The ad banner turned out not to be a contributor**, contrary to the original investigation's
+    assumption. `BannerAd` reports its size via `onSizeChange` (`360×56`) at +353ms — *before* the
+    fit settles — and the later `onAdLoaded` at +2031ms reports the identical size, causing no
+    reflow. So no ad-height reservation was needed; the earlier note about this being a separate
+    outstanding contributor was wrong.
+  - **Verified** on a 360×640dp Android emulator (`Android_small`, API 35, dev-client + Metro):
+    two cold launches both show all intermediate scale values landing before the reveal, and the
+    first visible frame at the final size. `npm run typecheck -w @poker/mobile` clean. Lint still
+    fails repo-wide on the pre-existing `expo/tsconfig.base` resolver error, unrelated to this.
+    Not re-verified on iOS this session (the mechanism is platform-agnostic JS, but the *timing*
+    that made the old approach fragile is platform-specific, so an iOS spot-check is still worth
+    doing).
 
 ## Website landing page
 - 🔍 **Confirm contact email is correct** — currently `poker.blinds.buzzer@gmail.com`, hardcoded in

@@ -88,12 +88,14 @@ platform-tagged heading (e.g. `## [1.1.3] - 2026-07-20 — Android`) when you cu
   `ReactActivityDelegate`) that could happen whenever the app was paused, resumed, or reconfigured
   before the JS bridge finished attaching — most likely right after a fresh launch. `MainActivity`
   now guards the affected lifecycle callbacks. See CLAUDE.md for the full root-cause writeup.
-- Mobile: the Timer card no longer visibly resizes a few times right after a fresh launch while
-  its auto-fit-to-screen pass converges and the ad banner reports its real size. The native splash
-  screen (installed but never actually invoked before now) now stays up until the Blinds/Sound
-  Pack/Timer contexts finish loading and a short settle window elapses, so the resize happens
-  behind the splash instead of in the already-visible app. Capped at 4s so a stuck load can't hold
-  the splash indefinitely.
+- Mobile: the Timer card no longer visibly resizes a few times right after a fresh launch. Its
+  auto-fit-to-screen pass converges over several measure-and-rescale rounds, and does so
+  non-monotonically (measured on a small Android screen: 1.00 → 0.78 → 0.92 → 0.81), so every one
+  of those intermediate sizes was being painted. The card now stays hidden behind the native
+  splash screen (a dependency that was installed but never actually invoked before now) until that
+  fit has genuinely settled *and* the persisted timer state has loaded, then the splash lifts and
+  the card appears in the same frame — so the first thing you see is the final layout. Capped at
+  4s so a slow or stuck load can't hold the splash indefinitely.
 - Android: the Pause/Resume and Stop buttons on the collapsed foreground-service notification no
   longer risk getting clipped at the bottom — shrank the button circles (36dp → 30dp) and their
   padding, since `DecoratedCustomViewStyle` imposes its own overall height budget on the
