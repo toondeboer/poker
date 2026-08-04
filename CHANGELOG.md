@@ -54,6 +54,9 @@ platform-tagged heading (e.g. `## [1.1.3] - 2026-07-20 — Android`) when you cu
   always catches it up correctly).
 
 ### Changed
+- Mobile: updated RevenueCat (`react-native-purchases` 10.4.0 → 10.4.4, which moves the native SDK
+  from 5.78.0 to 5.81.1 via `PurchasesHybridCommon` 18.22.2). Purchase and restore should be
+  smoke-tested on a real device before this release is submitted.
 - Mobile: applying edited blind levels now **keeps your place in the tournament** instead of
   silently restarting at Level 1 — the current level is clamped into the new schedule, and you're
   only moved (to the new last level) if the level you were on no longer exists, which the Apply

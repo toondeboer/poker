@@ -273,8 +273,8 @@ PODS:
   - hermes-engine (250829098.0.10):
     - hermes-engine/Pre-built (= 250829098.0.10)
   - hermes-engine/Pre-built (250829098.0.10)
-  - PurchasesHybridCommon (18.15.1):
-    - RevenueCat (= 5.78.0)
+  - PurchasesHybridCommon (18.22.2):
+    - RevenueCat (= 5.81.1)
   - RCTDeprecation (0.85.3)
   - RCTRequired (0.85.3)
   - RCTSwiftUI (0.85.3)
@@ -2015,7 +2015,7 @@ PODS:
     - React-utils (= 0.85.3)
     - ReactNativeDependencies
   - ReactNativeDependencies (0.85.3)
-  - RevenueCat (5.78.0)
+  - RevenueCat (5.81.1)
   - RNCMaskedView (0.3.2):
     - hermes-engine
     - RCTRequired
@@ -2081,8 +2081,8 @@ PODS:
     - ReactCommon/turbomodule/core
     - ReactNativeDependencies
     - Yoga
-  - RNPurchases (10.4.0):
-    - PurchasesHybridCommon (= 18.15.1)
+  - RNPurchases (10.4.4):
+    - PurchasesHybridCommon (= 18.22.2)
     - React-Core
   - RNReanimated (4.3.1):
     - hermes-engine
@@ -2655,7 +2655,7 @@ SPEC CHECKSUMS:
   Google-Mobile-Ads-SDK: 8429bef6ee1a4e322b0a5571b64217ed8317a3d5
   GoogleUserMessagingPlatform: befe603da6501006420c206222acd449bba45a9c
   hermes-engine: 4068cd6a9055219d7072d00d0405f468ce0ad5f2
-  PurchasesHybridCommon: eed735a411c1aee8c05d62933fa7c4a40ede4009
+  PurchasesHybridCommon: e47bc4f611e86fcf8295bf1c984f187982270f02
   RCTDeprecation: 225e022b85a206cf0883a909c4a114159783363c
   RCTRequired: 827a95c181af0886a11e21bc66c084088cf87839
   RCTSwiftUI: 7babb07156ae0a8e5ea97f77e43959ddaca2c6f2
@@ -2727,11 +2727,11 @@ SPEC CHECKSUMS:
   ReactCodegen: 7b8f1d7cc28e32d273853b040deed0d7e49a31ea
   ReactCommon: 14a0287b7145ef29530c15bcd7aca4154a3cb353
   ReactNativeDependencies: 53d6f969aacc58a7cf1090c6b95c0347c56b96fd
-  RevenueCat: f3641992451c1426da8d8d1466cec3bbdb765962
+  RevenueCat: 693b033863262f9776130cc6c1f9255a74ab23ff
   RNCMaskedView: a543b7a36c195a519d1bd7ef0291f1cbc6a84a0d
   RNGestureHandler: e088832e6528268d5d5ba7e6dcbaecb11e9fd0ca
   RNGoogleMobileAds: 187e151c8a407f15b3354946920e717910bdab1c
-  RNPurchases: 1436e2381a4a06bfd6378158f9ebd11993e684cc
+  RNPurchases: 2d7ea9f2e3246dcf14faddc554546047dc4c7d74
   RNReanimated: 4e3dcaf562e48352db5340bd2ef985ca007ae35f
   RNScreens: 04eaa3cec7258c13d744af58aed4aec958a17eda
   RNWorklets: 27a8081bb6b77254b688c9183671e191509f7979
