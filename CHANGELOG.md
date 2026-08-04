@@ -84,6 +84,10 @@ platform-tagged heading (e.g. `## [1.1.3] - 2026-07-20 — Android`) when you cu
   resets the timer to the default 10-minute duration and blind Level 2 — a stale-closure race
   meant a pending notification action could be reconciled against pre-load default values instead
   of what was actually persisted.
+- Android: fixed a "Poker Timer keeps stopping" crash (`NullPointerException` in react-native's
+  `ReactActivityDelegate`) that could happen whenever the app was paused, resumed, or reconfigured
+  before the JS bridge finished attaching — most likely right after a fresh launch. `MainActivity`
+  now guards the affected lifecycle callbacks. See CLAUDE.md for the full root-cause writeup.
 
 ## [1.1.3] - 2026-07-21 — iOS & Android
 
