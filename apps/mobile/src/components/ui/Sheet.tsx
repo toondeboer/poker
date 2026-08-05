@@ -12,11 +12,9 @@ import {
   ScrollView,
   StyleSheet,
   Text,
-  TouchableOpacity,
   useWindowDimensions,
   View,
 } from "react-native";
-import { Ionicons } from "@expo/vector-icons";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { colors, radius, space, text } from "@/src/theme";
 
@@ -213,21 +211,11 @@ export function Sheet({
                 <View style={styles.grabber} />
               </View>
             )}
-            <View style={styles.header}>
-              {title ? (
-                <Text style={styles.title}>{title}</Text>
-              ) : (
-                <View style={styles.titleSpacer} />
-              )}
-              <TouchableOpacity
-                onPress={onClose}
-                hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-                accessibilityRole="button"
-                accessibilityLabel="Close"
-              >
-                <Ionicons name="close" size={22} color={colors.textMuted} />
-              </TouchableOpacity>
-            </View>
+            {/* No close icon: every sheet already offers a labelled way out —
+                the generator a Cancel button, the paywall "Maybe later" — plus
+                the grabber and backdrop where gestures are enabled. A second,
+                unlabelled affordance was just visual noise. */}
+            {title ? <Text style={styles.title}>{title}</Text> : null}
             {/* A scroller here is safe and deliberate: a Modal is its own
                 scroll context, so this is never nested inside the screen's
                 list. It only engages when the sheet's controls outgrow a short
@@ -281,14 +269,7 @@ const styles = StyleSheet.create({
     borderRadius: 2,
     backgroundColor: colors.borderInputCompact,
   },
-  header: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    gap: space.md,
-  },
-  title: { ...text.cardTitle, flex: 1 },
-  titleSpacer: { flex: 1 },
+  title: text.cardTitle,
   scrollContent: { gap: space.lg, paddingBottom: space.xs },
   footer: { flexDirection: "row", gap: space.md },
 });
