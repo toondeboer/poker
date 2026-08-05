@@ -208,8 +208,13 @@ Mobile releases are batched on a short-lived branch per version, not shipped str
   That covers shims left over from a *previous* run; if it still recurs mid-build (a concurrent
   Gradle sync replanting them *during* the same invocation, or you built via some
   other entrypoint like a bare `npx expo run:android` that skips the npm script), the manual fix
-  below still applies; `node apps/mobile/scripts/clean-expo-shims.js` on its own is equivalent to
-  the `rm -rf`+cache-clear steps and safe to re-run any time. Root cause, for when the automatic
+  below still applies; `node apps/mobile/scripts/clean-expo-shims.js` on its own removes the shims
+  and is safe to re-run any time. **Add `--gradle-cache` to also wipe `android/build` +
+  `android/app/build`** — needed before an Android build (Gradle caches the resolved autolinking
+  list and will keep serving a stale one), but deliberately *not* the default, because the script
+  also runs from `lint`/`typecheck` and those have no business deleting a multi-minute Android
+  build. `preandroid*`/`preprebuild` pass the flag; `preios*`/`prepods`/`prelint`/`pretypecheck`
+  and the root `postinstall` don't. Root cause, for when the automatic
   fix isn't enough: Expo's autolinking creates partial proxy directories — missing `package.json`
   and the platform folder, just a stray `android/` — at
   `node_modules/expo-dev-client/node_modules/expo-dev-launcher` and directly under

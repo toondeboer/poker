@@ -1,9 +1,13 @@
 // src/components/ui/Sheet.tsx
-import { ReactNode } from "react";
+import { ReactNode, useEffect, useMemo, useState } from "react";
 import {
+  Animated,
   KeyboardAvoidingView,
+  Keyboard,
   Modal,
+  PanResponder,
   Platform,
+  Pressable,
   ScrollView,
   StyleSheet,
   Text,
@@ -15,10 +19,20 @@ import { Ionicons } from "@expo/vector-icons";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { colors, radius, space, text } from "@/src/theme";
 
+/** Drag far enough, or flick fast enough, and the sheet closes. */
+const DISMISS_DISTANCE = 90;
+const DISMISS_VELOCITY = 0.6;
+/** Ignore the first few pixels so a tap on the close button isn't read as a drag. */
+const DRAG_SLOP = 4;
+
 /**
  * A bottom-sheet modal — the same shape as {@link Paywall}, extracted so other
  * sheets don't re-derive it. (Paywall itself is deliberately left alone: it owns
  * purchase/restore/error state and is the revenue path.)
+ *
+ * Dismissable three ways: the close button, a tap on the backdrop, and dragging
+ * the grabber down. The grabber has to actually work — a sheet that shows the
+ * handle without handling the gesture is advertising something it ignores.
  */
 export function Sheet({
   visible,
@@ -36,6 +50,57 @@ export function Sheet({
   const insets = useSafeAreaInsets();
   const { height } = useWindowDimensions();
 
+  // Lazy useState rather than useRef: the value has to be created once and
+  // stay stable, but reading a ref during render is a lint error here.
+  const [translateY] = useState(() => new Animated.Value(0));
+
+  // The sheet stays mounted between opens, so reset the drag offset — otherwise
+  // it reopens still pushed down by however far it was dragged last time.
+  useEffect(() => {
+    if (visible) translateY.setValue(0);
+  }, [visible, translateY]);
+
+  const springBack = useMemo(
+    () => () =>
+      Animated.spring(translateY, {
+        toValue: 0,
+        useNativeDriver: true,
+        bounciness: 0,
+      }).start(),
+    [translateY],
+  );
+
+  const panResponder = useMemo(
+    () =>
+      PanResponder.create({
+        // Claim the gesture only once it's clearly a downward drag. Without the
+        // slop and the axis check, a tap on the close button and a horizontal
+        // swipe would both get swallowed here.
+        onMoveShouldSetPanResponder: (_e, g) =>
+          g.dy > DRAG_SLOP && Math.abs(g.dy) > Math.abs(g.dx),
+        onPanResponderGrant: () => Keyboard.dismiss(),
+        // Downward only — dragging up shouldn't lift the sheet off the bottom.
+        onPanResponderMove: (_e, g) => {
+          if (g.dy > 0) translateY.setValue(g.dy);
+        },
+        onPanResponderRelease: (_e, g) => {
+          if (g.dy > DISMISS_DISTANCE || g.vy > DISMISS_VELOCITY) {
+            // Slide it the rest of the way out before unmounting, so the Modal's
+            // own exit animation isn't fighting a half-dragged sheet.
+            Animated.timing(translateY, {
+              toValue: height,
+              duration: 180,
+              useNativeDriver: true,
+            }).start(onClose);
+          } else {
+            springBack();
+          }
+        },
+        onPanResponderTerminate: springBack,
+      }),
+    [height, onClose, springBack, translateY],
+  );
+
   return (
     <Modal
       visible={visible}
@@ -51,6 +116,14 @@ export function Sheet({
       onRequestClose={onClose}
     >
       <View style={styles.backdrop}>
+        {/* Rendered before the sheet so it sits behind it: taps outside land
+            here, taps on the sheet don't reach it. */}
+        <Pressable
+          style={StyleSheet.absoluteFill}
+          onPress={onClose}
+          accessibilityRole="button"
+          accessibilityLabel="Close"
+        />
         {/* `automaticallyAdjustKeyboardInsets` doesn't reach inside a Modal, so
             iOS needs an explicit avoider here. Android's manifest-level
             adjustResize already handles it. */}
@@ -58,20 +131,33 @@ export function Sheet({
           behavior={Platform.OS === "ios" ? "padding" : undefined}
           style={styles.avoider}
         >
-          <View
-            style={[styles.sheet, { paddingBottom: space.xl + insets.bottom }]}
+          <Animated.View
+            style={[
+              styles.sheet,
+              {
+                paddingBottom: space.xl + insets.bottom,
+                transform: [{ translateY }],
+              },
+            ]}
           >
-            <View style={styles.grabber} />
-            <View style={styles.header}>
-              <Text style={styles.title}>{title}</Text>
-              <TouchableOpacity
-                onPress={onClose}
-                hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-                accessibilityRole="button"
-                accessibilityLabel="Close"
-              >
-                <Ionicons name="close" size={22} color={colors.textMuted} />
-              </TouchableOpacity>
+            {/* The drag is bound to the handle + title row only. Binding it to
+                the whole sheet would have it fighting the ScrollView below for
+                every vertical gesture. */}
+            <View {...panResponder.panHandlers}>
+              <View style={styles.grabberHitArea}>
+                <View style={styles.grabber} />
+              </View>
+              <View style={styles.header}>
+                <Text style={styles.title}>{title}</Text>
+                <TouchableOpacity
+                  onPress={onClose}
+                  hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                  accessibilityRole="button"
+                  accessibilityLabel="Close"
+                >
+                  <Ionicons name="close" size={22} color={colors.textMuted} />
+                </TouchableOpacity>
+              </View>
             </View>
             {/* A scroller here is safe and deliberate: a Modal is its own
                 scroll context, so this is never nested inside the screen's
@@ -87,7 +173,7 @@ export function Sheet({
               {children}
             </ScrollView>
             {footer && <View style={styles.footer}>{footer}</View>}
-          </View>
+          </Animated.View>
         </KeyboardAvoidingView>
       </View>
     </Modal>
@@ -109,8 +195,13 @@ const styles = StyleSheet.create({
     paddingTop: space.md,
     gap: space.lg,
   },
+  // The bar itself is 4pt tall; this gives the drag a target you can actually hit.
+  grabberHitArea: {
+    alignItems: "center",
+    paddingVertical: space.sm,
+    marginTop: -space.sm,
+  },
   grabber: {
-    alignSelf: "center",
     width: 40,
     height: 4,
     borderRadius: 2,
@@ -121,6 +212,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "space-between",
     gap: space.md,
+    marginTop: space.sm,
   },
   title: { ...text.cardTitle, flex: 1 },
   scrollContent: { gap: space.lg, paddingBottom: space.xs },
