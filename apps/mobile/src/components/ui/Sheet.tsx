@@ -55,12 +55,23 @@ export function Sheet({
   title,
   children,
   footer,
+  gestureDismissible = true,
+  maxContentHeightRatio = 0.6,
 }: {
   visible: boolean;
   onClose: () => void;
-  title: string;
+  /** Omit when the content renders its own headline. */
+  title?: string;
   children: ReactNode;
   footer?: ReactNode;
+  /**
+   * Whether the grabber, drag-to-dismiss and backdrop tap are offered. The
+   * paywall opts out: it keeps an explicit "Maybe later", and how easily it can
+   * be dismissed is a product decision rather than a styling one.
+   */
+  gestureDismissible?: boolean;
+  /** Share of the screen the scrollable region may occupy. */
+  maxContentHeightRatio?: number;
 }) {
   const insets = useSafeAreaInsets();
   const { height } = useWindowDimensions();
@@ -165,12 +176,14 @@ export function Sheet({
           style={[styles.backdrop, { opacity: backdropOpacity }]}
           pointerEvents="none"
         />
-        <Pressable
-          style={StyleSheet.absoluteFill}
-          onPress={onClose}
-          accessibilityRole="button"
-          accessibilityLabel="Close"
-        />
+        {gestureDismissible && (
+          <Pressable
+            style={StyleSheet.absoluteFill}
+            onPress={onClose}
+            accessibilityRole="button"
+            accessibilityLabel="Close"
+          />
+        )}
         {/* `automaticallyAdjustKeyboardInsets` doesn't reach inside a Modal, so
             iOS needs an explicit avoider here. Android's manifest-level
             adjustResize already handles it. */}
@@ -190,16 +203,22 @@ export function Sheet({
             {/* The drag is bound to the grabber alone. On the whole sheet it
                 would fight the ScrollView for every vertical gesture, and on the
                 title row it would compete with the close button. */}
-            <View
-              style={styles.grabberHitArea}
-              {...panResponder.panHandlers}
-              accessibilityRole="adjustable"
-              accessibilityLabel="Drag down to close"
-            >
-              <View style={styles.grabber} />
-            </View>
+            {gestureDismissible && (
+              <View
+                style={styles.grabberHitArea}
+                {...panResponder.panHandlers}
+                accessibilityRole="adjustable"
+                accessibilityLabel="Drag down to close"
+              >
+                <View style={styles.grabber} />
+              </View>
+            )}
             <View style={styles.header}>
-              <Text style={styles.title}>{title}</Text>
+              {title ? (
+                <Text style={styles.title}>{title}</Text>
+              ) : (
+                <View style={styles.titleSpacer} />
+              )}
               <TouchableOpacity
                 onPress={onClose}
                 hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
@@ -214,7 +233,7 @@ export function Sheet({
                 list. It only engages when the sheet's controls outgrow a short
                 screen; the footer stays pinned below it either way. */}
             <ScrollView
-              style={{ maxHeight: height * 0.6 }}
+              style={{ maxHeight: height * maxContentHeightRatio }}
               contentContainerStyle={styles.scrollContent}
               keyboardShouldPersistTaps="handled"
               showsVerticalScrollIndicator={false}
@@ -269,6 +288,7 @@ const styles = StyleSheet.create({
     gap: space.md,
   },
   title: { ...text.cardTitle, flex: 1 },
+  titleSpacer: { flex: 1 },
   scrollContent: { gap: space.lg, paddingBottom: space.xs },
   footer: { flexDirection: "row", gap: space.md },
 });
