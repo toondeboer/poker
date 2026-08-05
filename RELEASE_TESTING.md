@@ -75,9 +75,23 @@ rendering, and not on tablets.
 | Smallest chip 5, start 5 → `5/10 10/20 15/30 20/40…`, **never 6/12** | ☐ | ☑ |
 | Chip 25, start 25 → matches a real casino sheet (`25/50 50/100 75/150 100/200…`) | ☐ | ☐ |
 | Chip seeds itself from the structure you're editing | ☐ | ☑ |
-| Sheet reaches the bottom edge — **no see-through strip** below it | ☐ | ☑ |
 | "Replace structure" fits on **one line** with its icon | ☐ | ☑ |
 | Replace writes the draft only; active schedule unchanged until Apply | ☐ | ☐ |
+
+### Native sheets
+
+The generator and paywall are platform form sheets now, so most of this is the OS's behaviour
+rather than ours — but it's worth confirming the presentation looks right on each platform.
+
+| | iOS | Android |
+|---|---|---|
+| Generator presents as a **bottom sheet**, sized to its content | ☐ | ☑ |
+| **Drag down dismisses it** | ☐ | ☑ |
+| Backdrop **dims** the screen behind and doesn't move | ☐ | ☐ |
+| Close button works (Android has no grabber, so it's the only visible affordance) | ☐ | ☑ |
+| Reopening straight after a drag-dismiss shows it — **the iPad bug** | ☐ | ☑ |
+| Paywall presents the same way, purchase/restore/error UI unchanged | ☐ | ☑ |
+| Keyboard doesn't cover the generator's fields | ☐ | ☐ |
 
 ---
 
