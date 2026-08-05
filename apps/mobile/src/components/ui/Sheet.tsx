@@ -22,7 +22,7 @@ import { colors, radius, space, text } from "@/src/theme";
 /** Drag far enough, or flick fast enough, and the sheet closes. */
 const DISMISS_DISTANCE = 90;
 const DISMISS_VELOCITY = 0.6;
-/** Ignore the first few pixels so a tap on the close button isn't read as a drag. */
+/** Ignore the first few pixels so a tap on the handle isn't read as a drag. */
 const DRAG_SLOP = 4;
 
 /**
@@ -73,11 +73,12 @@ export function Sheet({
   const panResponder = useMemo(
     () =>
       PanResponder.create({
-        // Claim the gesture only once it's clearly a downward drag. Without the
-        // slop and the axis check, a tap on the close button and a horizontal
-        // swipe would both get swallowed here.
-        onMoveShouldSetPanResponder: (_e, g) =>
-          g.dy > DRAG_SLOP && Math.abs(g.dy) > Math.abs(g.dx),
+        // Claim on touch-down. This is bound to the grabber alone, which holds
+        // nothing tappable, so there's no gesture to compete for — and relying
+        // on `onMoveShouldSetPanResponder` instead left the view outside the
+        // responder chain, so the drag never registered at all.
+        onStartShouldSetPanResponder: () => true,
+        onMoveShouldSetPanResponder: (_e, g) => Math.abs(g.dy) > DRAG_SLOP,
         onPanResponderGrant: () => Keyboard.dismiss(),
         // Downward only — dragging up shouldn't lift the sheet off the bottom.
         onPanResponderMove: (_e, g) => {
@@ -140,24 +141,27 @@ export function Sheet({
               },
             ]}
           >
-            {/* The drag is bound to the handle + title row only. Binding it to
-                the whole sheet would have it fighting the ScrollView below for
-                every vertical gesture. */}
-            <View {...panResponder.panHandlers}>
-              <View style={styles.grabberHitArea}>
-                <View style={styles.grabber} />
-              </View>
-              <View style={styles.header}>
-                <Text style={styles.title}>{title}</Text>
-                <TouchableOpacity
-                  onPress={onClose}
-                  hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-                  accessibilityRole="button"
-                  accessibilityLabel="Close"
-                >
-                  <Ionicons name="close" size={22} color={colors.textMuted} />
-                </TouchableOpacity>
-              </View>
+            {/* The drag is bound to the grabber alone. On the whole sheet it
+                would fight the ScrollView for every vertical gesture, and on the
+                title row it would compete with the close button. */}
+            <View
+              style={styles.grabberHitArea}
+              {...panResponder.panHandlers}
+              accessibilityRole="adjustable"
+              accessibilityLabel="Drag down to close"
+            >
+              <View style={styles.grabber} />
+            </View>
+            <View style={styles.header}>
+              <Text style={styles.title}>{title}</Text>
+              <TouchableOpacity
+                onPress={onClose}
+                hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                accessibilityRole="button"
+                accessibilityLabel="Close"
+              >
+                <Ionicons name="close" size={22} color={colors.textMuted} />
+              </TouchableOpacity>
             </View>
             {/* A scroller here is safe and deliberate: a Modal is its own
                 scroll context, so this is never nested inside the screen's
@@ -212,7 +216,8 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "space-between",
     gap: space.md,
-    marginTop: space.sm,
+    // No marginTop: the grabber is a sibling flex child now, so the sheet's own
+    // `gap` already separates them.
   },
   title: { ...text.cardTitle, flex: 1 },
   scrollContent: { gap: space.lg, paddingBottom: space.xs },
