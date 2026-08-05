@@ -156,6 +156,15 @@ Mobile releases are batched on a short-lived branch per version, not shipped str
     check for shims before believing it — they show up as `invalid` `expo`/`expo-constants`/
     `expo-dev-launcher` entries. Note `npm install` itself re-plants the shims, so clean *after*
     installing, not before.
+- **A transitive advisory is usually a stale lockfile pin, not a case for an override.** Check the
+  parents' accepted ranges first: `js-yaml` sat at the vulnerable 4.2.0 while both consumers
+  (`@expo/xcpretty`, `@eslint/eslintrc`) accepted `^4.1.x`, so a plain `npm update js-yaml` moved it
+  to the patched 4.3.1 with no override and a 4-line lockfile diff. Only when no in-range fix exists
+  is there a real decision to make — `uuid` is the counter-example: `xcode@3.0.1` hard-requires
+  `^7.0.3` and the fix needs `>= 11.1.1`, so the only options are a four-major override on the
+  library that rewrites the Xcode project during prebuild, or waiting for `xcode` to publish. **It's
+  left unfixed deliberately**; it's build tooling, never reachable from app code, and the override
+  is more dangerous than the advisory.
 - **Keep every workspace's `eslint` and `@eslint/js` on the same major.** `packages/core` once
   declared `@eslint/js: ^10.0.1` beside `eslint: ^9.39.4`; `@eslint/js@10` peer-requires
   `eslint@^10`, so npm marked the whole tree `invalid` and a lockfile-free `npm install` failed
@@ -181,14 +190,23 @@ Mobile releases are batched on a short-lived branch per version, not shipped str
   Expo's own dev-menu trigger** (`expo-dev-client`/`expo-dev-menu`), not app UI — it doesn't exist
   in the app's source and never ships in a release build. Ignore it when reviewing screenshots or
   debugging layout; it's not a bug to fix and not a system accessibility overlay either.
-- **`expo run:android` plants broken package shims that also break iOS.** `npm run
-  android`/`android:device`/`ios`/`ios:device` (the ones in root `package.json`, proxying into
-  `apps/mobile`) now self-heal this automatically — each runs `preandroid`/`preandroid:device`/
-  `preios`/`preios:device` first, which calls `apps/mobile/scripts/clean-expo-shims.js` to detect
-  (checked via a missing `package.json`, not just presence) and remove the broken shims plus the
-  stale Gradle autolinking cache before the real build starts. That covers shims left over from a
-  *previous* run; if it still recurs mid-build (a concurrent IDE Gradle sync replanting them
-  *during* the same invocation — see the note at the bottom of this entry — or you built via some
+- **`expo run:android` plants broken package shims that also break iOS.** **Every affected command
+  now self-heals** — `apps/mobile` has `pre*` hooks on `android`, `android:device`, `ios`,
+  `ios:device`, `prebuild`, `pods`, **`lint` and `typecheck`**, and the root has a `postinstall`, all
+  calling `apps/mobile/scripts/clean-expo-shims.js`. It detects the shims (via a missing
+  `package.json`, not just presence) and removes them plus the stale Gradle autolinking cache before
+  the real command runs. `lint`/`typecheck`/`postinstall` were added after the shims repeatedly made
+  lint look broken repo-wide mid-session; **`npm install` itself re-plants them**, which is why the
+  root `postinstall` exists and why any manual cleaning must come *after* installing.
+  - **The replanting is real and does not require Android Studio.** Confirmed with no IDE open in
+    the usual sense: **VS Code's Red Hat Java extension** (`redhat.java`) keeps its own Gradle
+    daemons alive against this project — four were running (Gradle 8.9 ×3, 9.3.1) — and each
+    background sync can replant the shims. If the shims keep coming back, `pgrep -fl GradleDaemon`
+    will show them; killing those daemons or disabling the Java/Gradle extension for this workspace
+    stops it at the source.
+
+  That covers shims left over from a *previous* run; if it still recurs mid-build (a concurrent
+  Gradle sync replanting them *during* the same invocation, or you built via some
   other entrypoint like a bare `npx expo run:android` that skips the npm script), the manual fix
   below still applies; `node apps/mobile/scripts/clean-expo-shims.js` on its own is equivalent to
   the `rm -rf`+cache-clear steps and safe to re-run any time. Root cause, for when the automatic
@@ -233,6 +251,16 @@ Mobile releases are batched on a short-lived branch per version, not shipped str
   running their own daemon) re-triggering the shim bug with no `expo run:android` or other
   explicit command involved — if a local Android build seems to spontaneously re-break after
   being fixed, check for a concurrent IDE Gradle sync before assuming the fix didn't take.
+- **Bumping a native module invalidates every existing dev-client binary — rebuild, don't just
+  reload.** A dev client ships compiled native modules; Metro only replaces the JS. Update one and
+  the new JS talks to the old native code, which fails at *runtime* with nothing at build time to
+  warn you. Observed on the `react-native-purchases` 10.4.0 → 10.4.4 bump: the app red-screened at
+  launch with `RNPurchases.setupPurchases called with too many arguments, expected up to 14, got 15`
+  from `revenueCatProvider.ts`, because 10.4.4's JS passes an extra argument that 10.4.0's native
+  module doesn't accept. Nothing was wrong with the code. After any change under `dependencies` that
+  has native code, run `npm run pods -w @poker/mobile` (iOS) and rebuild the dev client on both
+  platforms before trusting anything you see. `pod install` refusing to run is the *good* case —
+  it's the mismatch surfacing early rather than at launch.
 - **iOS must build from source.** SDK-56 precompiled XCFrameworks break this hoisted monorepo
   (archive fails on `Build ExpoModulesJSI xcframework` / safe-area-context "Directory not found",
   even with `--clear-cache`). `apps/mobile/ios/Podfile` bakes
