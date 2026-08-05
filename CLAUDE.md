@@ -42,6 +42,19 @@ and [ARCHITECTURE.md](./ARCHITECTURE.md) for the full design.
 - **Numeric inputs use `NumberField`**, which keeps the raw string while editing. Binding a
   `TextInput` straight to `Number(text)` makes a cleared field show a literal `0` that the user has
   to select and overwrite.
+- **Don't move the sheets to `presentation: "formSheet"` — it was tried and reverted.**
+  `react-native-screens` 4.25.2 does ship real native sheets (verified working on Android), and
+  `expo-router`'s docstring claiming Android falls back to a full-screen modal is out of date. **But
+  the iOS path does not lay out correctly on this RN/RNS combination.** `ScreenStackItem` gives
+  form-sheet content `position: absolute` with **no bottom constraint** on iOS unless
+  `featureFlags.experiment.synchronousScreenUpdatesEnabled` is on — and that flag defaults to
+  `false`, is explicitly experimental ("might be removed w/o notice"), and changes screen-update
+  behaviour app-wide, not just for sheets. Without it the content has to derive its own height, and
+  both a `flex: 1` container and a `maxHeight`-bounded `ScrollView` still rendered an empty sheet
+  with the content stranded below the sheet frame. Two attempts, neither worked.
+  - So the sheets stay hand-rolled on `Modal` (`components/ui/Sheet.tsx`). Revisit when that flag
+    graduates out of `experiment`, and **verify on a real iOS build before believing it** — Android
+    looked perfect the whole time this was broken on iOS.
 - **Only one scroller per screen.** Settings is a single `ScrollView`, the blind editor a single
   `FlatList`. A nested scroll region (`nestedScrollEnabled`) was the defect the Settings redesign
   removed — don't reintroduce one. A `ScrollView` inside a `Modal`/`Sheet` is fine: a modal is its
