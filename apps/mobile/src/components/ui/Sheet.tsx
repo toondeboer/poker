@@ -1,5 +1,5 @@
 // src/components/ui/Sheet.tsx
-import { ReactNode, useEffect, useMemo, useState } from "react";
+import { ReactNode, useMemo, useState } from "react";
 import {
   Animated,
   KeyboardAvoidingView,
@@ -54,11 +54,24 @@ export function Sheet({
   // stay stable, but reading a ref during render is a lint error here.
   const [translateY] = useState(() => new Animated.Value(0));
 
-  // The sheet stays mounted between opens, so reset the drag offset — otherwise
-  // it reopens still pushed down by however far it was dragged last time.
-  useEffect(() => {
+  // Reset the drag offset on the closed→open transition, during render rather
+  // than in an effect.
+  //
+  // The Animated.Value outlives the modal (RN's Modal renders nothing while
+  // hidden, so the sheet unmounts and its native animated node is recreated on
+  // each open, initialised from this value). After a drag-dismiss it still holds
+  // `height`. Resetting from a `useEffect` was too late on **iOS**, where the
+  // modal is presented asynchronously by UIKit: the sheet remounted still offset
+  // by a full screen and rendered off-screen — the modal was "open" but invisible
+  // until some unrelated interaction forced another commit. Android attaches its
+  // Dialog synchronously and never showed it.
+  //
+  // Doing it here guarantees the value is 0 *before* the content mounts.
+  const [wasVisible, setWasVisible] = useState(visible);
+  if (wasVisible !== visible) {
+    setWasVisible(visible);
     if (visible) translateY.setValue(0);
-  }, [visible, translateY]);
+  }
 
   const springBack = useMemo(
     () => () =>
