@@ -103,7 +103,9 @@ export function useTimerEngine(
     logger.log("Pausing timer at time left:", timeLeftOverride ?? timeLeft);
     setState((s) => {
       const next = pauseTimer(s);
-      return timeLeftOverride !== undefined ? { ...next, timeLeft: timeLeftOverride } : next;
+      return timeLeftOverride !== undefined
+        ? { ...next, timeLeft: timeLeftOverride }
+        : next;
     });
   };
 

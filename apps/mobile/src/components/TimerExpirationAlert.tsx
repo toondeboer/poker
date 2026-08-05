@@ -102,7 +102,11 @@ export function TimerExpirationAlert({
           <Animated.View
             style={[
               styles.pulseBackground,
-              { borderRadius: width / 2, width: width * 0.8, height: width * 0.8 },
+              {
+                borderRadius: width / 2,
+                width: width * 0.8,
+                height: width * 0.8,
+              },
               { transform: [{ scale: pulse1 }] },
             ]}
           >
@@ -114,7 +118,11 @@ export function TimerExpirationAlert({
           <Animated.View
             style={[
               styles.pulseBackground,
-              { borderRadius: width / 2, width: width * 1.2, height: width * 1.2 },
+              {
+                borderRadius: width / 2,
+                width: width * 1.2,
+                height: width * 1.2,
+              },
               { transform: [{ scale: pulse2 }] },
             ]}
           >

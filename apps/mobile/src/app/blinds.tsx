@@ -1,6 +1,5 @@
 // src/app/blinds.tsx
-import { useState } from "react";
-import { Stack } from "expo-router";
+import { Stack, useRouter } from "expo-router";
 import { TouchableOpacity } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useReportContentSettledOnMount } from "@/src/components/AppReadyGate";
@@ -8,7 +7,9 @@ import { BlindStructureScreen } from "@/src/components/blinds/BlindStructureScre
 import { colors } from "@/src/theme";
 
 export default function BlindsRoute() {
-  const [generatorVisible, setGeneratorVisible] = useState(false);
+  const router = useRouter();
+  // The generator is its own route, presented as a native form sheet.
+  const openGenerator = () => router.navigate("/generate-structure");
 
   // Like Settings: this screen has no measure-and-rescale pass, so mounting is
   // as settled as it gets. Without it, a launch restored straight onto this
@@ -22,7 +23,7 @@ export default function BlindsRoute() {
         options={{
           headerRight: () => (
             <TouchableOpacity
-              onPress={() => setGeneratorVisible(true)}
+              onPress={openGenerator}
               hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
               accessibilityRole="button"
               accessibilityLabel="Generate a blind structure"
@@ -32,11 +33,7 @@ export default function BlindsRoute() {
           ),
         }}
       />
-      <BlindStructureScreen
-        generatorVisible={generatorVisible}
-        onOpenGenerator={() => setGeneratorVisible(true)}
-        onCloseGenerator={() => setGeneratorVisible(false)}
-      />
+      <BlindStructureScreen onOpenGenerator={openGenerator} />
     </>
   );
 }

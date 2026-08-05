@@ -8,7 +8,11 @@ import {
   LiveActivityDataAndroid,
   PendingTimerAction,
 } from "../modules/LiveActivityModule";
-import { DEFAULT_SOUND_PACK_ID, PokerTimerState, SoundPackId } from "@poker/core";
+import {
+  DEFAULT_SOUND_PACK_ID,
+  PokerTimerState,
+  SoundPackId,
+} from "@poker/core";
 
 class LiveActivityService {
   private activityId: string | null = null;

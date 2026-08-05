@@ -22,18 +22,13 @@ import { Button } from "@/src/components/ui/Button";
 import { ApplyFooter } from "./ApplyFooter";
 import { BlindLevelRow } from "./BlindLevelRow";
 import { BlindListHeader } from "./BlindListHeader";
-import { GenerateStructureSheet } from "./GenerateStructureSheet";
 
 /** Below this the schedule can't shrink further (enforced in @poker/core). */
 const MIN_LEVELS = 2;
 
 export function BlindStructureScreen({
-  generatorVisible,
-  onCloseGenerator,
   onOpenGenerator,
 }: {
-  generatorVisible: boolean;
-  onCloseGenerator: () => void;
   onOpenGenerator: () => void;
 }) {
   const insets = useSafeAreaInsets();
@@ -48,7 +43,6 @@ export function BlindStructureScreen({
     insertBlindLevel,
     duplicateBlindLevel,
     removeBlindLevel,
-    replaceCustomBlindLevels,
     discardCustomBlindLevels,
     applyCustomBlindLevels,
     resetToDefaultBlinds,
@@ -125,12 +119,6 @@ export function BlindStructureScreen({
       ],
     );
   }, [structural, resetToDefaultBlinds]);
-
-  const handleGenerate = useCallback(
-    (levels: BlindLevel[]) =>
-      structural(() => replaceCustomBlindLevels(levels)),
-    [structural, replaceCustomBlindLevels],
-  );
 
   const renderItem = useCallback(
     ({ item, index }: { item: BlindLevel; index: number }) => (
@@ -213,13 +201,6 @@ export function BlindStructureScreen({
           contentStyle={centred || undefined}
         />
       )}
-
-      <GenerateStructureSheet
-        visible={generatorVisible}
-        onClose={onCloseGenerator}
-        currentLevels={customBlindLevels}
-        onGenerate={handleGenerate}
-      />
     </View>
   );
 }

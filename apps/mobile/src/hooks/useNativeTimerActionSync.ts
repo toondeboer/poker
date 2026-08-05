@@ -36,7 +36,9 @@ const IOS_EVENT = "onLiveActivityAction";
  * read behind `consumePendingAction()`. Sequencing them in one place, load-then-reconcile,
  * removes that race entirely.
  */
-export function useNativeTimerActionSync({ onAction }: NativeTimerActionCallbacks) {
+export function useNativeTimerActionSync({
+  onAction,
+}: NativeTimerActionCallbacks) {
   const onActionRef = useRef(onAction);
   useEffect(() => {
     onActionRef.current = onAction;

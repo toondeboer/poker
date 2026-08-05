@@ -18,6 +18,20 @@ import { configurePurchases } from "@/src/services/revenueCatProvider";
 // the already-visible app.
 void SplashScreen.preventAutoHideAsync();
 
+/** Shared options for every screen presented as a native bottom sheet. */
+const SHEET_OPTIONS = {
+  presentation: "formSheet",
+  // Size to the content rather than a fixed half/full detent — these sheets are
+  // forms, and a fixed detent would either clip them or leave dead space.
+  sheetAllowedDetents: "fitToContents",
+  sheetGrabberVisible: true,
+  sheetCornerRadius: 24,
+  // Dim the screen behind at every detent; without this the backdrop is clear
+  // and the sheet reads as part of the page rather than over it.
+  sheetLargestUndimmedDetentIndex: "none",
+  headerShown: false,
+} as const;
+
 export default function RootLayout() {
   useEffect(() => {
     configurePurchases();
@@ -63,6 +77,17 @@ export default function RootLayout() {
                         headerBackTitle: "Settings",
                       }}
                     />
+                    {/* Presented by react-native-screens as a real platform
+                        sheet — UISheetPresentationController on iOS, a Material
+                        BottomSheetBehavior on Android. Verified on both; the
+                        expo-router docstring claiming Android falls back to a
+                        full-screen modal is out of date. This is why there is no
+                        hand-rolled sheet component any more. */}
+                    <Stack.Screen
+                      name="generate-structure"
+                      options={SHEET_OPTIONS}
+                    />
+                    <Stack.Screen name="paywall" options={SHEET_OPTIONS} />
                   </Stack>
                 </AppReadyGate>
               </TimerProvider>

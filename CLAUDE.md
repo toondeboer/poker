@@ -42,6 +42,22 @@ and [ARCHITECTURE.md](./ARCHITECTURE.md) for the full design.
 - **Numeric inputs use `NumberField`**, which keeps the raw string while editing. Binding a
   `TextInput` straight to `Number(text)` makes a cleared field show a literal `0` that the user has
   to select and overwrite.
+- **Bottom sheets are native, not hand-rolled.** The generator and the paywall are *routes*
+  (`app/generate-structure.tsx`, `app/paywall.tsx`) presented with `presentation: "formSheet"` —
+  `react-native-screens` (already a dependency) gives a real `UISheetPresentationController` on iOS
+  and a Material `BottomSheetBehavior` on Android, so the grabber, backdrop, drag-to-dismiss and
+  corner radius come from the platform. Shared options live in `SHEET_OPTIONS` in `_layout.tsx`.
+  - **Don't hand-roll another one.** A `Modal`-based `Sheet` component existed and every piece of
+    it had to be fixed by hand and got at least one thing wrong: the grabber drew but handled no
+    gesture, the drag failed to claim the responder, the backdrop slid up instead of fading, and on
+    iOS reopening after a drag-dismiss showed nothing because the `Animated.Value` still held a
+    screen height. All of that is the platform's job.
+  - **`expo-router`'s own docstring says `formSheet` "will fallback to 'modal' on Android". That is
+    out of date** — `react-native-screens` 4.x ships a real Android sheet
+    (`android/.../rnscreens/bottomsheet/`), verified on an emulator. Don't let the comment talk you
+    out of it.
+  - Keep `SheetHeader`'s close button even though the sheet is draggable: Android doesn't render a
+    grabber, so it would otherwise have no *visible* dismissal affordance.
 - **Only one scroller per screen.** Settings is a single `ScrollView`, the blind editor a single
   `FlatList`. A nested scroll region (`nestedScrollEnabled`) was the defect the Settings redesign
   removed — don't reintroduce one. A `ScrollView` inside a `Modal`/`Sheet` is fine: a modal is its

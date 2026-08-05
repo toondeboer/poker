@@ -15,4 +15,4 @@ export type { SegmentOption } from "./SegmentedControl";
 export { ListRow } from "./ListRow";
 export { NavRow } from "./NavRow";
 export { StickyFooter } from "./StickyFooter";
-export { Sheet } from "./Sheet";
+export { SheetHeader } from "./SheetHeader";

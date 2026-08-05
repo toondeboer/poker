@@ -28,8 +28,7 @@ export interface BillingProvider extends EntitlementProvider {
 // Public RevenueCat SDK keys are safe to ship in the client (set in app.json
 // `extra`). Android key is added when the Play app is published.
 const extra = Constants.expoConfig?.extra as
-  | { revenueCatAppleKey?: string; revenueCatGoogleKey?: string }
-  | undefined;
+  { revenueCatAppleKey?: string; revenueCatGoogleKey?: string } | undefined;
 
 const API_KEY = Platform.select({
   ios: extra?.revenueCatAppleKey,
@@ -97,7 +96,12 @@ export const revenueCatProvider: BillingProvider = {
       return toEntitlements(customerInfo);
     } catch (e) {
       // A user cancelling isn't an error — report current (unchanged) state.
-      if (e && typeof e === "object" && "userCancelled" in e && e.userCancelled) {
+      if (
+        e &&
+        typeof e === "object" &&
+        "userCancelled" in e &&
+        e.userCancelled
+      ) {
         return toEntitlements(await Purchases.getCustomerInfo());
       }
       throw e;

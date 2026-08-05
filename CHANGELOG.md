@@ -54,6 +54,11 @@ platform-tagged heading (e.g. `## [1.1.3] - 2026-07-20 — Android`) when you cu
   always catches it up correctly).
 
 ### Changed
+- Mobile: the structure generator and the Pro paywall are now presented as real platform bottom
+  sheets rather than a hand-built modal — a proper sheet on both iOS and Android, with the system's
+  own grabber, dimmed backdrop and drag-to-dismiss. Dragging one down now actually closes it (the
+  handle previously did nothing at all), and reopening straight after a drag no longer comes up
+  blank on iOS.
 - Mobile: updated RevenueCat (`react-native-purchases` 10.4.0 → 10.4.4, which moves the native SDK
   from 5.78.0 to 5.81.1 via `PurchasesHybridCommon` 18.22.2). Purchase and restore should be
   smoke-tested on a real device before this release is submitted.

@@ -1,11 +1,12 @@
 // src/components/settings/SettingsScreen.tsx
-import { useRef, useState } from "react";
+import { useRef } from "react";
 import {
   ScrollView,
   StyleSheet,
   useWindowDimensions,
   View,
 } from "react-native";
+import { useRouter } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import {
   colors,
@@ -13,19 +14,19 @@ import {
   space,
   TABLET_MAX_WIDTH_SETTINGS,
 } from "@/src/theme";
-import { Paywall } from "@/src/components/paywall/Paywall";
 import { ProCard } from "./ProCard";
 import { TournamentCard } from "./TournamentCard";
 import { PresetsCard } from "./PresetsCard";
 import { SoundPackCard } from "./SoundPackCard";
 
 export function SettingsScreen() {
+  const router = useRouter();
   const insets = useSafeAreaInsets();
   const { width } = useWindowDimensions();
   const isTablet = isTabletWidth(width);
 
-  const [showPaywall, setShowPaywall] = useState(false);
-  const openPaywall = () => setShowPaywall(true);
+  // The paywall is its own route, presented as a native form sheet.
+  const openPaywall = () => router.navigate("/paywall");
 
   // Owned here (rather than in PresetsCard) because the nudge has to drive the
   // screen's scroller, which lives at this level.
@@ -77,8 +78,6 @@ export function SettingsScreen() {
 
         <SoundPackCard onRequestPro={openPaywall} />
       </ScrollView>
-
-      <Paywall visible={showPaywall} onClose={() => setShowPaywall(false)} />
     </View>
   );
 }
