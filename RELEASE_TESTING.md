@@ -123,12 +123,16 @@ never re-confirmed.
 `isTablet` is `width > 768`. **iPad mini (744pt) deliberately gets the phone layout** — that's
 expected, not a bug.
 
+Android tablet (2560×1600) verified against a freshly built APK. **iPad is still open** — it needs
+an iOS rebuild first, because the existing simulator build red-screens on the RNPurchases
+native/JS mismatch (§0).
+
 | | iPad | Android tablet |
 |---|---|---|
-| Settings: Tournament + Presets **side by side**, capped and centred | ☐ | ☐ |
-| Blind editor list + sticky footer capped at 900 and centred | ☐ | ☐ |
-| Timer card centred, not full-bleed | ☐ | ☐ |
-| Generator sheet sensible at tablet width | ☐ | ☐ |
+| Settings: Tournament + Presets **side by side**, capped and centred | ☐ | ☑ |
+| Blind editor list + sticky footer capped at 900 and centred | ☐ | ☑ |
+| Timer card centred, not full-bleed | ☐ | ☑ |
+| Generator sheet sensible at tablet width | ☐ | ☑ |
 | iPad **mini** still gets the phone layout | ☐ | n/a |
 
 ---
