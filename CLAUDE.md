@@ -251,6 +251,16 @@ Mobile releases are batched on a short-lived branch per version, not shipped str
   running their own daemon) re-triggering the shim bug with no `expo run:android` or other
   explicit command involved — if a local Android build seems to spontaneously re-break after
   being fixed, check for a concurrent IDE Gradle sync before assuming the fix didn't take.
+- **Bumping a native module invalidates every existing dev-client binary — rebuild, don't just
+  reload.** A dev client ships compiled native modules; Metro only replaces the JS. Update one and
+  the new JS talks to the old native code, which fails at *runtime* with nothing at build time to
+  warn you. Observed on the `react-native-purchases` 10.4.0 → 10.4.4 bump: the app red-screened at
+  launch with `RNPurchases.setupPurchases called with too many arguments, expected up to 14, got 15`
+  from `revenueCatProvider.ts`, because 10.4.4's JS passes an extra argument that 10.4.0's native
+  module doesn't accept. Nothing was wrong with the code. After any change under `dependencies` that
+  has native code, run `npm run pods -w @poker/mobile` (iOS) and rebuild the dev client on both
+  platforms before trusting anything you see. `pod install` refusing to run is the *good* case —
+  it's the mismatch surfacing early rather than at launch.
 - **iOS must build from source.** SDK-56 precompiled XCFrameworks break this hoisted monorepo
   (archive fails on `Build ExpoModulesJSI xcframework` / safe-area-context "Directory not found",
   even with `--clear-cache`). `apps/mobile/ios/Podfile` bakes
