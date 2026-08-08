@@ -11,13 +11,13 @@ touching notifications, billing, or the keyboard — those are the paths that di
 
 ## 0. Before you start
 
-- [ ] **Rebuild the dev client on both platforms.** 1.1.4 moves `react-native-purchases`
+- [ ✅] **Rebuild the dev client on both platforms.** 1.1.4 moves `react-native-purchases`
       10.4.0 → 10.4.4, which moves the native SDK (`PurchasesHybridCommon` 18.22.2,
       `RevenueCat` 5.81.1). An existing dev client red-screens at launch with
       `RNPurchases.setupPurchases called with too many arguments, expected up to 14, got 15` —
       the new JS against the old native module. `npm run pods -w @poker/mobile`, then
       `npm run ios` / `npm run android`.
-- [ ] If the app behaves strangely in ways that don't match the code, check
+- [ ✅] If the app behaves strangely in ways that don't match the code, check
       `pgrep -fl GradleDaemon` — VS Code's Java extension replants the broken expo shims.
       `node apps/mobile/scripts/clean-expo-shims.js` fixes it; lint/typecheck now self-heal.
 
@@ -31,10 +31,10 @@ sandbox/test account.
 
 | | iOS | Android |
 |---|---|---|
-| Paywall opens from all three entry points (Pro card, Presets, Sound Pack) | ☐ | ☐ |
-| Price string renders (not blank, not `one-time` alone) | ☐ | ☐ |
-| **Purchase completes** and Pro unlocks (ads gone, Presets + Sound Pack usable) | ☐ | ☐ |
-| **Restore purchases** works on a fresh install of the same account | ☐ | ☐ |
+| Paywall opens from all three entry points (Pro card, Presets, Sound Pack) | ✅ | ☐ |
+| Price string renders (not blank, not `one-time` alone) | ❌ -> renders one-time alone | ☐ |
+| **Purchase completes** and Pro unlocks (ads gone, Presets + Sound Pack usable) | ✅  | ☐ |
+| **Restore purchases** works on a fresh install of the same account | ✅  | ☐ |
 | Cancelling a purchase leaves the app in a sane state, no error toast | ☐ | ☐ |
 
 > Set `FORCE_PRO_IN_DEV`/`FORCE_FREE_IN_DEV` in `PremiumContext.tsx` to exercise the *gated UI*
@@ -49,14 +49,14 @@ rendering, and not on tablets.
 
 | | iOS | Android |
 |---|---|---|
-| Settings scrolls as one page — no scroll island | ☐ | ☑ |
-| Blind structure row shows correct count + range, opens the editor | ☐ | ☑ |
-| 30 rows scroll smoothly; inputs editable | ☐ | ☑ |
-| Clearing a blind field shows **empty**, not `0`; blur restores the old value | ☐ | ☐ |
-| `+` → Insert below / Duplicate, at top, middle and end | ☐ | ☐ |
-| Delete down to 2 levels → trash buttons disable | ☐ | ☐ |
-| Sticky footer appears only when dirty | ☐ | ☑ |
-| **Discard** restores the active values | ☐ | ☐ |
+| Settings scrolls as one page — no scroll island | ✅ | ☑ |
+| Blind structure row shows correct count + range, opens the editor | ✅ | ☑ |
+| 30 rows scroll smoothly; inputs editable | ✅ | ☑ |
+| Clearing a blind field shows **empty**, not `0`; blur restores the old value | ✅ | ☐ |
+| `+` → Insert below / Duplicate, at top, middle and end | ✅ | ☐ |
+| Delete down to 2 levels → trash buttons disable | ✅ | ☐ |
+| Sticky footer appears only when dirty |✅| ☑ |
+| **Discard** restores the active values | ✅ | ☐ |
 | **Apply mid-tournament keeps your level** (start Level 12, edit, apply → still 12) | ☐ | ☑ |
 | Apply a schedule **shorter** than the current level → warning shown, lands on last level, **timer does not crash** | ☐ | ☐ |
 | Tap-to-jump: confirm → timer *and* notification/Live Activity both follow | ☐ | ☑ |
