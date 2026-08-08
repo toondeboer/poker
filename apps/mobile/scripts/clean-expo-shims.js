@@ -8,13 +8,21 @@
 // (including Gradle's own `expo-modules-autolinking resolve` step), so the next build fails with
 // "Project with path ':expo-dev-launcher' could not be found in project ':expo-dev-client'".
 //
-// Run automatically before `android`/`android:device` (see package.json's "preandroid*" scripts)
-// so the very next invocation self-heals instead of requiring the manual cleanup dance every
-// time. This can't prevent a shim planted *during* the same `expo run:android` invocation by a
+// Run automatically before every command the shims can break — `android`, `ios`, `prebuild`,
+// `pods`, `lint`, `typecheck` — plus the repo-root `postinstall`, so the very next invocation
+// self-heals instead of requiring the manual cleanup dance every time.
+//
+// Pass `--gradle-cache` to *also* wipe the Android build directories. That is only wanted ahead of
+// an actual Android build: Gradle caches the resolved autolinking list and will keep serving a
+// stale, truncated one otherwise. It is deliberately NOT the default, because this script runs
+// from `lint` and `typecheck` too and those have nothing to do with Gradle — having them delete
+// `android/app/build` throws away a multi-minute build for no reason. This can't prevent a shim planted *during* the same `expo run:android` invocation by a
 // concurrently running IDE Gradle sync — closing any open Android Studio / Gradle-syncing IDE
 // window for this project is still the fix for that specific case.
 const fs = require("fs");
 const path = require("path");
+
+const clearGradleCache = process.argv.includes("--gradle-cache");
 
 const mobileRoot = path.resolve(__dirname, "..");
 const repoRoot = path.resolve(mobileRoot, "..", "..");
@@ -47,15 +55,17 @@ for (const p of broken) {
 
 // Gradle caches the resolved autolinking list once it's read it; if that read happened while the
 // shims above were broken, it keeps serving the same stale, truncated list even after the shims
-// are cleaned up. Clear it too whenever we've just fixed a real breakage.
-const gradleCacheDirs = [
-  path.join(mobileRoot, "android", "build"),
-  path.join(mobileRoot, "android", "app", "build"),
-];
-for (const dir of gradleCacheDirs) {
-  if (fs.existsSync(dir)) {
-    fs.rmSync(dir, { recursive: true, force: true });
-    console.log(`[clean-expo-shims] cleared stale Gradle cache: ${path.relative(repoRoot, dir)}`);
+// are cleaned up. Only worth clearing ahead of an actual Android build — see the note at the top.
+if (clearGradleCache) {
+  const gradleCacheDirs = [
+    path.join(mobileRoot, "android", "build"),
+    path.join(mobileRoot, "android", "app", "build"),
+  ];
+  for (const dir of gradleCacheDirs) {
+    if (fs.existsSync(dir)) {
+      fs.rmSync(dir, { recursive: true, force: true });
+      console.log(`[clean-expo-shims] cleared stale Gradle cache: ${path.relative(repoRoot, dir)}`);
+    }
   }
 }
 

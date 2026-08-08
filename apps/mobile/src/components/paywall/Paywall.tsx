@@ -2,14 +2,13 @@
 import { useState } from "react";
 import {
   ActivityIndicator,
-  Modal,
   StyleSheet,
   Text,
   TouchableOpacity,
   View,
 } from "react-native";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { usePremium } from "@/src/contexts/PremiumContext";
+import { Sheet } from "@/src/components/ui/Sheet";
 
 const PRO_FEATURES = [
   "Remove all ads — a clean, full-screen timer",
@@ -22,6 +21,12 @@ const PRO_FEATURES = [
  * The Pro upgrade sheet. Wired to {@link usePremium} so it works against the
  * stub today and against RevenueCat once that's added — no change needed here.
  * Includes Restore Purchases, which Apple requires for non-consumable IAPs.
+ *
+ * Uses the shared {@link Sheet} so there is one sheet implementation rather than
+ * two that drift — the backdrop was fixed to fade in place in `Sheet` and this
+ * screen kept sliding it because it had its own copy. Gesture dismissal is
+ * deliberately off: the paywall keeps its explicit "Maybe later", since how
+ * easily it can be dismissed is a product decision, not a styling one.
  */
 export function Paywall({
   visible,
@@ -30,7 +35,6 @@ export function Paywall({
   visible: boolean;
   onClose: () => void;
 }) {
-  const insets = useSafeAreaInsets();
   const { isPremium, purchasing, proPriceString, purchasePro, restore } =
     usePremium();
   const [error, setError] = useState<string | null>(null);
@@ -47,94 +51,70 @@ export function Paywall({
   };
 
   return (
-    <Modal
+    <Sheet
       visible={visible}
-      animationType="slide"
-      transparent
-      // Without these, Android stops the modal window above the navigation bar
-      // and the screen behind shows through in the gap below the sheet. Both are
-      // required together — RN warns otherwise.
-      statusBarTranslucent
-      navigationBarTranslucent
-      onRequestClose={onClose}
+      onClose={onClose}
+      gestureDismissible={false}
+      maxContentHeightRatio={0.72}
     >
-      <View style={styles.backdrop}>
-        {/* The modal now reaches the screen edge, so the sheet has to keep its
-            own content clear of the gesture bar / navigation bar itself. */}
-        <View style={[styles.sheet, { paddingBottom: 36 + insets.bottom }]}>
-          <Text style={styles.title}>Poker Blinds Buzzer Pro</Text>
-          <Text style={styles.subtitle}>One-time unlock. Yours forever.</Text>
+      <Text style={styles.title}>Poker Blinds Buzzer Pro</Text>
+      <Text style={styles.subtitle}>One-time unlock. Yours forever.</Text>
 
-          <View style={styles.features}>
-            {PRO_FEATURES.map((feature) => (
-              <View key={feature} style={styles.featureRow}>
-                <Text style={styles.check}>✓</Text>
-                <Text style={styles.featureText}>{feature}</Text>
-              </View>
-            ))}
+      <View style={styles.features}>
+        {PRO_FEATURES.map((feature) => (
+          <View key={feature} style={styles.featureRow}>
+            <Text style={styles.check}>✓</Text>
+            <Text style={styles.featureText}>{feature}</Text>
           </View>
-
-          {isPremium ? (
-            <View style={styles.unlockedBox}>
-              <Text style={styles.unlockedText}>
-                ✓ Pro unlocked — thank you!
-              </Text>
-            </View>
-          ) : (
-            <>
-              <TouchableOpacity
-                style={[styles.buyButton, purchasing && styles.disabled]}
-                onPress={() => run(purchasePro)}
-                disabled={purchasing}
-                activeOpacity={0.85}
-              >
-                {purchasing ? (
-                  <ActivityIndicator color="#1f2937" />
-                ) : (
-                  <Text style={styles.buyButtonText}>
-                    Unlock Pro · {priceLabel}
-                  </Text>
-                )}
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                style={styles.restoreButton}
-                onPress={() => run(restore)}
-                disabled={purchasing}
-                activeOpacity={0.7}
-              >
-                <Text style={styles.restoreText}>Restore purchases</Text>
-              </TouchableOpacity>
-            </>
-          )}
-
-          {error && <Text style={styles.error}>{error}</Text>}
-
-          <TouchableOpacity style={styles.closeButton} onPress={onClose}>
-            <Text style={styles.closeText}>
-              {isPremium ? "Done" : "Maybe later"}
-            </Text>
-          </TouchableOpacity>
-        </View>
+        ))}
       </View>
-    </Modal>
+
+      {isPremium ? (
+        <View style={styles.unlockedBox}>
+          <Text style={styles.unlockedText}>✓ Pro unlocked — thank you!</Text>
+        </View>
+      ) : (
+        <>
+          <TouchableOpacity
+            style={[styles.buyButton, purchasing && styles.disabled]}
+            onPress={() => run(purchasePro)}
+            disabled={purchasing}
+            activeOpacity={0.85}
+          >
+            {purchasing ? (
+              <ActivityIndicator color="#1f2937" />
+            ) : (
+              <Text style={styles.buyButtonText}>
+                Unlock Pro · {priceLabel}
+              </Text>
+            )}
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={styles.restoreButton}
+            onPress={() => run(restore)}
+            disabled={purchasing}
+            activeOpacity={0.7}
+          >
+            <Text style={styles.restoreText}>Restore purchases</Text>
+          </TouchableOpacity>
+        </>
+      )}
+
+      {error && <Text style={styles.error}>{error}</Text>}
+
+      <TouchableOpacity style={styles.closeButton} onPress={onClose}>
+        <Text style={styles.closeText}>
+          {isPremium ? "Done" : "Maybe later"}
+        </Text>
+      </TouchableOpacity>
+    </Sheet>
   );
 }
 
 const styles = StyleSheet.create({
-  backdrop: {
-    flex: 1,
-    backgroundColor: "rgba(0, 0, 0, 0.6)",
-    justifyContent: "flex-end",
-  },
-  sheet: {
-    backgroundColor: "#1e293b",
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
-    padding: 24,
-    paddingBottom: 36,
-    gap: 16,
-  },
+  // No backdrop, corners, padding or safe-area handling here — Sheet owns all of
+  // the sheet chrome now.
   title: {
     fontSize: 24,
     fontWeight: "700",

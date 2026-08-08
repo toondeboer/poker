@@ -42,6 +42,19 @@ and [ARCHITECTURE.md](./ARCHITECTURE.md) for the full design.
 - **Numeric inputs use `NumberField`**, which keeps the raw string while editing. Binding a
   `TextInput` straight to `Number(text)` makes a cleared field show a literal `0` that the user has
   to select and overwrite.
+- **Don't move the sheets to `presentation: "formSheet"` — it was tried and reverted.**
+  `react-native-screens` 4.25.2 does ship real native sheets (verified working on Android), and
+  `expo-router`'s docstring claiming Android falls back to a full-screen modal is out of date. **But
+  the iOS path does not lay out correctly on this RN/RNS combination.** `ScreenStackItem` gives
+  form-sheet content `position: absolute` with **no bottom constraint** on iOS unless
+  `featureFlags.experiment.synchronousScreenUpdatesEnabled` is on — and that flag defaults to
+  `false`, is explicitly experimental ("might be removed w/o notice"), and changes screen-update
+  behaviour app-wide, not just for sheets. Without it the content has to derive its own height, and
+  both a `flex: 1` container and a `maxHeight`-bounded `ScrollView` still rendered an empty sheet
+  with the content stranded below the sheet frame. Two attempts, neither worked.
+  - So the sheets stay hand-rolled on `Modal` (`components/ui/Sheet.tsx`). Revisit when that flag
+    graduates out of `experiment`, and **verify on a real iOS build before believing it** — Android
+    looked perfect the whole time this was broken on iOS.
 - **Only one scroller per screen.** Settings is a single `ScrollView`, the blind editor a single
   `FlatList`. A nested scroll region (`nestedScrollEnabled`) was the defect the Settings redesign
   removed — don't reintroduce one. A `ScrollView` inside a `Modal`/`Sheet` is fine: a modal is its
@@ -208,8 +221,13 @@ Mobile releases are batched on a short-lived branch per version, not shipped str
   That covers shims left over from a *previous* run; if it still recurs mid-build (a concurrent
   Gradle sync replanting them *during* the same invocation, or you built via some
   other entrypoint like a bare `npx expo run:android` that skips the npm script), the manual fix
-  below still applies; `node apps/mobile/scripts/clean-expo-shims.js` on its own is equivalent to
-  the `rm -rf`+cache-clear steps and safe to re-run any time. Root cause, for when the automatic
+  below still applies; `node apps/mobile/scripts/clean-expo-shims.js` on its own removes the shims
+  and is safe to re-run any time. **Add `--gradle-cache` to also wipe `android/build` +
+  `android/app/build`** — needed before an Android build (Gradle caches the resolved autolinking
+  list and will keep serving a stale one), but deliberately *not* the default, because the script
+  also runs from `lint`/`typecheck` and those have no business deleting a multi-minute Android
+  build. `preandroid*`/`preprebuild` pass the flag; `preios*`/`prepods`/`prelint`/`pretypecheck`
+  and the root `postinstall` don't. Root cause, for when the automatic
   fix isn't enough: Expo's autolinking creates partial proxy directories — missing `package.json`
   and the platform folder, just a stray `android/` — at
   `node_modules/expo-dev-client/node_modules/expo-dev-launcher` and directly under
