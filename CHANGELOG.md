@@ -52,8 +52,18 @@ platform-tagged heading (e.g. `## [1.1.3] - 2026-07-20 — Android`) when you cu
   quitting (not ordinary backgrounding): the notification can't advance its own displayed blind
   level across multiple expire-and-resume cycles while the app stays fully killed (reopening
   always catches it up correctly).
+- Mobile: the generator and Pro sheets can now be dismissed by **dragging the handle down** or
+  tapping the dimmed area outside them. The handle was previously decorative — it looked draggable
+  but did nothing — and tapping outside had no effect either, so on iOS the only way out was a
+  button.
 
 ### Changed
+- Mobile: the dimmed backdrop behind those sheets now **fades in place** instead of sliding up with
+  the sheet, and lightens as you drag one down, so the sheet reads as sitting over the screen rather
+  than being part of it.
+- Mobile: removed the small ✕ from the corner of both sheets. Each already has a labelled way out —
+  "Cancel" on the generator, "Maybe later" on the Pro sheet — so it was a second, unlabelled control
+  competing with them.
 - Mobile: updated RevenueCat (`react-native-purchases` 10.4.0 → 10.4.4, which moves the native SDK
   from 5.78.0 to 5.81.1 via `PurchasesHybridCommon` 18.22.2). Purchase and restore should be
   smoke-tested on a real device before this release is submitted.
