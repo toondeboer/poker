@@ -50,13 +50,24 @@ appId: com.toondeboer.pokerkit
 - assertVisible: ".*no longer exists.*"
 - assertVisible: "Level 4"
 
+# The retry guard checks for the warning disappearing, not "^4 levels$" — the
+# level count is already 4 *before* Apply (that's the draft, unaffected by
+# Apply/Discard either way), so it could never actually detect a failed
+# Apply. Found the hard way while adapting this flow for iOS: the equivalent
+# level-count guard there let a LogBox-swallowed Apply tap through silently,
+# since the count "looked fine" throughout even though Apply never happened.
 - runFlow: _dismiss-logbox.yaml
 - tapOn: "Apply changes"
 - runFlow: _dismiss-logbox.yaml
 - runFlow:
     when:
-      notVisible:
-        text: "^4 levels$"
+      visible: ".*no longer exists.*"
+    commands:
+      - tapOn: "Apply changes"
+      - runFlow: _dismiss-logbox.yaml
+- runFlow:
+    when:
+      visible: ".*no longer exists.*"
     commands:
       - tapOn: "Apply changes"
       - runFlow: _dismiss-logbox.yaml
