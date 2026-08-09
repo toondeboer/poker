@@ -58,12 +58,12 @@ rendering, and not on tablets.
 | Sticky footer appears only when dirty |✅| ☑ |
 | **Discard** restores the active values | ✅ | ☑ automated (Maestro: `editor-delete-discard.yaml`) |
 | **Apply mid-tournament keeps your level** (start Level 12, edit, apply → still 12) | ☐ | ☑ |
-| Apply a schedule **shorter** than the current level → warning shown, lands on last level, **timer does not crash** | ☐ | ☐ |
+| Apply a schedule **shorter** than the current level → warning shown, lands on last level, **timer does not crash** | ☐ | ☑ automated (Maestro: `editor-apply-shorter-schedule.yaml`) |
 | Tap-to-jump: confirm → timer *and* notification/Live Activity both follow | ☐ | ☑ |
 | Jump chip is **inert** while the draft is dirty | ☐ | ☑ |
 | Back with unapplied edits → Apply / Discard / Keep editing | ☐ | ☑ |
 | …via **hardware back** (Android) and **swipe-back** (iOS) | ☐ | ☑ |
-| Kill the app with a dirty draft → relaunch → draft and footer still there | ☐ | ☐ |
+| Kill the app with a dirty draft → relaunch → draft and footer still there | ☐ | ☑ automated (Maestro: `editor-kill-dirty-draft.yaml`) |
 
 ---
 
