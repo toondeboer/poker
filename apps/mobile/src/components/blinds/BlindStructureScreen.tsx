@@ -230,6 +230,5 @@ const styles = StyleSheet.create({
   centred: {
     maxWidth: TABLET_MAX_WIDTH_LIST,
     alignSelf: "center",
-    width: "100%",
   },
 });
