@@ -101,6 +101,20 @@ platform-tagged heading (e.g. `## [1.1.3] - 2026-07-20 — Android`) when you cu
   green (active) / amber (paused or low-time) / red (stop/expired).
 
 ### Fixed
+- Mobile: on Android, the generator sheet's footer ("Cancel"/"Replace structure") was unreachable
+  behind the keyboard — `Sheet.tsx`'s `KeyboardAvoidingView` silently produced no
+  adjustment at all inside this Modal's own separate Android window (same root cause
+  `useKeyboardNudge.ts` already documents for Presets: measuring against
+  `Dimensions.get('window').height` doesn't account for a Modal's own window). Fixed by tracking
+  the keyboard height directly via `Keyboard.addListener` and applying it as `marginBottom` on the
+  sheet, bypassing `KeyboardAvoidingView`'s broken Android measurement entirely.
+- Mobile: the blind-structure editor list wasn't tablet-capped/centred on iPad at all — genuinely
+  full-bleed, despite `BlindStructureScreen.tsx` having the same `isTablet`-based centering logic
+  that works correctly on Settings on the same device. A `FlatList`'s `contentContainerStyle`
+  combining `width: "100%"` with `alignSelf: "center"` + `maxWidth` resolved differently on iOS
+  than the identical pattern on a plain `ScrollView` — dropping the redundant `width: "100%"`
+  (`alignSelf: "center"` + `maxWidth` alone already caps and centers) fixed it, verified via
+  screenshot on an iPad Pro 11-inch simulator with no regression on Android tablet.
 - Mobile: on iOS, `NavRow`'s badge (e.g. the "Unapplied changes" pill on Settings' Blind structure
   row) was invisible to VoiceOver — `NavRow.tsx`'s `TouchableOpacity` sets an explicit
   `accessibilityLabel` that collapses its whole subtree, including the badge, into one opaque

@@ -74,6 +74,31 @@ export function Sheet({
   const insets = useSafeAreaInsets();
   const { height } = useWindowDimensions();
 
+  // `KeyboardAvoidingView` (below) is a no-op for Android here: its height
+  // adjustment compares against `Dimensions.get('window').height`, which
+  // still reports the full screen when this renders inside a Modal's own
+  // separate Android window — same root cause `useKeyboardNudge.ts`
+  // documents for Presets. Confirmed via a temporary on-screen listener that
+  // `keyboardDidShow`/`keyboardDidHide` themselves fire correctly (so this
+  // isn't a missing-event problem) while `behavior="height"` still produced
+  // a pixel-identical screenshot to `behavior={undefined}`. Tracking the
+  // keyboard height ourselves and applying it directly sidesteps whatever
+  // `KeyboardAvoidingView` gets wrong internally in this context.
+  const [androidKeyboardHeight, setAndroidKeyboardHeight] = useState(0);
+  useEffect(() => {
+    if (Platform.OS !== "android") return;
+    const showSub = Keyboard.addListener("keyboardDidShow", (e) =>
+      setAndroidKeyboardHeight(e.endCoordinates.height),
+    );
+    const hideSub = Keyboard.addListener("keyboardDidHide", () =>
+      setAndroidKeyboardHeight(0),
+    );
+    return () => {
+      showSub.remove();
+      hideSub.remove();
+    };
+  }, []);
+
   // Lazy useState rather than useRef: the value has to be created once and stay
   // stable, but reading a ref during render is a lint error here.
   const [translateY] = useState(() => new Animated.Value(height));
@@ -184,7 +209,11 @@ export function Sheet({
         )}
         {/* `automaticallyAdjustKeyboardInsets` doesn't reach inside a Modal, so
             iOS needs an explicit avoider here. Android's manifest-level
-            adjustResize already handles it. */}
+            adjustResize does NOT reach this Modal's own separate window
+            (see the androidKeyboardHeight state above) - `behavior`
+            deliberately stays undefined for Android since KeyboardAvoidingView
+            itself is a no-op here anyway; the marginBottom below does the
+            real work. */}
         <KeyboardAvoidingView
           behavior={Platform.OS === "ios" ? "padding" : undefined}
           style={styles.avoider}
@@ -194,6 +223,7 @@ export function Sheet({
               styles.sheet,
               {
                 paddingBottom: space.xl + insets.bottom,
+                marginBottom: androidKeyboardHeight,
                 transform: [{ translateY }],
               },
             ]}

@@ -720,23 +720,21 @@ full design.
     notification still names the *old* next blind. Pre-existing — `increaseBlinds`/`decreaseBlinds`
     have always had it — but a 20-level jump makes it obvious. Fix by rescheduling on a
     `currentBlindIndex`/`blindLevels` change while running.
-- 🔍 **The generator sheet's footer (Replace structure / Cancel) becomes unreachable behind the
+- ✅ **Fixed: the generator sheet's footer (Replace structure / Cancel) was unreachable behind the
   keyboard on Android** — found while building Maestro coverage for `RELEASE_TESTING.md` §5.
-  Focusing "Starting small blind" or "Number of levels" and bringing up the keyboard covers the
-  sheet's lower fields and its whole footer with no compensating scroll or resize; confirmed via
-  screenshot, not just a flaky assertion. `Sheet.tsx`'s `KeyboardAvoidingView` only sets a real
-  `behavior` on iOS (`"padding"`) — Android gets `undefined`, on the assumption that the
-  manifest's `android:windowSoftInputMode="adjustResize"` on `MainActivity` already handles it.
-  That assumption is wrong for this specific Modal: it opens its own separate Android window
-  (needed for `statusBarTranslucent`/`navigationBarTranslucent`, edge-to-edge), which doesn't
-  inherit the activity's `adjustResize`. **Tried and didn't work:** switching Android's `behavior`
-  to `"height"` — rebuilt, re-tested, pixel-identical screenshot before and after, so whatever's
-  actually blocking the resize here isn't fixed by that alone (possibly `KeyboardAvoidingView`'s
-  own height-diffing math getting confused by the translucent edge-to-edge window). Not a crash or
-  data-loss bug — the focused field itself stays visible and editable, and dismissing the keyboard
-  (tap outside, back, or the checkmark) gets you back to a fully visible sheet — so it's a
-  workaround-exists UX papercut, not release-blocking on its own, but worth a real fix pass rather
-  than another guess.
+  Focusing "Starting small blind" or "Number of levels" and bringing up the keyboard covered the
+  sheet's lower fields and its whole footer with no compensating scroll or resize. Root cause
+  confirmed properly this time (an earlier pass here recorded a wrong theory and a fix that did
+  nothing): a temporary on-screen listener showed `keyboardDidShow`/`keyboardDidHide` firing
+  correctly with the right height, so the event was never the problem — `KeyboardAvoidingView`
+  itself was silently producing zero adjustment on Android regardless of `behavior`
+  (`undefined` or `"height"` gave pixel-identical screenshots), the same
+  `Dimensions.get('window').height`-doesn't-reach-inside-a-Modal root cause `useKeyboardNudge.ts`
+  already documents for Presets. Fixed by bypassing `KeyboardAvoidingView`'s Android path
+  entirely: `Sheet.tsx` now tracks keyboard height itself via `Keyboard.addListener` and applies
+  it directly as `marginBottom` on the sheet. Verified via screenshot: the whole sheet, including
+  "Cancel"/"Replace structure", is now visible above the keyboard, and
+  `generator-keyboard.yaml` asserts on it for real instead of documenting the gap.
 - 🔍 **`useKeyboardNudge`'s scroll-clear-the-button fix (see its own doc comment) undershoots for
   the Presets card's preset-name field** — found in the same Maestro pass as the item above.
   Focusing "Preset name" and bringing up the *full QWERTY* keyboard only scrolls "Save Preset"
