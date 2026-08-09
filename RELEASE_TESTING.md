@@ -110,7 +110,7 @@ never re-confirmed.
 
 | | iOS | Android |
 |---|---|---|
-| Round expiry fires the alert + alarm with the app **foregrounded** | ☐ | ☑ automated (Maestro: `notification-foreground-expiry.yaml`) |
+| Round expiry fires the alert + alarm with the app **foregrounded** | ☑ automated (Maestro: `notification-foreground-expiry-ios.yaml`) | ☑ automated (Maestro: `notification-foreground-expiry.yaml`) |
 | Expiry while **backgrounded** advances the level | ☐ | tried to automate, blocked by dev-client-only noise, not a real bug — see note below |
 | Pause / Resume / Stop from the notification / Live Activity | ☐ | ☐ |
 | **After a level jump, the pending "time's up" notification names the _new_ next blind** — the fix in this release, never verified on-device | ☐ | n/a |
