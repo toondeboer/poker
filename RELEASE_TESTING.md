@@ -137,7 +137,7 @@ Android tablet (2560×1600) verified against a freshly built APK. iPad now verif
 | | iPad | Android tablet |
 |---|---|---|
 | Settings: Tournament + Presets **side by side**, capped and centred | ✅ | ☑ |
-| Blind editor list + sticky footer capped at 900 and centred | ❌ -> genuinely full-bleed, no cap/centering at all, despite `BlindStructureScreen.tsx` having the same `isTablet && styles.centred` logic that correctly works on Settings on this same device/orientation. Real, previously-unverified regression (or never-worked-on-iOS gap) — see ROADMAP.md | ☑ |
+| Blind editor list + sticky footer capped at 900 and centred | ✅ fixed (was full-bleed, see ROADMAP.md) — dropping the redundant `width: "100%"` from `centred` fixed it; verified via screenshot on iPad Pro 11-inch, list and sticky footer both cap/centre correctly | ☑ re-verified on Android_tablet after the fix, no regression |
 | Timer card centred, not full-bleed | ✅ | ☑ |
 | Generator sheet sensible at tablet width | ⚠️ also full-bleed on iPad — `Sheet.tsx` has no tablet-cap logic at all (unlike Settings/BlindStructureScreen), so this may just be pre-existing/never-implemented rather than a regression. Not confirmed whether Android's "sensible" ☑ was judged at the same full-bleed width or genuinely capped. | ☑ |
 | iPad **mini** still gets the phone layout | not verified (no iPad mini simulator checked this pass) | n/a |
@@ -148,9 +148,9 @@ Android tablet (2560×1600) verified against a freshly built APK. iPad now verif
 
 | | iOS | Android |
 |---|---|---|
-| Timer fits with no scrolling, nothing clipped | ✅ (iPhone SE simulator, screenshot) | ☐ |
-| Settings cards readable, no overlap | ✅ (iPhone SE simulator, screenshot) | ☐ |
-| Blind rows: level chip, LIVE badge and both buttons all fit | ✅ (iPhone SE simulator, screenshot) | ☐ |
+| Timer fits with no scrolling, nothing clipped | ✅ (iPhone SE simulator, screenshot) | ✅ (Android_small emulator, screenshot) |
+| Settings cards readable, no overlap | ✅ (iPhone SE simulator, screenshot) | ✅ (Android_small emulator, screenshot) |
+| Blind rows: level chip, LIVE badge and both buttons all fit | ✅ (iPhone SE simulator, screenshot) | ✅ (Android_small emulator, screenshot) |
 
 ---
 
