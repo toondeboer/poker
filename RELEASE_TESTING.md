@@ -52,11 +52,11 @@ rendering, and not on tablets.
 | Settings scrolls as one page — no scroll island | ✅ | ☑ |
 | Blind structure row shows correct count + range, opens the editor | ✅ | ☑ |
 | 30 rows scroll smoothly; inputs editable | ✅ | ☑ |
-| Clearing a blind field shows **empty**, not `0`; blur restores the old value | ✅ | ☐ |
-| `+` → Insert below / Duplicate, at top, middle and end | ✅ | ☐ |
-| Delete down to 2 levels → trash buttons disable | ✅ | ☐ |
+| Clearing a blind field shows **empty**, not `0`; blur restores the old value | ✅ | ☑ automated (Maestro: `editor-clear-blur.yaml`) |
+| `+` → Insert below / Duplicate, at top, middle and end | ✅ | ☑ automated (Maestro: `editor-insert-duplicate.yaml` for top+middle, `editor-delete-discard.yaml` for end on a short list — see notes in those files for why the full 30-row list's last rows weren't used) |
+| Delete down to 2 levels → trash buttons disable | ✅ | ☑ automated (Maestro: `editor-delete-discard.yaml`) |
 | Sticky footer appears only when dirty |✅| ☑ |
-| **Discard** restores the active values | ✅ | ☐ |
+| **Discard** restores the active values | ✅ | ☑ automated (Maestro: `editor-delete-discard.yaml`) |
 | **Apply mid-tournament keeps your level** (start Level 12, edit, apply → still 12) | ☐ | ☑ |
 | Apply a schedule **shorter** than the current level → warning shown, lands on last level, **timer does not crash** | ☐ | ☐ |
 | Tap-to-jump: confirm → timer *and* notification/Live Activity both follow | ☐ | ☑ |

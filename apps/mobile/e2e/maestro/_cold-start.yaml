@@ -21,3 +21,11 @@ appId: com.toondeboer.pokerkit
 - extendedWaitUntil:
     visible: "Level 1"
     timeout: 10000
+
+# See _dismiss-logbox.yaml: the emulator has no Play Billing, so RevenueCat
+# logs a small batch of startup errors that RN's LogBox turns into a
+# footer-covering toast. They don't always have fired yet this early, so a
+# flow that reaches a footer tap should call _dismiss-logbox.yaml again
+# right before it — this first pass only catches the (common) case where
+# they beat this point.
+- runFlow: _dismiss-logbox.yaml

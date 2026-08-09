@@ -1,0 +1,31 @@
+appId: com.toondeboer.pokerkit
+---
+# Shared subflow (imported via `runFlow: file: _dismiss-logbox.yaml`): drain
+# any pending RN LogBox dev-error notifications so the next tap lands on the
+# app, not on LogBox.
+#
+# This is a dev-client build, and the emulator has no Play Billing
+# (BILLING_UNAVAILABLE — expected, already documented in RELEASE_TESTING.md
+# §1), so RevenueCat's startup entitlement/offerings fetch logs a small,
+# finite batch of console.error calls (observed as exactly 3, arriving a few
+# seconds after launch — after `_cold-start.yaml`'s own drain already ran,
+# which is why flows that reach a footer tap need this too). LogBox renders
+# each as a toast pinned to the bottom of the screen, directly on top of the
+# sticky Apply/Discard footer, and a tap meant for the footer can land on the
+# toast instead and open its full-screen error detail rather than tapping our
+# button. If it's already a toast, tap it open (its own text is a stable
+# selector); either way, once the detail view is open its "Dismiss" button
+# has real text to select on — repeat until nothing's left to dismiss.
+- runFlow:
+    when:
+      visible: "PurchasesError"
+    commands:
+      - tapOn: "PurchasesError"
+- repeat:
+    times: 5
+    commands:
+      - runFlow:
+          when:
+            visible: "Dismiss"
+          commands:
+            - tapOn: "Dismiss"
