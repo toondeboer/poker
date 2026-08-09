@@ -18,8 +18,13 @@ appId: com.toondeboer.pokerkit
 # the machine currently running Metro — update it if that changes.
 - stopApp
 - openLink: "com.toondeboer.pokerkit://expo-development-client/?url=http%3A%2F%2F192.168.68.62%3A8081"
+# Not "Level 1": the current level persists in storage across relaunches, so
+# a flow that left the tournament on some other level (or errored out before
+# resetting it back) means the very next cold start can legitimately land on
+# "Level 12" instead — asserting on that used to fail this subflow itself.
+# "Current Blinds" is always present regardless of which level it's on.
 - extendedWaitUntil:
-    visible: "Level 1"
+    visible: "Current Blinds"
     timeout: 10000
 
 # See _dismiss-logbox.yaml: the emulator has no Play Billing, so RevenueCat

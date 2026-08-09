@@ -16,11 +16,17 @@ appId: com.toondeboer.pokerkit
 # button. If it's already a toast, tap it open (its own text is a stable
 # selector); either way, once the detail view is open its "Dismiss" button
 # has real text to select on — repeat until nothing's left to dismiss.
+# Maestro's text selectors full-match a node's entire text by default — a
+# bare "PurchasesError" never matches this toast, because the node's actual
+# text is the whole (much longer) error message. Wrapping it `.*...*`  is
+# what makes this a real substring/contains check; this cost real time to
+# find, since the symptom (silently SKIPPED, never erroring) looks identical
+# to "the toast just isn't there right now".
 - runFlow:
     when:
-      visible: "PurchasesError"
+      visible: ".*PurchasesError.*"
     commands:
-      - tapOn: "PurchasesError"
+      - tapOn: ".*PurchasesError.*"
 - repeat:
     times: 5
     commands:

@@ -39,7 +39,7 @@ appId: com.toondeboer.pokerkit
 # back to it before asserting, rather than asserting against an off-screen node.
 - scrollUntilVisible:
     element:
-      text: "Reset to default"
+      text: "^[0-9]+ levels$"
     direction: UP
 - assertVisible:
     text: "^32 levels$"
