@@ -1,0 +1,24 @@
+appId: com.toondeboer.pokerkit
+---
+# §5 keyboard: the generator sheet's fields stay usable with the keyboard up
+# — focusing a field and typing into it should both work and leave the
+# sheet's own footer buttons reachable, not just silently swallowed input.
+- runFlow: _cold-start.yaml
+- openLink: "pokerkit://blinds"
+- assertVisible: "Blind structure"
+- tapOn: "Generate"
+- assertVisible: "Generate structure"
+
+- tapOn:
+    text: "^5$"
+- longPressOn:
+    text: "^5$"
+- eraseText: 3
+- inputText: "40"
+- assertVisible:
+    text: "^40$"
+# The footer's primary action is still reachable while the keyboard is up —
+# not scrolled out of view or covered by it.
+- assertVisible: "Replace structure"
+
+- tapOn: "Cancel"
