@@ -737,6 +737,17 @@ full design.
   (tap outside, back, or the checkmark) gets you back to a fully visible sheet — so it's a
   workaround-exists UX papercut, not release-blocking on its own, but worth a real fix pass rather
   than another guess.
+- 🔍 **`useKeyboardNudge`'s scroll-clear-the-button fix (see its own doc comment) undershoots for
+  the Presets card's preset-name field** — found in the same Maestro pass as the item above.
+  Focusing "Preset name" and bringing up the *full QWERTY* keyboard only scrolls "Save Preset"
+  about 40% clear of it (measured: button bounds `[461,1539][687,1588]` against IME content
+  insets starting at `y=1399` on a 1080×2424 screen), not fully clear as `BREATHING_ROOM = 24`
+  intends. The hook's own comment describes fixing this exact class of bug against Android's
+  `adjustResize` window-shrink measurement, but that fix may have only been validated against a
+  shorter keyboard (the number-pad used by the blind/duration fields elsewhere) — a full
+  alphanumeric keyboard is taller, which could be exactly what's under-covered here. Not
+  investigated further than confirming the shortfall; a real fix needs figuring out why the
+  measured `overflow` comes up short specifically for the taller keyboard case.
 
 ## Pro feature: Leaderboard
 - ⬜ Track who's won the most games among a friend group (local group, not global/online ranking).

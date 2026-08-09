@@ -1,0 +1,27 @@
+appId: com.toondeboer.pokerkit
+---
+# §5 keyboard: focusing the preset-name field should scroll "Save Preset"
+# fully clear of the keyboard (useKeyboardNudge.ts) — Presets is Pro-gated,
+# so this only runs with FORCE_PRO_IN_DEV=true in PremiumContext.tsx (as
+# RELEASE_TESTING.md itself documents doing to exercise gated UI without a
+# real purchase). Not committed with that flag flipped — flip it locally,
+# run this, flip it back.
+#
+# IMPORTANT: `assertVisible` here is not trustworthy proof on its own.
+# Maestro's visibility check only looks at the app's own layout bounds — it
+# has no idea the system IME window is drawn on top and covering part of a
+# view that's still technically "visible" by that definition. Confirmed via
+# screenshot + measured bounds: this assertion below passes while the actual
+# button is only ~40% clear of the keyboard, the rest hidden behind it. A
+# real verification of this row needs a screenshot, not just this assertion.
+- runFlow: _cold-start.yaml
+- openLink: "pokerkit://settings"
+- assertVisible: "Tournament Presets"
+- scrollUntilVisible:
+    element:
+      text: "Preset name"
+    direction: DOWN
+- tapOn:
+    text: "Preset name"
+- assertVisible: "Save Preset"
+- takeScreenshot: keyboard-preset-nudge-result
