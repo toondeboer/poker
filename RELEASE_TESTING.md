@@ -85,10 +85,10 @@ rendering, and not on tablets.
 
 | | iOS | Android |
 |---|---|---|
-| mm:ss commits on blur — no Save button needed | ☐ | ☑ automated (Maestro: `round-duration.yaml`) |
-| Type `12`/`30`, back out → next round is 12:30 | ☐ | ☑ automated (Maestro: `round-duration.yaml`) |
-| Changing it **mid-round leaves the running round's remaining time alone** | ☐ | ☑ automated (Maestro: `round-duration-mid-round.yaml`) |
-| Seconds field caps at 59 | ☐ | ☑ automated (Maestro: `round-duration.yaml` — found and fixed a real display bug along the way, see CHANGELOG) |
+| mm:ss commits on blur — no Save button needed | ☑ automated (Maestro: `round-duration-ios.yaml`) | ☑ automated (Maestro: `round-duration.yaml`) |
+| Type `12`/`30`, back out → next round is 12:30 | ☑ automated (Maestro: `round-duration-ios.yaml`) | ☑ automated (Maestro: `round-duration.yaml`) |
+| Changing it **mid-round leaves the running round's remaining time alone** | ☑ automated (Maestro: `round-duration-mid-round-ios.yaml`) | ☑ automated (Maestro: `round-duration-mid-round.yaml`) |
+| Seconds field caps at 59 | ☑ automated (Maestro: `round-duration-ios.yaml` — confirms the NumberField fix holds cross-platform, same shared JS) | ☑ automated (Maestro: `round-duration.yaml` — found and fixed a real display bug along the way, see CHANGELOG) |
 
 ---
 
