@@ -101,6 +101,14 @@ platform-tagged heading (e.g. `## [1.1.3] - 2026-07-20 — Android`) when you cu
   green (active) / amber (paused or low-time) / red (stop/expired).
 
 ### Fixed
+- Mobile: a `NumberField` (round duration's seconds, or any numeric field with a
+  stricter clamp layered on top by its parent) could keep showing a stale, out-of-range
+  digit string after blurring — e.g. typing `99` into the round-duration seconds field
+  and tapping away left the box reading "99" even though the round was already
+  correctly capped to 59 seconds underneath. `onBlur` was recomputing its own clamp
+  from just `min`, overwriting the display with that instead of trusting the already
+  fully-clamped `value` it had been passed. Found while building Maestro coverage for
+  `RELEASE_TESTING.md`.
 - Mobile: the Timer screen card no longer stretches edge-to-edge on tablets — capped it at the
   same tablet-aware `maxWidth` + centered layout `PokerSettings.tsx` already used, so blind values
   and buttons don't end up spread across the full iPad-width card. Found during a cross-device QA

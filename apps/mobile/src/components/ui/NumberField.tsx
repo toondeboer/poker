@@ -50,14 +50,15 @@ export function NumberField({
       }}
       onBlur={(e) => {
         editingRef.current = false;
-        const parsed = Number(raw);
-        if (raw.length === 0 || !Number.isFinite(parsed)) {
-          setRaw(String(value));
-        } else {
-          const clamped = Math.max(min, parsed);
-          setRaw(String(clamped));
-          if (clamped !== value) onChangeValue(clamped);
-        }
+        // `value` is already correct here: every keystroke's onChangeText
+        // above already pushed the min-floored number through onChangeValue,
+        // and a parent applying its own extra clamp (e.g. DurationField's
+        // seconds field capping at 59) has already fed that back as `value`
+        // too. Recomputing a clamp from `raw` here — as this used to do —
+        // only knows about `min`, not any such parent clamp, so it could
+        // overwrite the display with an uncapped number even though the
+        // actual app state was already correctly capped.
+        setRaw(String(value));
         fieldProps.onBlur?.(e);
       }}
     />
