@@ -748,6 +748,18 @@ full design.
   alphanumeric keyboard is taller, which could be exactly what's under-covered here. Not
   investigated further than confirming the shortfall; a real fix needs figuring out why the
   measured `overflow` comes up short specifically for the taller keyboard case.
+- 🔍 **`NavRow`'s badge (e.g. the "Unapplied changes" pill on the Blind structure row) is invisible
+  to VoiceOver on iOS** — found while adapting the generator's Maestro flows for iOS. `NavRow.tsx`
+  sets an explicit `accessibilityLabel="${title}. ${summary}"` on its `TouchableOpacity`, which on
+  iOS collapses the *entire subtree* — including the `badge` child — into just that one opaque
+  accessibility string. Confirmed via `maestro hierarchy` immediately after a screenshot that
+  clearly shows the badge rendered: it's genuinely absent from the accessibility tree, not a timing
+  fluke. A VoiceOver user on this row hears "Blind structure. 30 levels · 5/10 → 800/1600" and
+  never learns there's an unapplied draft. Android isn't affected — title/summary/badge stay
+  separate accessible nodes there. Fix would mean folding the badge's label into `accessibilityLabel`
+  when present (e.g. `` `${title}. ${summary}${badge ? ". " + badgeLabel : ""}` ``), which needs a
+  label prop threaded through wherever `badge` is passed as a `<Badge>` element today — not
+  attempted here, this was found while testing behavior, not chasing accessibility work.
 
 ## Pro feature: Leaderboard
 - ⬜ Track who's won the most games among a friend group (local group, not global/online ranking).
