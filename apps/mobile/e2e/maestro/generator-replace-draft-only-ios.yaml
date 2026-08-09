@@ -2,17 +2,14 @@ appId: com.toondeboer.pokerkit
 ---
 # iOS version of generator-replace-draft-only.yaml.
 #
-# Real finding, not chased further: NavRow.tsx's TouchableOpacity sets an
-# explicit accessibilityLabel ("<title>. <summary>"), which on iOS collapses
-# its whole subtree - including the "Unapplied changes" Badge child - into
-# just that one opaque accessibility string. The badge is genuinely absent
-# from the accessibility tree (confirmed via `maestro hierarchy` immediately
-# after a screenshot that clearly shows it rendered), not a timing issue -
-# so a VoiceOver user never hears about unapplied changes on this row at
-# all, only the title+summary. A real, narrow accessibility gap worth a
-# ROADMAP entry, but this flow can't assert the badge's visibility either
-# way on iOS (an assertNotVisible on it would trivially "pass" regardless
-# of actual state, for the same reason) - verified via screenshot instead.
+# NavRow.tsx's TouchableOpacity sets an explicit accessibilityLabel
+# ("<title>. <summary>"), which on iOS collapses its whole subtree -
+# including the "Unapplied changes" Badge child - into just that one opaque
+# accessibility string, so the badge used to be genuinely absent from the
+# accessibility tree. Fixed by threading a `badgeLabel` prop through NavRow
+# that gets folded into the same accessibilityLabel
+# ("<title>. <summary>. <badgeLabel>") — verified below via a real
+# assertion now, not just a screenshot.
 - runFlow: _cold-start-ios.yaml
 - openLink: "pokerkit://blinds"
 - assertVisible: "Blind structure"
@@ -55,10 +52,9 @@ appId: com.toondeboer.pokerkit
 - assertVisible:
     text: "^10 levels$"
 
-# Active schedule (30 levels) must be unchanged; the "Unapplied changes"
-# badge next to it is real-behavior evidence only visible in the screenshot
-# (see note above on why it can't be asserted here).
+# Active schedule (30 levels) must be unchanged, and the "Unapplied
+# changes" badge now folds into the same accessibilityLabel.
 - openLink: "pokerkit://settings"
 - assertVisible:
-    text: ".*30 levels · 5/10 → .*"
+    text: ".*30 levels · 5/10 → .*Unapplied changes.*"
 - takeScreenshot: replace-draft-only-ios-after

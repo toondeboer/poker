@@ -77,7 +77,7 @@ rendering, and not on tablets.
 | Chip seeds itself from the structure you're editing | ☐ | ☑ |
 | Sheet reaches the bottom edge — **no see-through strip** below it | ☐ | ☑ |
 | "Replace structure" fits on **one line** with its icon | ☐ | ☑ |
-| Replace writes the draft only; active schedule unchanged until Apply | ☑ automated (Maestro: `generator-replace-draft-only-ios.yaml` — active-schedule check only; the "Unapplied changes" badge itself can't be asserted on iOS, see ROADMAP.md's NavRow/VoiceOver finding) | ☑ automated (Maestro: `generator-replace-draft-only.yaml`) |
+| Replace writes the draft only; active schedule unchanged until Apply | ☑ automated (Maestro: `generator-replace-draft-only-ios.yaml`, including the "Unapplied changes" badge — see NavRow VoiceOver fix in ROADMAP.md) | ☑ automated (Maestro: `generator-replace-draft-only.yaml`) |
 
 ---
 

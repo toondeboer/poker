@@ -101,6 +101,12 @@ platform-tagged heading (e.g. `## [1.1.3] - 2026-07-20 — Android`) when you cu
   green (active) / amber (paused or low-time) / red (stop/expired).
 
 ### Fixed
+- Mobile: on iOS, `NavRow`'s badge (e.g. the "Unapplied changes" pill on Settings' Blind structure
+  row) was invisible to VoiceOver — `NavRow.tsx`'s `TouchableOpacity` sets an explicit
+  `accessibilityLabel` that collapses its whole subtree, including the badge, into one opaque
+  string. Added a `badgeLabel` prop that folds the badge's text into that same label
+  (`"<title>. <summary>. <badgeLabel>"`), so a VoiceOver user now hears about the unapplied draft
+  instead of just the title and summary. Found while building iOS Maestro coverage.
 - Mobile: a `NumberField` (round duration's seconds, or any numeric field with a
   stricter clamp layered on top by its parent) could keep showing a stale, out-of-range
   digit string after blurring — e.g. typing `99` into the round-duration seconds field

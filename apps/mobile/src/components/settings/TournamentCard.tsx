@@ -30,6 +30,7 @@ export function TournamentCard({ style }: { style?: StyleProp<ViewStyle> }) {
               <Badge label="Unapplied changes" tone="warning" />
             ) : undefined
           }
+          badgeLabel={isDraftDirty ? "Unapplied changes" : undefined}
           onPress={() => router.navigate("/blinds")}
         />
       </CardContent>

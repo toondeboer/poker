@@ -748,18 +748,18 @@ full design.
   alphanumeric keyboard is taller, which could be exactly what's under-covered here. Not
   investigated further than confirming the shortfall; a real fix needs figuring out why the
   measured `overflow` comes up short specifically for the taller keyboard case.
-- 🔍 **`NavRow`'s badge (e.g. the "Unapplied changes" pill on the Blind structure row) is invisible
-  to VoiceOver on iOS** — found while adapting the generator's Maestro flows for iOS. `NavRow.tsx`
-  sets an explicit `accessibilityLabel="${title}. ${summary}"` on its `TouchableOpacity`, which on
-  iOS collapses the *entire subtree* — including the `badge` child — into just that one opaque
-  accessibility string. Confirmed via `maestro hierarchy` immediately after a screenshot that
-  clearly shows the badge rendered: it's genuinely absent from the accessibility tree, not a timing
-  fluke. A VoiceOver user on this row hears "Blind structure. 30 levels · 5/10 → 800/1600" and
-  never learns there's an unapplied draft. Android isn't affected — title/summary/badge stay
-  separate accessible nodes there. Fix would mean folding the badge's label into `accessibilityLabel`
-  when present (e.g. `` `${title}. ${summary}${badge ? ". " + badgeLabel : ""}` ``), which needs a
-  label prop threaded through wherever `badge` is passed as a `<Badge>` element today — not
-  attempted here, this was found while testing behavior, not chasing accessibility work.
+- ✅ **Fixed: `NavRow`'s badge (e.g. the "Unapplied changes" pill on the Blind structure row) was
+  invisible to VoiceOver on iOS** — found while adapting the generator's Maestro flows for iOS.
+  `NavRow.tsx` set an explicit `accessibilityLabel="${title}. ${summary}"` on its
+  `TouchableOpacity`, which on iOS collapses the *entire subtree* — including the `badge` child —
+  into just that one opaque accessibility string. Confirmed via `maestro hierarchy` immediately
+  after a screenshot that clearly showed the badge rendered: it was genuinely absent from the
+  accessibility tree, not a timing fluke. Android wasn't affected — title/summary/badge stay
+  separate accessible nodes there. Fixed with a new `badgeLabel` prop that folds the badge's text
+  into the same `accessibilityLabel` (`"<title>. <summary>. <badgeLabel>"`) — `TournamentCard.tsx`
+  now passes it alongside the `<Badge>` node. Verified: `maestro hierarchy` on iOS now reports
+  `"Blind structure. 30 levels · 5/10 → 800/1600. Unapplied changes"`, and
+  `generator-replace-draft-only-ios.yaml` asserts on it directly instead of only a screenshot.
 - 🔍 **The blind-structure editor's list is not capped/centred on iPad at all — genuinely
   full-bleed** — found while finally verifying §7 of `RELEASE_TESTING.md` on a real iPad simulator
   (iPad Pro 11-inch M5) for the first time; that row had never actually been checked before despite
