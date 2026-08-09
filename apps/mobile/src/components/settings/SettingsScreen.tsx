@@ -71,6 +71,7 @@ export function SettingsScreen() {
             scrollOffsetRef={scrollOffsetRef}
             containerRef={containerRef}
             bottomInset={insets.bottom}
+            topInset={insets.top}
             style={isTablet && styles.pairItem}
           />
         </View>

@@ -7,13 +7,23 @@ appId: com.toondeboer.pokerkit
 # real purchase). Not committed with that flag flipped — flip it locally,
 # run this, flip it back.
 #
-# IMPORTANT: `assertVisible` here is not trustworthy proof on its own.
-# Maestro's visibility check only looks at the app's own layout bounds — it
-# has no idea the system IME window is drawn on top and covering part of a
-# view that's still technically "visible" by that definition. Confirmed via
-# screenshot + measured bounds: this assertion below passes while the actual
-# button is only ~40% clear of the keyboard, the rest hidden behind it. A
-# real verification of this row needs a screenshot, not just this assertion.
+# Real bug, now fixed: useKeyboardNudge.ts's `windowHeight - covered` branch
+# (the one that wins for a full QWERTY keyboard) mixed `measureInWindow`
+# coordinates (y=0 at the top of the *content* area on Android, excluding
+# the status bar) with `Dimensions.get("window").height` (the *full* screen
+# height, status bar included) — understating how much of the screen the
+# keyboard covers by exactly the status bar's height (~54dp measured here).
+# Fixed by subtracting a new `topInset` param from `windowHeight` before
+# the comparison, Android-only (matching how `bottomInset` is already
+# gated) since iOS's `measureInWindow` frame wasn't verified to have the
+# same exclusion.
+#
+# IMPORTANT: `assertVisible` still isn't trustworthy proof of *full*
+# clearance on its own — Maestro's visibility check only looks at the
+# app's own layout bounds, with no idea the system IME window is drawn on
+# top. It would have trivially "passed" even at the old, broken ~40%-clear
+# state. The screenshot is what actually proves this — confirmed clean full
+# clearance with real breathing room, not just a corner of the button.
 - runFlow: _cold-start.yaml
 - openLink: "pokerkit://settings"
 - assertVisible: "Tournament Presets"

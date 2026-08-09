@@ -99,8 +99,8 @@ never re-confirmed.
 
 | | iOS | Android |
 |---|---|---|
-| Focus the preset-name field → **Save Preset is fully visible** above the keyboard | ☐ | ❌ -> nudge scrolls it up, but only ~40% of the button clears the keyboard, the rest stays covered (measured bounds vs. IME insets; confirmed by screenshot — a plain `assertVisible` false-positives here since Maestro doesn't account for the IME window). Maestro: `keyboard-preset-nudge.yaml` |
-| No dead space / over-scroll after the nudge | ☐ | (same finding as above — the nudge undershoots rather than overshoots, so no dead space either, but also not fully clear) |
+| Focus the preset-name field → **Save Preset is fully visible** above the keyboard | ☐ | ✅ fixed (see ROADMAP.md) — verified by screenshot, full clean breathing room now. Maestro: `keyboard-preset-nudge.yaml` (screenshot-based; `assertVisible` alone can't prove full IME clearance) |
+| No dead space / over-scroll after the nudge | ☐ | ✅ verified by the same screenshot — clearance matches `BREATHING_ROOM = 24`, no excess |
 | Same on a **small** phone (iPhone SE class / 720×1280) | ☐ | ☐ |
 | Generator sheet fields usable with the keyboard up | ☐ | ✅ fixed (Maestro: `generator-keyboard.yaml`) — was hidden behind the keyboard, see ROADMAP.md "Settings page UX — blind levels" |
 

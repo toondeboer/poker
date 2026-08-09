@@ -101,6 +101,12 @@ platform-tagged heading (e.g. `## [1.1.3] - 2026-07-20 — Android`) when you cu
   green (active) / amber (paused or low-time) / red (stop/expired).
 
 ### Fixed
+- Mobile: on Android, focusing the preset-name field on Settings only scrolled "Save Preset"
+  about 40% clear of the keyboard instead of fully clear — `useKeyboardNudge.ts` mixed two
+  coordinate frames that don't share an origin on Android (`measureInWindow`, excluding the
+  status bar, vs. `Dimensions.get("window").height`, including it), a gap the narrower number-pad
+  keyboards elsewhere never made large enough to notice. Fixed by threading a `topInset` prop
+  through and subtracting it before the comparison, Android-only.
 - Mobile: on Android, the generator sheet's footer ("Cancel"/"Replace structure") was unreachable
   behind the keyboard — `Sheet.tsx`'s `KeyboardAvoidingView` silently produced no
   adjustment at all inside this Modal's own separate Android window (same root cause

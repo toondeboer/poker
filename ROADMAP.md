@@ -735,17 +735,22 @@ full design.
   it directly as `marginBottom` on the sheet. Verified via screenshot: the whole sheet, including
   "Cancel"/"Replace structure", is now visible above the keyboard, and
   `generator-keyboard.yaml` asserts on it for real instead of documenting the gap.
-- 🔍 **`useKeyboardNudge`'s scroll-clear-the-button fix (see its own doc comment) undershoots for
-  the Presets card's preset-name field** — found in the same Maestro pass as the item above.
-  Focusing "Preset name" and bringing up the *full QWERTY* keyboard only scrolls "Save Preset"
-  about 40% clear of it (measured: button bounds `[461,1539][687,1588]` against IME content
-  insets starting at `y=1399` on a 1080×2424 screen), not fully clear as `BREATHING_ROOM = 24`
-  intends. The hook's own comment describes fixing this exact class of bug against Android's
-  `adjustResize` window-shrink measurement, but that fix may have only been validated against a
-  shorter keyboard (the number-pad used by the blind/duration fields elsewhere) — a full
-  alphanumeric keyboard is taller, which could be exactly what's under-covered here. Not
-  investigated further than confirming the shortfall; a real fix needs figuring out why the
-  measured `overflow` comes up short specifically for the taller keyboard case.
+- ✅ **Fixed: `useKeyboardNudge`'s scroll-clear-the-button logic undershot for the Presets card's
+  preset-name field** — found in the same Maestro pass as the item above. Focusing "Preset name"
+  and bringing up the *full QWERTY* keyboard only scrolled "Save Preset" about 40% clear of it,
+  not fully clear as `BREATHING_ROOM = 24` intends. Root cause, confirmed via a temporary
+  `console.log` diagnostic rather than guessed: the hook's `windowHeight - covered` branch (the
+  one that wins for a keyboard this tall) mixed two coordinate frames that don't share an origin
+  on Android — `measureInWindow` (used for both `containerY` and the target's own Y) reports y=0
+  at the top of the *content* area, already excluding the status bar, while
+  `Dimensions.get("window").height` is the *full* screen height, status bar included. That gap is
+  exactly the status bar's height (~54dp measured here) — small enough that the narrower
+  number-pad keyboards elsewhere never pushed this branch low enough to matter, but a full
+  keyboard did. Fixed by threading a new `topInset` prop (from `useSafeAreaInsets().top`,
+  `SettingsScreen.tsx` → `PresetsCard.tsx` → the hook) and subtracting it from `windowHeight`
+  before the comparison — gated to Android only, matching how `bottomInset` is already gated,
+  since iOS's `measureInWindow` frame wasn't verified to have the same exclusion. Verified via
+  screenshot: "Save Preset" now has full, clean breathing room above the keyboard.
 - ✅ **Fixed: `NavRow`'s badge (e.g. the "Unapplied changes" pill on the Blind structure row) was
   invisible to VoiceOver on iOS** — found while adapting the generator's Maestro flows for iOS.
   `NavRow.tsx` set an explicit `accessibilityLabel="${title}. ${summary}"` on its
