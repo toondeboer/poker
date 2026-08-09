@@ -160,7 +160,16 @@ native/JS mismatch (§0).
 | | iOS | Android |
 |---|---|---|
 | Launch → no visible resize before the timer appears | ☐ | ☐ |
-| Deep link straight to `pokerkit://settings` and `pokerkit://blinds` → splash lifts **immediately**, not after 4s | ☐ | ☐ |
+| Deep link straight to `pokerkit://settings` and `pokerkit://blinds` → splash lifts **immediately**, not after 4s | ☐ | not automatable on this dev-client build — see note below |
+
+> **Cold-launch deep-link automation attempt:** confirmed the same root cause as §6's
+> backgrounded-expiry blocker, this time via `adb shell am start -W -a android.intent.action.VIEW
+> -d "pokerkit://blinds" com.toondeboer.pokerkit` on a fully force-stopped process — `adb`'s own
+> `LaunchState: COLD` / `Activity: ...DevLauncherActivity` output confirms the deep link resolves
+> to Expo's dev-launcher picker, not `MainActivity`, on a cold process. `DevLauncherActivity`
+> doesn't exist in a release build, so this row is untestable against dev-client tooling by
+> construction, not a product bug — it needs a release-configuration build (or a real device) to
+> verify for real.
 
 ---
 
