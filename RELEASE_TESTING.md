@@ -73,11 +73,11 @@ rendering, and not on tablets.
 |---|---|---|
 | Slow / Standard / Turbo produce **visibly different** schedules | ☐ | ☑ |
 | Smallest chip 5, start 5 → `5/10 10/20 15/30 20/40…`, **never 6/12** | ☐ | ☑ |
-| Chip 25, start 25 → matches a real casino sheet (`25/50 50/100 75/150 100/200…`) | ☐ | ☐ |
+| Chip 25, start 25 → matches a real casino sheet (`25/50 50/100 75/150 100/200…`) | ☐ | ☑ automated (Maestro: `generator-chip25-casino-sheet.yaml`) |
 | Chip seeds itself from the structure you're editing | ☐ | ☑ |
 | Sheet reaches the bottom edge — **no see-through strip** below it | ☐ | ☑ |
 | "Replace structure" fits on **one line** with its icon | ☐ | ☑ |
-| Replace writes the draft only; active schedule unchanged until Apply | ☐ | ☐ |
+| Replace writes the draft only; active schedule unchanged until Apply | ☐ | ☑ automated (Maestro: `generator-replace-draft-only.yaml`) |
 
 ---
 
