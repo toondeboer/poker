@@ -8,3 +8,4 @@ appId: com.toondeboer.pokerkit
 - extendedWaitUntil:
     visible: "Current Blinds"
     timeout: 10000
+- runFlow: _dismiss-logbox-ios.yaml
