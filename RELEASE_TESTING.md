@@ -110,11 +110,19 @@ never re-confirmed.
 
 | | iOS | Android |
 |---|---|---|
-| Round expiry fires the alert + alarm with the app **foregrounded** | ☐ | ☐ |
-| Expiry while **backgrounded** advances the level | ☐ | ☐ |
+| Round expiry fires the alert + alarm with the app **foregrounded** | ☐ | ☑ automated (Maestro: `notification-foreground-expiry.yaml`) |
+| Expiry while **backgrounded** advances the level | ☐ | tried to automate, blocked by dev-client-only noise, not a real bug — see note below |
 | Pause / Resume / Stop from the notification / Live Activity | ☐ | ☐ |
 | **After a level jump, the pending "time's up" notification names the _new_ next blind** — the fix in this release, never verified on-device | ☐ | n/a |
 | Notification survives swipe-away from Recents | n/a | ☐ |
+
+> **Backgrounded-expiry automation attempt:** `adb shell input keyevent KEYCODE_HOME` reliably
+> brings Expo's own `DevLauncherActivity` back on top of the task stack on this dev-client build
+> (confirmed via `logcat` — a `DevLauncherActivity` window becomes visible right after Home is
+> pressed), so resuming afterward shows the dev-launcher picker rather than the real app state.
+> That's dev-client tooling noise, not present in a release build, so not a real app bug — but it
+> means this specific row can't be reliably automated against this build type. Needs either a
+> release-configuration build or a real device/manual pass.
 
 ---
 
