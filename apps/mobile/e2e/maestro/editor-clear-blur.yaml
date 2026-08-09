@@ -1,0 +1,42 @@
+appId: com.toondeboer.pokerkit
+---
+# §2 editor: clearing a blind field shows empty (not 0), and blur restores the
+# old value. Uses Level 1's default small blind (5) as a unique numeric string
+# once the structure is known to be the default 30-level schedule.
+- runFlow: _cold-start.yaml
+- openLink: "pokerkit://blinds"
+- assertVisible: "Blind structure"
+- tapOn: "Reset to default"
+- tapOn:
+    text: "^Reset$"
+- assertVisible:
+    text: "^30 levels$"
+
+# Focus Level 1's small blind field and clear it. A plain tap places the
+# cursor rather than selecting, so a bare `eraseText` after it is a no-op on
+# Android's numeric-pad EditText here — long-pressing first to select-all is
+# what actually makes `eraseText` take effect.
+- tapOn:
+    text: "^5$"
+- longPressOn:
+    text: "^5$"
+- eraseText: 3
+# The number-pad keyboard's own "5"/"0" keys have accessibility labels "5"/"0"
+# too, so hide it before checking — otherwise the assertion trivially "passes"
+# against the keyboard regardless of the field's real value.
+- hideKeyboard
+- assertNotVisible:
+    text: "^5$"
+- assertNotVisible:
+    text: "^0$"
+
+# Blur by focusing Level 1's *big* blind field instead (tapping the header
+# title doesn't move focus/fire onBlur on Android). Confirm the old value
+# came back rather than staying empty or snapping to 0 — hide the keyboard
+# again first so a stray keyboard "5" key can't make this trivially pass too.
+- tapOn:
+    text: "^10$"
+    index: 0
+- hideKeyboard
+- assertVisible:
+    text: "^5$"
