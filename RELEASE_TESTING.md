@@ -126,22 +126,21 @@ never re-confirmed.
 
 ---
 
-## 7. Tablets · **never verified**
+## 7. Tablets
 
 `isTablet` is `width > 768`. **iPad mini (744pt) deliberately gets the phone layout** — that's
 expected, not a bug.
 
-Android tablet (2560×1600) verified against a freshly built APK. **iPad is still open** — it needs
-an iOS rebuild first, because the existing simulator build red-screens on the RNPurchases
-native/JS mismatch (§0).
+Android tablet (2560×1600) verified against a freshly built APK. iPad now verified too (iPad Pro
+11-inch M5 simulator, screenshots).
 
 | | iPad | Android tablet |
 |---|---|---|
-| Settings: Tournament + Presets **side by side**, capped and centred | ☐ | ☑ |
-| Blind editor list + sticky footer capped at 900 and centred | ☐ | ☑ |
-| Timer card centred, not full-bleed | ☐ | ☑ |
-| Generator sheet sensible at tablet width | ☐ | ☑ |
-| iPad **mini** still gets the phone layout | ☐ | n/a |
+| Settings: Tournament + Presets **side by side**, capped and centred | ✅ | ☑ |
+| Blind editor list + sticky footer capped at 900 and centred | ❌ -> genuinely full-bleed, no cap/centering at all, despite `BlindStructureScreen.tsx` having the same `isTablet && styles.centred` logic that correctly works on Settings on this same device/orientation. Real, previously-unverified regression (or never-worked-on-iOS gap) — see ROADMAP.md | ☑ |
+| Timer card centred, not full-bleed | ✅ | ☑ |
+| Generator sheet sensible at tablet width | ⚠️ also full-bleed on iPad — `Sheet.tsx` has no tablet-cap logic at all (unlike Settings/BlindStructureScreen), so this may just be pre-existing/never-implemented rather than a regression. Not confirmed whether Android's "sensible" ☑ was judged at the same full-bleed width or genuinely capped. | ☑ |
+| iPad **mini** still gets the phone layout | not verified (no iPad mini simulator checked this pass) | n/a |
 
 ---
 
@@ -149,9 +148,9 @@ native/JS mismatch (§0).
 
 | | iOS | Android |
 |---|---|---|
-| Timer fits with no scrolling, nothing clipped | ☐ | ☐ |
-| Settings cards readable, no overlap | ☐ | ☐ |
-| Blind rows: level chip, LIVE badge and both buttons all fit | ☐ | ☐ |
+| Timer fits with no scrolling, nothing clipped | ✅ (iPhone SE simulator, screenshot) | ☐ |
+| Settings cards readable, no overlap | ✅ (iPhone SE simulator, screenshot) | ☐ |
+| Blind rows: level chip, LIVE badge and both buttons all fit | ✅ (iPhone SE simulator, screenshot) | ☐ |
 
 ---
 
