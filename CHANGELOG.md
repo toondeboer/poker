@@ -101,6 +101,40 @@ platform-tagged heading (e.g. `## [1.1.3] - 2026-07-20 — Android`) when you cu
   green (active) / amber (paused or low-time) / red (stop/expired).
 
 ### Fixed
+- Mobile: on Android, focusing the preset-name field on Settings only scrolled "Save Preset"
+  about 40% clear of the keyboard instead of fully clear — `useKeyboardNudge.ts` mixed two
+  coordinate frames that don't share an origin on Android (`measureInWindow`, excluding the
+  status bar, vs. `Dimensions.get("window").height`, including it), a gap the narrower number-pad
+  keyboards elsewhere never made large enough to notice. Fixed by threading a `topInset` prop
+  through and subtracting it before the comparison, Android-only.
+- Mobile: on Android, the generator sheet's footer ("Cancel"/"Replace structure") was unreachable
+  behind the keyboard — `Sheet.tsx`'s `KeyboardAvoidingView` silently produced no
+  adjustment at all inside this Modal's own separate Android window (same root cause
+  `useKeyboardNudge.ts` already documents for Presets: measuring against
+  `Dimensions.get('window').height` doesn't account for a Modal's own window). Fixed by tracking
+  the keyboard height directly via `Keyboard.addListener` and applying it as `marginBottom` on the
+  sheet, bypassing `KeyboardAvoidingView`'s broken Android measurement entirely.
+- Mobile: the blind-structure editor list wasn't tablet-capped/centred on iPad at all — genuinely
+  full-bleed, despite `BlindStructureScreen.tsx` having the same `isTablet`-based centering logic
+  that works correctly on Settings on the same device. A `FlatList`'s `contentContainerStyle`
+  combining `width: "100%"` with `alignSelf: "center"` + `maxWidth` resolved differently on iOS
+  than the identical pattern on a plain `ScrollView` — dropping the redundant `width: "100%"`
+  (`alignSelf: "center"` + `maxWidth` alone already caps and centers) fixed it, verified via
+  screenshot on an iPad Pro 11-inch simulator with no regression on Android tablet.
+- Mobile: on iOS, `NavRow`'s badge (e.g. the "Unapplied changes" pill on Settings' Blind structure
+  row) was invisible to VoiceOver — `NavRow.tsx`'s `TouchableOpacity` sets an explicit
+  `accessibilityLabel` that collapses its whole subtree, including the badge, into one opaque
+  string. Added a `badgeLabel` prop that folds the badge's text into that same label
+  (`"<title>. <summary>. <badgeLabel>"`), so a VoiceOver user now hears about the unapplied draft
+  instead of just the title and summary. Found while building iOS Maestro coverage.
+- Mobile: a `NumberField` (round duration's seconds, or any numeric field with a
+  stricter clamp layered on top by its parent) could keep showing a stale, out-of-range
+  digit string after blurring — e.g. typing `99` into the round-duration seconds field
+  and tapping away left the box reading "99" even though the round was already
+  correctly capped to 59 seconds underneath. `onBlur` was recomputing its own clamp
+  from just `min`, overwriting the display with that instead of trusting the already
+  fully-clamped `value` it had been passed. Found while building Maestro coverage for
+  `RELEASE_TESTING.md`.
 - Mobile: the Timer screen card no longer stretches edge-to-edge on tablets — capped it at the
   same tablet-aware `maxWidth` + centered layout `PokerSettings.tsx` already used, so blind values
   and buttons don't end up spread across the full iPad-width card. Found during a cross-device QA

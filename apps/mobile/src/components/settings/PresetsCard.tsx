@@ -31,6 +31,7 @@ export function PresetsCard({
   scrollOffsetRef,
   containerRef,
   bottomInset,
+  topInset,
   style,
 }: {
   onRequestPro: () => void;
@@ -38,6 +39,7 @@ export function PresetsCard({
   scrollOffsetRef: RefObject<number>;
   containerRef: RefObject<View | null>;
   bottomInset: number;
+  topInset: number;
   style?: StyleProp<ViewStyle>;
 }) {
   const { isPremium } = usePremium();
@@ -51,6 +53,7 @@ export function PresetsCard({
     scrollOffsetRef,
     containerRef,
     bottomInset,
+    topInset,
   });
 
   const canSavePreset = isValidPresetName(presetName, presets);

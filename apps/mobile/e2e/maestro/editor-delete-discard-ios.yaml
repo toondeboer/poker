@@ -1,0 +1,68 @@
+appId: com.toondeboer.pokerkit
+---
+# iOS version of editor-delete-discard.yaml.
+- runFlow: _cold-start-ios.yaml
+- openLink: "pokerkit://blinds"
+- assertVisible: "Blind structure"
+- tapOn:
+    text: ".*Reset to default.*"
+- tapOn:
+    text: "^Reset$"
+- assertVisible:
+    text: "^30 levels$"
+
+- repeat:
+    times: 27
+    commands:
+      - tapOn:
+          text: "Delete level 1"
+- assertVisible:
+    text: "^3 levels$"
+
+- tapOn:
+    text: "Add a level around level 3"
+- assertVisible: "Insert below"
+- tapOn: "Insert below"
+- assertVisible:
+    text: "^4 levels$"
+
+- repeat:
+    times: 2
+    commands:
+      - tapOn:
+          text: "Delete level 1"
+- assertVisible:
+    text: "^2 levels$"
+
+- assertVisible:
+    text: "Delete level 1"
+    enabled: false
+- assertVisible:
+    text: "Delete level 2"
+    enabled: false
+
+# "Discard" has no icon (Button.tsx, no `icon` prop) so it matches literally
+# unlike icon+label buttons elsewhere in this file. A "Failed to start Live
+# Activity" LogBox error (known-accepted Simulator limitation) tends to
+# surface as a full-screen overlay right around here - and can appear mid-tap
+# (confirmed: the exact same tapOn "Discard" that no-ops here works cleanly
+# in isolation), so retry rather than just dismissing once before/after.
+- runFlow: _dismiss-logbox-ios.yaml
+- tapOn: "Discard"
+- runFlow: _dismiss-logbox-ios.yaml
+- runFlow:
+    when:
+      notVisible:
+        text: "^30 levels$"
+    commands:
+      - tapOn: "Discard"
+      - runFlow: _dismiss-logbox-ios.yaml
+- runFlow:
+    when:
+      notVisible:
+        text: "^30 levels$"
+    commands:
+      - tapOn: "Discard"
+      - runFlow: _dismiss-logbox-ios.yaml
+- assertVisible:
+    text: "^30 levels$"

@@ -1,0 +1,44 @@
+appId: com.toondeboer.pokerkit
+---
+# iOS version of notification-foreground-expiry.yaml. Same 10s floor
+# (MIN_ROUND_DURATION_SECONDS in @poker/core) and field positions as
+# round-duration-ios.yaml.
+- runFlow: _cold-start-ios.yaml
+- openLink: "pokerkit://settings"
+- assertVisible: "Round duration"
+- tapOn:
+    point: "29%,63%"
+- longPressOn:
+    point: "29%,63%"
+- tapOn: "Select All"
+- eraseText: 5
+- inputText: "0"
+- tapOn:
+    point: "71%,63%"
+- longPressOn:
+    point: "71%,63%"
+- tapOn: "Select All"
+- eraseText: 5
+- inputText: "10"
+- tapOn: "Round duration"
+- assertVisible: "Each blind level lasts 00:10."
+
+- openLink: "pokerkit://"
+# A previous flow can leave the timer already running (e.g.
+# round-duration-mid-round-ios.yaml deliberately starts one) — reset it back
+# to a fresh, paused state matching the duration just set. The reset button
+# is icon-only with no accessibilityLabel (PokerTimer.tsx), hence the
+# point-based tap rather than a text selector.
+- tapOn:
+    point: "82%,61%"
+- assertVisible:
+    text: "^00:10$"
+- tapOn:
+    text: ".*Start.*"
+
+- extendedWaitUntil:
+    visible: "Time's Up!"
+    timeout: 15000
+- assertVisible: "Level 1 Complete"
+- tapOn:
+    text: ".*Next Blinds.*"

@@ -1,0 +1,11 @@
+appId: com.toondeboer.pokerkit
+---
+# Shared subflow for iOS — unlike Android's _cold-start.yaml, no dev-launcher
+# deep-link workaround is needed here: a plain stopApp + launchApp lands
+# straight back in the app (confirmed empirically), not a picker screen.
+- stopApp
+- launchApp
+- extendedWaitUntil:
+    visible: "Current Blinds"
+    timeout: 10000
+- runFlow: _dismiss-logbox-ios.yaml

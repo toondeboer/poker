@@ -9,11 +9,21 @@ export function NavRow({
   title,
   summary,
   badge,
+  badgeLabel,
   onPress,
 }: {
   title: string;
   summary: string;
   badge?: ReactNode;
+  /**
+   * The badge's text, separate from the `badge` node itself. On iOS this
+   * TouchableOpacity's own `accessibilityLabel` collapses its whole subtree
+   * for VoiceOver — including the badge — into just that one string, so
+   * without this a VoiceOver user never learns there's a badge at all (e.g.
+   * "Unapplied changes"). Android doesn't need it (title/summary/badge stay
+   * separate accessible nodes there), but passing it is harmless everywhere.
+   */
+  badgeLabel?: string;
   onPress: () => void;
 }) {
   return (
@@ -22,7 +32,7 @@ export function NavRow({
       onPress={onPress}
       activeOpacity={0.8}
       accessibilityRole="button"
-      accessibilityLabel={`${title}. ${summary}`}
+      accessibilityLabel={`${title}. ${summary}${badgeLabel ? `. ${badgeLabel}` : ""}`}
     >
       <View style={styles.info}>
         <View style={styles.titleRow}>

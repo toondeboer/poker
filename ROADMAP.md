@@ -720,6 +720,70 @@ full design.
     notification still names the *old* next blind. Pre-existing — `increaseBlinds`/`decreaseBlinds`
     have always had it — but a 20-level jump makes it obvious. Fix by rescheduling on a
     `currentBlindIndex`/`blindLevels` change while running.
+- ✅ **Fixed: the generator sheet's footer (Replace structure / Cancel) was unreachable behind the
+  keyboard on Android** — found while building Maestro coverage for `RELEASE_TESTING.md` §5.
+  Focusing "Starting small blind" or "Number of levels" and bringing up the keyboard covered the
+  sheet's lower fields and its whole footer with no compensating scroll or resize. Root cause
+  confirmed properly this time (an earlier pass here recorded a wrong theory and a fix that did
+  nothing): a temporary on-screen listener showed `keyboardDidShow`/`keyboardDidHide` firing
+  correctly with the right height, so the event was never the problem — `KeyboardAvoidingView`
+  itself was silently producing zero adjustment on Android regardless of `behavior`
+  (`undefined` or `"height"` gave pixel-identical screenshots), the same
+  `Dimensions.get('window').height`-doesn't-reach-inside-a-Modal root cause `useKeyboardNudge.ts`
+  already documents for Presets. Fixed by bypassing `KeyboardAvoidingView`'s Android path
+  entirely: `Sheet.tsx` now tracks keyboard height itself via `Keyboard.addListener` and applies
+  it directly as `marginBottom` on the sheet. Verified via screenshot: the whole sheet, including
+  "Cancel"/"Replace structure", is now visible above the keyboard, and
+  `generator-keyboard.yaml` asserts on it for real instead of documenting the gap.
+- ✅ **Fixed: `useKeyboardNudge`'s scroll-clear-the-button logic undershot for the Presets card's
+  preset-name field** — found in the same Maestro pass as the item above. Focusing "Preset name"
+  and bringing up the *full QWERTY* keyboard only scrolled "Save Preset" about 40% clear of it,
+  not fully clear as `BREATHING_ROOM = 24` intends. Root cause, confirmed via a temporary
+  `console.log` diagnostic rather than guessed: the hook's `windowHeight - covered` branch (the
+  one that wins for a keyboard this tall) mixed two coordinate frames that don't share an origin
+  on Android — `measureInWindow` (used for both `containerY` and the target's own Y) reports y=0
+  at the top of the *content* area, already excluding the status bar, while
+  `Dimensions.get("window").height` is the *full* screen height, status bar included. That gap is
+  exactly the status bar's height (~54dp measured here) — small enough that the narrower
+  number-pad keyboards elsewhere never pushed this branch low enough to matter, but a full
+  keyboard did. Fixed by threading a new `topInset` prop (from `useSafeAreaInsets().top`,
+  `SettingsScreen.tsx` → `PresetsCard.tsx` → the hook) and subtracting it from `windowHeight`
+  before the comparison — gated to Android only, matching how `bottomInset` is already gated,
+  since iOS's `measureInWindow` frame wasn't verified to have the same exclusion. Verified via
+  screenshot: "Save Preset" now has full, clean breathing room above the keyboard.
+- ✅ **Fixed: `NavRow`'s badge (e.g. the "Unapplied changes" pill on the Blind structure row) was
+  invisible to VoiceOver on iOS** — found while adapting the generator's Maestro flows for iOS.
+  `NavRow.tsx` set an explicit `accessibilityLabel="${title}. ${summary}"` on its
+  `TouchableOpacity`, which on iOS collapses the *entire subtree* — including the `badge` child —
+  into just that one opaque accessibility string. Confirmed via `maestro hierarchy` immediately
+  after a screenshot that clearly showed the badge rendered: it was genuinely absent from the
+  accessibility tree, not a timing fluke. Android wasn't affected — title/summary/badge stay
+  separate accessible nodes there. Fixed with a new `badgeLabel` prop that folds the badge's text
+  into the same `accessibilityLabel` (`"<title>. <summary>. <badgeLabel>"`) — `TournamentCard.tsx`
+  now passes it alongside the `<Badge>` node. Verified: `maestro hierarchy` on iOS now reports
+  `"Blind structure. 30 levels · 5/10 → 800/1600. Unapplied changes"`, and
+  `generator-replace-draft-only-ios.yaml` asserts on it directly instead of only a screenshot.
+- 🔍 **The blind-structure editor's list is not capped/centred on iPad at all — genuinely
+  full-bleed** — found while finally verifying §7 of `RELEASE_TESTING.md` on a real iPad simulator
+  (iPad Pro 11-inch M5) for the first time; that row had never actually been checked before despite
+  the code appearing to handle it. `BlindStructureScreen.tsx` has the identical
+  `isTablet && styles.centred` pattern (`maxWidth: TABLET_MAX_WIDTH_LIST` (900),
+  `alignSelf: "center"`, `width: "100%"` on the `FlatList`'s `contentContainerStyle`) that
+  demonstrably works correctly on the *Settings* screen on this exact same device and orientation
+  (Tournament + Presets render side by side, capped) — so `isTablet` is evaluating true, the
+  problem is specific to how this particular `FlatList`'s `contentContainerStyle` resolves on iOS.
+  Confirmed with two separate settled screenshots (not a mid-transition capture) that every row,
+  the header buttons, and the sticky Apply/Discard footer all span the full ~834pt width. Not root
+  caused beyond that — possibly a Fabric/Yoga difference in how `contentContainerStyle` combines
+  `flexGrow: 1` (from the shared `content` style) with `alignSelf`/`width`/`maxWidth` on iOS vs.
+  Android, but worth a real investigation rather than another guess given how much of this session
+  already went to guess-and-check layout fixes that didn't pan out.
+  - Also full-bleed on iPad: the generator sheet (`GenerateStructureSheet`/`Sheet.tsx`), but that
+    component has no tablet-cap logic at all on either platform, so this may be pre-existing/never
+    implemented rather than a regression — unclear whether Android's existing ☑ for "sensible at
+    tablet width" was judged at this same full-bleed width or a genuinely capped one.
+  - Timer and Settings *do* correctly cap/centre on this same iPad, confirmed via screenshot — the
+    bug is specific to the blind-editor list.
 
 ## Pro feature: Leaderboard
 - ⬜ Track who's won the most games among a friend group (local group, not global/online ranking).

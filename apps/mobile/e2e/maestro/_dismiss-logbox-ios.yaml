@@ -1,0 +1,15 @@
+appId: com.toondeboer.pokerkit
+---
+# iOS equivalent of _dismiss-logbox.yaml. Here LogBox shows as a full-screen
+# "Console Error" overlay (not Android's small toast) - most commonly for
+# "Failed to start Live Activity", the known-accepted Simulator limitation
+# (RELEASE_TESTING.md's "Known-and-accepted" list). Its own "Dismiss" button
+# has no icon, so it matches literally.
+- repeat:
+    times: 5
+    commands:
+      - runFlow:
+          when:
+            visible: "Dismiss"
+          commands:
+            - tapOn: "Dismiss"

@@ -1,0 +1,45 @@
+appId: com.toondeboer.pokerkit
+---
+# §2 editor: killing the app with a dirty (unapplied) draft and relaunching
+# should still show the draft and its sticky footer — the draft is part of
+# the same AsyncStorage-backed state as everything else in BlindsContext, so
+# it survives a real process kill, not just a background/foreground cycle.
+- runFlow: _cold-start.yaml
+- openLink: "pokerkit://blinds"
+- assertVisible: "Blind structure"
+- tapOn: "Reset to default"
+- tapOn:
+    text: "^Reset$"
+- assertVisible:
+    text: "^30 levels$"
+
+# Make the draft dirty without applying: delete Level 1. The sticky footer
+# only renders once the draft differs from the active schedule.
+- scrollUntilVisible:
+    element:
+      text: "Delete level 1"
+    direction: DOWN
+- tapOn:
+    text: "Delete level 1"
+- assertVisible:
+    text: "^29 levels$"
+- runFlow: _dismiss-logbox.yaml
+- assertVisible: "Apply changes"
+
+# Kill the whole process (not just background it) and cold-start back in —
+# same trick as _cold-start.yaml's own stopApp+deep-link, done here explicitly
+# so we land back on the blinds screen afterward instead of the timer.
+- stopApp
+- openLink: "com.toondeboer.pokerkit://expo-development-client/?url=http%3A%2F%2F192.168.68.62%3A8081"
+- extendedWaitUntil:
+    visible: "Current Blinds"
+    timeout: 10000
+- runFlow: _dismiss-logbox.yaml
+- openLink: "pokerkit://blinds"
+- assertVisible: "Blind structure"
+
+# The dirty draft and its footer should both still be there, unapplied.
+- runFlow: _dismiss-logbox.yaml
+- assertVisible:
+    text: "^29 levels$"
+- assertVisible: "Apply changes"

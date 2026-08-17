@@ -1,0 +1,42 @@
+appId: com.toondeboer.pokerkit
+---
+# iOS version of generator-chip25-casino-sheet.yaml.
+- runFlow: _cold-start-ios.yaml
+- openLink: "pokerkit://blinds"
+- assertVisible: "Blind structure"
+- tapOn:
+    text: ".*Reset to default.*"
+- tapOn:
+    text: "^Reset$"
+- assertVisible:
+    text: "^30 levels$"
+
+# "Generate" has icon="sparkles" (BlindListHeader.tsx), needs the wrap - but
+# blinds.tsx *also* has a header-right sparkles icon whose accessibilityText
+# is "Generate a blind structure", which also matches ".*Generate.*".
+# Confirmed repeatedly: with both matching, Maestro doesn't tap either one -
+# it opens Expo's own dev menu instead (reproduced 100% of the time, `maestro
+# hierarchy` afterward showing the dev-menu's own elements, not the app's).
+# Point-based tapping on the list button's known bounds sidesteps the
+# ambiguity entirely rather than trying to guess which `index` wins.
+- tapOn:
+    point: "26%,21%"
+- assertVisible: "Generate structure"
+
+# Same select-all-via-callout technique as editor-clear-blur-ios.yaml.
+- tapOn:
+    text: "^5$"
+- longPressOn:
+    text: "^5$"
+- tapOn: "Select All"
+- eraseText: 1
+- inputText: "25"
+
+# SegmentedControl.tsx sets accessibilityLabel explicitly ("<control
+# label>: <option label>"), same as IconButton - no icon+text merge issue,
+# matches literally on both platforms.
+- tapOn: "Smallest chip: 25"
+- tapOn: "Speed: Slow"
+
+- assertVisible:
+    text: ".*25/50.*50/100.*75/150.*100/200.*"
