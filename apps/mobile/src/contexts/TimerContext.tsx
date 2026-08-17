@@ -14,6 +14,7 @@ import { useTimerNotification } from "@/src/hooks/useTimerNotification";
 import { useTimerEngine } from "@/src/hooks/useTimerEngine";
 import { useNativeTimerActionSync } from "@/src/hooks/useNativeTimerActionSync";
 import { useTimerAlert } from "@/src/hooks/useTimerAlert";
+import { useKeepScreenAwake } from "@/src/hooks/useKeepScreenAwake";
 import { useSoundPack } from "@/src/contexts/SoundPackContext";
 import { useNotificationPermission } from "@/src/hooks/useNotificationPermission";
 import { usePremium } from "@/src/contexts/PremiumContext";
@@ -153,6 +154,11 @@ export function TimerProvider({ children }: Readonly<{ children: ReactNode }>) {
   } = useTimerEngine(currentBlindIndex, blindLevels, effectiveSoundPackId, {
     onTimerComplete: handleTimerComplete,
   });
+
+  // Keep the screen on for as long as a round is actually counting down, so a
+  // tournament left on the table stays in the foreground instead of being locked
+  // out into the single-round background fallback within its first level.
+  useKeepScreenAwake(!paused && endTime !== undefined && timeLeft > 0);
 
   // Enhanced toggle pause with notification handling
   const togglePause = async () => {

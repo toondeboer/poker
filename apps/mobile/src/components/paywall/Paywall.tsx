@@ -35,11 +35,34 @@ export function Paywall({
   visible: boolean;
   onClose: () => void;
 }) {
-  const { isPremium, purchasing, proPriceString, purchasePro, restore } =
-    usePremium();
+  const {
+    isPremium,
+    purchasing,
+    proPriceString,
+    refreshProPrice,
+    purchasePro,
+    restore,
+  } = usePremium();
   const [error, setError] = useState<string | null>(null);
 
-  const priceLabel = proPriceString ? `${proPriceString} one-time` : "one-time";
+  // Re-attempt the price every time the sheet opens. The launch-time fetch can
+  // lose a race with SDK configuration or a cold network, and it used to be the
+  // only one — so the sheet stayed price-less for the whole session even though
+  // the offering resolves fine by the time anyone taps Unlock. Tracked on the
+  // closed→open edge during render (same pattern as GenerateStructureSheet's
+  // seeding) so the request is already in flight as the sheet animates in.
+  const [wasVisible, setWasVisible] = useState(visible);
+  if (wasVisible !== visible) {
+    setWasVisible(visible);
+    if (visible) refreshProPrice();
+  }
+
+  // With no price, the button says what it does and the subtitle already says
+  // "One-time unlock" — the old fallback rendered "Unlock Pro · one-time",
+  // which reads as though "one-time" were the price.
+  const buyLabel = proPriceString
+    ? `Unlock Pro · ${proPriceString}`
+    : "Unlock Pro";
 
   const run = async (action: () => Promise<void>) => {
     setError(null);
@@ -84,9 +107,7 @@ export function Paywall({
             {purchasing ? (
               <ActivityIndicator color="#1f2937" />
             ) : (
-              <Text style={styles.buyButtonText}>
-                Unlock Pro · {priceLabel}
-              </Text>
+              <Text style={styles.buyButtonText}>{buyLabel}</Text>
             )}
           </TouchableOpacity>
 

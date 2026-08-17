@@ -4,6 +4,7 @@ import {
   useCallback,
   useContext,
   useEffect,
+  useRef,
   useState,
 } from "react";
 import type { Entitlements } from "@poker/core";
@@ -28,6 +29,13 @@ type PremiumContextValue = {
   purchasing: boolean;
   /** Localized Pro price (e.g. "$2.99"), or null until loaded/unavailable. */
   proPriceString: string | null;
+  /**
+   * Re-attempt the price fetch. Safe to call repeatedly and a no-op once a price
+   * is in hand — the paywall calls it every time it opens, so a fetch that lost
+   * a race with SDK configuration or a cold network at launch doesn't leave the
+   * sheet price-less for the rest of the session.
+   */
+  refreshProPrice: () => void;
   /** Start the Pro purchase flow. Throws on failure for the caller to surface. */
   purchasePro: () => Promise<void>;
   /** Restore a previous purchase. Throws on failure for the caller to surface. */
@@ -48,6 +56,28 @@ export function PremiumProvider({
   const [purchasing, setPurchasing] = useState(false);
   const [proPriceString, setProPriceString] = useState<string | null>(null);
 
+  // Guards against overlapping fetches (mount + a paywall opened immediately
+  // after) firing two offering requests for the same answer. Not state: nothing
+  // renders from it, and it must be readable synchronously at call time.
+  const priceFetchInFlightRef = useRef(false);
+
+  const refreshProPrice = useCallback(() => {
+    if (FORCE_PRO_IN_DEV || FORCE_FREE_IN_DEV) return;
+    if (priceFetchInFlightRef.current) return;
+    priceFetchInFlightRef.current = true;
+    revenueCatProvider
+      .getProPriceString()
+      .then((price) => {
+        // Never overwrite a good price with null: a later failed refresh (flaky
+        // network on a reopened paywall) must not blank out a price already on
+        // screen.
+        if (price) setProPriceString(price);
+      })
+      .finally(() => {
+        priceFetchInFlightRef.current = false;
+      });
+  }, []);
+
   useEffect(() => {
     // Initial state above already reflects FORCE_PRO_IN_DEV (and FORCE_FREE_IN_DEV
     // implies false, which is the same default) — just skip the real check.
@@ -56,9 +86,7 @@ export function PremiumProvider({
     revenueCatProvider.getEntitlements().then((entitlements: Entitlements) => {
       if (active) setIsPremium(entitlements.isPremium);
     });
-    revenueCatProvider.getProPriceString().then((price) => {
-      if (active) setProPriceString(price);
-    });
+    refreshProPrice();
     const unsubscribe = revenueCatProvider.onChange((entitlements) => {
       setIsPremium(entitlements.isPremium);
     });
@@ -66,7 +94,7 @@ export function PremiumProvider({
       active = false;
       unsubscribe();
     };
-  }, []);
+  }, [refreshProPrice]);
 
   const purchasePro = useCallback(async () => {
     setPurchasing(true);
@@ -90,7 +118,14 @@ export function PremiumProvider({
 
   return (
     <PremiumContext.Provider
-      value={{ isPremium, purchasing, proPriceString, purchasePro, restore }}
+      value={{
+        isPremium,
+        purchasing,
+        proPriceString,
+        refreshProPrice,
+        purchasePro,
+        restore,
+      }}
     >
       {children}
     </PremiumContext.Provider>

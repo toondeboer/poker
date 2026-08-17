@@ -4,7 +4,6 @@ import {
   Animated,
   Easing,
   Keyboard,
-  KeyboardAvoidingView,
   Modal,
   PanResponder,
   Platform,
@@ -26,6 +25,13 @@ const DRAG_SLOP = 4;
 
 const ENTER_MS = 260;
 const EXIT_MS = 200;
+
+/**
+ * Floor for the scroll region once the keyboard is up. Below this the sheet is
+ * unusable anyway, and letting it go to zero would hide the field being typed
+ * into — better to overflow slightly and stay scrollable.
+ */
+const MIN_SCROLL_HEIGHT = 120;
 
 /**
  * A bottom-sheet modal, dismissable three ways: the close button, a tap on the
@@ -74,30 +80,60 @@ export function Sheet({
   const insets = useSafeAreaInsets();
   const { height } = useWindowDimensions();
 
-  // `KeyboardAvoidingView` (below) is a no-op for Android here: its height
-  // adjustment compares against `Dimensions.get('window').height`, which
-  // still reports the full screen when this renders inside a Modal's own
-  // separate Android window — same root cause `useKeyboardNudge.ts`
-  // documents for Presets. Confirmed via a temporary on-screen listener that
-  // `keyboardDidShow`/`keyboardDidHide` themselves fire correctly (so this
-  // isn't a missing-event problem) while `behavior="height"` still produced
-  // a pixel-identical screenshot to `behavior={undefined}`. Tracking the
-  // keyboard height ourselves and applying it directly sidesteps whatever
-  // `KeyboardAvoidingView` gets wrong internally in this context.
-  const [androidKeyboardHeight, setAndroidKeyboardHeight] = useState(0);
+  // Both platforms track the keyboard themselves rather than delegating to
+  // `KeyboardAvoidingView`.
+  //
+  // Android had to: KAV is a no-op here, because its height adjustment compares
+  // against `Dimensions.get('window').height`, which still reports the full
+  // screen when this renders inside a Modal's own separate Android window —
+  // same root cause `useKeyboardNudge.ts` documents for Presets. Confirmed via
+  // a temporary on-screen listener that `keyboardDidShow`/`keyboardDidHide`
+  // themselves fire correctly (so this isn't a missing-event problem) while
+  // `behavior="height"` still produced a pixel-identical screenshot to
+  // `behavior={undefined}`.
+  //
+  // iOS now does too, because `behavior="padding"` only *moves* the sheet — it
+  // never tells the scroll region below that it has less room, so the region
+  // kept its full-window `maxHeight`, didn't believe it was overflowing, refused
+  // to scroll, and pushed the sheet's own top off the top of the screen. Feeding
+  // one measured keyboard height into both the offset and the scroll cap fixes
+  // that, and leaves one code path instead of two that drift.
+  const [keyboardHeight, setKeyboardHeight] = useState(0);
   useEffect(() => {
-    if (Platform.OS !== "android") return;
-    const showSub = Keyboard.addListener("keyboardDidShow", (e) =>
-      setAndroidKeyboardHeight(e.endCoordinates.height),
+    // iOS's `will` events are driven by the same animation curve as the
+    // keyboard itself, so the sheet travels with it instead of after it.
+    // Android only has the `did` pair.
+    const showEvent = Platform.OS === "ios" ? "keyboardWillShow" : "keyboardDidShow";
+    const hideEvent = Platform.OS === "ios" ? "keyboardWillHide" : "keyboardDidHide";
+    const showSub = Keyboard.addListener(showEvent, (e) =>
+      setKeyboardHeight(e.endCoordinates.height),
     );
-    const hideSub = Keyboard.addListener("keyboardDidHide", () =>
-      setAndroidKeyboardHeight(0),
-    );
+    const hideSub = Keyboard.addListener(hideEvent, () => setKeyboardHeight(0));
     return () => {
       showSub.remove();
       hideSub.remove();
     };
   }, []);
+
+  // Everything in the sheet that isn't the scroll region — grabber, title,
+  // footer, padding, the gaps between them. Derived from one layout pass
+  // (sheet height minus scroll height) rather than estimated from the styles,
+  // because it varies with the title's presence, the footer's contents and the
+  // bottom inset, and an estimate that runs even slightly small puts the sheet's
+  // top back off-screen. Converges immediately: chrome doesn't depend on the
+  // cap it feeds.
+  const [sheetHeight, setSheetHeight] = useState(0);
+  const [scrollHeight, setScrollHeight] = useState(0);
+  const chromeHeight = sheetHeight && scrollHeight ? sheetHeight - scrollHeight : 0;
+
+  // With the keyboard up, the sheet may occupy only what's above it, so the
+  // scroll region takes the space left after the chrome — which is what makes
+  // it overflow and therefore actually scroll. MIN_SCROLL keeps a usable
+  // window on a small phone whose keyboard leaves almost nothing.
+  const scrollMaxHeight =
+    keyboardHeight > 0
+      ? Math.max(MIN_SCROLL_HEIGHT, height - keyboardHeight - chromeHeight)
+      : height * maxContentHeightRatio;
 
   // Lazy useState rather than useRef: the value has to be created once and stay
   // stable, but reading a ref during render is a lint error here.
@@ -207,23 +243,22 @@ export function Sheet({
             accessibilityLabel="Close"
           />
         )}
-        {/* `automaticallyAdjustKeyboardInsets` doesn't reach inside a Modal, so
-            iOS needs an explicit avoider here. Android's manifest-level
-            adjustResize does NOT reach this Modal's own separate window
-            (see the androidKeyboardHeight state above) - `behavior`
-            deliberately stays undefined for Android since KeyboardAvoidingView
-            itself is a no-op here anyway; the marginBottom below does the
-            real work. */}
-        <KeyboardAvoidingView
-          behavior={Platform.OS === "ios" ? "padding" : undefined}
-          style={styles.avoider}
-        >
+        {/* No `KeyboardAvoidingView`: neither platform's version of it works
+            inside a Modal's own window (see the keyboardHeight state above).
+            The marginBottom lifts the sheet clear of the keyboard and the
+            scroll cap below shrinks the region to match, which is the half
+            KAV never did. The bottom inset is dropped while the keyboard is
+            up — the keyboard already covers the home indicator, so keeping it
+            would just waste room the fields need. */}
+        <View style={styles.avoider}>
           <Animated.View
+            onLayout={(e) => setSheetHeight(e.nativeEvent.layout.height)}
             style={[
               styles.sheet,
               {
-                paddingBottom: space.xl + insets.bottom,
-                marginBottom: androidKeyboardHeight,
+                paddingBottom:
+                  space.xl + (keyboardHeight > 0 ? 0 : insets.bottom),
+                marginBottom: keyboardHeight,
                 transform: [{ translateY }],
               },
             ]}
@@ -251,9 +286,15 @@ export function Sheet({
                 list. It only engages when the sheet's controls outgrow a short
                 screen; the footer stays pinned below it either way. */}
             <ScrollView
-              style={{ maxHeight: height * maxContentHeightRatio }}
+              onLayout={(e) => setScrollHeight(e.nativeEvent.layout.height)}
+              style={{ maxHeight: scrollMaxHeight }}
               contentContainerStyle={styles.scrollContent}
               keyboardShouldPersistTaps="handled"
+              // Swiping the content down puts the keyboard away, which is the
+              // gesture people reach for first — and on a numeric keypad, which
+              // has no Return key, it's one of only two ways out (the other
+              // being the Done bar NumberField adds on iOS).
+              keyboardDismissMode="on-drag"
               showsVerticalScrollIndicator={false}
               bounces={false}
             >
@@ -261,7 +302,7 @@ export function Sheet({
             </ScrollView>
             {footer && <View style={styles.footer}>{footer}</View>}
           </Animated.View>
-        </KeyboardAvoidingView>
+        </View>
       </View>
     </Modal>
   );
