@@ -109,7 +109,10 @@ export function TimerProvider({ children }: Readonly<{ children: ReactNode }>) {
       // losing your place. The sound is now the only thing conditional on it.
       if (isCurrentlyActive) {
         await showAlert(isAlarmLoaded);
-        logger.log("Timer completed - showing alert", { missed, isAlarmLoaded });
+        logger.log("Timer completed - showing alert", {
+          missed,
+          isAlarmLoaded,
+        });
       } else {
         logger.log(
           "App in background, skipping alarm sound and alert (background service will handle audio)",

@@ -103,8 +103,10 @@ export function Sheet({
     // iOS's `will` events are driven by the same animation curve as the
     // keyboard itself, so the sheet travels with it instead of after it.
     // Android only has the `did` pair.
-    const showEvent = Platform.OS === "ios" ? "keyboardWillShow" : "keyboardDidShow";
-    const hideEvent = Platform.OS === "ios" ? "keyboardWillHide" : "keyboardDidHide";
+    const showEvent =
+      Platform.OS === "ios" ? "keyboardWillShow" : "keyboardDidShow";
+    const hideEvent =
+      Platform.OS === "ios" ? "keyboardWillHide" : "keyboardDidHide";
     const showSub = Keyboard.addListener(showEvent, (e) =>
       setKeyboardHeight(e.endCoordinates.height),
     );
@@ -124,7 +126,8 @@ export function Sheet({
   // cap it feeds.
   const [sheetHeight, setSheetHeight] = useState(0);
   const [scrollHeight, setScrollHeight] = useState(0);
-  const chromeHeight = sheetHeight && scrollHeight ? sheetHeight - scrollHeight : 0;
+  const chromeHeight =
+    sheetHeight && scrollHeight ? sheetHeight - scrollHeight : 0;
 
   // With the keyboard up, the sheet may occupy only what's above it, so the
   // scroll region takes the space left after the chrome — which is what makes

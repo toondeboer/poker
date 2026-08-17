@@ -14,6 +14,10 @@ see [Open defects](#open-defects) · ☐ not run yet · n/a doesn't apply on thi
 iPad Pro 11-inch and iPhone SE (simulators, layout only); **iOS on a real device — iPhone 13 Pro,
 `npm run ios:device`** — which is where every ❌ below was found.
 
+**All four defects have since been addressed** (D4 by descoping the feature) and every one of them
+is marked **re-test**: none has been confirmed on hardware. They need a **rebuilt dev client on
+both platforms**, since the descope changes Swift *and* Java. §6's button row is gone for good.
+
 ---
 
 ## 0. Before you start
@@ -39,7 +43,7 @@ sandbox/test account.
 | | iOS | Android |
 |---|---|---|
 | Paywall opens from all three entry points (Pro card, Presets, Sound Pack) | ✅ | ☐ |
-| Price string renders (not blank, not `one-time` alone) | ❌ **[D1](#d1)** | ☐ |
+| Price string renders (not blank, not `one-time` alone) | ❌ **[D1](#d1)** → fixed, **re-test** | ☐ |
 | **Purchase completes** and Pro unlocks (ads gone, Presets + Sound Pack usable) | ✅ | ☐ |
 | **Restore purchases** works on a fresh install of the same account | ✅ | ☐ |
 | Cancelling a purchase leaves the app in a sane state, no error toast | ☐ not reachable locally — a sandbox purchase can't be cancelled once the sheet is confirmed | ☐ |
@@ -102,14 +106,15 @@ layout is covered separately in §7.
 ## 5. Keyboard behaviour
 
 The Presets nudge is fixed and confirmed on both platforms. The sheet path is fixed on Android and
-still broken on iOS — see [D2](#d2).
+now fixed on iOS too, unconfirmed on hardware — see [D2](#d2).
 
 | | iOS | Android |
 |---|---|---|
 | Focus the preset-name field → **Save Preset is fully visible** above the keyboard | ✅ | ✅ fixed (see ROADMAP.md) — verified by screenshot, full clean breathing room now. Maestro: `keyboard-preset-nudge.yaml` (screenshot-based; `assertVisible` alone can't prove full IME clearance) |
 | No dead space / over-scroll after the nudge | ✅ | ✅ verified by the same screenshot — clearance matches `BREATHING_ROOM = 24`, no excess |
 | Same on a **small** phone (iPhone SE class / 720×1280) | ☐ still to do in the iPhone SE simulator | ☐ |
-| Generator sheet fields usable with the keyboard up | ❌ **[D2](#d2)** | ✅ fixed (Maestro: `generator-keyboard.yaml`) — was hidden behind the keyboard, see ROADMAP.md "Settings page UX — blind levels" |
+| Number fields show a **Done** bar above the keypad (iOS) that dismisses it | ☐ | n/a |
+| Generator sheet fields usable with the keyboard up | ❌ **[D2](#d2)** → fixed, **re-test** | ✅ fixed (Maestro: `generator-keyboard.yaml`) — was hidden behind the keyboard, see ROADMAP.md "Settings page UX — blind levels" |
 
 ---
 
@@ -118,8 +123,9 @@ still broken on iOS — see [D2](#d2).
 | | iOS | Android |
 |---|---|---|
 | Round expiry fires the alert + alarm with the app **foregrounded** | ☑ automated (Maestro: `notification-foreground-expiry-ios.yaml`) | ☑ automated (Maestro: `notification-foreground-expiry.yaml`) |
-| Expiry while **backgrounded** advances the level | ❌ **[D3](#d3)** | tried to automate, blocked by dev-client-only noise, not a real bug — see note below |
-| Pause / Resume / Stop from the notification / Live Activity | ❌ **[D4](#d4)** | ☐ |
+| Expiry while **backgrounded** advances **exactly one** level, and says so if more time passed | ❌ **[D3](#d3)** → fixed, **re-test** | tried to automate, blocked by dev-client-only noise, not a real bug — see note below |
+| ~~Pause / Resume / Stop from the notification / Live Activity~~ | n/a **[descoped](#d4)** | n/a **[descoped](#d4)** |
+| Live Activity / notification show the right level + time, and the "open the app" caption | ☐ | ☐ |
 | **After a level jump, the pending "time's up" notification names the _new_ next blind** — the fix in this release, never verified on-device | ✅ | n/a |
 | Notification survives swipe-away from Recents | n/a | ☐ |
 
@@ -181,8 +187,9 @@ Android tablet (2560×1600) verified against a freshly built APK. iPad now verif
 
 ## Open defects
 
-Found on the iPhone 13 Pro device pass. Each one **blocks the iOS submission** until fixed or
-deliberately descoped; none of them reproduce on Android, where the equivalent rows pass.
+Found on the iPhone 13 Pro device pass; none reproduce on Android, where the equivalent rows pass.
+All four are now addressed in code and **none is confirmed on hardware** — re-running them is what
+clears the iOS submission.
 
 <a id="d1"></a>
 ### D1 · Paywall shows "one-time" with no price · §1
@@ -195,6 +202,10 @@ and nothing logged — so a fetch that loses the race with SDK configuration or 
 the paywall permanently priceless for that launch. The fallback string is also wrong on its own
 terms: "one-time" alone isn't a price.
 
+**Fixed** — refetched on every sheet open, failures logged rather than swallowed, and the
+price-less fallback is now plain "Unlock Pro". **Re-test needs a sandbox account**, since only a
+real store lookup proves the price renders.
+
 <a id="d2"></a>
 ### D2 · Generator sheet is unusable with the keyboard up · §5
 
@@ -205,6 +216,10 @@ keypad has no Return key — so the only way to dismiss it is to tap some other 
 Android was fixed for this release by tracking the keyboard height directly (`Sheet.tsx`
 `androidKeyboardHeight`); iOS was left on `KeyboardAvoidingView behavior="padding"`, which moves the
 sheet without shrinking the scroll region.
+
+**Fixed** — one keyboard path for both platforms, the scroll cap now derived from the space left
+above the keyboard minus measured chrome, and a Done bar on iOS number fields. **Re-test both
+platforms**: Android's flow changed too, so `generator-keyboard.yaml` should be re-run.
 
 <a id="d3"></a>
 ### D3 · Backgrounded expiry only ever advances one level · §6
@@ -220,6 +235,17 @@ fit in the elapsed time. The scheduled notifications don't help: `useTimerNotifi
 schedules anything for the round after it — which also burns most of iOS's 64-pending-notification
 budget, so a per-level chain can't just be added on top.
 
+**Resolved by fixing the rule, not by catching up** — nothing counts rounds while the app isn't
+running, so exactly one level advances however long you were away, and the alert now says when
+more time passed than that. A foregrounded expiry also always shows the alert now (the alarm
+sound loading was gating the alert itself, which produced a silent advance). Separately, the app
+had no keep-awake at all, so the phone locked itself into this path during the first level of
+every tournament — the screen is now held on while a round runs.
+
+**Re-test:** one round backgrounded, then two-plus rounds backgrounded, then the same with the app
+force-quit. Also confirm the screen no longer sleeps mid-round, and that it *does* sleep once
+paused.
+
 <a id="d4"></a>
 ### D4 · Live Activity buttons corrupt the timer · §6
 
@@ -233,8 +259,32 @@ resume branch takes its `timeLeft > 0 ? timeLeft : timerDuration` fallback (full
 non-positive delay — hence the immediate notification. So the whole chain hangs off Pause writing
 zero, and the pipeline it hangs off (widget process → App Group `UserDefaults` → Darwin
 notification → `consumePendingAction()` reconciled against AsyncStorage after `loadTimerState()`)
-is the most intricate code in the app. Console.app, filtered on subsystem `com.toondeboer.pokerkit`
-category `LiveActivity`, shows both processes' logs and is how to confirm which side writes the 0.
+is the most intricate code in the app.
+
+**Descoped** — the buttons are removed on both platforms and both surfaces stay display-only, which
+is what each shipped as before this release, so nothing regresses for users. The likeliest
+mechanism (unproven) is that WidgetKit never re-renders the Lock Screen view as the countdown runs,
+so `paused || isExpired` — which decides what the button does — was evaluated while the round was
+still running; after expiry the button still read "Pause", and pausing a negative remaining stores
+`max(0, remaining)` = 0. See ROADMAP.md for the full rationale and what to check first if the
+buttons are ever revisited.
+
+**Re-test:** confirm no buttons appear on either surface, that both show the right level and time,
+and that the "open the app" caption is there and not clipped.
+
+---
+
+## 10. Screen stays awake
+
+New in this release: the screen is held on while a round counts down, and released on pause/stop.
+Untested on hardware.
+
+| | iOS | Android |
+|---|---|---|
+| Screen doesn't sleep while a round is running, left untouched past the OS timeout | ☐ | ☐ |
+| Pausing releases it — the screen sleeps normally again | ☐ | ☐ |
+| Stopping/resetting releases it too | ☐ | ☐ |
+| Leaving the timer screen mid-round doesn't leave the lock pinned on elsewhere in the app | ☐ | ☐ |
 
 ---
 
@@ -243,8 +293,9 @@ category `LiveActivity`, shows both processes' logs and is how to confirm which 
 - **iPad mini uses the phone layout** — 744pt is under the 768 threshold, deliberate.
 - **`uuid` advisory (moderate)** — `xcode@3.0.1` hard-requires `^7.0.3`; no in-range fix exists.
   Build tooling only, unreachable from app code.
-- **Live Activity buttons die after a force-quit on iOS** — Apple platform restriction.
-- **Android notification's blind level can lag** across multiple expire/resume cycles while the app
-  is fully killed — documented architectural limit, has its own in-app caption.
+- **Neither the Live Activity nor the Android notification can advance the blind level on its own**
+  — they have no notion of blind levels, and on iOS nothing of the app's runs while backgrounded.
+  Exactly one level advances when the app is reopened, however long it was away. Deliberate as of
+  1.1.4; both surfaces carry a caption saying so.
 - **Simulator Live Activity flakiness** — `Failed to start Live Activity` in the Simulator is
   environmental, not app code.

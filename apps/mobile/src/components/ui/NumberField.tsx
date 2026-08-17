@@ -49,7 +49,9 @@ export function NumberField({
   const [focused, setFocused] = useState(false);
   // Plain counter rather than `useId`: the value becomes a native view id, and
   // React's own ids carry delimiter characters that have no business being one.
-  const [accessoryId] = useState(() => `number-field-done-${nextAccessoryId++}`);
+  const [accessoryId] = useState(
+    () => `number-field-done-${nextAccessoryId++}`,
+  );
 
   // Re-sync when the value changes from somewhere else (a preset load, the
   // generator replacing the whole draft, or a row shifting under an insert).
@@ -70,9 +72,7 @@ export function NumberField({
       <TextField
         {...fieldProps}
         keyboardType="number-pad"
-        inputAccessoryViewID={
-          Platform.OS === "ios" ? accessoryId : undefined
-        }
+        inputAccessoryViewID={Platform.OS === "ios" ? accessoryId : undefined}
         value={raw}
         onChangeText={handleChangeText}
         onFocus={(e) => {

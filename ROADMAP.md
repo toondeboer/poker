@@ -236,7 +236,98 @@ full design.
     do (one's a "request" that only checks; the other's correctly named "has"). Worth a rename for
     clarity if touching this code again, but doesn't affect behavior.
 
+## 1.1.4 iOS device pass (2026-08-17)
+
+First run of the release checklist on real hardware (iPhone 13 Pro, `npm run ios:device`). Four
+defects, tracked as D1–D4 in [RELEASE_TESTING.md](./RELEASE_TESTING.md#open-defects).
+
+- ✅ **D1 — the Pro sheet showed "Unlock Pro · one-time" with no price.** `PremiumContext` fetched
+  `getProPriceString()` exactly once on mount and `revenueCatProvider` swallowed every failure as
+  `null`, with nothing logged — so one lost race with SDK configuration or a cold network meant no
+  price for the rest of the session, even though the same offering lookup succeeds when Unlock is
+  tapped (which is why purchasing worked throughout). Now re-attempted on every sheet open, guarded
+  against overlapping requests, never overwriting a good price with a null, and the failure is
+  logged. The price-less fallback reads plain "Unlock Pro" — "one-time" alone parsed as a price.
+- ✅ **D2 — the generator sheet was unusable with the keyboard up.** `KeyboardAvoidingView`
+  (`behavior="padding"`) moved the sheet without telling the scroll region inside it that there was
+  less room, so the region kept a `maxHeight` derived from the full window, never believed it was
+  overflowing, refused to scroll, and pushed the sheet's own top off-screen. Both platforms now
+  track the keyboard directly — the approach Android already needed, because KAV is a no-op inside
+  a Modal's separate window — and the scroll cap is the space actually left above the keyboard
+  minus chrome *measured* from a layout pass, not estimated from the styles (it varies with the
+  title, the footer and the bottom inset, and an estimate that runs small puts the top back
+  off-screen). `NumberField` gained an iOS `InputAccessoryView` Done bar, since `number-pad` has no
+  Return key; rendered only while focused, so the 30-row editor doesn't mount 60 inert accessories.
+- ✅ **D3 — backgrounded expiry only ever advanced one level**, and reopening after two or more
+  showed a fresh full round at the old level. **Resolved by making the rule explicit rather than by
+  catching up.** Nothing counts rounds while the app isn't running: iOS suspends its JS the moment
+  it's backgrounded, and neither the Live Activity nor the foreground-service notification knows
+  what a blind level is. So exactly one level advances on the way back in, however long the app was
+  away — the alternative was never "advance correctly", it was "advance by a number we invent".
+  What changed:
+  - `hydrateTimerState` now reports `missedRounds` alongside `expired` — the further whole rounds
+    that would have run out since the first expiry. It is *not* a count to advance by; it's what
+    the player is owed an explanation for, and the expiry alert says so when it's non-zero rather
+    than presenting a 40-minute absence as an ordinary round change. Four new core tests.
+  - A foregrounded expiry now always shows the alert. `isAlarmLoaded` used to gate the alert
+    itself, so an expiry noticed before the alarm sound finished loading — likely on the reopen
+    path specifically, since that check runs right after a storage read — took the silent
+    background branch: the level moved with no alert and no sound. That's indistinguishable from
+    the app losing your place, and is the best candidate for the "doesn't advance in-app" half of
+    the report. Only the sound is conditional now.
+  - Both native surfaces carry a standing caption saying the app is what starts the next level.
+- ✅ **D4 — Live Activity buttons corrupted the timer.** Descoped; see the box below.
+- ✅ **Found while fixing D3: there was no keep-awake anywhere in the app.** The OS locks the screen
+  after ~30–60s of no touches, which backgrounds the app and hands the round to the single-round
+  background path — during the *first* level of every tournament, on a phone sitting on the table,
+  which is the app's whole use case. `expo-keep-awake` now holds the screen while a round is
+  counting down and releases on pause/stop. It was already in the tree as an `expo` dependency;
+  declared in `apps/mobile` because that's the workspace importing it, and the lockfile moved by
+  one line. Tagged (`poker-timer-round`) so releasing ours can't clobber another holder's lock.
+- ☐ **Not yet verified on device:** every fix above. All four need a rebuilt dev client (the
+  descope touches Swift and Java), and D1 additionally needs a sandbox account to see a real price
+  string.
+
 ## Live Activity / foreground service controls
+
+> **⛔️ Descoped from 1.1.4 (2026-08-17): the Pause/Resume/Stop buttons are removed from both
+> platforms, before ever shipping.** Everything below this box is the history of building them and
+> is kept for whoever picks the idea back up — it is not a description of the current app. Both
+> surfaces remain, display-only.
+>
+> **What forced it.** The 1.1.4 device pass (iPhone 13 Pro, see [RELEASE_TESTING.md](./RELEASE_TESTING.md)'s
+> D4) found Pause setting the timer to 0:00, and Resume then jumping to a full round *and* firing
+> the "time's up" notification immediately. Resume's behaviour is downstream of Pause's: a stored
+> `timeLeft` of 0 takes the `timeLeft > 0 ? timeLeft : timerDuration` fallback and reports
+> `wasExpired`, which advances a blind level and reschedules the alert with a non-positive delay.
+>
+> **Best hypothesis for the zero, untested.** `TimerActionButtons(paused: paused || isExpired)`
+> was evaluated at *render* time, and WidgetKit does not re-render the Lock Screen view as the
+> countdown runs — `Text(timerInterval:)` animates without one. So after expiry the button still
+> read "Pause", and `state.timeLeft = max(0, state.timeRemaining)` on a negative remaining stores
+> 0. Note this is the same class of failure as the 2026-07-29 investigation below, which was
+> written off as Simulator flakiness — it reproduced on real hardware.
+>
+> **Why removal rather than a fix.** The buttons exist to let something *other than the app* write
+> timer state, and everything expensive here follows from that: an intent running in the widget
+> extension's own process, an App Group write, a Darwin notification, a live JS event, a persisted
+> snapshot reconciled against AsyncStorage in a specific order on next foreground, and a
+> `wasExpired` flag so the widget can ask the app to do the level maths it can't. Four rounds of
+> device debugging (below) went into making that pipeline work and it still shipped broken. With
+> the buttons gone the app is the sole writer of timer state, which is also the premise the
+> backgrounded-expiry rule now rests on.
+>
+> **Kept on purpose:** the App Group entitlement (`group.com.toondeboer.pokerkit`) in `app.json`
+> and both `.entitlements` files. Nothing reads it now. It stayed because removing an entitlement
+> changes code signing on a release that's mid-submission-cycle, for no user-visible gain, and
+> it's exactly what the buttons would need on the way back.
+>
+> **If revisiting:** confirm the stale-render hypothesis first, with Console.app on a device
+> filtered to subsystem `com.toondeboer.pokerkit` — the diagnostic `os.Logger` calls were in the
+> deleted `TimerActionIntents.swift` and are worth restoring before anything else. A fix that
+> doesn't depend on render-time freshness (deriving the action from the Activity's own state
+> inside `perform()`, accepting that it may disagree with what was tapped) is the shape to try.
+
 - ✅ **Pause/Resume + Stop actions added** to both the Android foreground-service notification and
   the iOS Live Activity/Dynamic Island. Both platforms update their own visible UI immediately on
   a button tap (no dependency on a live JS/bridge instance) and persist the action
