@@ -131,6 +131,25 @@ export function clampToDuration(state: TimerMachineState): TimerMachineState {
   return state;
 }
 
+export interface HydratedTimerState {
+  state: TimerMachineState;
+  /** The stored round had already run out by `now`. */
+  expired: boolean;
+  /**
+   * How many *further* whole rounds would have run out since that first expiry,
+   * had anything been counting them. Zero unless `expired`.
+   *
+   * Nothing advances rounds while the app isn't running — mobile suspends its
+   * JS the moment it's backgrounded, and neither the Live Activity nor the
+   * foreground-service notification knows what a blind level is — so exactly one
+   * level advances on the way back in, no matter how long the app was away. This
+   * is what lets the caller *say* that rather than presenting a 40-minute
+   * absence as an ordinary round change: it's the count the player is owed an
+   * explanation for, not a count to advance by.
+   */
+  missedRounds: number;
+}
+
 /**
  * Rebuild machine state from persisted {@link TimerState}. When the timer was
  * running, `timeLeft` is recomputed from the stored `endTime`; if that has
@@ -141,7 +160,7 @@ export function clampToDuration(state: TimerMachineState): TimerMachineState {
 export function hydrateTimerState(
   stored: TimerState,
   now: number = Date.now(),
-): { state: TimerMachineState; expired: boolean } {
+): HydratedTimerState {
   const { timerDuration } = stored;
 
   if (stored.endTime && !stored.paused) {
@@ -155,8 +174,15 @@ export function hydrateTimerState(
           paused: false,
         },
         expired: false,
+        missedRounds: 0,
       };
     }
+    // Guarded against a zero/negative duration, which would otherwise divide to
+    // Infinity and report an absurd number of missed rounds.
+    const missedRounds =
+      timerDuration > 0
+        ? Math.floor((now - stored.endTime) / (timerDuration * 1000))
+        : 0;
     return {
       state: {
         timerDuration,
@@ -165,6 +191,7 @@ export function hydrateTimerState(
         paused: true,
       },
       expired: true,
+      missedRounds,
     };
   }
 
@@ -176,5 +203,6 @@ export function hydrateTimerState(
       paused: stored.paused,
     },
     expired: false,
+    missedRounds: 0,
   };
 }

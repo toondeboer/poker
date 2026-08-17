@@ -1,17 +1,13 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!-- Collapsed body for the timer notification's DecoratedCustomViewStyle. The system still
      draws the header (small icon in its colored circle, app label, timestamp, expand chevron)
-     above this — this only supplies the content row, which stock NotificationCompat.addAction
-     could never render as colored buttons (those always come out as plain platform-accent text
-     links, see ROADMAP.md's "Live Activity / foreground service UI/UX polish" item). -->
-<!-- paddingTop/Bottom + button size are kept small on purpose: DecoratedCustomViewStyle draws
-     the system header (icon/app-name/timestamp) above this row and imposes its own overall
-     height budget on the combined card, tighter on some OEM skins/notification-shade
-     implementations than stock AOSP — a taller row here can get its bottom edge silently
-     clipped rather than reported as a layout error, which is what "buttons cut off in the
-     collapsed notification" turned out to be. 30dp buttons + 6dp top/bottom padding (42dp total)
-     leaves comfortable headroom under the ~48dp figure the tightest known budgets allow, versus
-     the previous 36dp + 8dp (52dp total) that was cutting it close. -->
+     above this — this only supplies the content row. A custom view rather than the stock layout
+     because the title carries the round's state color, which stock can't render. -->
+<!-- paddingTop/Bottom stay small on purpose: DecoratedCustomViewStyle imposes its own overall
+     height budget on the combined card, tighter on some OEM skins than stock AOSP, and an
+     over-tall row here gets its bottom edge silently clipped rather than reported as a layout
+     error. That was the cause of the "buttons cut off in the collapsed notification" bug back
+     when this row still had buttons. -->
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
@@ -26,7 +22,6 @@
         android:layout_width="0dp"
         android:layout_height="wrap_content"
         android:layout_weight="1"
-        android:layout_marginEnd="8dp"
         android:orientation="vertical">
 
         <TextView
@@ -49,37 +44,4 @@
             android:textColor="?android:attr/textColorSecondary"/>
     </LinearLayout>
 
-    <LinearLayout
-        android:id="@+id/timer_collapsed_pause_container"
-        android:layout_width="30dp"
-        android:layout_height="30dp"
-        android:gravity="center"
-        android:background="@drawable/bg_pill_amber">
-
-        <ImageView
-            android:id="@+id/timer_collapsed_pause_icon"
-            android:layout_width="15dp"
-            android:layout_height="15dp"
-            android:tint="@android:color/white"
-            android:src="@drawable/ic_notification_pause"/>
-    </LinearLayout>
-
-    <!-- Neither android.widget.Space nor plain android.view.View are on RemoteViews' allowed
-         view-class list (only a fixed set of system widgets can be inflated in a notification's
-         RemoteViews — confirmed at runtime via InflateException for both). A fixed-size gap like
-         this is simplest as a margin on the following element instead of a dedicated spacer. -->
-    <LinearLayout
-        android:id="@+id/timer_collapsed_stop_container"
-        android:layout_width="30dp"
-        android:layout_height="30dp"
-        android:layout_marginStart="10dp"
-        android:gravity="center"
-        android:background="@drawable/bg_pill_red">
-
-        <ImageView
-            android:layout_width="14dp"
-            android:layout_height="14dp"
-            android:tint="@android:color/white"
-            android:src="@drawable/ic_notification_stop"/>
-    </LinearLayout>
 </LinearLayout>

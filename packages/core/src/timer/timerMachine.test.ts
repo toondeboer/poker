@@ -212,6 +212,7 @@ describe("hydrateTimerState", () => {
         paused: false,
       },
       expired: false,
+      missedRounds: 0,
     });
   });
 
@@ -228,7 +229,39 @@ describe("hydrateTimerState", () => {
         paused: true,
       },
       expired: true,
+      missedRounds: 0,
     });
+  });
+
+  // Nothing counts rounds while the app isn't running, so a long absence still
+  // advances exactly one level — this number exists only so the app can say so
+  // instead of presenting a 40-minute gap as an ordinary round change.
+  it("counts the further rounds that would have elapsed since the first expiry", () => {
+    const twoAndAHalfRoundsLater = NOW + 300_000;
+    const result = hydrateTimerState(
+      { endTime: NOW, timerDuration: 120, paused: false, timeLeft: 0 },
+      twoAndAHalfRoundsLater,
+    );
+    expect(result.expired).toBe(true);
+    expect(result.missedRounds).toBe(2);
+    // Still one round's worth of reset state, not two.
+    expect(result.state.timeLeft).toBe(120);
+  });
+
+  it("reports no missed rounds for an expiry inside the first round", () => {
+    const result = hydrateTimerState(
+      { endTime: NOW, timerDuration: 120, paused: false, timeLeft: 0 },
+      NOW + 119_000,
+    );
+    expect(result.missedRounds).toBe(0);
+  });
+
+  it("does not divide by a zero duration", () => {
+    const result = hydrateTimerState(
+      { endTime: NOW, timerDuration: 0, paused: false, timeLeft: 0 },
+      NOW + 300_000,
+    );
+    expect(result.missedRounds).toBe(0);
   });
 
   it("restores a paused timer with its stored timeLeft", () => {
@@ -244,6 +277,7 @@ describe("hydrateTimerState", () => {
         paused: true,
       },
       expired: false,
+      missedRounds: 0,
     });
   });
 

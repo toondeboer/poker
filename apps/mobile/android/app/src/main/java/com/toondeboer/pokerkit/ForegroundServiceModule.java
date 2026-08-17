@@ -1,14 +1,11 @@
 package com.toondeboer.pokerkit;
 
-import com.facebook.react.bridge.Arguments;
 import com.facebook.react.bridge.ReactApplicationContext;
 import com.facebook.react.bridge.ReactContextBaseJavaModule;
 import com.facebook.react.bridge.ReactMethod;
 import com.facebook.react.bridge.Promise;
 import com.facebook.react.bridge.ReadableMap;
-import com.facebook.react.bridge.WritableMap;
 import android.content.Intent;
-import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
 import android.os.Build;
 import androidx.core.content.ContextCompat;
@@ -21,7 +18,6 @@ public class ForegroundServiceModule extends ReactContextBaseJavaModule {
     public ForegroundServiceModule(ReactApplicationContext reactContext) {
         super(reactContext);
         this.reactContext = reactContext;
-        ForegroundServiceBridge.setReactContext(reactContext);
     }
 
     @Override
@@ -223,31 +219,6 @@ public class ForegroundServiceModule extends ReactContextBaseJavaModule {
         promise.resolve(ForegroundServiceBridge.isRunning());
     }
 
-    @ReactMethod
-    public void consumePendingAction(Promise promise) {
-        SharedPreferences prefs = reactContext.getSharedPreferences(
-                PokerTimerService.PREFS_NAME, android.content.Context.MODE_PRIVATE);
-        String action = prefs.getString(PokerTimerService.KEY_PENDING_ACTION, null);
-        if (action == null) {
-            promise.resolve(null);
-            return;
-        }
-        WritableMap result = Arguments.createMap();
-        result.putString("action", action);
-        result.putBoolean("paused", prefs.getBoolean(PokerTimerService.KEY_PENDING_PAUSED, true));
-        result.putInt("timeLeft", prefs.getInt(PokerTimerService.KEY_PENDING_TIME_LEFT, 0));
-        result.putDouble("endTime", (double) prefs.getLong(PokerTimerService.KEY_PENDING_END_TIME, 0));
-        result.putBoolean("wasExpired", prefs.getBoolean(PokerTimerService.KEY_PENDING_WAS_EXPIRED, false));
-        prefs.edit()
-                .remove(PokerTimerService.KEY_PENDING_ACTION)
-                .remove(PokerTimerService.KEY_PENDING_TIMESTAMP)
-                .remove(PokerTimerService.KEY_PENDING_PAUSED)
-                .remove(PokerTimerService.KEY_PENDING_TIME_LEFT)
-                .remove(PokerTimerService.KEY_PENDING_END_TIME)
-                .remove(PokerTimerService.KEY_PENDING_WAS_EXPIRED)
-                .apply();
-        promise.resolve(result);
-    }
 }
 
 

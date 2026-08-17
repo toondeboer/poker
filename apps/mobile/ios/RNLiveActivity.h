@@ -6,15 +6,10 @@
 //
 
 #import <React/RCTBridgeModule.h>
-#import <React/RCTEventEmitter.h>
 
-@interface RNLiveActivity : RCTEventEmitter <RCTBridgeModule>
-
-/// Emits `onLiveActivityAction` to JS, if a listener is currently attached. Called by
-/// `LiveActivityActionListener` (Swift) when a Live Activity button tap is relayed while the
-/// app is alive to receive it. `payload` carries `action`/`paused`/`timeLeft`/`endTime` — not
-/// just the action name, so JS can apply the exact snapshot instead of re-deriving a stale one.
-+ (void)emitAction:(NSDictionary *)payload;
+/// Start/update/end the Live Activity from JS. Display only — the Activity has no interactive
+/// buttons, so nothing flows back the other way and this is a plain bridge module rather than an
+/// event emitter.
+@interface RNLiveActivity : NSObject <RCTBridgeModule>
 
 @end
-

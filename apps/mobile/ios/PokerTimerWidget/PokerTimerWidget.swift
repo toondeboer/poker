@@ -125,7 +125,6 @@ struct PokerTimerWidget: Widget {
                 .foregroundColor(.secondary)
             }
 
-            TimerActionButtons(paused: context.state.paused || context.state.isExpired)
           }
         }
       } compactLeading: {
@@ -221,52 +220,21 @@ struct PokerTimerLiveActivityView: View {
         }
       }
 
-      TimerActionButtons(paused: context.state.paused || context.state.isExpired)
-        .padding(.top, 6)
-
-      // iOS stops running any of the app's App Intents — including these buttons — once the
-      // user force-quits the app from the app switcher, until they manually reopen it. There's
-      // no API to detect that a tap was attempted and blocked, so this is a permanent, always-on
-      // notice rather than a one-time/conditional one. Slightly dimmed beyond the standard
-      // .secondary color so it reads as fine print, not a peer of the buttons it's describing.
-      Text("Force quitting the app may stop these buttons from responding.")
+      // Deliberately unconditional, not shown only once expired. WidgetKit does not re-render
+      // this view as the countdown runs — `Text(timerInterval:)` above animates without one —
+      // so anything keyed on `isExpired` would be evaluated at whatever moment the system last
+      // rendered, i.e. usually while the round was still running, and would never appear at the
+      // one time it mattered. A standing line is always true instead: the app is what advances
+      // the blinds, because nothing of ours executes out here while it's backgrounded.
+      Text("Open the app at the buzzer to start the next level.")
         .font(.caption2)
         .foregroundColor(.secondary)
         .opacity(0.85)
         .lineLimit(2)
+        .padding(.top, 6)
     }
     .padding(12)
     .background(Color(UIColor.systemBackground))
-  }
-}
-
-// Pause/Resume + Stop row shared between the lock-screen view and the Dynamic Island's
-// expanded UI. Each button drives a `LiveActivityIntent` (see TimerActionIntents.swift), which
-// updates the Activity directly without opening the app.
-struct TimerActionButtons: View {
-  let paused: Bool
-
-  var body: some View {
-    HStack(spacing: 12) {
-      // Green when tapping it will resume (a "go" action); amber when tapping it will pause (a
-      // caution color — gray read as dull/washed-out against the Live Activity's dark-mode
-      // background, and this also matches Android's own Pause pill now).
-      Button(intent: TogglePauseTimerIntent(shouldPause: !paused)) {
-        Label(paused ? "Resume" : "Pause", systemImage: paused ? "play.fill" : "pause.fill")
-      }
-      .tint(paused ? .pokerGreen : .pokerAmber)
-
-      Button(intent: StopTimerIntent()) {
-        Label("Stop", systemImage: "stop.fill")
-      }
-      .tint(.pokerRed)
-    }
-    // Previously plain `.bordered` with no `.tint()` on Pause/Resume at all, so it rendered in
-    // the system's default blue — clashing with the green/amber/red palette used everywhere
-    // else in the app and the Live Activity itself.
-    .buttonStyle(.bordered)
-    .controlSize(.small)
-    .labelStyle(.titleAndIcon)
   }
 }
 

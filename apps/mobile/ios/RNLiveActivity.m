@@ -9,53 +9,9 @@
 #import "RNLiveActivity.h"
 #import "PokerTimer-Swift.h"
 
-static RNLiveActivity *sharedInstance = nil;
-
-@implementation RNLiveActivity {
-  BOOL hasListeners;
-}
-
+@implementation RNLiveActivity
 
 RCT_EXPORT_MODULE();
-
-
-- (instancetype)init
-{
-  self = [super init];
-  if (self) {
-    sharedInstance = self;
-  }
-  return self;
-}
-
-- (NSArray<NSString *> *)supportedEvents
-{
-  return @[@"onLiveActivityAction"];
-}
-
-- (void)startObserving
-{
-  hasListeners = YES;
-}
-
-- (void)stopObserving
-{
-  hasListeners = NO;
-}
-
-+ (void)emitAction:(NSDictionary *)payload
-{
-  if (sharedInstance == nil) {
-    NSLog(@"[LiveActivity] emitAction:%@ — sharedInstance is nil, RNLiveActivity module never instantiated yet, dropping", payload);
-    return;
-  }
-  if (!sharedInstance->hasListeners) {
-    NSLog(@"[LiveActivity] emitAction:%@ — no JS listener attached (hasListeners=NO), dropping", payload);
-    return;
-  }
-  NSLog(@"[LiveActivity] emitAction:%@ — sending to JS", payload);
-  [sharedInstance sendEventWithName:@"onLiveActivityAction" body:payload];
-}
 
 
 RCT_EXPORT_METHOD(startActivity:(NSDictionary *)activityData
@@ -147,17 +103,6 @@ RCT_EXPORT_METHOD(getActiveActivities:(RCTPromiseResolveBlock)resolve
   }
 }
 
-
-RCT_EXPORT_METHOD(consumePendingAction:(RCTPromiseResolveBlock)resolve
-                  rejecter:(RCTPromiseRejectBlock)reject)
-{
-  @try {
-    NSDictionary *pending = [LiveActivityActionBridge consumePendingAction];
-    resolve(pending);
-  } @catch (NSException *exception) {
-    reject(@"consume_pending_action_error", exception.reason, nil);
-  }
-}
 
 
 @end
