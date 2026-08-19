@@ -1,11 +1,43 @@
-# To get started with Dependabot version updates, you'll need to specify which
-# package ecosystems to update and where the package manifests are located.
-# Please see the documentation for all configuration options:
-# https://docs.github.com/code-security/dependabot/dependabot-version-updates/configuration-options-for-the-dependabot.yml-file
-
+# Dependabot version updates.
+#
+# Deliberately targets the default branch (`main`) — no `target-branch`. See CLAUDE.md's release
+# process for why: a `release/<version>` branch is deleted at ship time so a pin goes stale every
+# cycle, and `target-branch` only redirects *version* updates anyway — security updates are raised
+# against the default branch regardless. Mobile-affecting bumps get retargeted per-PR instead:
+# `gh pr edit <n> --base release/<version>`.
+#
+# Grouped so a run produces a couple of reviewable PRs rather than one per package. Groups are
+# matched in order, so the more specific ones come first.
 version: 2
 updates:
-  - package-ecosystem: "npm" # See documentation for possible values
-    directory: "/" # Location of package manifests
+  - package-ecosystem: "npm"
+    directory: "/" # One lockfile at the root; npm workspaces cover apps/* and packages/*.
     schedule:
-      interval: "weekly"
+      # Monthly, not weekly. Mobile releases are batched and every mobile-affecting bump needs a
+      # device pass, so a weekly cadence only grew a queue nobody could act on.
+      interval: "monthly"
+    groups:
+      react:
+        # React must stay a single version across web + mobile (see CLAUDE.md) — three copies broke
+        # hooks and context once already. Grouping these means a bump arrives as one reviewable
+        # change instead of separate PRs that are wrong until every one of them lands.
+        patterns:
+          - "react"
+          - "react-dom"
+          - "@types/react"
+          - "@types/react-dom"
+      expo-react-native:
+        # Expo pins the React Native version it bundles, and native modules must agree with the dev
+        # client they're built into — these move together or not at all. Always mobile-affecting, so
+        # this PR is the one to retarget onto an open release branch.
+        patterns:
+          - "expo"
+          - "expo-*"
+          - "@expo/*"
+          - "react-native"
+          - "react-native-*"
+          - "@react-native/*"
+      dev-tooling:
+        # ESLint, TypeScript, Prettier, Vitest, types. Never ships in a binary, so it can land on
+        # `main` freely.
+        dependency-type: "development"

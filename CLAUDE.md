@@ -70,9 +70,22 @@ Mobile releases are batched on a short-lived branch per version, not shipped str
 `main` — avoids cutting a new App Store/Play submission for every small merged PR while a review
 (which can take days) is pending.
 
-- **`main` always matches what's actually live** in the App Store / Play Store. Never
-  version-bump, tag, or submit from `main` directly — it's the thing you fall back to for an
-  emergency fix, so it can't be "ahead" of production.
+- **What's live on mobile is the `v<version>` tag, not a branch.** Tags are immutable, so this can't
+  drift; branch from `v<version>` for a hotfix (below). **`main` is the integration branch and the
+  *website's* production branch** — the Vercel project deploys on every push to it (see
+  [README.md](./README.md#deploy)), so web and docs changes must land there to ship, and they ship
+  continuously.
+  - This used to read "`main` always matches what's actually live in the App Store", which was never
+    compatible with the web deploying from the same branch: every web fix would have had to wait
+    behind a pending mobile review. Predictably, it didn't hold — `main` was 21 commits ahead of
+    `v1.1.3` by the time 1.1.4 was cut, almost all of it web, docs and Dependabot, i.e. changes that
+    *belonged* there. The rule was wrong, not the commits, and pointing "what's live" at the tag
+    fixes it without asking anyone to hold web releases hostage to the App Store.
+  - Never version-bump, tag, or `eas submit` from `main` directly — those happen on the release
+    branch, so that a mobile submission is always a deliberate act on a known set of commits.
+  - The consequence to keep in mind: **`main` is not a buildable "what shipped" for mobile.** Don't
+    reach for it when you need the exact code behind a store binary — use the tag, or
+    `eas build:view <id>` for the built commit.
 - **`release/<version>` is the integration branch for the next release** (e.g. `release/1.1.4`),
   cut from `main` when you start batching work toward it:
   `git checkout main && git pull && git checkout -b release/<version>`. Name it
@@ -83,23 +96,25 @@ Mobile releases are batched on a short-lived branch per version, not shipped str
   without going through a PR. Branch off it (`git checkout -b feature/<name>`), commit there, and
   PR into the release branch. The only exception is the release-prep commit(s) made as part of
   *cutting* the release itself (step-by-step below) — those go directly on the release branch.
-- **PRs for anything going into that release target the release branch, not `main`** —
-  `gh pr create --base release/<version>`. Every change still gets a `CHANGELOG.md` entry under
-  `[Unreleased]` in the same commit/PR that lands it (Keep a Changelog format) — no exceptions,
-  don't defer this to release time, or the changelog stops being a reliable diff of what changed.
-  Entries keep accumulating there across however many PRs land before the release ships; don't
-  roll them into a dated heading until the release is actually being cut (last step below).
-  - **This includes Dependabot, and web-only and docs-only changes.** Anything merged to `main`
-    while a release branch is open makes `main` stop being "what's live", which is the one property
-    the emergency-fix path depends on. It drifted 21 commits that way before 1.1.4 (Dependabot
-    targets `main` by default, and web/docs PRs were merged there out of habit); that history is
-    left as-is, and **the rule holds from 1.1.4 onward**. Either retarget an open Dependabot PR onto
-    the release branch (`gh pr edit <n> --base release/<version>`) if it belongs in that release, or
-    leave it queued until the release ships and take it into the next one. Don't merge it to `main`
-    in the meantime.
-  - Don't reach for `target-branch` in `.github/dependabot.yml` to automate this: release branches
-    are per-version and deleted after each ship, so a pinned target has to be edited every cycle and
-    errors out in between. Retargeting the occasional PR by hand is the cheaper of the two.
+- **What targets the release branch, and what targets `main`** — the test is *"does this change the
+  mobile binary?"*, not *"is a release open?"*:
+  - **Release branch** (`gh pr create --base release/<version>`): anything under `apps/mobile`,
+    anything in `packages/core` that mobile consumes, and **dependency bumps that mobile bundles**
+    (`expo*`, `react-native*`, `react`, `react-native-purchases`, …). These change what gets
+    submitted, so they belong to a version and want the release's testing pass.
+  - **`main` directly:** `apps/web`, docs, CI, and tooling-only or web-only dependency bumps. These
+    ship on their own cadence and holding them for a mobile review buys nothing.
+  - **Dependabot targets `main`, and that's correct** — don't set `target-branch` in
+    `.github/dependabot.yml` to redirect it. Two reasons: a per-version branch is deleted at ship
+    time, so the pin goes stale every cycle and errors in between; and `target-branch` only
+    redirects *version* updates — **security updates are raised against the default branch
+    regardless**, so it can never give you a `main` free of Dependabot anyway. When a bump is
+    mobile-affecting, retarget that one PR: `gh pr edit <n> --base release/<version>`.
+- Every change still gets a `CHANGELOG.md` entry under `[Unreleased]` in the same commit/PR that
+  lands it (Keep a Changelog format) — no exceptions, don't defer this to release time, or the
+  changelog stops being a reliable diff of what changed. Entries keep accumulating there across
+  however many PRs land before the release ships; don't roll them into a dated heading until the
+  release is actually being cut (last step below).
 - **Open the `release/<version>` → `main` PR immediately after cutting the branch, and leave it
   open** (`gh pr create --base main --head release/<version>`) — don't merge it until the release
   actually ships. It's the running release-candidate diff, not a normal feature PR. Every time
@@ -135,10 +150,15 @@ Mobile releases are batched on a short-lived branch per version, not shipped str
   7. Delete `release/<version>`. Cut the next `release/<version>` from the new `main` tip when you
      start batching the next round of work.
 - **Hotfixing the live version while a release branch is mid-cycle**: branch `hotfix/<version>`
-  from `main` (not from the active release branch — `main` is what's actually live), fix it, ship
-  through the same version/changelog/tag steps above, merge back to `main`. Then merge (or
-  cherry-pick) that same fix into the in-progress `release/<version>` too, or it'll be silently
-  reverted when that release eventually merges over it.
+  **from the `v<version>` tag of what's actually live** — `git checkout -b hotfix/1.1.5 v1.1.4` —
+  not from `main` and not from the active release branch. Neither of those is what shipped: `main`
+  carries web/docs/dependency work that has never been through a mobile testing pass, and the
+  release branch carries the whole next version. Branching from the tag gives you exactly the code
+  in the store plus your fix, which is the entire point of a hotfix.
+  - Ship it through the same version/changelog/tag steps above (bump, roll the changelog, build and
+    submit from the hotfix branch, tag the built commit).
+  - Then merge it **both** into `main` *and* into the in-progress `release/<version>`, or it'll be
+    silently reverted the moment that release merges over it. Two merges, every time.
 
 ## Things that bite in this monorepo
 
