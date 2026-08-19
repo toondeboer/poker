@@ -1,6 +1,0 @@
-<!-- android/app/src/main/res/drawable/bg_pill_red.xml -->
-<shape xmlns:android="http://schemas.android.com/apk/res/android"
-       android:shape="rectangle">
-    <solid android:color="@color/pokerTimerRed"/>
-    <corners android:radius="100dp"/>
-</shape>

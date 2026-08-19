@@ -13,6 +13,7 @@ import {
   space,
   TABLET_MAX_WIDTH_SETTINGS,
 } from "@/src/theme";
+import { useKeyboardFocusScroll } from "@/src/hooks/useKeyboardFocusScroll";
 import { Paywall } from "@/src/components/paywall/Paywall";
 import { ProCard } from "./ProCard";
 import { TournamentCard } from "./TournamentCard";
@@ -34,6 +35,20 @@ export function SettingsScreen() {
   // Measured by useKeyboardNudge: on Android this shrinks with the window when
   // the keyboard opens, which is the only reliable read of the visible area.
   const containerRef = useRef<View>(null);
+  // Android no longer resizes the window for the keyboard under edge-to-edge, so
+  // a field low on this page (the round duration, on a short screen) would sit
+  // under the keypad with nothing to scroll to. iOS is covered by
+  // automaticallyAdjustKeyboardInsets below.
+  const { keyboardInset } = useKeyboardFocusScroll({
+    scrollBy: (delta) =>
+      scrollViewRef.current?.scrollTo({
+        y: scrollOffsetRef.current + delta,
+        animated: true,
+      }),
+    containerRef,
+    bottomInset: insets.bottom,
+    topInset: insets.top,
+  });
 
   return (
     <View style={styles.container} ref={containerRef}>
@@ -46,7 +61,7 @@ export function SettingsScreen() {
           {
             paddingLeft: space.lg + insets.left,
             paddingRight: space.lg + insets.right,
-            paddingBottom: 40 + insets.bottom,
+            paddingBottom: 40 + insets.bottom + keyboardInset,
           },
         ]}
         showsVerticalScrollIndicator={false}

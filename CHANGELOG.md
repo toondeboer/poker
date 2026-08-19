@@ -38,26 +38,23 @@ platform-tagged heading (e.g. `## [1.1.3] - 2026-07-20 — Android`) when you cu
 - Web: new `/guide` page — "How to Run a Home Poker Tournament" — covering buy-ins, blind
   structures, payouts, and a blind-structure explainer, with `HowTo`/`FAQPage` structured data.
   Cross-linked from `/timer`.
-- Mobile: Pause/Resume and Stop buttons on the Android foreground-service timer notification and
-  the iOS Live Activity/Dynamic Island — previously read-only display, with no way to control the
-  timer without reopening the app. Each side updates its own visible UI immediately (no
-  round-trip through JS needed) and separately persists the action so the app reconciles its timer
-  state next time it's foregrounded or launched, covering both "app still running in the
-  background" and "app was fully killed" cases. iOS additionally required adding an App Group
-  entitlement (`group.com.toondeboer.pokerkit`) shared between the app and widget extension, since
-  a Live Activity button's `LiveActivityIntent` runs in the widget extension's own process.
-- Mobile: Android's foreground-service notification now has a small permanent note — "Don't force
-  quit the app, or the blind level shown here may fall behind" — matching the iOS Live Activity's
-  existing force-quit caption. Covers a narrow, accepted limitation specific to actually force-
-  quitting (not ordinary backgrounding): the notification can't advance its own displayed blind
-  level across multiple expire-and-resume cycles while the app stays fully killed (reopening
-  always catches it up correctly).
+- Mobile: the screen now stays on while a round is counting down, and is released once the timer is
+  paused or stopped. A phone left on the table used to lock itself within a minute, which backgrounds
+  the app and stops the round advancing on its own — so most tournaments dropped out of the
+  foreground during their *first* level.
+- Mobile: the timer notification (Android) and Live Activity (iOS) both carry a standing line —
+  "Open the app at the buzzer to start the next level" — replacing the force-quit notes. Nothing
+  of the app's runs while it's backgrounded, so the app is what advances the blinds; saying so
+  beats a countdown that looks like the tournament is still progressing when it isn't.
 - Mobile: the generator and Pro sheets can now be dismissed by **dragging the handle down** or
   tapping the dimmed area outside them. The handle was previously decorative — it looked draggable
   but did nothing — and tapping outside had no effect either, so on iOS the only way out was a
   button.
 
 ### Changed
+- Round duration can now be as short as **1 second**, down from a 10-second floor that rewrote
+  anything shorter without saying so — typing 5 and coming back to 10 reads as a broken field rather
+  than a rule.
 - Mobile: the dimmed backdrop behind those sheets now **fades in place** instead of sliding up with
   the sheet, and lightens as you drag one down, so the sheet reads as sitting over the screen rather
   than being part of it.
@@ -85,20 +82,21 @@ platform-tagged heading (e.g. `## [1.1.3] - 2026-07-20 — Android`) when you cu
   working copy, so a preset can't silently record edits you never applied.
 - Mobile: recolored the Android foreground-service notification and iOS Live Activity/Dynamic
   Island to match the app's own timer palette (`#10B981` green / `#F59E0B` amber / `#DC2626` red)
-  instead of each platform's own approximate shades — the iOS Live Activity's Pause/Resume button
-  previously had no tint at all and rendered in the system default blue. Also added two visual
-  states neither platform distinguished before: an expired round (red + alarm icon on iOS) and a
-  low-time warning at 60s or less remaining (amber, matching Android's existing threshold).
-- Mobile: the Android foreground-service notification's Pause/Resume and Stop actions are no
-  longer stock `NotificationCompat` text-link actions (which can't be individually colored) — a
-  custom `RemoteViews` layout gives them real colored pill/circle buttons (green/amber to
-  resume/pause, red to stop), matching the iOS Live Activity's button styling instead of looking
-  like generic platform chrome next to it. Collapsed view keeps icon-only circular buttons to fit
-  the narrower space; expanded view mirrors the iOS Lock Screen's layout (header, timer+blinds,
-  buttons, force-quit caption).
+  instead of each platform's own approximate shades. Also added two visual states neither platform
+  distinguished before: an expired round (red + alarm icon on iOS) and a low-time warning at 60s
+  or less remaining (amber, matching Android's existing threshold).
+- Mobile: the Android foreground-service notification uses a custom `RemoteViews` layout rather
+  than the stock one, so the round's state color reaches the timer text and the blinds get a line
+  of their own. The expanded view mirrors the iOS Lock Screen's layout (header, timer + blinds,
+  caption).
 - Mobile: the paused state's icon/timer-text color on both the Android notification and iOS Live
-  Activity changed from gray to amber, matching the Pause button and simplifying the palette to
-  green (active) / amber (paused or low-time) / red (stop/expired).
+  Activity changed from gray to amber, simplifying the palette to green (active) / amber (paused
+  or low-time) / red (expired).
+- Mobile: the blinds are much larger on the iOS Live Activity and the Android notification, now
+  matching the countdown's weight rather than sitting a size below it. They're what you actually
+  read off a lock screen — the countdown only tells you when to look again — and there's room for
+  it since those surfaces no longer carry buttons. Long late-structure numbers shrink to fit
+  instead of wrapping.
 
 ### Fixed
 - Mobile: on Android, focusing the preset-name field on Settings only scrolled "Save Preset"
@@ -193,11 +191,30 @@ platform-tagged heading (e.g. `## [1.1.3] - 2026-07-20 — Android`) when you cu
   size — its size estimate systematically overshot, so it used to ping-pong around the answer (11
   steps in one measured case) and could come to rest on a size that still overflowed the screen
   slightly.
-- Android: the Pause/Resume and Stop buttons on the collapsed foreground-service notification no
-  longer risk getting clipped at the bottom — shrank the button circles (36dp → 30dp) and their
-  padding, since `DecoratedCustomViewStyle` imposes its own overall height budget on the
-  system-drawn header plus our custom content combined, tighter on some devices/notification-shade
-  implementations than the previous size left room for.
+- iOS: the Pro sheet no longer offers "Unlock Pro · one-time" with no price in it. The price was
+  fetched once at launch and every failure discarded silently, so a fetch that lost a race with
+  store setup left the sheet price-less for the whole session — even though the same lookup
+  succeeds by the time Unlock is tapped, which is why buying still worked. It's re-attempted each
+  time the sheet opens, and with no price the button simply reads "Unlock Pro".
+- iOS: the structure generator's sheet is usable with the keyboard up. It didn't shrink to the
+  space left above the keyboard, so it couldn't scroll and its top went off-screen. Scrolling a
+  sheet no longer dismisses the keypad either — the fields above and below the one you're typing in
+  are the reason to scroll, so throwing the keyboard away mid-gesture cost two moves instead of one.
+- iOS: number fields now carry a **Done** button above the keypad, since iOS's number pad has no
+  Return key and nothing else dismissed it short of tapping elsewhere. It's a floating pill rather
+  than a full-width bar, so it sits with the keyboard's rounded edge instead of squaring off against
+  it, and the keypad is dark to match the app.
+- Android: focusing a field near the bottom of the screen now scrolls it clear of the keypad, in
+  Settings and the blind editor as well as the sheets. Android used to do this itself, and stopped
+  when edge-to-edge became mandatory — the keyboard no longer resizes the window, so a field low on
+  the page simply sat underneath it with no way to scroll to it.
+- Both platforms: scrolling the blind editor no longer throws the keypad away mid-edit — the level
+  above or below the one you're changing is usually the reason to scroll.
+- Mobile: reopening the app after a round ran out while it was closed now always shows the
+  end-of-round alert. If the alarm sound hadn't finished loading at that moment — likely on the
+  reopen path specifically — the level used to advance silently with no alert and no sound, which
+  looks exactly like the app losing your place. When more than one round's worth of time passed,
+  the alert now says so, rather than presenting a long absence as an ordinary round change.
 
 ## [1.1.3] - 2026-07-21 — iOS & Android
 

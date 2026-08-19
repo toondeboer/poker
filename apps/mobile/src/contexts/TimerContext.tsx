@@ -12,14 +12,13 @@ import { DEFAULT_SOUND_PACK_ID } from "@poker/core";
 import { useBlinds } from "@/src/contexts/BlindsContext";
 import { useTimerNotification } from "@/src/hooks/useTimerNotification";
 import { useTimerEngine } from "@/src/hooks/useTimerEngine";
-import { useNativeTimerActionSync } from "@/src/hooks/useNativeTimerActionSync";
 import { useTimerAlert } from "@/src/hooks/useTimerAlert";
+import { useKeepScreenAwake } from "@/src/hooks/useKeepScreenAwake";
 import { useSoundPack } from "@/src/contexts/SoundPackContext";
 import { useNotificationPermission } from "@/src/hooks/useNotificationPermission";
 import { usePremium } from "@/src/contexts/PremiumContext";
 import { liveActivityService } from "@/src/services/LiveActivityService";
 import { recordRoundPlayed } from "@/src/services/reviewService";
-import type { PendingTimerAction } from "@/src/modules/LiveActivityModule";
 import { useAppState } from "./AppStateContext";
 
 type TimerContextType = {
@@ -33,6 +32,13 @@ type TimerContextType = {
   isLoading: boolean;
   // Alert state
   showTimerAlert: boolean;
+  /**
+   * Rounds' worth of time that passed beyond the one that ran out, before the
+   * app was reopened to notice. Only one level advances regardless — this is
+   * what lets the alert say so rather than presenting a long absence as an
+   * ordinary round change.
+   */
+  missedRounds: number;
   dismissTimerAlert: () => void;
   handleNextBlinds: () => void;
   // Permission state
@@ -75,8 +81,14 @@ export function TimerProvider({ children }: Readonly<{ children: ReactNode }>) {
     showPermissionAlert,
   } = useNotificationPermission();
 
+  // How many further rounds' worth of time had passed by the time the app noticed the round
+  // ended — non-zero only when reopening onto an expiry that happened a while ago. The level
+  // advances by exactly one either way (nothing counts rounds while the app isn't running); this
+  // only decides whether the alert admits that time was lost. Cleared when the alert is.
+  const [missedRounds, setMissedRounds] = useState(0);
+
   // Handle timer completion
-  const handleTimerComplete = async () => {
+  const handleTimerComplete = async (missed: number) => {
     // Read AppState directly here rather than trusting the cached `isActive` from
     // AppStateContext. That value only updates on a "change" event — if one is ever missed or
     // arrives out of order (a transient system dialog/notification/overlay stealing focus
@@ -86,11 +98,21 @@ export function TimerProvider({ children }: Readonly<{ children: ReactNode }>) {
     // app — onto the "background" branch below: no alert, no sound, straight to the next blind
     // level. AppState.currentState is a live getter, not an event cache, so it can't go stale.
     const isCurrentlyActive = AppState.currentState === "active";
+    setMissedRounds(missed);
     try {
-      // Only play sound and show alert if app is active (in foreground)
-      if (isCurrentlyActive && isAlarmLoaded) {
-        await showAlert(true);
-        logger.log("Timer completed - showing alert and playing alarm");
+      // Foregrounded expiry always gets the alert, whether or not the alarm sound
+      // is ready to play. `isAlarmLoaded` used to gate the alert itself, so an
+      // expiry noticed before `useSounds` finished loading — very possible when
+      // reopening onto a round that ran out, since that check happens right after
+      // a storage read — took the silent background branch instead: the level
+      // moved with no alert and no sound, which is indistinguishable from the app
+      // losing your place. The sound is now the only thing conditional on it.
+      if (isCurrentlyActive) {
+        await showAlert(isAlarmLoaded);
+        logger.log("Timer completed - showing alert", {
+          missed,
+          isAlarmLoaded,
+        });
       } else {
         logger.log(
           "App in background, skipping alarm sound and alert (background service will handle audio)",
@@ -145,14 +167,17 @@ export function TimerProvider({ children }: Readonly<{ children: ReactNode }>) {
     timeLeft,
     paused,
     togglePause: engineTogglePause,
-    pause: enginePause,
-    resume: engineResume,
     resetTimer: engineResetTimer,
     isLoading,
     loadTimerState,
   } = useTimerEngine(currentBlindIndex, blindLevels, effectiveSoundPackId, {
     onTimerComplete: handleTimerComplete,
   });
+
+  // Keep the screen on for as long as a round is actually counting down, so a
+  // tournament left on the table stays in the foreground instead of being locked
+  // out into the single-round background fallback within its first level.
+  useKeepScreenAwake(!paused && endTime !== undefined && timeLeft > 0);
 
   // Enhanced toggle pause with notification handling
   const togglePause = async () => {
@@ -175,84 +200,10 @@ export function TimerProvider({ children }: Readonly<{ children: ReactNode }>) {
     await clearAlert();
   };
 
-  // Apply a pause/resume/stop action that originated from the Android foreground-service
-  // notification or the iOS Live Activity/Dynamic Island, rather than the in-app UI. Uses the
-  // absolute pause()/resume() (not togglePause) since these arrive out-of-band and must not risk
-  // flipping the wrong way if they race against an in-app state change — and passes the native
-  // side's own timeLeft/endTime through as an exact override, not just the action name: without
-  // it, pause()/resume() would derive from JS's own (possibly long-stale) current state, freezing
-  // at "whenever the app happens to reopen" instead of "whenever the button was actually tapped".
-  // Shared by both the live-event fast path (below) and the sequenced persisted-flag
-  // reconciliation (`reconcileNativeAction`).
-  const applyNativeAction = (pending?: PendingTimerAction | null) => {
-    if (!pending) return;
-    logger.log("applyNativeAction:", pending);
-    switch (pending.action) {
-      case "pause":
-        void enginePause(pending.timeLeft).then(() =>
-          handleNotificationScheduling(true, pending.timeLeft),
-        );
-        break;
-      case "resume":
-        if (pending.wasExpired) {
-          // Resuming a round that had already expired — neither native side tracks blind
-          // levels, so `pending.endTime`/`timeLeft` just restart the *same* round (see
-          // PokerTimerService's ACTION_RESUME / TogglePauseTimerIntent's resume branch).
-          // Advance to the next level here instead, matching how the rest of the app treats
-          // expiry (background auto-advance, the in-app "Next Blinds" button), and start a
-          // fresh full-duration round for it rather than trusting native's stale same-level
-          // endTime.
-          increaseBlinds();
-          void engineResume(Date.now() + timerDuration * 1000).then(() =>
-            handleNotificationScheduling(false, timerDuration),
-          );
-        } else {
-          void engineResume(pending.endTime).then(() =>
-            handleNotificationScheduling(false, pending.timeLeft),
-          );
-        }
-        break;
-      case "stop":
-        void resetTimer();
-        break;
-    }
-  };
-
-  useNativeTimerActionSync({ onAction: applyNativeAction });
-
-  // `applyNativeAction` is recreated every render, closing over that render's `timerDuration`/
-  // `increaseBlinds`/etc. The mount-time reconciliation below only runs *once* ([] deps), so
-  // without this ref it would be permanently bound to whatever those values were at the very
-  // first render — i.e. their pre-load defaults (timerDuration=DEFAULT_TIMER_DURATION,
-  // increaseBlinds closing over currentBlindIndex=0) — regardless of how much later
-  // `loadTimerState()`/`useBlinds()`'s own persisted loads actually resolve. A `wasExpired`
-  // resume reconciled through that stale closure would compute a fresh endTime from the
-  // *default* 10-minute duration and call the *default*-index `increaseBlinds()`, landing on
-  // "10:00, Level 2" regardless of what was actually persisted before the app was killed. Always
-  // dereferencing via `.current` at call time (updated every render, same pattern as
-  // `useTimerEngine`'s `callbacksRef`) guarantees the freshest closure regardless of which
-  // render's effect happens to invoke it.
-  const applyNativeActionRef = useRef(applyNativeAction);
-  useEffect(() => {
-    applyNativeActionRef.current = applyNativeAction;
-  });
-
-  // Persisted-flag reconciliation for a native action that arrived while the app was
-  // backgrounded or fully killed (the live-event listener above only catches one that arrives
-  // while JS is already running). Deliberately sequenced *after* `loadTimerState()` finishes,
-  // not raced against it — `loadTimerState()` reads AsyncStorage, a separate, stale data source
-  // a native button tap never touches, and it reliably resolves *after* a native action check
-  // (AsyncStorage I/O is consistently slower), so racing them let it silently clobber the
-  // reconciled action back to whatever was persisted before backgrounding.
-  const reconcileNativeAction = async () => {
-    const pending = await liveActivityService.consumePendingAction();
-    logger.log("reconcileNativeAction: consumePendingAction ->", pending);
-    applyNativeActionRef.current(pending);
-  };
-
   // Dismiss timer alert (advance to next blind level, keep timer paused, stop sound)
   const dismissTimerAlert = async () => {
     await clearAlert();
+    setMissedRounds(0);
 
     // Advance to next blind level but keep timer paused
     increaseBlinds();
@@ -262,6 +213,7 @@ export function TimerProvider({ children }: Readonly<{ children: ReactNode }>) {
   // Handle next blinds (advance blinds, start new timer, stop sound)
   const handleNextBlinds = async () => {
     await clearAlert();
+    setMissedRounds(0);
 
     // Advance to next blind level and start timer
     increaseBlinds();
@@ -356,9 +308,10 @@ export function TimerProvider({ children }: Readonly<{ children: ReactNode }>) {
     wasActiveRef.current = isActive;
 
     if (cameToForeground) {
-      // App has come to the foreground: reload persisted state, THEN reconcile any native
-      // action on top of it (not in parallel — see reconcileNativeAction).
-      loadTimerState().then(reconcileNativeAction);
+      // App has come to the foreground: reload persisted state. This is the only
+      // path by which a round that ran out while the app was away gets noticed —
+      // see `handleTimerComplete`.
+      loadTimerState();
       liveActivityService.syncActivityState();
     }
 
@@ -373,23 +326,22 @@ export function TimerProvider({ children }: Readonly<{ children: ReactNode }>) {
     }
   }, [isActive, isBackground, isInactive, loadTimerState, showTimerAlert]);
 
-  // Load initial state on mount, then reconcile any native action left pending from before
-  // this launch (see reconcileNativeAction — sequenced, not raced, against the load).
+  // Load initial state on mount.
   //
-  // Deliberately waits for `isBlindsLoading` to clear before doing either: `BlindsContext` loads
-  // its own persisted `currentBlindIndex` asynchronously, completely independently of this
-  // provider's `loadTimerState()` — with no gate here, a `wasExpired` resume reconciled on a
-  // cold launch (app was fully killed, e.g. force-quit, then reopened with a pending native
-  // action) would apply `increaseBlinds()` against whatever `currentBlindIndex` happened to be
-  // *at that instant*, which is its pre-load default (0) if `BlindsContext` hasn't finished
-  // loading yet — landing on "Level 2" regardless of what was actually persisted. The `hasRunRef`
-  // guard keeps this firing exactly once despite `isBlindsLoading` being a dependency (it starts
-  // `true` and flips to `false` once, but re-renders for *other* reasons must not re-trigger it).
-  const hasReconciledOnMountRef = useRef(false);
+  // Deliberately waits for `isBlindsLoading` to clear first: `BlindsContext` loads its own
+  // persisted `currentBlindIndex` asynchronously and completely independently of this provider's
+  // `loadTimerState()`. With no gate here, a cold launch onto an expired round (the app was
+  // killed mid-round, then reopened after it ran out) would run `handleTimerComplete` — and, on
+  // its no-alert path, `increaseBlinds()` — against whatever `currentBlindIndex` happened to be
+  // *at that instant*, which is its pre-load default of 0 if `BlindsContext` hasn't finished
+  // loading yet, landing on "Level 2" regardless of what was actually persisted. The ref guard
+  // keeps this firing exactly once despite `isBlindsLoading` being a dependency (it starts `true`
+  // and flips to `false` once, but re-renders for *other* reasons must not re-trigger it).
+  const hasLoadedOnMountRef = useRef(false);
   useEffect(() => {
-    if (isBlindsLoading || hasReconciledOnMountRef.current) return;
-    hasReconciledOnMountRef.current = true;
-    loadTimerState().then(reconcileNativeAction);
+    if (isBlindsLoading || hasLoadedOnMountRef.current) return;
+    hasLoadedOnMountRef.current = true;
+    loadTimerState();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isBlindsLoading]);
 
@@ -415,6 +367,7 @@ export function TimerProvider({ children }: Readonly<{ children: ReactNode }>) {
         resetTimer,
         isLoading,
         showTimerAlert,
+        missedRounds,
         dismissTimerAlert,
         handleNextBlinds,
         hasNotificationPermission,

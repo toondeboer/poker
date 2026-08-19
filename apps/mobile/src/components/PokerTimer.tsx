@@ -65,6 +65,7 @@ export default function PokerTimer() {
     resetTimer,
     isLoading,
     showTimerAlert,
+    missedRounds,
     dismissTimerAlert,
     handleNextBlinds,
   } = useTimer();
@@ -409,6 +410,7 @@ export default function PokerTimer() {
         visible={showTimerAlert}
         currentLevel={currentBlindIndex + 1}
         nextBlindLevel={nextBlindLevel}
+        missedRounds={missedRounds}
         onDismiss={dismissTimerAlert}
         onNextBlinds={handleNextBlinds}
       />

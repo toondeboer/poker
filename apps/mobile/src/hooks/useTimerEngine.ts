@@ -12,7 +12,6 @@ import {
   isExpired,
   withDuration,
   clampToDuration,
-  calculateTimeLeft,
   type SoundPackId,
   type TimerMachineState,
 } from "@poker/core";
@@ -20,7 +19,14 @@ import { useTimerPersistence } from "@/src/hooks/useTimerPersistence";
 import { useLiveActivitySync } from "@/src/hooks/useLiveActivitySync";
 
 export interface TimerEngineCallbacks {
-  onTimerComplete: () => void;
+  /**
+   * A round ran out. `missedRounds` is how many *further* rounds' worth of time
+   * passed before the app got a chance to notice — always 0 for an expiry that
+   * happens while the app is running and watching, and non-zero only when
+   * reloading persisted state reveals the round ended a while ago. The app
+   * advances one level either way; this is only so it can say what happened.
+   */
+  onTimerComplete: (missedRounds: number) => void;
   onTimeUpdate?: (timeLeft: number) => void;
 }
 
@@ -64,13 +70,17 @@ export function useTimerEngine(
   const loadTimerState = async (): Promise<void> => {
     try {
       const savedState = await load();
-      const { state: hydrated, expired } = hydrateTimerState(savedState);
+      const {
+        state: hydrated,
+        expired,
+        missedRounds,
+      } = hydrateTimerState(savedState);
 
       if (expired && !hasHandledTimerCompleteRef.current) {
         // Timer expired while app was closed. hydrate already produced reset
         // state; fire the completion callback (mobile's reopen-to-expired nudge).
         hasHandledTimerCompleteRef.current = true;
-        callbacksRef.current.onTimerComplete();
+        callbacksRef.current.onTimerComplete(missedRounds);
         setState(hydrated);
       } else {
         // Restore normal state and clear the completion flag.
@@ -87,43 +97,19 @@ export function useTimerEngine(
     }
   };
 
-  // Absolute pause/resume — unlike togglePause, these don't assume the current `paused` value,
-  // which matters for a native-triggered action (notification/Live-Activity button) racing
-  // against in-app state: an unconditional toggle could flip the wrong way if they land at
-  // nearly the same time.
-  //
-  // Both accept an optional exact override, used when reconciling a native-originated
-  // pause/resume: the native side (foreground service / Live Activity) is the authoritative
-  // source for *when* it actually paused/resumed, since JS may not have been running at that
-  // moment at all. Applying pauseTimer/startTimer to whatever JS's own (possibly long-stale)
-  // state currently is would silently re-derive the wrong instant — e.g. a pause reconciled this
-  // way would freeze at "now" instead of freezing at the moment the button was actually tapped,
-  // since core's `pauseTimer` just keeps whatever `timeLeft` the current state happens to have.
-  const pause = async (timeLeftOverride?: number): Promise<void> => {
-    logger.log("Pausing timer at time left:", timeLeftOverride ?? timeLeft);
-    setState((s) => {
-      const next = pauseTimer(s);
-      return timeLeftOverride !== undefined ? { ...next, timeLeft: timeLeftOverride } : next;
-    });
+  // Pause/resume. These used to take an exact timeLeft/endTime override, for reconciling a
+  // pause or resume that had happened out-of-band in a notification/Live-Activity button while
+  // JS wasn't running — the native side being the only thing that knew *when* the tap actually
+  // landed. Those buttons are gone (the app is the only writer of timer state now), so the
+  // overrides went with them: every transition here starts from this state machine's own state.
+  const pause = async (): Promise<void> => {
+    logger.log("Pausing timer at time left:", timeLeft);
+    setState((s) => pauseTimer(s));
   };
 
-  const resume = async (endTimeOverride?: number): Promise<void> => {
-    logger.log("Resuming timer with endTime override:", endTimeOverride);
-    setState((s) =>
-      endTimeOverride !== undefined
-        ? {
-            // Recompute timeLeft from the override endTime in the same update, rather than
-            // leaving whatever (possibly 0, if reconciling a native resume-from-expired) timeLeft
-            // the state already had — same failure mode as core's startTimer: a transient
-            // timeLeft === 0 with paused === false reads as "just expired" to the completion
-            // effect below and immediately resets the timer that was only just resumed.
-            ...s,
-            endTime: endTimeOverride,
-            timeLeft: calculateTimeLeft(endTimeOverride),
-            paused: false,
-          }
-        : startTimer(s),
-    );
+  const resume = async (): Promise<void> => {
+    logger.log("Resuming timer");
+    setState((s) => startTimer(s));
     // Reset completion flag when starting timer
     hasHandledTimerCompleteRef.current = false;
   };
@@ -201,7 +187,8 @@ export function useTimerEngine(
       !hasHandledTimerCompleteRef.current
     ) {
       hasHandledTimerCompleteRef.current = true;
-      callbacksRef.current.onTimerComplete();
+      // The app watched this one run out, so nothing was missed.
+      callbacksRef.current.onTimerComplete(0);
       resetTimer();
     }
   }, [timeLeft, paused, endTime]);
@@ -221,8 +208,6 @@ export function useTimerEngine(
     timeLeft,
     paused,
     togglePause,
-    pause,
-    resume,
     resetTimer,
     isLoading,
     loadTimerState,

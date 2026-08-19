@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!-- Expanded body for the timer notification's DecoratedCustomViewStyle. Row order mirrors the
      iOS Live Activity's Lock Screen layout (PokerTimerLiveActivityView): header, then
-     timer+blinds, then the action buttons, then the permanent force-quit caption. -->
+     timer+blinds, then the permanent open-the-app caption. -->
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
@@ -64,77 +64,20 @@
 
             <TextView
                 android:id="@+id/timer_expanded_current_blinds"
+                android:singleLine="true"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:textSize="15sp"
+                android:textSize="22sp"
                 android:textStyle="bold"
                 android:textColor="?android:attr/textColorPrimary"/>
 
             <TextView
                 android:id="@+id/timer_expanded_next_blinds"
+                android:singleLine="true"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:textSize="12sp"
+                android:textSize="13sp"
                 android:textColor="?android:attr/textColorSecondary"/>
-        </LinearLayout>
-    </LinearLayout>
-
-    <LinearLayout
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_marginTop="10dp"
-        android:orientation="horizontal">
-
-        <LinearLayout
-            android:id="@+id/timer_expanded_pause_container"
-            android:layout_width="0dp"
-            android:layout_height="36dp"
-            android:layout_weight="1"
-            android:layout_marginEnd="8dp"
-            android:gravity="center"
-            android:orientation="horizontal"
-            android:background="@drawable/bg_pill_amber">
-
-            <ImageView
-                android:id="@+id/timer_expanded_pause_icon"
-                android:layout_width="16dp"
-                android:layout_height="16dp"
-                android:tint="@android:color/white"
-                android:src="@drawable/ic_notification_pause"/>
-
-            <TextView
-                android:id="@+id/timer_expanded_pause_label"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_marginStart="6dp"
-                android:textSize="13sp"
-                android:textStyle="bold"
-                android:textColor="@android:color/white"/>
-        </LinearLayout>
-
-        <LinearLayout
-            android:id="@+id/timer_expanded_stop_container"
-            android:layout_width="0dp"
-            android:layout_height="36dp"
-            android:layout_weight="1"
-            android:gravity="center"
-            android:orientation="horizontal"
-            android:background="@drawable/bg_pill_red">
-
-            <ImageView
-                android:layout_width="16dp"
-                android:layout_height="16dp"
-                android:tint="@android:color/white"
-                android:src="@drawable/ic_notification_stop"/>
-
-            <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_marginStart="6dp"
-                android:text="Stop"
-                android:textSize="13sp"
-                android:textStyle="bold"
-                android:textColor="@android:color/white"/>
         </LinearLayout>
     </LinearLayout>
 
@@ -142,7 +85,7 @@
         android:id="@+id/timer_expanded_caption"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_marginTop="6dp"
+        android:layout_marginTop="10dp"
         android:maxLines="2"
         android:textSize="11sp"
         android:textColor="?android:attr/textColorSecondary"/>

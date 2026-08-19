@@ -8,7 +8,6 @@
 
 /* Begin PBXBuildFile section */
 		13B07FBF1A68108700A75B9A /* Images.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 13B07FB51A68108700A75B9A /* Images.xcassets */; };
-		2299BEE4F4AB351E6BA002CB /* LiveActivityActionBridge.swift in Sources */ = {isa = PBXBuildFile; fileRef = 01B8D18B450C73515D57E4D2 /* LiveActivityActionBridge.swift */; };
 		39D395C2FC83716B2D660630 /* bell_chime.wav in Resources */ = {isa = PBXBuildFile; fileRef = A7E16E2415F2E0BE6E3A28CD /* bell_chime.wav */; };
 		3E461D99554A48A4959DE609 /* SplashScreen.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = AA286B85B6C04FC6940260E9 /* SplashScreen.storyboard */; };
 		421A81A22E2F953C00EDCE54 /* RNLiveActivity.m in Sources */ = {isa = PBXBuildFile; fileRef = 421A81A12E2F953C00EDCE54 /* RNLiveActivity.m */; };
@@ -24,14 +23,11 @@
 		42D8A4252E316F480019ECE0 /* PokerTimerWidgetAttributes.swift in Sources */ = {isa = PBXBuildFile; fileRef = 42D8A41D2E316F480019ECE0 /* PokerTimerWidgetAttributes.swift */; };
 		449F3E40E9DB884AE2279BDE /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = 05EBA8670445565A09DE930C /* PrivacyInfo.xcprivacy */; };
 		5128FF20A8723A98B0092A95 /* ExpoModulesProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5533EB01495C743388D73375 /* ExpoModulesProvider.swift */; };
-		7387F737C29B5663CC458626 /* LiveActivityActionListener.swift in Sources */ = {isa = PBXBuildFile; fileRef = 43654CCE609B0F719BB8811F /* LiveActivityActionListener.swift */; };
 		739F95E3B0DFE57600DABC69 /* libPods-PokerTimer.a in Frameworks */ = {isa = PBXBuildFile; fileRef = 8FDDA4DE7B5263B45E442510 /* libPods-PokerTimer.a */; };
 		98BDCA4FF320FF67E2FD7A6C /* classic_beep.wav in Resources */ = {isa = PBXBuildFile; fileRef = 562AC40F7226B9A725810962 /* classic_beep.wav */; };
 		BB2F792D24A3F905000567C9 /* Expo.plist in Resources */ = {isa = PBXBuildFile; fileRef = BB2F792C24A3F905000567C9 /* Expo.plist */; };
-		D2231356FB70CFF8D0583692 /* LiveActivityActionBridge.swift in Sources */ = {isa = PBXBuildFile; fileRef = 01B8D18B450C73515D57E4D2 /* LiveActivityActionBridge.swift */; };
 		DC74B9C1D8033F7D347AB19E /* double_buzz.wav in Resources */ = {isa = PBXBuildFile; fileRef = 50A1F759DE08F36ECF0C746C /* double_buzz.wav */; };
 		F11748422D0307B40044C1D9 /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = F11748412D0307B40044C1D9 /* AppDelegate.swift */; };
-		F7009F1016610D94A4783D5F /* TimerActionIntents.swift in Sources */ = {isa = PBXBuildFile; fileRef = A3FE87503932B4D213098103 /* TimerActionIntents.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -59,7 +55,6 @@
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
-		01B8D18B450C73515D57E4D2 /* LiveActivityActionBridge.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LiveActivityActionBridge.swift; sourceTree = "<group>"; };
 		05EBA8670445565A09DE930C /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xml; name = PrivacyInfo.xcprivacy; path = PokerTimer/PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
 		1395B34D2A7AF4A1C132E890 /* Pods-PokerTimer.debug.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-PokerTimer.debug.xcconfig"; path = "Target Support Files/Pods-PokerTimer/Pods-PokerTimer.debug.xcconfig"; sourceTree = "<group>"; };
 		13B07F961A680F5B00A75B9A /* PokerTimer.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = PokerTimer.app; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -77,13 +72,11 @@
 		42D8A41C2E316F480019ECE0 /* PokerTimerWidget.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PokerTimerWidget.swift; sourceTree = "<group>"; };
 		42D8A41D2E316F480019ECE0 /* PokerTimerWidgetAttributes.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PokerTimerWidgetAttributes.swift; sourceTree = "<group>"; };
 		42D8A41E2E316F480019ECE0 /* PokerTimerWidgetBundle.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PokerTimerWidgetBundle.swift; sourceTree = "<group>"; };
-		43654CCE609B0F719BB8811F /* LiveActivityActionListener.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LiveActivityActionListener.swift; sourceTree = "<group>"; };
 		50A1F759DE08F36ECF0C746C /* double_buzz.wav */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = audio.wav; path = double_buzz.wav; sourceTree = "<group>"; };
 		5533EB01495C743388D73375 /* ExpoModulesProvider.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = ExpoModulesProvider.swift; path = "Pods/Target Support Files/Pods-PokerTimer/ExpoModulesProvider.swift"; sourceTree = "<group>"; };
 		562AC40F7226B9A725810962 /* classic_beep.wav */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = audio.wav; path = classic_beep.wav; sourceTree = "<group>"; };
 		8FDDA4DE7B5263B45E442510 /* libPods-PokerTimer.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; includeInIndex = 0; path = "libPods-PokerTimer.a"; sourceTree = BUILT_PRODUCTS_DIR; };
 		A39C91C8AAE13EF552227833 /* Pods-PokerTimer.release.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-PokerTimer.release.xcconfig"; path = "Target Support Files/Pods-PokerTimer/Pods-PokerTimer.release.xcconfig"; sourceTree = "<group>"; };
-		A3FE87503932B4D213098103 /* TimerActionIntents.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TimerActionIntents.swift; sourceTree = "<group>"; };
 		A7E16E2415F2E0BE6E3A28CD /* bell_chime.wav */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = audio.wav; path = bell_chime.wav; sourceTree = "<group>"; };
 		AA286B85B6C04FC6940260E9 /* SplashScreen.storyboard */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = file.storyboard; name = SplashScreen.storyboard; path = PokerTimer/SplashScreen.storyboard; sourceTree = "<group>"; };
 		BB2F792C24A3F905000567C9 /* Expo.plist */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.plist.xml; path = Expo.plist; sourceTree = "<group>"; };
@@ -126,8 +119,6 @@
 				421A81A02E2F952E00EDCE54 /* RNLiveActivity.h */,
 				421A81A12E2F953C00EDCE54 /* RNLiveActivity.m */,
 				421A81A32E2F954F00EDCE54 /* LiveActivityManager.swift */,
-				01B8D18B450C73515D57E4D2 /* LiveActivityActionBridge.swift */,
-				43654CCE609B0F719BB8811F /* LiveActivityActionListener.swift */,
 			);
 			name = PokerTimer;
 			sourceTree = "<group>";
@@ -151,7 +142,6 @@
 				42D8A41C2E316F480019ECE0 /* PokerTimerWidget.swift */,
 				42D8A41D2E316F480019ECE0 /* PokerTimerWidgetAttributes.swift */,
 				42D8A41E2E316F480019ECE0 /* PokerTimerWidgetBundle.swift */,
-				A3FE87503932B4D213098103 /* TimerActionIntents.swift */,
 			);
 			path = PokerTimerWidget;
 			sourceTree = "<group>";
@@ -469,8 +459,6 @@
 				5128FF20A8723A98B0092A95 /* ExpoModulesProvider.swift in Sources */,
 				42D8A4252E316F480019ECE0 /* PokerTimerWidgetAttributes.swift in Sources */,
 				421A81A42E2F954F00EDCE54 /* LiveActivityManager.swift in Sources */,
-				D2231356FB70CFF8D0583692 /* LiveActivityActionBridge.swift in Sources */,
-				7387F737C29B5663CC458626 /* LiveActivityActionListener.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -481,8 +469,6 @@
 				42D8A4222E316F480019ECE0 /* PokerTimerWidget.swift in Sources */,
 				42D8A4232E316F480019ECE0 /* PokerTimerWidgetAttributes.swift in Sources */,
 				42D8A4242E316F480019ECE0 /* PokerTimerWidgetBundle.swift in Sources */,
-				2299BEE4F4AB351E6BA002CB /* LiveActivityActionBridge.swift in Sources */,
-				F7009F1016610D94A4783D5F /* TimerActionIntents.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

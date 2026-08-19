@@ -125,7 +125,6 @@ struct PokerTimerWidget: Widget {
                 .foregroundColor(.secondary)
             }
 
-            TimerActionButtons(paused: context.state.paused || context.state.isExpired)
           }
         }
       } compactLeading: {
@@ -155,22 +154,24 @@ struct PokerTimerWidget: Widget {
   }
 }
 
-// Rewritten to be meaningfully more compact than the original read-only-display design: the
-// Lock Screen presentation has a real (if not precisely documented) height budget, and stacking
-// a full header row, a full timer row, a full blinds row, the action buttons, AND the force-quit
-// caption as five independent rows overflowed it, clipping content at the top and bottom.
-// Timer + blinds are now one row instead of two, redundant labels ("Current Blinds", "Next",
-// "Time Remaining") are gone in favor of visual hierarchy (size/weight/color) doing that job, and
-// the caption lost its icon and its own row's worth of top padding.
+// Compact by necessity: the Lock Screen presentation has a real (if not precisely documented)
+// height budget, and the original design stacked a full header row, a full timer row, a full
+// blinds row, an action-button row AND a caption as five independent rows, which overflowed it and
+// clipped content at top and bottom. Timer + blinds share one row, and the redundant labels
+// ("Current Blinds", "Next", "Time Remaining") are gone in favour of visual hierarchy doing that
+// job.
+//
+// Removing the action buttons gave a row's worth of height back, and it went to the blinds: they
+// are what a player actually reads off a lock screen — the countdown says when to look again, the
+// blinds say what to post — and at .subheadline they were losing that contest to a .title2 timer.
+// Current blinds now match the timer's weight, with the next level a clear step below.
 struct PokerTimerLiveActivityView: View {
   let context: ActivityViewContext<PokerTimerWidgetAttributes>
 
   var body: some View {
     let visualState = TimerVisualState(context.state)
-    // Tight, uniform 4pt rhythm groups header+timer/blinds as one "info" block and
-    // buttons+caption as one "controls" block (the caption is specifically about the buttons
-    // above it, so keeping them close reads as one unit) — the extra .padding(.top, 6) on the
-    // buttons below is what actually separates the two blocks from each other.
+    // Tight, uniform 4pt rhythm groups the header and the timer/blinds row as one "info" block;
+    // the caption's own .padding(.top, 6) is what sets it apart as the footnote it is.
     VStack(alignment: .leading, spacing: 4) {
       // Header: tournament name + level, single thin line.
       HStack {
@@ -212,61 +213,38 @@ struct PokerTimerLiveActivityView: View {
 
         VStack(alignment: .trailing, spacing: 0) {
           Text("\(context.state.currentSmallBlind)/\(context.state.currentBigBlind)")
-            .font(.subheadline)
+            .font(.title2)
             .bold()
+            .monospacedDigit()
             .foregroundColor(.primary)
+            // Four- and five-figure blinds (5000/10000 late in a deep structure) would otherwise
+            // wrap or force the timer to shrink; shrinking only this label keeps the row's shape.
+            .lineLimit(1)
+            .minimumScaleFactor(0.7)
           Text("→ \(context.state.nextSmallBlind)/\(context.state.nextBigBlind)")
-            .font(.caption2)
+            .font(.caption)
+            .monospacedDigit()
             .foregroundColor(.secondary)
+            .lineLimit(1)
+            .minimumScaleFactor(0.8)
         }
       }
 
-      TimerActionButtons(paused: context.state.paused || context.state.isExpired)
-        .padding(.top, 6)
-
-      // iOS stops running any of the app's App Intents — including these buttons — once the
-      // user force-quits the app from the app switcher, until they manually reopen it. There's
-      // no API to detect that a tap was attempted and blocked, so this is a permanent, always-on
-      // notice rather than a one-time/conditional one. Slightly dimmed beyond the standard
-      // .secondary color so it reads as fine print, not a peer of the buttons it's describing.
-      Text("Force quitting the app may stop these buttons from responding.")
+      // Deliberately unconditional, not shown only once expired. WidgetKit does not re-render
+      // this view as the countdown runs — `Text(timerInterval:)` above animates without one —
+      // so anything keyed on `isExpired` would be evaluated at whatever moment the system last
+      // rendered, i.e. usually while the round was still running, and would never appear at the
+      // one time it mattered. A standing line is always true instead: the app is what advances
+      // the blinds, because nothing of ours executes out here while it's backgrounded.
+      Text("Open the app at the buzzer to start the next level.")
         .font(.caption2)
         .foregroundColor(.secondary)
         .opacity(0.85)
         .lineLimit(2)
+        .padding(.top, 6)
     }
     .padding(12)
     .background(Color(UIColor.systemBackground))
-  }
-}
-
-// Pause/Resume + Stop row shared between the lock-screen view and the Dynamic Island's
-// expanded UI. Each button drives a `LiveActivityIntent` (see TimerActionIntents.swift), which
-// updates the Activity directly without opening the app.
-struct TimerActionButtons: View {
-  let paused: Bool
-
-  var body: some View {
-    HStack(spacing: 12) {
-      // Green when tapping it will resume (a "go" action); amber when tapping it will pause (a
-      // caution color — gray read as dull/washed-out against the Live Activity's dark-mode
-      // background, and this also matches Android's own Pause pill now).
-      Button(intent: TogglePauseTimerIntent(shouldPause: !paused)) {
-        Label(paused ? "Resume" : "Pause", systemImage: paused ? "play.fill" : "pause.fill")
-      }
-      .tint(paused ? .pokerGreen : .pokerAmber)
-
-      Button(intent: StopTimerIntent()) {
-        Label("Stop", systemImage: "stop.fill")
-      }
-      .tint(.pokerRed)
-    }
-    // Previously plain `.bordered` with no `.tint()` on Pause/Resume at all, so it rendered in
-    // the system's default blue — clashing with the green/amber/red palette used everywhere
-    // else in the app and the Live Activity itself.
-    .buttonStyle(.bordered)
-    .controlSize(.small)
-    .labelStyle(.titleAndIcon)
   }
 }
 

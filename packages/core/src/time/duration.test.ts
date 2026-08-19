@@ -9,9 +9,15 @@ import {
 
 describe("clampRoundDuration", () => {
   it("clamps at both ends and rounds to whole seconds", () => {
-    expect(clampRoundDuration(1)).toBe(MIN_ROUND_DURATION_SECONDS);
+    expect(clampRoundDuration(0)).toBe(MIN_ROUND_DURATION_SECONDS);
     expect(clampRoundDuration(999_999)).toBe(MAX_ROUND_DURATION_SECONDS);
     expect(clampRoundDuration(600.4)).toBe(600);
+  });
+  // Regression: the floor used to be 10 seconds, so a host typing 5 got 10 back
+  // with nothing said about it, which reads as a broken field rather than a rule.
+  it("keeps a short round exactly as entered", () => {
+    expect(clampRoundDuration(5)).toBe(5);
+    expect(clampRoundDuration(1)).toBe(1);
   });
   it("falls back to the minimum for non-finite input", () => {
     expect(clampRoundDuration(Number.NaN)).toBe(MIN_ROUND_DURATION_SECONDS);
@@ -39,8 +45,11 @@ describe("joinDuration", () => {
     expect(joinDuration(1, 90)).toBe(60 + 59);
   });
   it("clamps the result into the supported range", () => {
-    expect(joinDuration(0, 1)).toBe(MIN_ROUND_DURATION_SECONDS);
+    expect(joinDuration(0, 0)).toBe(MIN_ROUND_DURATION_SECONDS);
     expect(joinDuration(999, 0)).toBe(MAX_ROUND_DURATION_SECONDS);
+  });
+  it("passes a few-second round straight through", () => {
+    expect(joinDuration(0, 5)).toBe(5);
   });
   it("round-trips with splitDuration", () => {
     const { minutes, seconds } = splitDuration(610);
