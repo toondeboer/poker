@@ -349,10 +349,30 @@ D1, D2, D5's timing, D6 for the sheet, D7 and D3 on Android all confirmed. Five 
   was 10 and `clampRoundDuration` applied it with no feedback, so typing 5 gave back 10 — a rule the
   UI never states, applied after the fact, reads as a broken field. Floor is now 1 second; zero stays
   out (no meaningful expiry, and it divides by zero in the missed-round maths).
-- ☐ **Still unverified on device:** D8–D12, plus the two keep-awake rows they gate. Android's three
-  purchase rows are blocked on a Play Console upload rather than on any code here — Play Billing only
-  serves an app the store recognises (uploaded to a track, matching signing key, tester on the
-  licence-testing list), which a local debug APK is not.
+### Fourth pass (2026-08-21) — D11 only
+
+D8, D9, D10, D12 and Android's swipe-away-from-Recents all confirmed on both devices. **D11 is the
+only defect left open in 1.1.4.**
+
+- 🚧 **D11 survived its first fix.** Reported back as "nope, stays awake — can it be because of
+  Expo?". It is not Expo: `expo-keep-awake` is the only thing in the whole dependency tree that
+  touches `isIdleTimerDisabled` or `FLAG_KEEP_SCREEN_ON` (grepped across `node_modules`; neither
+  `expo-dev-client` nor the dev launcher holds a lock), and both native implementations are
+  symmetric — a tag set, flag cleared once it empties.
+  - The first fix chained each release onto its own acquire, which only ordered *that* pair. The
+    native side is a tag set rather than a counter, so whichever call lands last wins outright, and
+    a pause/resume/pause sequence can still interleave two independent chains. All transitions now
+    go through **one module-level queue** that reconciles to the latest desired state with at most
+    one call in flight, so the class of bug is gone by construction rather than by staying a step
+    ahead of it. Both calls log, so the next pass can say whether the release actually ran.
+  - **Rule the phone out before believing the app.** Releasing doesn't wake anything: it re-arms the
+    OS idle timer from that moment, so the screen sleeps one full auto-lock interval *after* the
+    pause — five minutes on a 5-minute setting, never on *Never*. This is indistinguishable from the
+    bug without either a 30-second auto-lock or the new log lines.
+- ☐ **Still unverified on device:** D11 and the two §10 rows it gates. Android's three purchase rows
+  are blocked on a Play Console upload rather than on any code here — Play Billing only serves an app
+  the store recognises (uploaded to a track, matching signing key, tester on the licence-testing
+  list), which a local debug APK is not.
 
 ## Live Activity / foreground service controls
 

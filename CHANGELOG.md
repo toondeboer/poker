@@ -210,9 +210,10 @@ platform-tagged heading (e.g. `## [1.1.3] - 2026-07-20 — Android`) when you cu
   the page simply sat underneath it with no way to scroll to it.
 - Both platforms: scrolling the blind editor no longer throws the keypad away mid-edit — the level
   above or below the one you're changing is usually the reason to scroll.
-- Both platforms: pausing or stopping a round now lets the screen sleep again. The lock was acquired
-  and released asynchronously without ordering between them, so a quick pause released a lock that
-  hadn't finished being taken, and the screen stayed on for the rest of the session.
+- Both platforms: pausing or stopping a round now lets the screen sleep again. Taking and releasing
+  the screen lock are both asynchronous and were fired without ordering between them, so a quick
+  pause could release a lock that hadn't finished being taken — leaving the screen on for the rest of
+  the session. Every change now goes through a single queue, so the last one always wins.
 - Mobile: reopening the app after a round ran out while it was closed now always shows the
   end-of-round alert. If the alarm sound hadn't finished loading at that moment — likely on the
   reopen path specifically — the level used to advance silently with no alert and no sound, which

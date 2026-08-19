@@ -1,26 +1,33 @@
 # Manual test checklist — 1.1.4
 
 What still needs a human. Everything here is either impossible to automate (real purchases), or was
-attempted and blocked (see notes). Automated coverage — 141 `@poker/core` tests, typecheck, lint,
+attempted and blocked (see notes). Automated coverage — 146 `@poker/core` tests, typecheck, lint,
 web build — runs in CI and is not repeated here.
 
-Tick the platform column you actually ran. **iOS and Android are not interchangeable** for anything
+Mark the platform column you actually ran. **iOS and Android are not interchangeable** for anything
 touching notifications, billing, or the keyboard — those are the paths that differ most.
 
-**Legend**
+**Legend** — every state is an icon, so scanning a column tells you where things stand.
+
+**Done, nothing to do**
 
 | | |
 |---|---|
-| ✅ | verified by hand, passing |
-| ☑ | verified by an automated Maestro flow |
-| ❌ | verified **broken** — every one has a write-up under [Open defects](#open-defects) |
-| 🔧 | broken, since **fixed in code**, not yet re-tested on hardware |
-| ☐ | not run yet |
-| 🚫 | can't be tested from a local build — needs TestFlight or Play internal testing |
-| n/a | doesn't apply on this platform |
+| ✅ | passed, checked by hand on a real device |
+| 🤖 | passed, covered by an automated Maestro flow |
+| ➖ | doesn't apply on this platform |
 
-A row is only ✅ once it passed *after* the fix. A fix landing does not upgrade a ❌ — it becomes 🔧
-until someone runs it again.
+**Needs attention**
+
+| | |
+|---|---|
+| ❌ | **broken** — has a write-up under [Open defects](#open-defects) |
+| 🔧 | broken, **fixed in code**, waiting on a re-test to become ✅ |
+| ⬜ | not run yet |
+| 🚫 | **blocked** — can't be exercised from a local build, needs TestFlight or Play internal testing |
+
+A fix landing never upgrades a row on its own: ❌ becomes 🔧, and only a re-test on hardware makes it
+✅. Anything that isn't ✅ 🤖 ➖ still wants a human.
 
 **Passes run so far**
 
@@ -31,6 +38,23 @@ until someone runs it again.
 4. **iPhone 13 Pro *and* a real Android device** — confirmed D1, D5's mechanism, D7 and keep-awake's
    acquire side; found D8–D12. This is the first pass where Android was checked by hand rather than
    by emulator or Maestro.
+5. **Both devices again** — D8, D9, D10 and D12 confirmed on both, plus Android's swipe-away-from-
+   Recents. **[D11](#d11) is the only defect still open**, and the only thing between here and a
+   store build.
+
+**Everything still open, in one place** — the whole rest of the file is ✅ 🤖 ➖.
+
+| | What | Where |
+|---|---|---|
+| 🔧 | **[D11](#d11)** — pausing/stopping doesn't let the screen sleep, both platforms. Re-worked a second time; **rule the phone's auto-lock setting out first** | §10 |
+| 🚫 | Android **purchase / restore / cancel** — needs a Play internal-testing build, not a code change | §1 |
+| 🚫 | iOS **cancel a purchase** — a sandbox purchase can't be cancelled once confirmed | §1 |
+| 🚫 | **Deep-link cold launch**, both platforms — the dev launcher owns the URL scheme, needs a release build | §9 |
+| ⬜ | Generator sheet at **tablet** width — full-bleed on iPad; `Sheet.tsx` never had tablet-cap logic on either platform, so this is pre-existing rather than a 1.1.4 regression | §7 |
+| ⬜ | **iPad mini** phone layout — never checked on any pass | §7 |
+
+Only the first row is a bug. The 🚫 rows unblock themselves once a store build exists, and the two ⬜
+rows are pre-existing cosmetics that can ship as-is if you decide they're not worth holding for.
 
 ---
 
@@ -84,21 +108,21 @@ iPhone 13 Pro. Tablet layout is covered separately in §7.
 
 | | iOS | Android |
 |---|---|---|
-| Settings scrolls as one page — no scroll island | ✅ | ☑ |
-| Blind structure row shows correct count + range, opens the editor | ✅ | ☑ |
-| 30 rows scroll smoothly; inputs editable | ✅ | ☑ |
-| Clearing a blind field shows **empty**, not `0`; blur restores the old value | ✅ | ☑ automated (Maestro: `editor-clear-blur.yaml`) |
-| `+` → Insert below / Duplicate, at top, middle and end | ✅ | ☑ automated (Maestro: `editor-insert-duplicate.yaml` for top+middle, `editor-delete-discard.yaml` for end on a short list — see notes in those files for why the full 30-row list's last rows weren't used) |
-| Delete down to 2 levels → trash buttons disable | ✅ | ☑ automated (Maestro: `editor-delete-discard.yaml`) |
-| Sticky footer appears only when dirty | ✅ | ☑ |
-| **Discard** restores the active values | ✅ | ☑ automated (Maestro: `editor-delete-discard.yaml`) |
-| **Apply mid-tournament keeps your level** (start Level 12, edit, apply → still 12) | ✅ | ☑ |
-| Apply a schedule **shorter** than the current level → warning shown, lands on last level, **timer does not crash** | ✅ | ☑ automated (Maestro: `editor-apply-shorter-schedule.yaml`) |
-| Tap-to-jump: confirm → timer *and* notification/Live Activity both follow | ✅ | ☑ |
-| Jump chip is **inert** while the draft is dirty | ✅ | ☑ |
-| Back with unapplied edits → Apply / Discard / Keep editing | ✅ | ☑ |
-| …via **hardware back** (Android) and **swipe-back** (iOS) | ✅ | ☑ |
-| Kill the app with a dirty draft → relaunch → draft and footer still there | ✅ | ☑ automated (Maestro: `editor-kill-dirty-draft.yaml`) |
+| Settings scrolls as one page — no scroll island | ✅ | 🤖 |
+| Blind structure row shows correct count + range, opens the editor | ✅ | 🤖 |
+| 30 rows scroll smoothly; inputs editable | ✅ | 🤖 |
+| Clearing a blind field shows **empty**, not `0`; blur restores the old value | ✅ | 🤖 automated (Maestro: `editor-clear-blur.yaml`) |
+| `+` → Insert below / Duplicate, at top, middle and end | ✅ | 🤖 automated (Maestro: `editor-insert-duplicate.yaml` for top+middle, `editor-delete-discard.yaml` for end on a short list — see notes in those files for why the full 30-row list's last rows weren't used) |
+| Delete down to 2 levels → trash buttons disable | ✅ | 🤖 automated (Maestro: `editor-delete-discard.yaml`) |
+| Sticky footer appears only when dirty | ✅ | 🤖 |
+| **Discard** restores the active values | ✅ | 🤖 automated (Maestro: `editor-delete-discard.yaml`) |
+| **Apply mid-tournament keeps your level** (start Level 12, edit, apply → still 12) | ✅ | 🤖 |
+| Apply a schedule **shorter** than the current level → warning shown, lands on last level, **timer does not crash** | ✅ | 🤖 automated (Maestro: `editor-apply-shorter-schedule.yaml`) |
+| Tap-to-jump: confirm → timer *and* notification/Live Activity both follow | ✅ | 🤖 |
+| Jump chip is **inert** while the draft is dirty | ✅ | 🤖 |
+| Back with unapplied edits → Apply / Discard / Keep editing | ✅ | 🤖 |
+| …via **hardware back** (Android) and **swipe-back** (iOS) | ✅ | 🤖 |
+| Kill the app with a dirty draft → relaunch → draft and footer still there | ✅ | 🤖 automated (Maestro: `editor-kill-dirty-draft.yaml`) |
 
 ---
 
@@ -106,13 +130,13 @@ iPhone 13 Pro. Tablet layout is covered separately in §7.
 
 | | iOS | Android |
 |---|---|---|
-| Slow / Standard / Turbo produce **visibly different** schedules | ✅ | ☑ |
-| Smallest chip 5, start 5 → `5/10 10/20 15/30 20/40…`, **never 6/12** | ✅ | ☑ |
-| Chip 25, start 25 → matches a real casino sheet (`25/50 50/100 75/150 100/200…`) | ☑ automated (Maestro: `generator-chip25-casino-sheet-ios.yaml`) | ☑ automated (Maestro: `generator-chip25-casino-sheet.yaml`) |
-| Chip seeds itself from the structure you're editing | ✅ | ☑ |
-| Sheet reaches the bottom edge — **no see-through strip** below it | ✅ | ☑ |
-| "Replace structure" fits on **one line** with its icon | ✅ | ☑ |
-| Replace writes the draft only; active schedule unchanged until Apply | ☑ automated (Maestro: `generator-replace-draft-only-ios.yaml`, including the "Unapplied changes" badge — see NavRow VoiceOver fix in ROADMAP.md) | ☑ automated (Maestro: `generator-replace-draft-only.yaml`) |
+| Slow / Standard / Turbo produce **visibly different** schedules | ✅ | 🤖 |
+| Smallest chip 5, start 5 → `5/10 10/20 15/30 20/40…`, **never 6/12** | ✅ | 🤖 |
+| Chip 25, start 25 → matches a real casino sheet (`25/50 50/100 75/150 100/200…`) | 🤖 automated (Maestro: `generator-chip25-casino-sheet-ios.yaml`) | 🤖 automated (Maestro: `generator-chip25-casino-sheet.yaml`) |
+| Chip seeds itself from the structure you're editing | ✅ | 🤖 |
+| Sheet reaches the bottom edge — **no see-through strip** below it | ✅ | 🤖 |
+| "Replace structure" fits on **one line** with its icon | ✅ | 🤖 |
+| Replace writes the draft only; active schedule unchanged until Apply | 🤖 automated (Maestro: `generator-replace-draft-only-ios.yaml`, including the "Unapplied changes" badge — see NavRow VoiceOver fix in ROADMAP.md) | 🤖 automated (Maestro: `generator-replace-draft-only.yaml`) |
 
 ---
 
@@ -120,31 +144,30 @@ iPhone 13 Pro. Tablet layout is covered separately in §7.
 
 | | iOS | Android |
 |---|---|---|
-| mm:ss commits on blur — no Save button needed | ☑ automated (Maestro: `round-duration-ios.yaml`) | ☑ automated (Maestro: `round-duration.yaml`) |
-| Type `12`/`30`, back out → next round is 12:30 | ☑ automated (Maestro: `round-duration-ios.yaml`) | ☑ automated (Maestro: `round-duration.yaml`) |
-| Changing it **mid-round leaves the running round's remaining time alone** | ☑ automated (Maestro: `round-duration-mid-round-ios.yaml`) | ☑ automated (Maestro: `round-duration-mid-round.yaml`) |
-| A round shorter than 10s is **kept**, not silently rewritten (type `5`, leave, come back → still 5) | 🔧 **[D12](#d12)** | 🔧 **[D12](#d12)** |
-| Seconds field caps at 59 | ☑ automated (Maestro: `round-duration-ios.yaml` — confirms the NumberField fix holds cross-platform, same shared JS) | ☑ automated (Maestro: `round-duration.yaml` — found and fixed a real display bug along the way, see CHANGELOG) |
+| mm:ss commits on blur — no Save button needed | 🤖 automated (Maestro: `round-duration-ios.yaml`) | 🤖 automated (Maestro: `round-duration.yaml`) |
+| Type `12`/`30`, back out → next round is 12:30 | 🤖 automated (Maestro: `round-duration-ios.yaml`) | 🤖 automated (Maestro: `round-duration.yaml`) |
+| Changing it **mid-round leaves the running round's remaining time alone** | 🤖 automated (Maestro: `round-duration-mid-round-ios.yaml`) | 🤖 automated (Maestro: `round-duration-mid-round.yaml`) |
+| A round shorter than 10s is **kept**, not silently rewritten (type `5`, leave, come back → still 5) | ✅ **[D12](#d12)** fixed and confirmed | ✅ **[D12](#d12)** fixed and confirmed |
+| Seconds field caps at 59 | 🤖 automated (Maestro: `round-duration-ios.yaml` — confirms the NumberField fix holds cross-platform, same shared JS) | 🤖 automated (Maestro: `round-duration.yaml` — found and fixed a real display bug along the way, see CHANGELOG) |
 
 ---
 
 ## 5. Keyboard behaviour
 
-The Presets nudge, the sheet's sizing/scrolling ([D2](#d2)) and the Done bar's timing ([D5](#d5))
-are all confirmed. What's left is three things the hand pass on both devices turned up: Android no
-longer scrolling a focused field clear of the keypad at all ([D8](#d8)), the Done bar's looks
-([D9](#d9)), and the blind editor still throwing the keypad away on scroll ([D10](#d10)).
+Fully confirmed on both platforms as of pass 5 — the Presets nudge, the sheet's sizing and scrolling
+([D2](#d2)), the Done bar's timing and looks ([D5](#d5), [D9](#d9)), Android's focus scrolling
+([D8](#d8)), and the editor keeping the keypad while you scroll ([D10](#d10)). Nothing open here.
 
 | | iOS | Android |
 |---|---|---|
 | Focus the preset-name field → **Save Preset is fully visible** above the keyboard | ✅ | ✅ fixed (see ROADMAP.md) — verified by screenshot, full clean breathing room now. Maestro: `keyboard-preset-nudge.yaml` (screenshot-based; `assertVisible` alone can't prove full IME clearance) |
 | No dead space / over-scroll after the nudge | ✅ | ✅ verified by the same screenshot — clearance matches `BREATHING_ROOM = 24`, no excess |
 | Same on a **small** phone (iPhone SE class / 720×1280) | ✅ | ✅ |
-| **Any** focused field stays visible when the keypad opens — Settings, blind editor, sheet | ✅ | 🔧 **[D8](#d8)** |
-| Number fields show a **Done** bar above the keypad (iOS), on the **first** open | ✅ appears on the first open now | n/a |
-| …and it doesn't look bolted on next to the keyboard's rounded edge | 🔧 **[D9](#d9)** | n/a |
+| **Any** focused field stays visible when the keypad opens — Settings, blind editor, sheet | ✅ | ✅ **[D8](#d8)** fixed and confirmed |
+| Number fields show a **Done** bar above the keypad (iOS), on the **first** open | ✅ appears on the first open now | ➖ |
+| …and it doesn't look bolted on next to the keyboard's rounded edge | ✅ **[D9](#d9)** fixed and confirmed | ➖ |
 | Scrolling **keeps the keypad up** — generator sheet | ✅ | ✅ |
-| Scrolling **keeps the keypad up** — blind structure editor | 🔧 **[D10](#d10)** | 🔧 **[D10](#d10)** |
+| Scrolling **keeps the keypad up** — blind structure editor | ✅ **[D10](#d10)** fixed and confirmed | ✅ **[D10](#d10)** fixed and confirmed |
 | Generator sheet fields usable with the keyboard up | ✅ fixed — sheet resizes and scrolls correctly; the remaining complaints were [D5](#d5) and [D6](#d6) | ✅ fixed (Maestro: `generator-keyboard.yaml`) — was hidden behind the keyboard, see ROADMAP.md "Settings page UX — blind levels" |
 
 ---
@@ -153,13 +176,13 @@ longer scrolling a focused field clear of the keypad at all ([D8](#d8)), the Don
 
 | | iOS | Android |
 |---|---|---|
-| Round expiry fires the alert + alarm with the app **foregrounded** | ☑ automated (Maestro: `notification-foreground-expiry-ios.yaml`) | ☑ automated (Maestro: `notification-foreground-expiry.yaml`) |
+| Round expiry fires the alert + alarm with the app **foregrounded** | 🤖 automated (Maestro: `notification-foreground-expiry-ios.yaml`) | 🤖 automated (Maestro: `notification-foreground-expiry.yaml`) |
 | Expiry while **backgrounded** advances **exactly one** level, and says so if more time passed | ✅ **[D3](#d3)** fixed and confirmed on device | ✅ confirmed by hand (the automation attempt below is still blocked, but the behaviour is verified) |
-| ~~Pause / Resume / Stop from the notification / Live Activity~~ | n/a **[descoped](#d4)** | n/a **[descoped](#d4)** |
+| ~~Pause / Resume / Stop from the notification / Live Activity~~ | ➖ **[descoped](#d4)** | ➖ **[descoped](#d4)** |
 | Live Activity / notification show the right level + time, and the "open the app" caption | ✅ confirmed on device | ✅ |
 | Blinds are the most prominent thing on it, after the countdown | ✅ **[D7](#d7)** fixed and confirmed | ✅ **[D7](#d7)** fixed and confirmed |
-| **After a level jump, the pending "time's up" notification names the _new_ next blind** — the fix in this release, never verified on-device | ✅ | n/a |
-| Notification survives swipe-away from Recents — start a round, swipe the app out of the app switcher, and the timer notification keeps counting down instead of vanishing with it | n/a | ☐ |
+| **After a level jump, the pending "time's up" notification names the _new_ next blind** — the fix in this release, never verified on-device | ✅ | ➖ |
+| Notification survives swipe-away from Recents — start a round, swipe the app out of the app switcher, and the timer notification keeps counting down instead of vanishing with it | ➖ | ✅ |
 
 > **Backgrounded-expiry automation attempt:** `adb shell input keyevent KEYCODE_HOME` reliably
 > brings Expo's own `DevLauncherActivity` back on top of the task stack on this dev-client build
@@ -181,11 +204,11 @@ Android tablet (2560×1600) verified against a freshly built APK. iPad now verif
 
 | | iPad | Android tablet |
 |---|---|---|
-| Settings: Tournament + Presets **side by side**, capped and centred | ✅ | ☑ |
-| Blind editor list + sticky footer capped at 900 and centred | ✅ fixed (was full-bleed, see ROADMAP.md) — dropping the redundant `width: "100%"` from `centred` fixed it; verified via screenshot on iPad Pro 11-inch, list and sticky footer both cap/centre correctly | ☑ re-verified on Android_tablet after the fix, no regression |
-| Timer card centred, not full-bleed | ✅ | ☑ |
-| Generator sheet sensible at tablet width | ⚠️ also full-bleed on iPad — `Sheet.tsx` has no tablet-cap logic at all (unlike Settings/BlindStructureScreen), so this may just be pre-existing/never-implemented rather than a regression. Not confirmed whether Android's "sensible" ☑ was judged at the same full-bleed width or genuinely capped. | ☑ |
-| iPad **mini** still gets the phone layout | not verified (no iPad mini simulator checked this pass) | n/a |
+| Settings: Tournament + Presets **side by side**, capped and centred | ✅ | 🤖 |
+| Blind editor list + sticky footer capped at 900 and centred | ✅ fixed (was full-bleed, see ROADMAP.md) — dropping the redundant `width: "100%"` from `centred` fixed it; verified via screenshot on iPad Pro 11-inch, list and sticky footer both cap/centre correctly | 🤖 re-verified on Android_tablet after the fix, no regression |
+| Timer card centred, not full-bleed | ✅ | 🤖 |
+| Generator sheet sensible at tablet width | ⬜ also full-bleed on iPad — `Sheet.tsx` has no tablet-cap logic at all (unlike Settings/BlindStructureScreen), so this may just be pre-existing/never-implemented rather than a regression. Not confirmed whether Android's pass was judged at the same full-bleed width or genuinely capped. | 🤖 |
+| iPad **mini** still gets the phone layout | ⬜ no iPad mini simulator checked on any pass so far | ➖ |
 
 ---
 
@@ -204,7 +227,7 @@ Android tablet (2560×1600) verified against a freshly built APK. iPad now verif
 | | iOS | Android |
 |---|---|---|
 | Launch → no visible resize before the timer appears | ✅ | ✅ |
-| Deep link straight to `pokerkit://settings` and `pokerkit://blinds` → splash lifts **immediately**, not after 4s | ☐ same dev-client blocker as Android — the launcher owns the URL scheme, so this needs a release build (`xcrun simctl openurl booted pokerkit://blinds` on a release-config install) | not automatable on this dev-client build — see note below |
+| Deep link straight to `pokerkit://settings` and `pokerkit://blinds` → splash lifts **immediately**, not after 4s | 🚫 the dev launcher owns the URL scheme, so this needs a release build (`xcrun simctl openurl booted pokerkit://blinds` on a release-config install) | 🚫 same blocker — see the note below |
 
 > **Cold-launch deep-link automation attempt:** confirmed the same root cause as §6's
 > backgrounded-expiry blocker, this time via `adb shell am start -W -a android.intent.action.VIEW
@@ -220,7 +243,9 @@ Android tablet (2560×1600) verified against a freshly built APK. iPad now verif
 ## 10. Screen stays awake
 
 New in this release: the screen is held on while a round counts down, and released on pause/stop.
-The holding half works on both platforms; the releasing half didn't, and is [D11](#d11).
+The holding half is confirmed on both platforms. **The releasing half is the last thing open in this
+release** — see [D11](#d11), including why a phone's own auto-lock setting can look identical to the
+bug.
 
 **Before re-testing, check the device isn't the reason.** Set a short auto-lock — iOS
 *Settings → Display & Brightness → Auto-Lock → 30 Seconds* (it must not be *Never*), Android
@@ -230,9 +255,9 @@ here no matter what the app does.
 | | iOS | Android |
 |---|---|---|
 | Screen doesn't sleep while a round is running, left untouched past the OS timeout | ✅ | ✅ |
-| Pausing releases it — the screen sleeps normally again | 🔧 **[D11](#d11)** | 🔧 **[D11](#d11)** |
-| Stopping/resetting releases it too | 🔧 **[D11](#d11)** | 🔧 **[D11](#d11)** |
-| With a round **running**, leave the timer screen for Settings — the screen should still stay awake (the round is still going), and start sleeping again once you pause from there | ☐ | ☐ |
+| Pausing releases it — the screen sleeps normally again | 🔧 **[D11](#d11)** still failing after the first fix, re-worked | 🔧 **[D11](#d11)** still failing after the first fix, re-worked |
+| Stopping/resetting releases it too | 🔧 **[D11](#d11)** still failing after the first fix, re-worked | 🔧 **[D11](#d11)** still failing after the first fix, re-worked |
+| With a round **running**, leave the timer screen for Settings — the screen should still stay awake (the round is still going), and start sleeping again once you pause from there | ✅ | ✅ |
 
 ---
 
@@ -250,11 +275,11 @@ reasoning survives.
 | [D5](#d5) Done bar only on the second keypad open | iOS pass 2 | ✅ fixed, confirmed |
 | [D6](#d6) Scrolling the sheet dismissed the keypad | iOS pass 2 | ✅ fixed for the sheet; the editor is [D10](#d10) |
 | [D7](#d7) Blinds too small on the Live Activity | iOS pass 2 | ✅ fixed, confirmed both platforms |
-| [D8](#d8) Android never scrolls a focused field clear of the keypad | pass 3 (Android) | 🔧 fixed, **re-test** |
-| [D9](#d9) Done bar looks bolted onto the keyboard | pass 3 (iOS) | 🔧 fixed, **re-test** |
-| [D10](#d10) Blind editor drops the keypad on scroll | pass 3 (both) | 🔧 fixed, **re-test** |
-| [D11](#d11) Keep-awake never released on pause/stop | pass 3 (both) | 🔧 fixed, **re-test** |
-| [D12](#d12) Rounds under 10s silently rewritten | pass 3 (Android) | 🔧 fixed, **re-test** |
+| [D8](#d8) Android never scrolls a focused field clear of the keypad | pass 3 (Android) | ✅ fixed, confirmed |
+| [D9](#d9) Done bar looks bolted onto the keyboard | pass 3 (iOS) | ✅ fixed, confirmed |
+| [D10](#d10) Blind editor drops the keypad on scroll | pass 3 (both) | ✅ fixed, confirmed both platforms |
+| [D11](#d11) Keep-awake never released on pause/stop | pass 3 (both) | 🔧 **still open** — first fix didn't take, re-worked |
+| [D12](#d12) Rounds under 10s silently rewritten | pass 3 (Android) | ✅ fixed, confirmed both platforms |
 
 <a id="d1"></a>
 ### D1 · Paywall shows "one-time" with no price · §1
@@ -460,20 +485,33 @@ reason to scroll a schedule.
 <a id="d11"></a>
 ### D11 · Keep-awake never released on pause or stop · §10, both platforms
 
-"Doesn't go to sleep, or maybe my iPhone settings are wrong."
+"Doesn't go to sleep, or maybe my iPhone settings are wrong." Then, after the first fix: "nope, stays
+awake. Can it be because of Expo?"
 
-Not the phone settings — a real race, and the fact that it reproduced identically on both platforms
-is the tell. Acquiring the lock is async; releasing it was fired independently in the effect cleanup.
-Pause a round quickly enough and the release ran *before* the acquire resolved, releasing a lock that
-didn't exist yet — then the acquire completed after it and pinned the screen on with nothing left to
-turn it off. Once in that state it stays there for the session, which matches "stopping doesn't
-release it either".
+**It isn't Expo.** `expo-keep-awake` is the only thing in the entire dependency tree that touches
+`isIdleTimerDisabled` (iOS) or `FLAG_KEEP_SCREEN_ON` (Android) — grepped across `node_modules`, and
+neither `expo-dev-client` nor the dev launcher holds a lock of its own. Both native implementations
+are symmetric and correct: a tag set, with the flag cleared as soon as it empties.
 
-**Fixed** — the release is chained onto the acquire's promise, so the two can't invert regardless of
-how fast the pause lands.
+**First fix (didn't take).** Acquire is async and release was fired independently in the effect
+cleanup, so a quick pause could release a lock that hadn't finished being taken; the acquire then
+landed after it and pinned the screen on with nothing left to turn it off. Chaining each release onto
+its own acquire fixed *that* ordering — and the symptom survived it.
 
-**Re-test:** set a short auto-lock first (see §10). Run a round, pause it, leave the phone alone —
-it should sleep on schedule. Then the same for stop/reset.
+**Second fix.** The chaining only ordered each release against its own acquire, not against
+*everything else in flight*. The native side is a tag set, not a counter, so whichever call lands
+last wins outright, and pause/resume/pause can still interleave two chains. All transitions now go
+through one module-level queue that reconciles to the latest desired state, with at most one call in
+flight — the class of bug is gone by construction rather than by being one step ahead of it. Both
+calls also log now, so the next pass can say definitively whether the release ran.
+
+**Before re-testing, rule out the phone.** Releasing the lock doesn't wake anything up: it re-arms
+the OS idle timer *from that moment*. So the screen sleeps one full auto-lock interval after you
+pause — on a 5-minute setting that's five minutes of looking at a lit screen, and on *Never* it
+never sleeps no matter what the app does. Set iOS *Settings → Display & Brightness → Auto-Lock →
+30 Seconds* or Android *Settings → Display → Screen timeout → 30 seconds* first, then pause and wait
+past the interval. If it still doesn't sleep, the Metro log will show whether
+`keep-awake: releasing screen lock` was reached, which splits app-bug from OS-behaviour in one line.
 
 <a id="d12"></a>
 ### D12 · Rounds shorter than 10 seconds were silently rewritten · §4
