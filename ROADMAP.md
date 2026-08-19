@@ -319,9 +319,40 @@ D3 and D4 confirmed done on device. Three new items, D5–D7:
   timer's weight, with the next level a step below at `.caption`. Both get `lineLimit(1)` and a
   minimum scale factor so a late-structure `5000/10000` shrinks rather than wrapping or squeezing
   the timer. Android's expanded notification matched (15sp → 22sp, 12sp → 13sp).
-- ☐ **Still unverified on device:** D1, D2, D5, D6, D7, and keep-awake — everything except D3 and
-  D4. Needs a rebuilt dev client (D7 touches Swift and Android resources), and D1 needs a sandbox
-  account.
+### Third pass (2026-08-20), first hand pass on a real Android device
+
+D1, D2, D5's timing, D6 for the sheet, D7 and D3 on Android all confirmed. Five new items:
+
+- ✅ **D8 — Android never scrolls a focused field clear of the keypad**, in Settings or the blind
+  editor. Worth understanding, because it will bite anything else that scrolls: Android used to do
+  this for free via `windowSoftInputMode="adjustResize"` (window shrinks → native ScrollView shrinks
+  → Android's focus handling scrolls the field back into view), and **edge-to-edge ended that**.
+  API 35 makes edge-to-edge mandatory and `adjustResize` a no-op with it; the keyboard arrives as an
+  inset the app must consume. Nothing did. Same root cause `Sheet.tsx` already handled for its own
+  modal window — the app's two main scrollers never got the equivalent. New
+  `useKeyboardFocusScroll` hook returns the inset to pad with *and* scrolls the focused input clear;
+  Android-only, since iOS's `automaticallyAdjustKeyboardInsets` does both and its column passes.
+  Measurement logic lifted from `useKeyboardNudge`, including its nav-bar and status-bar corrections.
+- ✅ **D9 — the Done bar looked bolted onto the keyboard.** Current iOS draws the keypad as a
+  rounded, inset panel, so a full-width opaque strip above it left mismatched corners and a visible
+  seam. Now a transparent bar with a floating rounded pill: nothing with an edge to disagree with a
+  shape the OS can change under us.
+- ✅ **D10 — the blind editor still dropped the keypad on scroll.** Its `FlatList` carried its own
+  `keyboardDismissMode="on-drag"`, set long before and separately from the sheet's, so the D6 fix
+  missed it. Same value, same reasoning; both platforms.
+- ✅ **D11 — keep-awake never released on pause or stop.** A real race, not the reporter's phone
+  settings, and reproducing identically on both platforms was the tell. Acquire is async and release
+  was fired independently in the effect cleanup, so a quick pause released a lock that hadn't been
+  taken yet; the acquire then landed after it and pinned the screen on for the rest of the session.
+  Release is now chained onto the acquire's promise.
+- ✅ **D12 — rounds shorter than 10 seconds were silently rewritten.** `MIN_ROUND_DURATION_SECONDS`
+  was 10 and `clampRoundDuration` applied it with no feedback, so typing 5 gave back 10 — a rule the
+  UI never states, applied after the fact, reads as a broken field. Floor is now 1 second; zero stays
+  out (no meaningful expiry, and it divides by zero in the missed-round maths).
+- ☐ **Still unverified on device:** D8–D12, plus the two keep-awake rows they gate. Android's three
+  purchase rows are blocked on a Play Console upload rather than on any code here — Play Billing only
+  serves an app the store recognises (uploaded to a track, matching signing key, tester on the
+  licence-testing list), which a local debug APK is not.
 
 ## Live Activity / foreground service controls
 

@@ -9,7 +9,7 @@ import {
   Text,
   View,
 } from "react-native";
-import { colors, space, text } from "@/src/theme";
+import { colors, radius, space, text } from "@/src/theme";
 import { TextField, TextFieldProps } from "./TextField";
 
 /**
@@ -39,6 +39,12 @@ let nextAccessoryId = 0;
  *   the "only shows up the second time you open the keypad" flakiness. By the
  *   second focus it's still mounted from the first, so it works, which makes the
  *   bug look intermittent rather than ordered.
+ * - It is a **floating pill on a transparent bar**, not a full-width block. The
+ *   keyboard is a rounded, inset panel on current iOS, so a hard-edged opaque
+ *   strip pinned above it left a mismatched gap either side of its corners and
+ *   read as two unrelated slabs. A transparent bar has no edges to disagree
+ *   with, and the pill reads as a control belonging to the keypad below it —
+ *   which is also how iOS's own floating keyboard accessories look.
  * - The id is per instance rather than one shared bar mounted at the root.
  *   That's a few extra offscreen views on a screen full of fields, and it buys
  *   certainty: this field's accessory is always in the same React tree — and on
@@ -124,29 +130,29 @@ export function NumberField({
 }
 
 const styles = StyleSheet.create({
-  // Sized and weighted like UIKit's own keyboard toolbar: 44pt tall, hairline
-  // separator on top, single right-aligned action.
+  // Transparent: the bar itself is just positioning. Anything opaque here has
+  // to line its corners up with whatever shape the current keyboard is, and
+  // loses — see the note on the component.
   accessoryBar: {
-    height: 44,
     flexDirection: "row",
-    alignItems: "center",
     justifyContent: "flex-end",
-    backgroundColor: colors.surfaceSolid,
-    borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: colors.border,
+    backgroundColor: "transparent",
     paddingHorizontal: space.md,
+    paddingBottom: space.sm,
   },
   accessoryButton: {
-    // Padding rather than hitSlop: this is the full-height tap target, and it
-    // needs to look like a comfortably-sized button, not just behave as one.
-    paddingHorizontal: space.md,
+    // A pill, sized to a comfortable tap target on its own rather than relying
+    // on the bar's height for it.
+    minHeight: 36,
     justifyContent: "center",
-    alignSelf: "stretch",
+    paddingHorizontal: space.lg,
+    borderRadius: radius.pill,
+    backgroundColor: colors.surfaceSolid,
   },
   accessoryText: {
     ...text.label,
     color: colors.accent,
     fontWeight: "600",
-    fontSize: 17,
+    fontSize: 16,
   },
 });

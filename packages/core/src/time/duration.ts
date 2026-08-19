@@ -1,5 +1,13 @@
-/** Bounds for a round's length, enforced wherever a duration is edited. */
-export const MIN_ROUND_DURATION_SECONDS = 10;
+/**
+ * Bounds for a round's length, enforced wherever a duration is edited.
+ *
+ * The floor is 1 second, not 0: a zero-length round has no meaningful expiry and
+ * would divide by zero in the missed-round maths. It was 10, which silently
+ * rewrote anything shorter — typing 5 and coming back to find 10 reads as the
+ * field being broken rather than as a rule, and there's no reason a host running
+ * a hyper-turbo or testing their own structure shouldn't pick 5 seconds.
+ */
+export const MIN_ROUND_DURATION_SECONDS = 1;
 export const MAX_ROUND_DURATION_SECONDS = 180 * 60;
 
 /** Clamp a round duration into the supported range, rounding to whole seconds. */

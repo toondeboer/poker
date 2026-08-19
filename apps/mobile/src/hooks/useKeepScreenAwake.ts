@@ -28,15 +28,23 @@ export function useKeepScreenAwake(active: boolean) {
   useEffect(() => {
     if (!active) return;
 
-    activateKeepAwakeAsync(KEEP_AWAKE_TAG).catch((error) => {
+    // Release is chained onto the acquire, never fired alongside it. Both calls
+    // are async, and pausing a round is fast: releasing independently meant a
+    // pause that landed before the acquire resolved released a lock that did not
+    // exist yet, and the acquire then completed *after* it — leaving the screen
+    // pinned on for the rest of the session with nothing left to turn it off.
+    // Which is exactly what "pausing doesn't let the screen sleep" looked like.
+    const acquired = activateKeepAwakeAsync(KEEP_AWAKE_TAG).catch((error) => {
       // Non-fatal: the timer still runs, the screen just isn't pinned on.
       logger.warn("Could not keep the screen awake:", error);
     });
 
     return () => {
-      // Also throws if the lock was never acquired (the activate above lost a
-      // race with an immediate pause), which is nothing to report.
-      Promise.resolve(deactivateKeepAwake(KEEP_AWAKE_TAG)).catch(() => {});
+      void acquired.then(() =>
+        // Still throws if the acquire above failed outright, which is nothing to
+        // report — there was no lock to give back.
+        Promise.resolve(deactivateKeepAwake(KEEP_AWAKE_TAG)).catch(() => {}),
+      );
     };
   }, [active]);
 }

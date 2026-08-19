@@ -20,7 +20,7 @@ const FORCE_PRO_IN_DEV: boolean = __DEV__ && false;
 // into the test device already owns `pro_lifetime` (a one-time purchase, so
 // it persists across reinstalls) and you want to see the ad-supported UI
 // anyway. Only one of these two should be true at a time.
-const FORCE_FREE_IN_DEV: boolean = __DEV__ && true;
+const FORCE_FREE_IN_DEV: boolean = __DEV__ && false;
 
 type PremiumContextValue = {
   /** True once the user has unlocked the Pro (ad-free) tier. */

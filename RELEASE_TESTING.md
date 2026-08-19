@@ -7,17 +7,30 @@ web build — runs in CI and is not repeated here.
 Tick the platform column you actually ran. **iOS and Android are not interchangeable** for anything
 touching notifications, billing, or the keyboard — those are the paths that differ most.
 
-**Legend:** ✅ verified by hand · ☑ verified by an automated Maestro flow · ❌ verified **broken**,
-see [Open defects](#open-defects) · ☐ not run yet · n/a doesn't apply on this platform.
+**Legend**
 
-**Passes run so far:** Android phone + tablet + small phone (emulators, throughout development);
-iPad Pro 11-inch and iPhone SE (simulators, layout only); **iOS on a real device — iPhone 13 Pro,
-`npm run ios:device`** — which is where every ❌ below was found.
+| | |
+|---|---|
+| ✅ | verified by hand, passing |
+| ☑ | verified by an automated Maestro flow |
+| ❌ | verified **broken** — every one has a write-up under [Open defects](#open-defects) |
+| 🔧 | broken, since **fixed in code**, not yet re-tested on hardware |
+| ☐ | not run yet |
+| 🚫 | can't be tested from a local build — needs TestFlight or Play internal testing |
+| n/a | doesn't apply on this platform |
 
-**Second iPhone 13 Pro pass, after the fixes:** D3 confirmed fixed and D4's descope confirmed in
-place. D1 turned out to be untestable as configured rather than unfixed, and D2's fix was only half
-right — both are re-worked and listed as **D5–D6** below, along with the Live Activity's blind
-sizing. Everything from that second round is again **unverified on hardware**.
+A row is only ✅ once it passed *after* the fix. A fix landing does not upgrade a ❌ — it becomes 🔧
+until someone runs it again.
+
+**Passes run so far**
+
+1. Android phone + tablet + small phone (emulators, throughout development), iPad Pro 11-inch and
+   iPhone SE (simulators, layout only).
+2. **iPhone 13 Pro, `npm run ios:device`** — found D1–D4.
+3. **iPhone 13 Pro again**, re-testing those fixes — D3 and D4 confirmed; found D5–D7.
+4. **iPhone 13 Pro *and* a real Android device** — confirmed D1, D5's mechanism, D7 and keep-awake's
+   acquire side; found D8–D12. This is the first pass where Android was checked by hand rather than
+   by emulator or Maestro.
 
 ---
 
@@ -43,21 +56,31 @@ sandbox/test account.
 
 | | iOS | Android |
 |---|---|---|
-| Paywall opens from all three entry points (Pro card, Presets, Sound Pack) | ✅ | ☐ |
-| Price string renders (not blank, not `one-time` alone) | ❌ **[D1](#d1)** → fixed; couldn't be seen locally because `FORCE_FREE_IN_DEV` suppressed the fetch, now fixed too — **re-test locally**, no TestFlight needed | ☐ |
-| **Purchase completes** and Pro unlocks (ads gone, Presets + Sound Pack usable) | ✅ | ☐ |
-| **Restore purchases** works on a fresh install of the same account | ✅ | ☐ |
-| Cancelling a purchase leaves the app in a sane state, no error toast | ☐ not reachable locally — a sandbox purchase can't be cancelled once the sheet is confirmed | ☐ |
+| Paywall opens from all three entry points (Pro card, Presets, Sound Pack) | ✅ | ✅ |
+| Price string renders (not blank, not `one-time` alone) | ✅ **[D1](#d1)** fixed and confirmed | ✅ |
+| **Purchase completes** and Pro unlocks (ads gone, Presets + Sound Pack usable) | ✅ | 🚫 **[see below](#android-billing)** |
+| **Restore purchases** works on a fresh install of the same account | ✅ | 🚫 **[see below](#android-billing)** |
+| Cancelling a purchase leaves the app in a sane state, no error toast | 🚫 a sandbox purchase can't be cancelled once the sheet is confirmed | 🚫 **[see below](#android-billing)** |
 
 > Set `FORCE_PRO_IN_DEV`/`FORCE_FREE_IN_DEV` in `PremiumContext.tsx` to exercise the *gated UI*
-> without buying — but that does **not** test billing itself.
+> without buying — but that does **not** test billing itself. Both flags leave the **price** fetch
+> alone as of the D1 fix, so the paywall still shows a real price under either.
+
+<a id="android-billing"></a>
+> **Why Android's purchase rows can't be done locally.** Play Billing only talks to an app the Play
+> Store itself recognises: the package must be uploaded to a Play Console track (internal testing is
+> enough), signed with the same key, and the tester's account added to the licence-testing list. A
+> locally-built debug APK fails all three, which is why it returns `BILLING_UNAVAILABLE` rather than
+> a purchase sheet. **These three rows therefore move to the internal-testing pass, after the build
+> is uploaded** — they are not blocked on any code change here. iOS is the mirror image: StoreKit
+> sandbox works against a local device build, which is why its column is already done.
 
 ---
 
 ## 2. Blind structure editor — the main feature
 
-Verified on Android phone (720×1280) during development, and end-to-end on an iPhone 13 Pro. Tablet
-layout is covered separately in §7.
+Verified on Android (emulator during development, plus a real device on pass 3) and end-to-end on an
+iPhone 13 Pro. Tablet layout is covered separately in §7.
 
 | | iOS | Android |
 |---|---|---|
@@ -100,23 +123,28 @@ layout is covered separately in §7.
 | mm:ss commits on blur — no Save button needed | ☑ automated (Maestro: `round-duration-ios.yaml`) | ☑ automated (Maestro: `round-duration.yaml`) |
 | Type `12`/`30`, back out → next round is 12:30 | ☑ automated (Maestro: `round-duration-ios.yaml`) | ☑ automated (Maestro: `round-duration.yaml`) |
 | Changing it **mid-round leaves the running round's remaining time alone** | ☑ automated (Maestro: `round-duration-mid-round-ios.yaml`) | ☑ automated (Maestro: `round-duration-mid-round.yaml`) |
+| A round shorter than 10s is **kept**, not silently rewritten (type `5`, leave, come back → still 5) | 🔧 **[D12](#d12)** | 🔧 **[D12](#d12)** |
 | Seconds field caps at 59 | ☑ automated (Maestro: `round-duration-ios.yaml` — confirms the NumberField fix holds cross-platform, same shared JS) | ☑ automated (Maestro: `round-duration.yaml` — found and fixed a real display bug along the way, see CHANGELOG) |
 
 ---
 
 ## 5. Keyboard behaviour
 
-The Presets nudge is fixed and confirmed on both platforms. The sheet's own sizing/scrolling is
-fixed and confirmed on iOS ([D2](#d2)); what's left is keypad behaviour — the Done bar ([D5](#d5))
-and scrolling without losing the keypad ([D6](#d6)), both fixed in code and unconfirmed.
+The Presets nudge, the sheet's sizing/scrolling ([D2](#d2)) and the Done bar's timing ([D5](#d5))
+are all confirmed. What's left is three things the hand pass on both devices turned up: Android no
+longer scrolling a focused field clear of the keypad at all ([D8](#d8)), the Done bar's looks
+([D9](#d9)), and the blind editor still throwing the keypad away on scroll ([D10](#d10)).
 
 | | iOS | Android |
 |---|---|---|
 | Focus the preset-name field → **Save Preset is fully visible** above the keyboard | ✅ | ✅ fixed (see ROADMAP.md) — verified by screenshot, full clean breathing room now. Maestro: `keyboard-preset-nudge.yaml` (screenshot-based; `assertVisible` alone can't prove full IME clearance) |
 | No dead space / over-scroll after the nudge | ✅ | ✅ verified by the same screenshot — clearance matches `BREATHING_ROOM = 24`, no excess |
-| Same on a **small** phone (iPhone SE class / 720×1280) | ☐ still to do in the iPhone SE simulator | ☐ |
-| Number fields show a **Done** bar above the keypad (iOS) that dismisses it, on the **first** open | ❌ **[D5](#d5)** → fixed, **re-test** | n/a |
-| Scrolling the sheet with the keypad up **keeps it up** | ❌ **[D6](#d6)** → fixed, **re-test** | ☐ re-test: the dismiss mode changed on both platforms |
+| Same on a **small** phone (iPhone SE class / 720×1280) | ✅ | ✅ |
+| **Any** focused field stays visible when the keypad opens — Settings, blind editor, sheet | ✅ | 🔧 **[D8](#d8)** |
+| Number fields show a **Done** bar above the keypad (iOS), on the **first** open | ✅ appears on the first open now | n/a |
+| …and it doesn't look bolted on next to the keyboard's rounded edge | 🔧 **[D9](#d9)** | n/a |
+| Scrolling **keeps the keypad up** — generator sheet | ✅ | ✅ |
+| Scrolling **keeps the keypad up** — blind structure editor | 🔧 **[D10](#d10)** | 🔧 **[D10](#d10)** |
 | Generator sheet fields usable with the keyboard up | ✅ fixed — sheet resizes and scrolls correctly; the remaining complaints were [D5](#d5) and [D6](#d6) | ✅ fixed (Maestro: `generator-keyboard.yaml`) — was hidden behind the keyboard, see ROADMAP.md "Settings page UX — blind levels" |
 
 ---
@@ -126,12 +154,12 @@ and scrolling without losing the keypad ([D6](#d6)), both fixed in code and unco
 | | iOS | Android |
 |---|---|---|
 | Round expiry fires the alert + alarm with the app **foregrounded** | ☑ automated (Maestro: `notification-foreground-expiry-ios.yaml`) | ☑ automated (Maestro: `notification-foreground-expiry.yaml`) |
-| Expiry while **backgrounded** advances **exactly one** level, and says so if more time passed | ✅ **[D3](#d3)** fixed and confirmed on device | tried to automate, blocked by dev-client-only noise, not a real bug — see note below |
+| Expiry while **backgrounded** advances **exactly one** level, and says so if more time passed | ✅ **[D3](#d3)** fixed and confirmed on device | ✅ confirmed by hand (the automation attempt below is still blocked, but the behaviour is verified) |
 | ~~Pause / Resume / Stop from the notification / Live Activity~~ | n/a **[descoped](#d4)** | n/a **[descoped](#d4)** |
-| Live Activity / notification show the right level + time, and the "open the app" caption | ✅ confirmed on device | ☐ |
-| Blinds are the most prominent thing on it, after the countdown | ❌ **[D7](#d7)** → enlarged, **re-test** | ☐ re-test: Android's expanded notification got the same change |
+| Live Activity / notification show the right level + time, and the "open the app" caption | ✅ confirmed on device | ✅ |
+| Blinds are the most prominent thing on it, after the countdown | ✅ **[D7](#d7)** fixed and confirmed | ✅ **[D7](#d7)** fixed and confirmed |
 | **After a level jump, the pending "time's up" notification names the _new_ next blind** — the fix in this release, never verified on-device | ✅ | n/a |
-| Notification survives swipe-away from Recents | n/a | ☐ |
+| Notification survives swipe-away from Recents — start a round, swipe the app out of the app switcher, and the timer notification keeps counting down instead of vanishing with it | n/a | ☐ |
 
 > **Backgrounded-expiry automation attempt:** `adb shell input keyevent KEYCODE_HOME` reliably
 > brings Expo's own `DevLauncherActivity` back on top of the task stack on this dev-client build
@@ -175,7 +203,7 @@ Android tablet (2560×1600) verified against a freshly built APK. iPad now verif
 
 | | iOS | Android |
 |---|---|---|
-| Launch → no visible resize before the timer appears | ✅ | ☐ |
+| Launch → no visible resize before the timer appears | ✅ | ✅ |
 | Deep link straight to `pokerkit://settings` and `pokerkit://blinds` → splash lifts **immediately**, not after 4s | ☐ same dev-client blocker as Android — the launcher owns the URL scheme, so this needs a release build (`xcrun simctl openurl booted pokerkit://blinds` on a release-config install) | not automatable on this dev-client build — see note below |
 
 > **Cold-launch deep-link automation attempt:** confirmed the same root cause as §6's
@@ -192,23 +220,41 @@ Android tablet (2560×1600) verified against a freshly built APK. iPad now verif
 ## 10. Screen stays awake
 
 New in this release: the screen is held on while a round counts down, and released on pause/stop.
-Untested on hardware.
+The holding half works on both platforms; the releasing half didn't, and is [D11](#d11).
+
+**Before re-testing, check the device isn't the reason.** Set a short auto-lock — iOS
+*Settings → Display & Brightness → Auto-Lock → 30 Seconds* (it must not be *Never*), Android
+*Settings → Display → Screen timeout → 30 seconds*. A phone set to never sleep will fail every row
+here no matter what the app does.
 
 | | iOS | Android |
 |---|---|---|
-| Screen doesn't sleep while a round is running, left untouched past the OS timeout | ☐ | ☐ |
-| Pausing releases it — the screen sleeps normally again | ☐ | ☐ |
-| Stopping/resetting releases it too | ☐ | ☐ |
-| Leaving the timer screen mid-round doesn't leave the lock pinned on elsewhere in the app | ☐ | ☐ |
+| Screen doesn't sleep while a round is running, left untouched past the OS timeout | ✅ | ✅ |
+| Pausing releases it — the screen sleeps normally again | 🔧 **[D11](#d11)** | 🔧 **[D11](#d11)** |
+| Stopping/resetting releases it too | 🔧 **[D11](#d11)** | 🔧 **[D11](#d11)** |
+| With a round **running**, leave the timer screen for Settings — the screen should still stay awake (the round is still going), and start sleeping again once you pause from there | ☐ | ☐ |
 
 ---
 
 ## Open defects
 
-**D1–D4** came from the first iPhone 13 Pro pass; **D5–D7** from the second, re-testing the fixes.
-None reproduces on Android, where the equivalent rows pass. D3 and D4 are confirmed done on device.
-The rest are addressed in code and **unverified on hardware** — re-running them clears the iOS
-submission.
+One entry per defect, numbered in the order they were found, kept after they're fixed so the
+reasoning survives.
+
+| | Found in | State |
+|---|---|---|
+| [D1](#d1) Paywall price missing | iOS pass 1 | ✅ fixed, confirmed |
+| [D2](#d2) Sheet unusable with keyboard up | iOS pass 1 | ✅ fixed, confirmed |
+| [D3](#d3) Backgrounded expiry advanced one level only | iOS pass 1 | ✅ fixed, confirmed both platforms |
+| [D4](#d4) Live Activity buttons corrupted the timer | iOS pass 1 | ✅ descoped, confirmed |
+| [D5](#d5) Done bar only on the second keypad open | iOS pass 2 | ✅ fixed, confirmed |
+| [D6](#d6) Scrolling the sheet dismissed the keypad | iOS pass 2 | ✅ fixed for the sheet; the editor is [D10](#d10) |
+| [D7](#d7) Blinds too small on the Live Activity | iOS pass 2 | ✅ fixed, confirmed both platforms |
+| [D8](#d8) Android never scrolls a focused field clear of the keypad | pass 3 (Android) | 🔧 fixed, **re-test** |
+| [D9](#d9) Done bar looks bolted onto the keyboard | pass 3 (iOS) | 🔧 fixed, **re-test** |
+| [D10](#d10) Blind editor drops the keypad on scroll | pass 3 (both) | 🔧 fixed, **re-test** |
+| [D11](#d11) Keep-awake never released on pause/stop | pass 3 (both) | 🔧 fixed, **re-test** |
+| [D12](#d12) Rounds under 10s silently rewritten | pass 3 (Android) | 🔧 fixed, **re-test** |
 
 <a id="d1"></a>
 ### D1 · Paywall shows "one-time" with no price · §1
@@ -228,7 +274,8 @@ on, and both it and `FORCE_PRO_IN_DEV` skipped the price fetch along with the en
 That's backwards: forcing the free experience exists precisely to *look at* the paywall on a device
 whose account already owns Pro, and a paywall with no price is not the paywall. The price is a
 read-only store lookup that grants nothing, so it now runs regardless of either flag; only the
-entitlement is forced. **Re-test locally** with a sandbox account — TestFlight isn't needed.
+entitlement is forced. **Confirmed on both platforms** — a real price renders locally, no TestFlight
+needed, which is worth remembering the next time a missing price looks like a store problem.
 
 <a id="d2"></a>
 ### D2 · Generator sheet is unusable with the keyboard up · §5
@@ -338,8 +385,8 @@ the reason you're scrolling, so iOS form sheets keep the keyboard up and offer a
 under your finger, and reaching the next field cost two gestures instead of one.
 
 **Fixed** — `keyboardDismissMode="none"`. Dismissal comes from the Done bar, tapping outside, and
-dragging the grabber (which already calls `Keyboard.dismiss()`). Applies to both platforms, so
-Android's `generator-keyboard.yaml` is worth re-running.
+dragging the grabber (which already calls `Keyboard.dismiss()`). **Confirmed for the sheet on both
+platforms.** The blind editor carried the same prop separately and was missed — that's [D10](#d10).
 
 <a id="d7"></a>
 ### D7 · Blinds are too small on the Live Activity · §6
@@ -355,7 +402,92 @@ player actually reads off a lock screen — the countdown only says when to look
 next level a clear step below at `.caption`. Both get `lineLimit(1)` + a minimum scale factor so a
 late-structure `5000/10000` shrinks itself rather than wrapping or squeezing the timer. Android's
 expanded notification got the same treatment (15sp → 22sp, 12sp → 13sp) to keep the two surfaces
-matched. **Re-test on both**, and specifically at a high blind level where the numbers are longest.
+matched. **Confirmed on both platforms.**
+
+<a id="d8"></a>
+### D8 · Android never scrolls a focused field clear of the keypad · §5
+
+"When the input field is at the bottom of the screen and the numpad appears, the numpad is over the
+input field so the input field is not visible anymore. In all locations."
+
+Android used to get this for free: `android:windowSoftInputMode="adjustResize"` shrank the window,
+the native ScrollView shrank with it, and Android's own focus handling scrolled the field back into
+view. **Edge-to-edge ended that.** Android 15 (API 35) makes edge-to-edge mandatory and `adjustResize`
+a no-op alongside it — the window keeps its full height and the keyboard arrives as an inset the app
+is expected to consume. Nothing consumed it, so the field ended up under the keypad with no way to
+reach it: no room below to scroll into, and nothing asking the list to scroll either. Same root cause
+`Sheet.tsx` already worked around inside its own modal window; the app's two main scrollers never
+got the same treatment.
+
+**Fixed** — a shared `useKeyboardFocusScroll` hook does both halves the platform stopped doing: it
+returns the keyboard inset to pad the scroller with (so the bottom-most field has somewhere to scroll
+to) and scrolls the currently-focused input up by however much the keypad covers it, plus 24pt. Wired
+into Settings and the blind editor. Android-only — iOS's `automaticallyAdjustKeyboardInsets` already
+does both, and its column passes. The visible-bottom maths is lifted from `useKeyboardNudge`,
+including its two hard-won corrections (Android's keyboard height excludes the navigation bar; its
+`measureInWindow` frame excludes the status bar while `Dimensions.height` includes it).
+
+**Re-test on Android:** round duration in Settings on a short screen, the last row of a 30-level
+blind schedule, and the generator sheet — the field should end up above the keypad every time.
+
+<a id="d9"></a>
+### D9 · The Done bar looks bolted onto the keyboard · §5
+
+"Really ugly UI, because the numpad has border radius and the done bar is a vertical block, so there
+is some spacing in between."
+
+The keyboard is a rounded, inset panel on current iOS. A full-width opaque strip pinned above it
+can't line its square corners up with that, so the two read as unrelated slabs with a gap between
+them — and no radius guessed here would track a shape the OS is free to change.
+
+**Fixed** by not competing with it: the bar is transparent (it's only positioning now) and the action
+is a rounded pill floating above the keypad, right-aligned. Nothing has an edge that can disagree
+with the keyboard's, and it matches how iOS's own floating keyboard accessories look.
+
+<a id="d10"></a>
+### D10 · The blind editor drops the keypad on scroll · §5, both platforms
+
+"Only doesn't work on the blind structure page when changing a small or big blind. In that case the
+numpad disappears completely."
+
+[D6](#d6) fixed the sheet by moving it off `keyboardDismissMode="on-drag"`. The blind editor's
+`FlatList` had the same prop, set separately and long before, so it kept the old behaviour — and it's
+the worst place for it, since checking the level above or below the one you're editing is the whole
+reason to scroll a schedule.
+
+**Fixed** — `"none"` there too, for the reason [D6](#d6) sets out. Both platforms.
+
+<a id="d11"></a>
+### D11 · Keep-awake never released on pause or stop · §10, both platforms
+
+"Doesn't go to sleep, or maybe my iPhone settings are wrong."
+
+Not the phone settings — a real race, and the fact that it reproduced identically on both platforms
+is the tell. Acquiring the lock is async; releasing it was fired independently in the effect cleanup.
+Pause a round quickly enough and the release ran *before* the acquire resolved, releasing a lock that
+didn't exist yet — then the acquire completed after it and pinned the screen on with nothing left to
+turn it off. Once in that state it stays there for the session, which matches "stopping doesn't
+release it either".
+
+**Fixed** — the release is chained onto the acquire's promise, so the two can't invert regardless of
+how fast the pause lands.
+
+**Re-test:** set a short auto-lock first (see §10). Run a round, pause it, leave the phone alone —
+it should sleep on schedule. Then the same for stop/reset.
+
+<a id="d12"></a>
+### D12 · Rounds shorter than 10 seconds were silently rewritten · §4
+
+"It's not possible to set a timer less than 10 seconds. I am able to fill in 5 and when I get back it
+shows 10."
+
+`MIN_ROUND_DURATION_SECONDS` was 10 and `clampRoundDuration` applied it without saying anything, so
+the field accepted 5 and the stored value came back 10. A rule the UI never states, applied silently
+after the fact, reads as a broken field.
+
+**Fixed** — the floor is 1 second. Zero stays excluded: a zero-length round has no meaningful expiry
+and divides by zero in the missed-round maths. Two core tests pin the new behaviour (a 5-second round
+survives; 0 still clamps up).
 
 ---
 

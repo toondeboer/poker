@@ -1,5 +1,5 @@
 // src/components/blinds/BlindStructureScreen.tsx
-import { useCallback, useState } from "react";
+import { useCallback, useRef, useState } from "react";
 import {
   Alert,
   FlatList,
@@ -12,6 +12,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { BlindLevel } from "@poker/core";
 import { useBlinds } from "@/src/contexts/BlindsContext";
 import { useUnsavedChangesGuard } from "@/src/hooks/useUnsavedChangesGuard";
+import { useKeyboardFocusScroll } from "@/src/hooks/useKeyboardFocusScroll";
 import {
   colors,
   isTabletWidth,
@@ -161,9 +162,31 @@ export function BlindStructureScreen({
 
   const centred = isTablet && styles.centred;
 
+  // Editing a blind on a row near the bottom of the screen used to put the row
+  // under the keypad with no way to reach it — see useKeyboardFocusScroll for
+  // why Android stopped handling that itself.
+  const listRef = useRef<FlatList<BlindLevel>>(null);
+  const scrollOffsetRef = useRef(0);
+  const containerRef = useRef<View>(null);
+  const { keyboardInset } = useKeyboardFocusScroll({
+    scrollBy: (delta) =>
+      listRef.current?.scrollToOffset({
+        offset: scrollOffsetRef.current + delta,
+        animated: true,
+      }),
+    containerRef,
+    bottomInset: insets.bottom,
+    topInset: insets.top,
+  });
+
   return (
-    <View style={styles.container}>
+    <View style={styles.container} ref={containerRef}>
       <FlatList
+        ref={listRef}
+        onScroll={(e) => {
+          scrollOffsetRef.current = e.nativeEvent.contentOffset.y;
+        }}
+        scrollEventThrottle={16}
         data={customBlindLevels}
         keyExtractor={(_, index) => String(index)}
         renderItem={renderItem}
@@ -189,13 +212,21 @@ export function BlindStructureScreen({
           {
             paddingLeft: space.lg + insets.left,
             paddingRight: space.lg + insets.right,
-            // Clear the sticky footer when it's up, the home indicator when it isn't.
+            // Clear the sticky footer when it's up, the home indicator when it
+            // isn't — plus the keypad on Android, which otherwise leaves the
+            // last rows with nowhere to scroll to.
             paddingBottom:
-              space.xl + (footerHeight > 0 ? footerHeight : insets.bottom),
+              space.xl +
+              (footerHeight > 0 ? footerHeight : insets.bottom) +
+              keyboardInset,
           },
         ]}
         keyboardShouldPersistTaps="handled"
-        keyboardDismissMode="on-drag"
+        // "none", not "on-drag": these rows are a form, and the blind you want
+        // to check while editing another is usually a scroll away — throwing the
+        // keypad out the moment you drag makes editing a schedule a fight. Same
+        // reasoning, and same value, as the sheet's scroller.
+        keyboardDismissMode="none"
         automaticallyAdjustKeyboardInsets
         // Clipped rows containing TextInputs misbehave on Android.
         removeClippedSubviews={false}

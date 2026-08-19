@@ -52,6 +52,9 @@ platform-tagged heading (e.g. `## [1.1.3] - 2026-07-20 — Android`) when you cu
   button.
 
 ### Changed
+- Round duration can now be as short as **1 second**, down from a 10-second floor that rewrote
+  anything shorter without saying so — typing 5 and coming back to 10 reads as a broken field rather
+  than a rule.
 - Mobile: the dimmed backdrop behind those sheets now **fades in place** instead of sliding up with
   the sheet, and lightens as you drag one down, so the sheet reads as sitting over the screen rather
   than being part of it.
@@ -197,9 +200,19 @@ platform-tagged heading (e.g. `## [1.1.3] - 2026-07-20 — Android`) when you cu
   space left above the keyboard, so it couldn't scroll and its top went off-screen. Scrolling a
   sheet no longer dismisses the keypad either — the fields above and below the one you're typing in
   are the reason to scroll, so throwing the keyboard away mid-gesture cost two moves instead of one.
-- iOS: number fields now carry a **Done** bar above the keypad, since iOS's number pad has no
-  Return key and nothing else dismissed it short of tapping elsewhere. It appears the first time
-  the keypad opens (it used to only turn up on the second), and the keypad is dark to match it.
+- iOS: number fields now carry a **Done** button above the keypad, since iOS's number pad has no
+  Return key and nothing else dismissed it short of tapping elsewhere. It's a floating pill rather
+  than a full-width bar, so it sits with the keyboard's rounded edge instead of squaring off against
+  it, and the keypad is dark to match the app.
+- Android: focusing a field near the bottom of the screen now scrolls it clear of the keypad, in
+  Settings and the blind editor as well as the sheets. Android used to do this itself, and stopped
+  when edge-to-edge became mandatory — the keyboard no longer resizes the window, so a field low on
+  the page simply sat underneath it with no way to scroll to it.
+- Both platforms: scrolling the blind editor no longer throws the keypad away mid-edit — the level
+  above or below the one you're changing is usually the reason to scroll.
+- Both platforms: pausing or stopping a round now lets the screen sleep again. The lock was acquired
+  and released asynchronously without ordering between them, so a quick pause released a lock that
+  hadn't finished being taken, and the screen stayed on for the rest of the session.
 - Mobile: reopening the app after a round ran out while it was closed now always shows the
   end-of-round alert. If the alarm sound hadn't finished loading at that moment — likely on the
   reopen path specifically — the level used to advance silently with no alert and no sound, which
