@@ -61,8 +61,12 @@ A fix landing never upgrades a row on its own: ❌ becomes 🔧, and only a re-t
 | 🚫 | **Deep-link cold launch**, both platforms — the dev launcher owns the URL scheme, needs a release build | §9 |
 
 None of these is blocked on code. They're the reason the first store build goes to **internal
-testing / TestFlight rather than straight to production** — see the release steps in
-[CLAUDE.md](./CLAUDE.md#release-process).
+testing / TestFlight rather than straight to production** — `eas submit --profile internal`, see the
+release steps in [CLAUDE.md](./CLAUDE.md#release-process).
+
+**Also worth re-running on that build, even though they already passed on a dev client:** §10's
+keep-awake rows (this is the first release-config build, and [D11](#d11)'s fix has never been seen
+working) and §9's cold-launch row (the dev launcher distorts both).
 
 **Accepted for 1.1.4, not held for** (decided 2026-08-19): [D11](#d11) — a paused round leaves the
 screen lit while the app is in the foreground. Its fix is in the branch but never confirmed on

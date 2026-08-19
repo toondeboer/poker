@@ -138,16 +138,31 @@ Mobile releases are batched on a short-lived branch per version, not shipped str
      in one heading), add the compare link at the bottom.
   3. Update `ROADMAP.md` if it references the release.
   4. Commit those release-prep changes on the release branch.
-  5. `eas build` + `eas submit` **from the release branch** — EAS builds whatever's checked out
-     locally, so make sure `release/<version>` is checked out when you run it.
-  6. Once submission succeeds: merge the standing `release/<version>` → `main` PR (update its
-     description one last time first), then tag the resulting `main` commit — not just wherever
+  5. `eas build` **from the release branch** — EAS builds whatever's checked out locally, so make
+     sure `release/<version>` is checked out when you run it.
+  6. **Submit to the testing track first, never straight to production:**
+     `eas submit --profile internal`. That profile puts Android on Play's `internal` track; iOS is
+     the same upload either way, since every build uploaded to App Store Connect lands in TestFlight
+     and submitting for App Store *review* is a separate, deliberate action in ASC afterwards.
+     - The reason this matters is Android-only and asymmetric: **Play Billing can't be exercised
+       from a local build at all**, so purchase/restore/cancel are unverifiable until the app is on
+       a Play track (uploaded, matching signing key, tester on the licence-testing list). Submitting
+       with the `production` profile would put unverified billing on the production track.
+     - Run whatever rows in [RELEASE_TESTING.md](./RELEASE_TESTING.md) are marked 🚫 — they exist
+       precisely because they need this build — plus anything a dev client couldn't show honestly
+       (deep-link cold launch, since the dev launcher owns the URL scheme).
+  7. Promote to production once those pass: Play Console's release dashboard, and "Submit for
+     review" in App Store Connect. `eas submit --profile production` also works for Android if you
+     prefer the CLI.
+  8. Once the release is actually live: merge the standing `release/<version>` → `main` PR (update
+     its description one last time first), then tag the built commit — not just wherever
      the version string changed, since one version number can span several commits before the one
      that actually ships:
      `git tag -a v<version> <built-commit-sha> -m "v<version> (<platform>, build <n>)"` then
      `git push origin v<version>`. Find the built commit via `eas build:view <id>` or the EAS
-     build page.
-  7. Delete `release/<version>`. Cut the next `release/<version>` from the new `main` tip when you
+     build page. **The tag is what "live" means now** (see the top of this section), so it has to
+     point at the commit that was actually built, not at the merge.
+  9. Delete `release/<version>`. Cut the next `release/<version>` from the new `main` tip when you
      start batching the next round of work.
 - **Hotfixing the live version while a release branch is mid-cycle**: branch `hotfix/<version>`
   **from the `v<version>` tag of what's actually live** — `git checkout -b hotfix/1.1.5 v1.1.4` —
