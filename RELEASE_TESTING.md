@@ -14,9 +14,10 @@ see [Open defects](#open-defects) · ☐ not run yet · n/a doesn't apply on thi
 iPad Pro 11-inch and iPhone SE (simulators, layout only); **iOS on a real device — iPhone 13 Pro,
 `npm run ios:device`** — which is where every ❌ below was found.
 
-**All four defects have since been addressed** (D4 by descoping the feature) and every one of them
-is marked **re-test**: none has been confirmed on hardware. They need a **rebuilt dev client on
-both platforms**, since the descope changes Swift *and* Java. §6's button row is gone for good.
+**Second iPhone 13 Pro pass, after the fixes:** D3 confirmed fixed and D4's descope confirmed in
+place. D1 turned out to be untestable as configured rather than unfixed, and D2's fix was only half
+right — both are re-worked and listed as **D5–D6** below, along with the Live Activity's blind
+sizing. Everything from that second round is again **unverified on hardware**.
 
 ---
 
@@ -43,7 +44,7 @@ sandbox/test account.
 | | iOS | Android |
 |---|---|---|
 | Paywall opens from all three entry points (Pro card, Presets, Sound Pack) | ✅ | ☐ |
-| Price string renders (not blank, not `one-time` alone) | ❌ **[D1](#d1)** → fixed, **re-test** | ☐ |
+| Price string renders (not blank, not `one-time` alone) | ❌ **[D1](#d1)** → fixed; couldn't be seen locally because `FORCE_FREE_IN_DEV` suppressed the fetch, now fixed too — **re-test locally**, no TestFlight needed | ☐ |
 | **Purchase completes** and Pro unlocks (ads gone, Presets + Sound Pack usable) | ✅ | ☐ |
 | **Restore purchases** works on a fresh install of the same account | ✅ | ☐ |
 | Cancelling a purchase leaves the app in a sane state, no error toast | ☐ not reachable locally — a sandbox purchase can't be cancelled once the sheet is confirmed | ☐ |
@@ -105,16 +106,18 @@ layout is covered separately in §7.
 
 ## 5. Keyboard behaviour
 
-The Presets nudge is fixed and confirmed on both platforms. The sheet path is fixed on Android and
-now fixed on iOS too, unconfirmed on hardware — see [D2](#d2).
+The Presets nudge is fixed and confirmed on both platforms. The sheet's own sizing/scrolling is
+fixed and confirmed on iOS ([D2](#d2)); what's left is keypad behaviour — the Done bar ([D5](#d5))
+and scrolling without losing the keypad ([D6](#d6)), both fixed in code and unconfirmed.
 
 | | iOS | Android |
 |---|---|---|
 | Focus the preset-name field → **Save Preset is fully visible** above the keyboard | ✅ | ✅ fixed (see ROADMAP.md) — verified by screenshot, full clean breathing room now. Maestro: `keyboard-preset-nudge.yaml` (screenshot-based; `assertVisible` alone can't prove full IME clearance) |
 | No dead space / over-scroll after the nudge | ✅ | ✅ verified by the same screenshot — clearance matches `BREATHING_ROOM = 24`, no excess |
 | Same on a **small** phone (iPhone SE class / 720×1280) | ☐ still to do in the iPhone SE simulator | ☐ |
-| Number fields show a **Done** bar above the keypad (iOS) that dismisses it | ☐ | n/a |
-| Generator sheet fields usable with the keyboard up | ❌ **[D2](#d2)** → fixed, **re-test** | ✅ fixed (Maestro: `generator-keyboard.yaml`) — was hidden behind the keyboard, see ROADMAP.md "Settings page UX — blind levels" |
+| Number fields show a **Done** bar above the keypad (iOS) that dismisses it, on the **first** open | ❌ **[D5](#d5)** → fixed, **re-test** | n/a |
+| Scrolling the sheet with the keypad up **keeps it up** | ❌ **[D6](#d6)** → fixed, **re-test** | ☐ re-test: the dismiss mode changed on both platforms |
+| Generator sheet fields usable with the keyboard up | ✅ fixed — sheet resizes and scrolls correctly; the remaining complaints were [D5](#d5) and [D6](#d6) | ✅ fixed (Maestro: `generator-keyboard.yaml`) — was hidden behind the keyboard, see ROADMAP.md "Settings page UX — blind levels" |
 
 ---
 
@@ -123,9 +126,10 @@ now fixed on iOS too, unconfirmed on hardware — see [D2](#d2).
 | | iOS | Android |
 |---|---|---|
 | Round expiry fires the alert + alarm with the app **foregrounded** | ☑ automated (Maestro: `notification-foreground-expiry-ios.yaml`) | ☑ automated (Maestro: `notification-foreground-expiry.yaml`) |
-| Expiry while **backgrounded** advances **exactly one** level, and says so if more time passed | ❌ **[D3](#d3)** → fixed, **re-test** | tried to automate, blocked by dev-client-only noise, not a real bug — see note below |
+| Expiry while **backgrounded** advances **exactly one** level, and says so if more time passed | ✅ **[D3](#d3)** fixed and confirmed on device | tried to automate, blocked by dev-client-only noise, not a real bug — see note below |
 | ~~Pause / Resume / Stop from the notification / Live Activity~~ | n/a **[descoped](#d4)** | n/a **[descoped](#d4)** |
-| Live Activity / notification show the right level + time, and the "open the app" caption | ☐ | ☐ |
+| Live Activity / notification show the right level + time, and the "open the app" caption | ✅ confirmed on device | ☐ |
+| Blinds are the most prominent thing on it, after the countdown | ❌ **[D7](#d7)** → enlarged, **re-test** | ☐ re-test: Android's expanded notification got the same change |
 | **After a level jump, the pending "time's up" notification names the _new_ next blind** — the fix in this release, never verified on-device | ✅ | n/a |
 | Notification survives swipe-away from Recents | n/a | ☐ |
 
@@ -185,11 +189,26 @@ Android tablet (2560×1600) verified against a freshly built APK. iPad now verif
 
 ---
 
+## 10. Screen stays awake
+
+New in this release: the screen is held on while a round counts down, and released on pause/stop.
+Untested on hardware.
+
+| | iOS | Android |
+|---|---|---|
+| Screen doesn't sleep while a round is running, left untouched past the OS timeout | ☐ | ☐ |
+| Pausing releases it — the screen sleeps normally again | ☐ | ☐ |
+| Stopping/resetting releases it too | ☐ | ☐ |
+| Leaving the timer screen mid-round doesn't leave the lock pinned on elsewhere in the app | ☐ | ☐ |
+
+---
+
 ## Open defects
 
-Found on the iPhone 13 Pro device pass; none reproduce on Android, where the equivalent rows pass.
-All four are now addressed in code and **none is confirmed on hardware** — re-running them is what
-clears the iOS submission.
+**D1–D4** came from the first iPhone 13 Pro pass; **D5–D7** from the second, re-testing the fixes.
+None reproduces on Android, where the equivalent rows pass. D3 and D4 are confirmed done on device.
+The rest are addressed in code and **unverified on hardware** — re-running them clears the iOS
+submission.
 
 <a id="d1"></a>
 ### D1 · Paywall shows "one-time" with no price · §1
@@ -202,9 +221,14 @@ and nothing logged — so a fetch that loses the race with SDK configuration or 
 the paywall permanently priceless for that launch. The fallback string is also wrong on its own
 terms: "one-time" alone isn't a price.
 
-**Fixed** — refetched on every sheet open, failures logged rather than swallowed, and the
-price-less fallback is now plain "Unlock Pro". **Re-test needs a sandbox account**, since only a
-real store lookup proves the price renders.
+**Fixed, then found to be untestable as configured.** The code fix stands: refetched on every sheet
+open, failures logged rather than swallowed, price-less fallback now plain "Unlock Pro". But the
+re-test came back "can't see a price in local development at all" — because `FORCE_FREE_IN_DEV` was
+on, and both it and `FORCE_PRO_IN_DEV` skipped the price fetch along with the entitlement check.
+That's backwards: forcing the free experience exists precisely to *look at* the paywall on a device
+whose account already owns Pro, and a paywall with no price is not the paywall. The price is a
+read-only store lookup that grants nothing, so it now runs regardless of either flag; only the
+entitlement is forced. **Re-test locally** with a sandbox account — TestFlight isn't needed.
 
 <a id="d2"></a>
 ### D2 · Generator sheet is unusable with the keyboard up · §5
@@ -217,9 +241,10 @@ Android was fixed for this release by tracking the keyboard height directly (`Sh
 `androidKeyboardHeight`); iOS was left on `KeyboardAvoidingView behavior="padding"`, which moves the
 sheet without shrinking the scroll region.
 
-**Fixed** — one keyboard path for both platforms, the scroll cap now derived from the space left
-above the keyboard minus measured chrome, and a Done bar on iOS number fields. **Re-test both
-platforms**: Android's flow changed too, so `generator-keyboard.yaml` should be re-run.
+**Fixed** — one keyboard path for both platforms, and the scroll cap is now the space left above
+the keyboard minus measured chrome. The sheet itself resizes and scrolls correctly on device. The
+two things the re-test caught are about the keypad rather than the sheet, and are written up as
+[D5](#d5) and [D6](#d6).
 
 <a id="d3"></a>
 ### D3 · Backgrounded expiry only ever advances one level · §6
@@ -272,19 +297,65 @@ buttons are ever revisited.
 **Re-test:** confirm no buttons appear on either surface, that both show the right level and time,
 and that the "open the app" caption is there and not clipped.
 
----
+<a id="d5"></a>
+### D5 · The Done bar only appears the second time you open the keypad · §5
 
-## 10. Screen stays awake
+"Really flaky and ugly, only appears after opening the number pad for the second time."
 
-New in this release: the screen is held on while a round counts down, and released on pause/stop.
-Untested on hardware.
+Not flaky — ordered, which is worse to debug. The `InputAccessoryView` was rendered only while the
+field was `focused`, and UIKit attaches an accessory when the keyboard is **presented**. On the
+first focus the view doesn't exist yet, so the keypad comes up bare; the render that adds it happens
+immediately after, and by the second focus it's still mounted, so it works from then on.
 
-| | iOS | Android |
-|---|---|---|
-| Screen doesn't sleep while a round is running, left untouched past the OS timeout | ☐ | ☐ |
-| Pausing releases it — the screen sleeps normally again | ☐ | ☐ |
-| Stopping/resetting releases it too | ☐ | ☐ |
-| Leaving the timer screen mid-round doesn't leave the lock pinned on elsewhere in the app | ☐ | ☐ |
+**Is there a native way to hide the keypad instead?** No — `number-pad` has no Return key, and iOS
+offers no built-in dismiss for it. `inputAccessoryView` *is* UIKit's own answer, and the toolbar
+Apple's own apps put above numeric fields is exactly this. The remaining choice is a different
+keyboard: `numbers-and-punctuation` has a Return key, but trades the big keypad for cramped keys to
+enter a number with. The bar is the right mechanism; it was just built wrong.
+
+**Fixed** — the accessory renders unconditionally, so it exists before the keypad is ever presented.
+It's also restyled to UIKit's own toolbar proportions (44pt, hairline separator, single right-aligned
+action at 17pt) and the keypad is now `keyboardAppearance="dark"`, so a dark bar sits under a dark
+keyboard instead of a dark bar under a light one — which is most of what read as "ugly".
+
+Kept per-field rather than one shared bar at the root: it costs a few offscreen views on a
+field-heavy screen, and it guarantees the accessory is in the same React tree, and on iOS the same
+`UIWindow`, as its input — including inside a `Modal`, where a root-mounted one would have to
+resolve across windows.
+
+<a id="d6"></a>
+### D6 · Scrolling the sheet dismissed the keypad · §5
+
+"When I try to scroll, immediately the num pad disappears. This is not good UX."
+
+Self-inflicted, by `keyboardDismissMode="on-drag"` added with the D2 fix.
+
+**What good apps do here:** the mode is right for scrolling *content* — Messages, Mail's message
+list — where the keyboard is incidental to what you're reading, so getting rid of it by flicking is
+what you want. A **form** behaves the opposite way: the fields above and below the one you're in are
+the reason you're scrolling, so iOS form sheets keep the keyboard up and offer an explicit Done
+(which is what [D5](#d5)'s bar is). `on-drag` meant the content jumped, the field being edited moved
+under your finger, and reaching the next field cost two gestures instead of one.
+
+**Fixed** — `keyboardDismissMode="none"`. Dismissal comes from the Done bar, tapping outside, and
+dragging the grabber (which already calls `Keyboard.dismiss()`). Applies to both platforms, so
+Android's `generator-keyboard.yaml` is worth re-running.
+
+<a id="d7"></a>
+### D7 · Blinds are too small on the Live Activity · §6
+
+"Maybe the blind levels show a bit small. It's one of the most important features of this app, so it
+can be shown a bit bigger. Also because there is space left in the live activity."
+
+Agreed, and the space is there because the descoped buttons vacated a row. The blinds are what a
+player actually reads off a lock screen — the countdown only says when to look again — and at
+`.subheadline` against a `.title2` timer they were losing that contest.
+
+**Fixed** — current blinds go to `.title2` bold monospaced, matching the timer's weight, with the
+next level a clear step below at `.caption`. Both get `lineLimit(1)` + a minimum scale factor so a
+late-structure `5000/10000` shrinks itself rather than wrapping or squeezing the timer. Android's
+expanded notification got the same treatment (15sp → 22sp, 12sp → 13sp) to keep the two surfaces
+matched. **Re-test on both**, and specifically at a high blind level where the numbers are longest.
 
 ---
 

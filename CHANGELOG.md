@@ -89,6 +89,11 @@ platform-tagged heading (e.g. `## [1.1.3] - 2026-07-20 — Android`) when you cu
 - Mobile: the paused state's icon/timer-text color on both the Android notification and iOS Live
   Activity changed from gray to amber, simplifying the palette to green (active) / amber (paused
   or low-time) / red (expired).
+- Mobile: the blinds are much larger on the iOS Live Activity and the Android notification, now
+  matching the countdown's weight rather than sitting a size below it. They're what you actually
+  read off a lock screen — the countdown only tells you when to look again — and there's room for
+  it since those surfaces no longer carry buttons. Long late-structure numbers shrink to fit
+  instead of wrapping.
 
 ### Fixed
 - Mobile: on Android, focusing the preset-name field on Settings only scrolled "Save Preset"
@@ -189,8 +194,12 @@ platform-tagged heading (e.g. `## [1.1.3] - 2026-07-20 — Android`) when you cu
   succeeds by the time Unlock is tapped, which is why buying still worked. It's re-attempted each
   time the sheet opens, and with no price the button simply reads "Unlock Pro".
 - iOS: the structure generator's sheet is usable with the keyboard up. It didn't shrink to the
-  space left above the keyboard, so it couldn't scroll and its top went off-screen; number fields
-  also had no way to dismiss the keypad short of tapping elsewhere, and now carry a Done bar.
+  space left above the keyboard, so it couldn't scroll and its top went off-screen. Scrolling a
+  sheet no longer dismisses the keypad either — the fields above and below the one you're typing in
+  are the reason to scroll, so throwing the keyboard away mid-gesture cost two moves instead of one.
+- iOS: number fields now carry a **Done** bar above the keypad, since iOS's number pad has no
+  Return key and nothing else dismissed it short of tapping elsewhere. It appears the first time
+  the keypad opens (it used to only turn up on the second), and the keypad is dark to match it.
 - Mobile: reopening the app after a round ran out while it was closed now always shows the
   end-of-round alert. If the alarm sound hadn't finished loading at that moment — likely on the
   reopen path specifically — the level used to advance silently with no alert and no sound, which

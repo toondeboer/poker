@@ -64,17 +64,19 @@
 
             <TextView
                 android:id="@+id/timer_expanded_current_blinds"
+                android:singleLine="true"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:textSize="15sp"
+                android:textSize="22sp"
                 android:textStyle="bold"
                 android:textColor="?android:attr/textColorPrimary"/>
 
             <TextView
                 android:id="@+id/timer_expanded_next_blinds"
+                android:singleLine="true"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:textSize="12sp"
+                android:textSize="13sp"
                 android:textColor="?android:attr/textColorSecondary"/>
         </LinearLayout>
     </LinearLayout>

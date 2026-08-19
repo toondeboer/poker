@@ -9,19 +9,13 @@ import {
   Text,
   View,
 } from "react-native";
-import { colors, radius, space, text } from "@/src/theme";
+import { colors, space, text } from "@/src/theme";
 import { TextField, TextFieldProps } from "./TextField";
 
 /**
- * iOS's `number-pad` keyboard has no Return key, so a numeric field has no
- * keyboard-native way out — the only escape is tapping somewhere else, which
- * inside a bottom sheet often means tapping the backdrop and losing the sheet
- * along with the keyboard. An `InputAccessoryView` puts a Done bar directly
- * above the keypad instead. Android's IME has its own dismiss affordance in the
- * navigation bar, so this is iOS-only.
- *
- * Rendered only while the field is focused: an accessory per mounted field
- * would mean 60 of them in a 30-row blind editor, all but one inert.
+ * Per-instance id for the Done bar below. A plain counter rather than `useId`:
+ * the value becomes a native view id, and React's own ids carry delimiter
+ * characters that have no business being one.
  */
 let nextAccessoryId = 0;
 
@@ -33,6 +27,23 @@ let nextAccessoryId = 0;
  * field stays empty; `onChangeValue` fires with the sanitised number as you type
  * (so edits still flow through immediately), and a blur on an empty/garbage
  * field snaps the display back to the last good value.
+ *
+ * **The Done bar.** iOS's `number-pad` has no Return key — there is no native
+ * key that dismisses it, and `inputAccessoryView` (which this is) is UIKit's own
+ * answer to that, the same one Apple's apps use. Two things about it are load-
+ * bearing:
+ *
+ * - It is rendered **unconditionally**, not only while focused. UIKit attaches
+ *   the accessory when the keyboard is *presented*, so a view that only mounts
+ *   in response to focus does not exist yet the first time — which is exactly
+ *   the "only shows up the second time you open the keypad" flakiness. By the
+ *   second focus it's still mounted from the first, so it works, which makes the
+ *   bug look intermittent rather than ordered.
+ * - The id is per instance rather than one shared bar mounted at the root.
+ *   That's a few extra offscreen views on a screen full of fields, and it buys
+ *   certainty: this field's accessory is always in the same React tree — and on
+ *   iOS the same `UIWindow` — as the input it belongs to, including inside a
+ *   `Modal`, where a root-mounted one would have to resolve across windows.
  */
 export function NumberField({
   value,
@@ -46,9 +57,6 @@ export function NumberField({
 }) {
   const [raw, setRaw] = useState(String(value));
   const editingRef = useRef(false);
-  const [focused, setFocused] = useState(false);
-  // Plain counter rather than `useId`: the value becomes a native view id, and
-  // React's own ids carry delimiter characters that have no business being one.
   const [accessoryId] = useState(
     () => `number-field-done-${nextAccessoryId++}`,
   );
@@ -72,17 +80,19 @@ export function NumberField({
       <TextField
         {...fieldProps}
         keyboardType="number-pad"
+        // Dark keypad to match the app and the bar above it — the default light
+        // keypad under a dark accessory bar is what made the pair look bolted
+        // together.
+        keyboardAppearance="dark"
         inputAccessoryViewID={Platform.OS === "ios" ? accessoryId : undefined}
         value={raw}
         onChangeText={handleChangeText}
         onFocus={(e) => {
           editingRef.current = true;
-          setFocused(true);
           fieldProps.onFocus?.(e);
         }}
         onBlur={(e) => {
           editingRef.current = false;
-          setFocused(false);
           // `value` is already correct here: every keystroke's onChangeText
           // above already pushed the min-floored number through onChangeValue,
           // and a parent applying its own extra clamp (e.g. DurationField's
@@ -95,14 +105,13 @@ export function NumberField({
           fieldProps.onBlur?.(e);
         }}
       />
-      {Platform.OS === "ios" && focused && (
+      {Platform.OS === "ios" && (
         <InputAccessoryView nativeID={accessoryId}>
           <View style={styles.accessoryBar}>
             <Pressable
               onPress={() => Keyboard.dismiss()}
               accessibilityRole="button"
               accessibilityLabel="Done editing"
-              hitSlop={space.sm}
               style={styles.accessoryButton}
             >
               <Text style={styles.accessoryText}>Done</Text>
@@ -115,19 +124,29 @@ export function NumberField({
 }
 
 const styles = StyleSheet.create({
+  // Sized and weighted like UIKit's own keyboard toolbar: 44pt tall, hairline
+  // separator on top, single right-aligned action.
   accessoryBar: {
+    height: 44,
     flexDirection: "row",
+    alignItems: "center",
     justifyContent: "flex-end",
     backgroundColor: colors.surfaceSolid,
-    borderTopWidth: 1,
+    borderTopWidth: StyleSheet.hairlineWidth,
     borderTopColor: colors.border,
     paddingHorizontal: space.md,
-    paddingVertical: space.sm,
   },
   accessoryButton: {
+    // Padding rather than hitSlop: this is the full-height tap target, and it
+    // needs to look like a comfortably-sized button, not just behave as one.
     paddingHorizontal: space.md,
-    paddingVertical: space.xs,
-    borderRadius: radius.sm,
+    justifyContent: "center",
+    alignSelf: "stretch",
   },
-  accessoryText: { ...text.label, color: colors.accent, fontWeight: "600" },
+  accessoryText: {
+    ...text.label,
+    color: colors.accent,
+    fontWeight: "600",
+    fontSize: 17,
+  },
 });

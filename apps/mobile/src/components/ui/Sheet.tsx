@@ -293,11 +293,16 @@ export function Sheet({
               style={{ maxHeight: scrollMaxHeight }}
               contentContainerStyle={styles.scrollContent}
               keyboardShouldPersistTaps="handled"
-              // Swiping the content down puts the keyboard away, which is the
-              // gesture people reach for first — and on a numeric keypad, which
-              // has no Return key, it's one of only two ways out (the other
-              // being the Done bar NumberField adds on iOS).
-              keyboardDismissMode="on-drag"
+              // "none", not "on-drag". A sheet like this is a *form*: the fields
+              // above and below the one you're typing in are the reason you'd
+              // scroll at all, and "on-drag" put the keyboard away the instant
+              // you tried — so the content jumped, the field you were editing
+              // moved, and reaching the next field cost two gestures instead of
+              // one. That mode belongs to scrolling *content* (Messages, Mail's
+              // list), where the keyboard is incidental to what you're reading;
+              // iOS form sheets keep it up and offer an explicit Done, which is
+              // what the accessory bar on NumberField is for.
+              keyboardDismissMode="none"
               showsVerticalScrollIndicator={false}
               bounces={false}
             >

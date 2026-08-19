@@ -20,7 +20,7 @@ const FORCE_PRO_IN_DEV: boolean = __DEV__ && false;
 // into the test device already owns `pro_lifetime` (a one-time purchase, so
 // it persists across reinstalls) and you want to see the ad-supported UI
 // anyway. Only one of these two should be true at a time.
-const FORCE_FREE_IN_DEV: boolean = __DEV__ && false;
+const FORCE_FREE_IN_DEV: boolean = __DEV__ && true;
 
 type PremiumContextValue = {
   /** True once the user has unlocked the Pro (ad-free) tier. */
@@ -61,8 +61,14 @@ export function PremiumProvider({
   // renders from it, and it must be readable synchronously at call time.
   const priceFetchInFlightRef = useRef(false);
 
+  // Deliberately NOT skipped under either FORCE_* flag. Fetching the price is a
+  // read-only store lookup that grants nothing, and the whole point of
+  // FORCE_FREE_IN_DEV is to look at the paywall you'd otherwise never see on a
+  // device whose account already owns Pro — a paywall with no price in it is not
+  // that paywall. Skipping it here (which is what the flags used to do, via the
+  // effect below returning early) is why the price looked unfetchable in local
+  // development and sent us looking at TestFlight.
   const refreshProPrice = useCallback(() => {
-    if (FORCE_PRO_IN_DEV || FORCE_FREE_IN_DEV) return;
     if (priceFetchInFlightRef.current) return;
     priceFetchInFlightRef.current = true;
     revenueCatProvider
@@ -79,14 +85,17 @@ export function PremiumProvider({
   }, []);
 
   useEffect(() => {
-    // Initial state above already reflects FORCE_PRO_IN_DEV (and FORCE_FREE_IN_DEV
-    // implies false, which is the same default) — just skip the real check.
+    // The price is fetched either way (see refreshProPrice). Only the
+    // *entitlement* is forced: the initial state above already reflects
+    // FORCE_PRO_IN_DEV, and FORCE_FREE_IN_DEV implies false, which is the same
+    // default — so skip the real check and the change listener that would
+    // overwrite it a moment later.
+    refreshProPrice();
     if (FORCE_PRO_IN_DEV || FORCE_FREE_IN_DEV) return;
     let active = true;
     revenueCatProvider.getEntitlements().then((entitlements: Entitlements) => {
       if (active) setIsPremium(entitlements.isPremium);
     });
-    refreshProPrice();
     const unsubscribe = revenueCatProvider.onChange((entitlements) => {
       setIsPremium(entitlements.isPremium);
     });

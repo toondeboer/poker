@@ -284,9 +284,44 @@ defects, tracked as D1–D4 in [RELEASE_TESTING.md](./RELEASE_TESTING.md#open-de
   counting down and releases on pause/stop. It was already in the tree as an `expo` dependency;
   declared in `apps/mobile` because that's the workspace importing it, and the lockfile moved by
   one line. Tagged (`poker-timer-round`) so releasing ours can't clobber another holder's lock.
-- ☐ **Not yet verified on device:** every fix above. All four need a rebuilt dev client (the
-  descope touches Swift and Java), and D1 additionally needs a sandbox account to see a real price
-  string.
+### Second pass (2026-08-19), re-testing the fixes
+
+D3 and D4 confirmed done on device. Three new items, D5–D7:
+
+- ✅ **D1 was fixed but untestable as configured.** The re-test came back "can't see a price in local
+  development at all" — because `FORCE_FREE_IN_DEV` was on, and both it and `FORCE_PRO_IN_DEV`
+  skipped the price fetch along with the entitlement check. That's backwards: forcing the free
+  experience exists precisely to *look at* the paywall on a device whose account already owns Pro,
+  and a paywall with no price isn't it. The price is a read-only store lookup that grants nothing,
+  so it now runs regardless of either flag — only the entitlement is forced. Worth remembering
+  before reaching for TestFlight to explain a missing price.
+- ✅ **D5 — the Done bar only appeared on the *second* keypad open.** Ordered, not flaky: the
+  `InputAccessoryView` was rendered only while the field was focused, and UIKit attaches an
+  accessory when the keyboard is *presented*, so on first focus it didn't exist yet. It's now
+  unconditional. Restyled to UIKit's toolbar proportions (44pt, hairline separator, one
+  right-aligned 17pt action) with `keyboardAppearance="dark"` on the input, which is most of what
+  read as "ugly" — a dark bar was sitting under a light keypad. Kept per-field rather than one
+  shared bar at the root: a few extra offscreen views buys the certainty that the accessory shares
+  a React tree, and on iOS a `UIWindow`, with its input even inside a `Modal`.
+  - **For the record, since it will come up again:** there is no native dismiss for iOS's
+    `number-pad`. It has no Return key, and `inputAccessoryView` is UIKit's own answer — the same
+    toolbar Apple's apps put above numeric fields. The only alternative is a different keyboard
+    (`numbers-and-punctuation` has a Return key but trades the big keypad for cramped keys).
+- ✅ **D6 — scrolling the sheet dismissed the keypad.** Self-inflicted, via the
+  `keyboardDismissMode="on-drag"` added with the D2 fix. That mode suits scrolling *content*
+  (Messages, Mail's list) where the keyboard is incidental to what you're reading; a **form** is the
+  opposite — the fields above and below the one you're in are the reason you're scrolling, so iOS
+  form sheets keep the keyboard up and offer an explicit Done. Now `"none"`; dismissal comes from
+  the Done bar, tapping outside, and the grabber. Changes Android too, so `generator-keyboard.yaml`
+  wants a re-run.
+- ✅ **D7 — blinds too small on the Live Activity.** The descoped buttons vacated a row and the
+  blinds took it: `.subheadline` → `.title2` bold monospaced for the current level, matching the
+  timer's weight, with the next level a step below at `.caption`. Both get `lineLimit(1)` and a
+  minimum scale factor so a late-structure `5000/10000` shrinks rather than wrapping or squeezing
+  the timer. Android's expanded notification matched (15sp → 22sp, 12sp → 13sp).
+- ☐ **Still unverified on device:** D1, D2, D5, D6, D7, and keep-awake — everything except D3 and
+  D4. Needs a rebuilt dev client (D7 touches Swift and Android resources), and D1 needs a sandbox
+  account.
 
 ## Live Activity / foreground service controls
 

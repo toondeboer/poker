@@ -154,22 +154,24 @@ struct PokerTimerWidget: Widget {
   }
 }
 
-// Rewritten to be meaningfully more compact than the original read-only-display design: the
-// Lock Screen presentation has a real (if not precisely documented) height budget, and stacking
-// a full header row, a full timer row, a full blinds row, the action buttons, AND the force-quit
-// caption as five independent rows overflowed it, clipping content at the top and bottom.
-// Timer + blinds are now one row instead of two, redundant labels ("Current Blinds", "Next",
-// "Time Remaining") are gone in favor of visual hierarchy (size/weight/color) doing that job, and
-// the caption lost its icon and its own row's worth of top padding.
+// Compact by necessity: the Lock Screen presentation has a real (if not precisely documented)
+// height budget, and the original design stacked a full header row, a full timer row, a full
+// blinds row, an action-button row AND a caption as five independent rows, which overflowed it and
+// clipped content at top and bottom. Timer + blinds share one row, and the redundant labels
+// ("Current Blinds", "Next", "Time Remaining") are gone in favour of visual hierarchy doing that
+// job.
+//
+// Removing the action buttons gave a row's worth of height back, and it went to the blinds: they
+// are what a player actually reads off a lock screen — the countdown says when to look again, the
+// blinds say what to post — and at .subheadline they were losing that contest to a .title2 timer.
+// Current blinds now match the timer's weight, with the next level a clear step below.
 struct PokerTimerLiveActivityView: View {
   let context: ActivityViewContext<PokerTimerWidgetAttributes>
 
   var body: some View {
     let visualState = TimerVisualState(context.state)
-    // Tight, uniform 4pt rhythm groups header+timer/blinds as one "info" block and
-    // buttons+caption as one "controls" block (the caption is specifically about the buttons
-    // above it, so keeping them close reads as one unit) — the extra .padding(.top, 6) on the
-    // buttons below is what actually separates the two blocks from each other.
+    // Tight, uniform 4pt rhythm groups the header and the timer/blinds row as one "info" block;
+    // the caption's own .padding(.top, 6) is what sets it apart as the footnote it is.
     VStack(alignment: .leading, spacing: 4) {
       // Header: tournament name + level, single thin line.
       HStack {
@@ -211,12 +213,20 @@ struct PokerTimerLiveActivityView: View {
 
         VStack(alignment: .trailing, spacing: 0) {
           Text("\(context.state.currentSmallBlind)/\(context.state.currentBigBlind)")
-            .font(.subheadline)
+            .font(.title2)
             .bold()
+            .monospacedDigit()
             .foregroundColor(.primary)
+            // Four- and five-figure blinds (5000/10000 late in a deep structure) would otherwise
+            // wrap or force the timer to shrink; shrinking only this label keeps the row's shape.
+            .lineLimit(1)
+            .minimumScaleFactor(0.7)
           Text("→ \(context.state.nextSmallBlind)/\(context.state.nextBigBlind)")
-            .font(.caption2)
+            .font(.caption)
+            .monospacedDigit()
             .foregroundColor(.secondary)
+            .lineLimit(1)
+            .minimumScaleFactor(0.8)
         }
       }
 
