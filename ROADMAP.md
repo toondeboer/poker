@@ -5,6 +5,13 @@ list, the root cause / current state is noted inline so it doesn't need re-disco
 [CLAUDE.md](./CLAUDE.md) for the release process and [ARCHITECTURE.md](./ARCHITECTURE.md) for the
 full design.
 
+> **v1.1.4 is cut** (2026-08-19): versions bumped on both platforms, `CHANGELOG.md` rolled into a
+> dated heading. What's left before it ships is store-side, not code — build, upload to **internal
+> testing / TestFlight**, run the four rows in
+> [RELEASE_TESTING.md](./RELEASE_TESTING.md) that can only be exercised there (Android
+> purchase/restore/cancel, iOS cancel, deep-link cold launch), then promote, merge the standing
+> `release/1.1.4` → `main` PR, and tag the built commit.
+
 **Legend:** ✅ done · 🚧 in progress · 🔍 investigated, not yet fixed · ⬜ not started
 
 ## Android Play Store listing refresh
@@ -236,10 +243,15 @@ full design.
     do (one's a "request" that only checks; the other's correctly named "has"). Worth a rename for
     clarity if touching this code again, but doesn't affect behavior.
 
-## 1.1.4 iOS device pass (2026-08-17)
+## 1.1.4 device passes (all 2026-08-19)
 
-First run of the release checklist on real hardware (iPhone 13 Pro, `npm run ios:device`). Four
-defects, tracked as D1–D4 in [RELEASE_TESTING.md](./RELEASE_TESTING.md#open-defects).
+Five passes over the release checklist on real hardware, twelve defects (D1–D12), indexed in
+[RELEASE_TESTING.md](./RELEASE_TESTING.md#open-defects). Eleven fixed and confirmed; D11 accepted
+for this release. Below, in the order they were found.
+
+### Pass 1 — first run on real hardware (2026-08-19)
+
+iPhone 13 Pro, `npm run ios:device`. Four defects, D1–D4.
 
 - ✅ **D1 — the Pro sheet showed "Unlock Pro · one-time" with no price.** `PremiumContext` fetched
   `getProPriceString()` exactly once on mount and `revenueCatProvider` swallowed every failure as
@@ -284,7 +296,7 @@ defects, tracked as D1–D4 in [RELEASE_TESTING.md](./RELEASE_TESTING.md#open-de
   counting down and releases on pause/stop. It was already in the tree as an `expo` dependency;
   declared in `apps/mobile` because that's the workspace importing it, and the lockfile moved by
   one line. Tagged (`poker-timer-round`) so releasing ours can't clobber another holder's lock.
-### Second pass (2026-08-19), re-testing the fixes
+### Pass 2 — re-testing the fixes (2026-08-19)
 
 D3 and D4 confirmed done on device. Three new items, D5–D7:
 
@@ -319,7 +331,7 @@ D3 and D4 confirmed done on device. Three new items, D5–D7:
   timer's weight, with the next level a step below at `.caption`. Both get `lineLimit(1)` and a
   minimum scale factor so a late-structure `5000/10000` shrinks rather than wrapping or squeezing
   the timer. Android's expanded notification matched (15sp → 22sp, 12sp → 13sp).
-### Third pass (2026-08-20), first hand pass on a real Android device
+### Pass 3 — first hand pass on a real Android device (2026-08-19)
 
 D1, D2, D5's timing, D6 for the sheet, D7 and D3 on Android all confirmed. Five new items:
 
@@ -349,10 +361,10 @@ D1, D2, D5's timing, D6 for the sheet, D7 and D3 on Android all confirmed. Five 
   was 10 and `clampRoundDuration` applied it with no feedback, so typing 5 gave back 10 — a rule the
   UI never states, applied after the fact, reads as a broken field. Floor is now 1 second; zero stays
   out (no meaningful expiry, and it divides by zero in the missed-round maths).
-### Fourth pass (2026-08-21) — D11 only
+### Passes 4 and 5 — D11 only (2026-08-19)
 
 D8, D9, D10, D12 and Android's swipe-away-from-Recents all confirmed on both devices. **D11 is the
-only defect left open in 1.1.4.**
+only defect left open in 1.1.4**, and it is accepted rather than fixed (below).
 
 - 🚧 **D11 survived its first fix.** Reported back as "nope, stays awake — can it be because of
   Expo?". It is not Expo: `expo-keep-awake` is the only thing in the whole dependency tree that
@@ -369,7 +381,7 @@ only defect left open in 1.1.4.**
     OS idle timer from that moment, so the screen sleeps one full auto-lock interval *after* the
     pause — five minutes on a 5-minute setting, never on *Never*. This is indistinguishable from the
     bug without either a 30-second auto-lock or the new log lines.
-- 🟡 **Accepted for 1.1.4 (2026-08-21), not held for.** The re-worked fix ships untested. Small blast
+- 🟡 **Accepted for 1.1.4 (2026-08-19), not held for.** The re-worked fix ships untested. Small blast
   radius: it only applies with the app *foregrounded* and paused, since `expo-keep-awake` releases
   the lock natively when the app is backgrounded — a pocketed phone still sleeps. Re-check §10's two
   rows on the first TestFlight/internal build; if they still fail, the new log lines say in one line
@@ -382,7 +394,7 @@ only defect left open in 1.1.4.**
 
 ## Live Activity / foreground service controls
 
-> **⛔️ Descoped from 1.1.4 (2026-08-17): the Pause/Resume/Stop buttons are removed from both
+> **⛔️ Descoped from 1.1.4 (2026-08-19): the Pause/Resume/Stop buttons are removed from both
 > platforms, before ever shipping.** Everything below this box is the history of building them and
 > is kept for whoever picks the idea back up — it is not a description of the current app. Both
 > surfaces remain, display-only.

@@ -149,6 +149,43 @@ copy below adds the sound-pack mention that was still missing.
   internal description/notes field, match the copy above so the dashboard reads
   the same. No entitlement/offering changes — just the text.
 
+## Release notes — v1.1.4
+
+**Symmetric this time.** Both platforms shipped v1.1.3 together, so both sets of notes cover the
+same one version's worth of changes — unlike v1.1.3 below, where the two stores were a version
+apart.
+
+Everything headlined here is **free**, not Pro: the blind-structure screen, the generator and the
+keep-awake behaviour are all available to every user. Nothing new was added behind the paywall in
+this release, so the long description needs no change — worth a look anyway if you want the
+generator called out there, since it's the most demo-able thing in the app now.
+
+### iOS — "What's New in This Version" (App Store Connect)
+```
+♠️ Blind structure gets its own screen: edit every level in one place, insert or duplicate a level anywhere in the schedule, and tap a level number to jump the tournament straight to it.
+✨ New structure generator: pick a starting blind, how many levels, and a speed — Slow, Standard or Turbo — and get a schedule built the way real casino sheets are, with every blind a multiple of your smallest chip.
+📱 The screen now stays on while a round is counting down, so the timer stays put on the table.
+⏱️ Blinds are much bigger and easier to read on the Lock Screen timer.
+Applying an edited structure now keeps your place in the tournament instead of restarting at Level 1.
+Thanks for playing — feedback always welcome!
+```
+`715` chars (App Store Connect's limit is ~4000).
+
+### Android — "Release notes" (Play Console, ≤500 chars per language)
+```
+♠️ Blind structure gets its own screen — edit every level in one place, insert or duplicate anywhere, and tap a level to jump straight to it.
+✨ New structure generator: pick a starting blind, a level count and a speed, and get a casino-style schedule where every blind fits your smallest chip.
+📱 The screen stays on while a round runs.
+⏱️ Bigger, clearer blinds on the Lock Screen timer.
+✅ Editing your structure now keeps your place in the tournament.
+```
+`452` chars — fits the 500-char Play Console limit, but with little room to spare: re-count in the
+console before saving, since emoji and locale can shift it.
+
+**Deliberately not mentioned:** the Pause/Resume/Stop buttons on the Live Activity and notification.
+They were built during this cycle and descoped before shipping (see `ROADMAP.md`), so no user has
+ever seen them and announcing their absence would only confuse.
+
 ## Release notes — v1.1.3
 
 **Asymmetric on purpose:** iOS is live at v1.1.2 (already has tournament

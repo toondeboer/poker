@@ -1,5 +1,9 @@
 # Manual test checklist — 1.1.4
 
+> **Status: release cut, awaiting a store build.** Everything testable from a local build is ✅ 🤖
+> ➖ or 🟡. The three 🚫 rows below are the whole remaining list, and they need the build on
+> TestFlight / Play internal testing — see the release steps in [CLAUDE.md](./CLAUDE.md#release-process).
+
 What still needs a human. Everything here is either impossible to automate (real purchases), or was
 attempted and blocked (see notes). Automated coverage — 146 `@poker/core` tests, typecheck, lint,
 web build — runs in CI and is not repeated here.
@@ -60,7 +64,7 @@ None of these is blocked on code. They're the reason the first store build goes 
 testing / TestFlight rather than straight to production** — see the release steps in
 [CLAUDE.md](./CLAUDE.md#release-process).
 
-**Accepted for 1.1.4, not held for** (decided 2026-08-21): [D11](#d11) — a paused round leaves the
+**Accepted for 1.1.4, not held for** (decided 2026-08-19): [D11](#d11) — a paused round leaves the
 screen lit while the app is in the foreground. Its fix is in the branch but never confirmed on
 hardware. Plus the two tablet cosmetics in §7, both pre-existing rather than 1.1.4 regressions.
 
@@ -513,7 +517,7 @@ through one module-level queue that reconciles to the latest desired state, with
 flight — the class of bug is gone by construction rather than by being one step ahead of it. Both
 calls also log now, so the next pass can say definitively whether the release ran.
 
-**Accepted for 1.1.4 (2026-08-21)** — not held for. The blast radius is small: this only applies
+**Accepted for 1.1.4 (2026-08-19)** — not held for. The blast radius is small: this only applies
 while the app is in the *foreground* and paused. `expo-keep-awake` releases the lock natively when
 the app is backgrounded, so a phone that's pocketed or locked still sleeps normally; what's left is a
 paused timer sitting face-up on a table keeping the screen lit. The re-worked fix ships in this

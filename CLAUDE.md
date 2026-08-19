@@ -89,6 +89,17 @@ Mobile releases are batched on a short-lived branch per version, not shipped str
   don't defer this to release time, or the changelog stops being a reliable diff of what changed.
   Entries keep accumulating there across however many PRs land before the release ships; don't
   roll them into a dated heading until the release is actually being cut (last step below).
+  - **This includes Dependabot, and web-only and docs-only changes.** Anything merged to `main`
+    while a release branch is open makes `main` stop being "what's live", which is the one property
+    the emergency-fix path depends on. It drifted 21 commits that way before 1.1.4 (Dependabot
+    targets `main` by default, and web/docs PRs were merged there out of habit); that history is
+    left as-is, and **the rule holds from 1.1.4 onward**. Either retarget an open Dependabot PR onto
+    the release branch (`gh pr edit <n> --base release/<version>`) if it belongs in that release, or
+    leave it queued until the release ships and take it into the next one. Don't merge it to `main`
+    in the meantime.
+  - Don't reach for `target-branch` in `.github/dependabot.yml` to automate this: release branches
+    are per-version and deleted after each ship, so a pinned target has to be edited every cycle and
+    errors out in between. Retargeting the occasional PR by hand is the cheaper of the two.
 - **Open the `release/<version>` → `main` PR immediately after cutting the branch, and leave it
   open** (`gh pr create --base main --head release/<version>`) — don't merge it until the release
   actually ships. It's the running release-candidate diff, not a normal feature PR. Every time

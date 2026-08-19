@@ -9,6 +9,15 @@ platform-tagged heading (e.g. `## [1.1.3] - 2026-07-20 — Android`) when you cu
 
 ## [Unreleased]
 
+_Nothing yet — next release's entries land here._
+
+## [1.1.4] - 2026-08-19 — iOS & Android
+
+**Release notes (App Store / Play Console "What's New" text) are drafted in
+[STORE_LISTING.md](./STORE_LISTING.md#release-notes--v114)** — kept there alongside
+the rest of the store copy rather than duplicated here. Both platforms shipped
+v1.1.3 together, so both sets of notes cover the same changes.
+
 ### Added
 - Mobile: blind levels now have their own **Blind structure** screen, reached from Settings,
   replacing the fixed-height scrollable list that was nested inside the scrolling Settings page
@@ -306,7 +315,8 @@ _Before Android's launch. Reconstructed from build history — approximate._
 - Initial App Store release: a poker tournament timer with configurable blind levels, a
   per-round countdown, background timing, iOS Live Activities, and an Android foreground service.
 
-[Unreleased]: https://github.com/toondeboer/poker/compare/v1.1.3...HEAD
+[Unreleased]: https://github.com/toondeboer/poker/compare/v1.1.4...HEAD
+[1.1.4]: https://github.com/toondeboer/poker/compare/v1.1.3...v1.1.4
 [1.1.3]: https://github.com/toondeboer/poker/compare/v1.1.2...v1.1.3
 [1.1.2]: https://github.com/toondeboer/poker/compare/v1.1.1...v1.1.2
 [1.1.1]: https://github.com/toondeboer/poker/compare/v1.1.0...v1.1.1
