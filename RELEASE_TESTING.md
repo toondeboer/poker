@@ -17,6 +17,12 @@ touching notifications, billing, or the keyboard — those are the paths that di
 | 🤖 | passed, covered by an automated Maestro flow |
 | ➖ | doesn't apply on this platform |
 
+**Decided — shipping as-is**
+
+| | |
+|---|---|
+| 🟡 | known gap, **accepted for this release** and deliberately not held for |
+
 **Needs attention**
 
 | | |
@@ -27,7 +33,7 @@ touching notifications, billing, or the keyboard — those are the paths that di
 | 🚫 | **blocked** — can't be exercised from a local build, needs TestFlight or Play internal testing |
 
 A fix landing never upgrades a row on its own: ❌ becomes 🔧, and only a re-test on hardware makes it
-✅. Anything that isn't ✅ 🤖 ➖ still wants a human.
+✅. Anything left as ❌ 🔧 ⬜ 🚫 still wants a human; 🟡 has already been ruled on.
 
 **Passes run so far**
 
@@ -42,19 +48,21 @@ A fix landing never upgrades a row on its own: ❌ becomes 🔧, and only a re-t
    Recents. **[D11](#d11) is the only defect still open**, and the only thing between here and a
    store build.
 
-**Everything still open, in one place** — the whole rest of the file is ✅ 🤖 ➖.
+**What's left before submission** — the whole rest of the file is ✅ 🤖 ➖ 🟡.
 
 | | What | Where |
 |---|---|---|
-| 🔧 | **[D11](#d11)** — pausing/stopping doesn't let the screen sleep, both platforms. Re-worked a second time; **rule the phone's auto-lock setting out first** | §10 |
-| 🚫 | Android **purchase / restore / cancel** — needs a Play internal-testing build, not a code change | §1 |
-| 🚫 | iOS **cancel a purchase** — a sandbox purchase can't be cancelled once confirmed | §1 |
+| 🚫 | Android **purchase / restore / cancel** — needs the build on a Play internal-testing track | §1 |
+| 🚫 | iOS **cancel a purchase** — needs TestFlight; a sandbox purchase can't be cancelled once confirmed | §1 |
 | 🚫 | **Deep-link cold launch**, both platforms — the dev launcher owns the URL scheme, needs a release build | §9 |
-| ⬜ | Generator sheet at **tablet** width — full-bleed on iPad; `Sheet.tsx` never had tablet-cap logic on either platform, so this is pre-existing rather than a 1.1.4 regression | §7 |
-| ⬜ | **iPad mini** phone layout — never checked on any pass | §7 |
 
-Only the first row is a bug. The 🚫 rows unblock themselves once a store build exists, and the two ⬜
-rows are pre-existing cosmetics that can ship as-is if you decide they're not worth holding for.
+None of these is blocked on code. They're the reason the first store build goes to **internal
+testing / TestFlight rather than straight to production** — see the release steps in
+[CLAUDE.md](./CLAUDE.md#release-process).
+
+**Accepted for 1.1.4, not held for** (decided 2026-08-21): [D11](#d11) — a paused round leaves the
+screen lit while the app is in the foreground. Its fix is in the branch but never confirmed on
+hardware. Plus the two tablet cosmetics in §7, both pre-existing rather than 1.1.4 regressions.
 
 ---
 
@@ -207,8 +215,8 @@ Android tablet (2560×1600) verified against a freshly built APK. iPad now verif
 | Settings: Tournament + Presets **side by side**, capped and centred | ✅ | 🤖 |
 | Blind editor list + sticky footer capped at 900 and centred | ✅ fixed (was full-bleed, see ROADMAP.md) — dropping the redundant `width: "100%"` from `centred` fixed it; verified via screenshot on iPad Pro 11-inch, list and sticky footer both cap/centre correctly | 🤖 re-verified on Android_tablet after the fix, no regression |
 | Timer card centred, not full-bleed | ✅ | 🤖 |
-| Generator sheet sensible at tablet width | ⬜ also full-bleed on iPad — `Sheet.tsx` has no tablet-cap logic at all (unlike Settings/BlindStructureScreen), so this may just be pre-existing/never-implemented rather than a regression. Not confirmed whether Android's pass was judged at the same full-bleed width or genuinely capped. | 🤖 |
-| iPad **mini** still gets the phone layout | ⬜ no iPad mini simulator checked on any pass so far | ➖ |
+| Generator sheet sensible at tablet width | 🟡 accepted for 1.1.4 — also full-bleed on iPad — `Sheet.tsx` has no tablet-cap logic at all (unlike Settings/BlindStructureScreen), so this may just be pre-existing/never-implemented rather than a regression. Not confirmed whether Android's pass was judged at the same full-bleed width or genuinely capped. | 🤖 |
+| iPad **mini** still gets the phone layout | 🟡 accepted for 1.1.4 — no iPad mini simulator checked on any pass | ➖ |
 
 ---
 
@@ -255,8 +263,8 @@ here no matter what the app does.
 | | iOS | Android |
 |---|---|---|
 | Screen doesn't sleep while a round is running, left untouched past the OS timeout | ✅ | ✅ |
-| Pausing releases it — the screen sleeps normally again | 🔧 **[D11](#d11)** still failing after the first fix, re-worked | 🔧 **[D11](#d11)** still failing after the first fix, re-worked |
-| Stopping/resetting releases it too | 🔧 **[D11](#d11)** still failing after the first fix, re-worked | 🔧 **[D11](#d11)** still failing after the first fix, re-worked |
+| Pausing releases it — the screen sleeps normally again | 🟡 **[D11](#d11)** accepted for 1.1.4 | 🟡 **[D11](#d11)** accepted for 1.1.4 |
+| Stopping/resetting releases it too | 🟡 **[D11](#d11)** accepted for 1.1.4 | 🟡 **[D11](#d11)** accepted for 1.1.4 |
 | With a round **running**, leave the timer screen for Settings — the screen should still stay awake (the round is still going), and start sleeping again once you pause from there | ✅ | ✅ |
 
 ---
@@ -505,7 +513,14 @@ through one module-level queue that reconciles to the latest desired state, with
 flight — the class of bug is gone by construction rather than by being one step ahead of it. Both
 calls also log now, so the next pass can say definitively whether the release ran.
 
-**Before re-testing, rule out the phone.** Releasing the lock doesn't wake anything up: it re-arms
+**Accepted for 1.1.4 (2026-08-21)** — not held for. The blast radius is small: this only applies
+while the app is in the *foreground* and paused. `expo-keep-awake` releases the lock natively when
+the app is backgrounded, so a phone that's pocketed or locked still sleeps normally; what's left is a
+paused timer sitting face-up on a table keeping the screen lit. The re-worked fix ships in this
+release either way — untested, so treat §10's two rows as unknown rather than fixed, and re-check
+them on the first TestFlight/internal build.
+
+**When re-testing, rule out the phone.** Releasing the lock doesn't wake anything up: it re-arms
 the OS idle timer *from that moment*. So the screen sleeps one full auto-lock interval after you
 pause — on a 5-minute setting that's five minutes of looking at a lit screen, and on *Never* it
 never sleeps no matter what the app does. Set iOS *Settings → Display & Brightness → Auto-Lock →
@@ -540,3 +555,7 @@ survives; 0 still clamps up).
   1.1.4; both surfaces carry a caption saying so.
 - **Simulator Live Activity flakiness** — `Failed to start Live Activity` in the Simulator is
   environmental, not app code.
+- **A paused round can leave the screen lit while the app is foregrounded** ([D11](#d11)) — accepted
+  for 1.1.4. Backgrounding still releases the lock natively, so this doesn't drain a pocketed phone.
+- **The generator sheet is full-bleed at tablet width on both platforms** — `Sheet.tsx` never had
+  tablet-cap logic, so this predates 1.1.4 rather than regressing in it. Accepted for this release.

@@ -369,6 +369,12 @@ only defect left open in 1.1.4.**
     OS idle timer from that moment, so the screen sleeps one full auto-lock interval *after* the
     pause — five minutes on a 5-minute setting, never on *Never*. This is indistinguishable from the
     bug without either a 30-second auto-lock or the new log lines.
+- 🟡 **Accepted for 1.1.4 (2026-08-21), not held for.** The re-worked fix ships untested. Small blast
+  radius: it only applies with the app *foregrounded* and paused, since `expo-keep-awake` releases
+  the lock natively when the app is backgrounded — a pocketed phone still sleeps. Re-check §10's two
+  rows on the first TestFlight/internal build; if they still fail, the new log lines say in one line
+  whether the release call ran, which is what separates an app bug from the OS re-arming its idle
+  timer from the moment of release.
 - ☐ **Still unverified on device:** D11 and the two §10 rows it gates. Android's three purchase rows
   are blocked on a Play Console upload rather than on any code here — Play Billing only serves an app
   the store recognises (uploaded to a track, matching signing key, tester on the licence-testing
