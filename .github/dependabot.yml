@@ -8,6 +8,11 @@
 #
 # Grouped so a run produces a couple of reviewable PRs rather than one per package. Groups are
 # matched in order, so the more specific ones come first.
+#
+# **Every group is minor+patch only, so majors arrive as their own PRs.** The first grouped run
+# without that produced a "dev-tooling, 10 updates" PR carrying TypeScript 5→7, ESLint 9→10,
+# @types/node 20→26 and eslint-config-expo 56→57 in one red-CI lump — routine noise and framework
+# rewrites batched together, which is the worst of both. A major is a decision; it gets its own PR.
 version: 2
 updates:
   - package-ecosystem: "npm"
@@ -21,11 +26,18 @@ updates:
         # React must stay a single version across web + mobile (see CLAUDE.md) — three copies broke
         # hooks and context once already. Grouping these means a bump arrives as one reviewable
         # change instead of separate PRs that are wrong until every one of them lands.
+        #
+        # Note the version is pinned to whatever Expo bundles, so even a patch bump here is really
+        # an Expo decision — expect these to be closed in favour of the SDK upgrade more often than
+        # merged on their own.
         patterns:
           - "react"
           - "react-dom"
           - "@types/react"
           - "@types/react-dom"
+        update-types:
+          - "minor"
+          - "patch"
       expo-react-native:
         # Expo pins the React Native version it bundles, and native modules must agree with the dev
         # client they're built into — these move together or not at all. Always mobile-affecting, so
@@ -37,7 +49,18 @@ updates:
           - "react-native"
           - "react-native-*"
           - "@react-native/*"
+          # Versioned against the SDK despite the name, so it belongs here rather than in
+          # dev-tooling, where it turned up as a lone 56→57 bump in an otherwise unrelated batch.
+          - "eslint-config-expo"
+        update-types:
+          - "minor"
+          - "patch"
       dev-tooling:
         # ESLint, TypeScript, Prettier, Vitest, types. Never ships in a binary, so it can land on
-        # `main` freely.
+        # `main` freely — but only the routine half. `eslint` and `@eslint/js` must stay on the same
+        # major (CLAUDE.md: mismatching them marked the whole tree invalid and broke a clean
+        # install), which is its own reason to take those one at a time.
         dependency-type: "development"
+        update-types:
+          - "minor"
+          - "patch"
