@@ -141,9 +141,21 @@ Mobile releases are batched on a short-lived branch per version, not shipped str
   5. `eas build` **from the release branch** — EAS builds whatever's checked out locally, so make
      sure `release/<version>` is checked out when you run it.
   6. **Submit to the testing track first, never straight to production:**
-     `eas submit --profile internal`. That profile puts Android on Play's `internal` track; iOS is
-     the same upload either way, since every build uploaded to App Store Connect lands in TestFlight
-     and submitting for App Store *review* is a separate, deliberate action in ASC afterwards.
+     `npm run eas:submit -w @poker/mobile` (or `:ios` / `:android`). Those scripts pass
+     `--profile internal`, which puts Android on Play's `internal` track; iOS is the same upload
+     either way, since every build uploaded to App Store Connect lands in TestFlight and submitting
+     for App Store *review* is a separate, deliberate action in ASC afterwards. The
+     `eas:submit:*:production` variants exist for step 7 and name production in full, so it can't be
+     reached by accident.
+     - **Never run a bare `eas submit`.** With no `--profile` it silently uses the profile *named*
+       `production`, which is how 1.1.4 reached Play's production track with its billing rows never
+       once run. The scripts existed and didn't pass a profile at all; that's fixed, but the CLI
+       still behaves this way if you invoke it directly.
+     - **Keep [managed publishing](https://support.google.com/googleplay/android-developer/answer/9859654)
+       on in Play Console** (Publishing overview → Managed publishing status). It holds *approved*
+       releases at "Ready to publish" instead of letting them go live, which is the only real safety
+       net here: Play has **no way to cancel a release once it's in review**. It can be turned on
+       mid-review and still catches that release when it's approved.
      - The reason this matters is Android-only and asymmetric: **Play Billing can't be exercised
        from a local build at all**, so purchase/restore/cancel are unverifiable until the app is on
        a Play track (uploaded, matching signing key, tester on the licence-testing list). Submitting

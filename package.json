@@ -25,7 +25,10 @@
     "eas:submit": "npm run eas:submit --workspace @poker/mobile",
     "eas:submit:ios": "npm run eas:submit:ios --workspace @poker/mobile",
     "eas:submit:android": "npm run eas:submit:android --workspace @poker/mobile",
-    "postinstall": "node apps/mobile/scripts/clean-expo-shims.js"
+    "postinstall": "node apps/mobile/scripts/clean-expo-shims.js",
+    "eas:submit:production": "npm run eas:submit:production --workspace @poker/mobile",
+    "eas:submit:ios:production": "npm run eas:submit:ios:production --workspace @poker/mobile",
+    "eas:submit:android:production": "npm run eas:submit:android:production --workspace @poker/mobile"
   },
   "devDependencies": {
     "turbo": "^2",
