@@ -19,8 +19,10 @@
     "android": "npm run android --workspace @poker/mobile",
     "android:device": "npm run android:device --workspace @poker/mobile",
     "pods": "npm run pods --workspace @poker/mobile",
+    "eas:build": "npm run eas:build --workspace @poker/mobile",
     "eas:build:ios": "npm run eas:build:ios --workspace @poker/mobile",
     "eas:build:android": "npm run eas:build:android --workspace @poker/mobile",
+    "eas:submit": "npm run eas:submit --workspace @poker/mobile",
     "eas:submit:ios": "npm run eas:submit:ios --workspace @poker/mobile",
     "eas:submit:android": "npm run eas:submit:android --workspace @poker/mobile",
     "postinstall": "node apps/mobile/scripts/clean-expo-shims.js"

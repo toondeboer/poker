@@ -121,10 +121,12 @@ important.
   `.ipa` for iOS / `.aab` for Android); `eas submit` uploads the most recently finished build to
   App Store Connect / Google Play Console. Build first, then submit once it finishes:
   ```bash
+  npm run eas:build
   npm run eas:build:ios
   npm run eas:build:android
   ```
   ```bash
+  npm run eas:submit
   npm run eas:submit:ios
   npm run eas:submit:android
   ```

@@ -5,12 +5,12 @@ list, the root cause / current state is noted inline so it doesn't need re-disco
 [CLAUDE.md](./CLAUDE.md) for the release process and [ARCHITECTURE.md](./ARCHITECTURE.md) for the
 full design.
 
-> **v1.1.4 is cut** (2026-08-19): versions bumped on both platforms, `CHANGELOG.md` rolled into a
-> dated heading. What's left before it ships is store-side, not code — build, upload to **internal
-> testing / TestFlight**, run the four rows in
-> [RELEASE_TESTING.md](./RELEASE_TESTING.md) that can only be exercised there (Android
-> purchase/restore/cancel, iOS cancel, deep-link cold launch), then promote, merge the standing
-> `release/1.1.4` → `main` PR, and tag the built commit.
+> **v1.1.4 is built and submitted to the test tracks** (2026-08-21). Every defect found across six
+> device passes is fixed and confirmed except D11, which is accepted. What's left is store-side, not
+> code: run the rows in [RELEASE_TESTING.md](./RELEASE_TESTING.md) that only a store build can
+> exercise (Android purchase/restore/cancel, iOS cancel, deep-link cold launch), then promote to
+> production, merge the standing `release/1.1.4` → `main` PR, and tag **the commit EAS actually
+> built** — take the SHA from `eas build:view`, since the tag is what "live" means now.
 
 **Legend:** ✅ done · 🚧 in progress · 🔍 investigated, not yet fixed · ⬜ not started
 

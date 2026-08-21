@@ -1,8 +1,8 @@
 # Manual test checklist — 1.1.4
 
-> **Status: release cut, awaiting a store build.** Everything testable from a local build is ✅ 🤖
-> ➖ or 🟡. The three 🚫 rows below are the whole remaining list, and they need the build on
-> TestFlight / Play internal testing — see the release steps in [CLAUDE.md](./CLAUDE.md#release-process).
+> **Status: submitted to the store test tracks (2026-08-21).** Everything testable from a local
+> build is ✅ 🤖 ➖ or 🟡. The three 🚫 rows below are the whole remaining list and are now
+> runnable — they're the last gate before promoting to production.
 
 What still needs a human. Everything here is either impossible to automate (real purchases), or was
 attempted and blocked (see notes). Automated coverage — 146 `@poker/core` tests, typecheck, lint,
@@ -50,15 +50,16 @@ A fix landing never upgrades a row on its own: ❌ becomes 🔧, and only a re-t
    by emulator or Maestro.
 5. **Both devices again** — D8, D9, D10 and D12 confirmed on both, plus Android's swipe-away-from-
    Recents. [D11](#d11) still failing, since accepted.
-6. **Both, during the release build** — D13 (iOS): the Done control floats in the gap between a
-   sheet and the keypad. D14 (Android): the keypad covers the generator sheet's footer buttons.
+6. **Both, during the release build** — found D13 (iOS): the Done control floats in the gap between
+   a sheet and the keypad; and D14 (Android): the keypad covers the generator sheet's footer
+   buttons. Both fixed and confirmed on a rebuilt client.
+7. **Store builds** — `eas build` and `eas submit` succeeded for both platforms (2026-08-21). The
+   three 🚫 rows below are now runnable for the first time.
 
 **What's left before submission** — the whole rest of the file is ✅ 🤖 ➖ 🟡.
 
 | | What | Where |
 |---|---|---|
-| 🔧 | **[D13](#d13)** — Done floated in the gap above a sheet's keypad. Fixed, needs a look on the next build | §5 |
-| 🔧 | **[D14](#d14)** — the keypad covered a sheet's footer buttons on Android. Fixed, needs a look on the next build | §5 |
 | 🚫 | Android **purchase / restore / cancel** — needs the build on a Play internal-testing track | §1 |
 | 🚫 | iOS **cancel a purchase** — needs TestFlight; a sandbox purchase can't be cancelled once confirmed | §1 |
 | 🚫 | **Deep-link cold launch**, both platforms — the dev launcher owns the URL scheme, needs a release build | §9 |
@@ -185,8 +186,8 @@ Fully confirmed on both platforms as of pass 5 — the Presets nudge, the sheet'
 | **Any** focused field stays visible when the keypad opens — Settings, blind editor, sheet | ✅ | ✅ **[D8](#d8)** fixed and confirmed |
 | Number fields show a **Done** bar above the keypad (iOS), on the **first** open | ✅ appears on the first open now | ➖ |
 | …and it doesn't look bolted on next to the keyboard's rounded edge | ✅ **[D9](#d9)** fixed and confirmed | ➖ |
-| In a **sheet**, the Done control belongs to the sheet — nothing floating in the gap above the keypad | 🔧 **[D13](#d13)** | 🔧 **[D13](#d13)** |
-| A sheet's **footer buttons stay tappable** with the keypad up (generator: Cancel + Replace structure) | 🔧 **[D14](#d14)** | 🔧 **[D14](#d14)** |
+| In a **sheet**, the Done control belongs to the sheet — nothing floating in the gap above the keypad | ✅ **[D13](#d13)** fixed and confirmed | ✅ |
+| A sheet's **footer buttons stay tappable** with the keypad up (generator: Cancel + Replace structure) | ✅ | ✅ **[D14](#d14)** fixed and confirmed |
 | Scrolling **keeps the keypad up** — generator sheet | ✅ | ✅ |
 | Scrolling **keeps the keypad up** — blind structure editor | ✅ **[D10](#d10)** fixed and confirmed | ✅ **[D10](#d10)** fixed and confirmed |
 | Generator sheet fields usable with the keyboard up | ✅ fixed — sheet resizes and scrolls correctly; the remaining complaints were [D5](#d5) and [D6](#d6) | ✅ fixed (Maestro: `generator-keyboard.yaml`) — was hidden behind the keyboard, see ROADMAP.md "Settings page UX — blind levels" |
@@ -301,8 +302,8 @@ reasoning survives.
 | [D10](#d10) Blind editor drops the keypad on scroll | pass 3 (both) | ✅ fixed, confirmed both platforms |
 | [D11](#d11) Keep-awake never released on pause/stop | pass 3 (both) | 🔧 **still open** — first fix didn't take, re-worked |
 | [D12](#d12) Rounds under 10s silently rewritten | pass 3 (Android) | ✅ fixed, confirmed both platforms |
-| [D13](#d13) Done button floats in the gap above a sheet's keypad | pass 6 (iOS) | 🔧 fixed, **re-test** |
-| [D14](#d14) Keypad covers a sheet's footer buttons on Android | pass 6 (Android) | 🔧 fixed, **re-test** |
+| [D13](#d13) Done button floats in the gap above a sheet's keypad | pass 6 (iOS) | ✅ fixed, confirmed |
+| [D14](#d14) Keypad covers a sheet's footer buttons on Android | pass 6 (Android) | ✅ fixed, confirmed |
 
 <a id="d1"></a>
 ### D1 · Paywall shows "one-time" with no price · §1
