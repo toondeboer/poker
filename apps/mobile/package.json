@@ -38,7 +38,7 @@
     "expo": "~56.0.11",
     "expo-audio": "~56.0.12",
     "expo-build-properties": "~56.0.19",
-    "expo-constants": "~56.0.18",
+    "expo-constants": "~57.0.12",
     "expo-dev-client": "~56.0.20",
     "expo-font": "~56.0.6",
     "expo-keep-awake": "~56.0.3",
