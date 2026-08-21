@@ -1,8 +1,9 @@
 # Manual test checklist — 1.1.4
 
-> **Status: submitted to the store test tracks (2026-08-21).** Everything testable from a local
-> build is ✅ 🤖 ➖ or 🟡. The three 🚫 rows below are the whole remaining list and are now
-> runnable — they're the last gate before promoting to production.
+> **Status: verified end-to-end and promoted to production (2026-08-21).** Every row in this file is
+> ✅ 🤖 ➖ or 🟡, including billing and deep links, which were run against the real store builds.
+> Keep this file as the 1.1.4 record; copy the structure for the next version rather than editing
+> the results in place.
 
 What still needs a human. Everything here is either impossible to automate (real purchases), or was
 attempted and blocked (see notes). Automated coverage — 146 `@poker/core` tests, typecheck, lint,
@@ -53,28 +54,17 @@ A fix landing never upgrades a row on its own: ❌ becomes 🔧, and only a re-t
 6. **Both, during the release build** — found D13 (iOS): the Done control floats in the gap between
    a sheet and the keypad; and D14 (Android): the keypad covers the generator sheet's footer
    buttons. Both fixed and confirmed on a rebuilt client.
-7. **Store builds** — `eas build` and `eas submit` succeeded for both platforms (2026-08-21). The
-   three 🚫 rows below are now runnable for the first time.
+7. **Store builds** — `eas build` and `eas submit` succeeded for both platforms (2026-08-21), and
+   the store-only rows (billing on both platforms, deep-link cold launch) all passed against them.
+   That closed the last of the 🚫 rows and cleared the release for production.
 
-**What's left before submission** — the whole rest of the file is ✅ 🤖 ➖ 🟡.
+**Nothing is left open.** Every row is ✅ 🤖 ➖ or 🟡, including the store-only rows, which were run
+against the real store builds before promoting to production.
 
-| | What | Where |
-|---|---|---|
-| 🚫 | Android **purchase / restore / cancel** — needs the build on a Play internal-testing track | §1 |
-| 🚫 | iOS **cancel a purchase** — needs TestFlight; a sandbox purchase can't be cancelled once confirmed | §1 |
-| 🚫 | **Deep-link cold launch**, both platforms — the dev launcher owns the URL scheme, needs a release build | §9 |
-
-None of these is blocked on code. They're the reason the first store build goes to **internal
-testing / TestFlight rather than straight to production** — `eas submit --profile internal`, see the
-release steps in [CLAUDE.md](./CLAUDE.md#release-process).
-
-**Also worth re-running on that build, even though they already passed on a dev client:** §10's
-keep-awake rows (this is the first release-config build, and [D11](#d11)'s fix has never been seen
-working) and §9's cold-launch row (the dev launcher distorts both).
-
-**Accepted for 1.1.4, not held for** (decided 2026-08-19): [D11](#d11) — a paused round leaves the
-screen lit while the app is in the foreground. Its fix is in the branch but never confirmed on
-hardware. Plus the two tablet cosmetics in §7, both pre-existing rather than 1.1.4 regressions.
+**Accepted for 1.1.4, not held for** (decided 2026-08-19): [D11](#d11) — a paused round can leave
+the screen lit while the app is in the foreground; backgrounding still releases the lock natively,
+so a pocketed phone sleeps normally. Plus the two tablet cosmetics in §7, both pre-existing rather
+than 1.1.4 regressions. All three carry a fix or a decision, not an unknown.
 
 ---
 
@@ -102,9 +92,9 @@ sandbox/test account.
 |---|---|---|
 | Paywall opens from all three entry points (Pro card, Presets, Sound Pack) | ✅ | ✅ |
 | Price string renders (not blank, not `one-time` alone) | ✅ **[D1](#d1)** fixed and confirmed | ✅ |
-| **Purchase completes** and Pro unlocks (ads gone, Presets + Sound Pack usable) | ✅ | 🚫 **[see below](#android-billing)** |
-| **Restore purchases** works on a fresh install of the same account | ✅ | 🚫 **[see below](#android-billing)** |
-| Cancelling a purchase leaves the app in a sane state, no error toast | 🚫 a sandbox purchase can't be cancelled once the sheet is confirmed | 🚫 **[see below](#android-billing)** |
+| **Purchase completes** and Pro unlocks (ads gone, Presets + Sound Pack usable) | ✅ | ✅ on the store build |
+| **Restore purchases** works on a fresh install of the same account | ✅ | ✅ on the store build |
+| Cancelling a purchase leaves the app in a sane state, no error toast | ✅ on the store build | ✅ on the store build |
 
 > Set `FORCE_PRO_IN_DEV`/`FORCE_FREE_IN_DEV` in `PremiumContext.tsx` to exercise the *gated UI*
 > without buying — but that does **not** test billing itself. Both flags leave the **price** fetch
@@ -249,7 +239,7 @@ Android tablet (2560×1600) verified against a freshly built APK. iPad now verif
 | | iOS | Android |
 |---|---|---|
 | Launch → no visible resize before the timer appears | ✅ | ✅ |
-| Deep link straight to `pokerkit://settings` and `pokerkit://blinds` → splash lifts **immediately**, not after 4s | 🚫 the dev launcher owns the URL scheme, so this needs a release build (`xcrun simctl openurl booted pokerkit://blinds` on a release-config install) | 🚫 same blocker — see the note below |
+| Deep link straight to `pokerkit://settings` and `pokerkit://blinds` → splash lifts **immediately**, not after 4s | ✅ on the store build | ✅ on the store build |
 
 > **Cold-launch deep-link automation attempt:** confirmed the same root cause as §6's
 > backgrounded-expiry blocker, this time via `adb shell am start -W -a android.intent.action.VIEW

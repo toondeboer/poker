@@ -19,7 +19,7 @@ const FAQ = [
   {
     question: "Is there a mobile app version?",
     answer:
-      "Yes. Poker Blinds Buzzer is available for iOS and Android, with background timer notifications, haptics, and offline support that a browser tab can't provide.",
+      "Yes. Poker Blinds Buzzer is available for iOS and Android. The app adds a structure generator that builds a casino-style blind schedule from a starting blind, a level count and a speed, a full editor for hand-tuning every level, saved presets, an alarm that fires even with the phone locked, and offline support that a browser tab can't provide.",
   },
 ];
 

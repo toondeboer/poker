@@ -9,6 +9,7 @@ import {
   Shield,
   Smartphone,
   Monitor,
+  Sparkles,
   LucideIcon,
 } from "lucide-react";
 import Image, { StaticImageData } from "next/image";
@@ -318,15 +319,21 @@ const LandingPage: React.FC = () => {
                 },
                 {
                   icon: Bell,
-                  title: "Background Operation",
+                  title: "Never Miss a Level",
                   description:
-                    "Works seamlessly in the background, even when your phone is locked. Get alerts and notifications when blind levels change.",
+                    "The screen stays awake while a round runs, so the timer stays put on the table. Lock the phone anyway and you still get an alarm at the buzzer, with the blinds on your lock screen.",
+                },
+                {
+                  icon: Sparkles,
+                  title: "Structure Generator",
+                  description:
+                    "Pick a starting blind, a number of levels and a speed, and get a schedule built the way real casino sheets are — every blind a multiple of your smallest chip, so each one can actually be posted at the table.",
                 },
                 {
                   icon: Trophy,
                   title: "Tournament Structures",
                   description:
-                    "Pre-built tournament formats or create your own custom structures, then save and reuse them as presets. From cash games to deep stack tournaments.",
+                    "Edit every level on its own screen, insert or duplicate levels anywhere, and jump straight to any level mid-game. Save what you build as a preset and reuse it. From cash games to deep stack tournaments.",
                 },
                 {
                   icon: Shield,

@@ -157,8 +157,13 @@ apart.
 
 Everything headlined here is **free**, not Pro: the blind-structure screen, the generator and the
 keep-awake behaviour are all available to every user. Nothing new was added behind the paywall in
-this release, so the long description needs no change — worth a look anyway if you want the
-generator called out there, since it's the most demo-able thing in the app now.
+this release, so the long description needs no change.
+
+The **website** was updated for these features alongside the release (`apps/web`): the landing
+page's feature grid gained a Structure Generator card and its Tournament Structures card now
+describes the editor, and a claim that the app "works seamlessly in the background" was corrected —
+it overstated what the app does now that a backgrounded round deliberately advances only one level.
+Keep the two in step: store copy and landing-page copy describe the same app.
 
 ### iOS — "What's New in This Version" (App Store Connect)
 
