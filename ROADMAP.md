@@ -376,6 +376,20 @@ D1, D2, D5's timing, D6 for the sheet, D7 and D3 on Android all confirmed. Five 
   context lives in its own module so a leaf primitive doesn't have to import a component carrying a
   Modal, a PanResponder and an animation.
 
+- ✅ **D14 — the keypad covered the generator sheet's footer buttons on Android.** The sheet lifts
+  itself by the height the platform reports, and **Android reports the IME height excluding the
+  navigation bar** — so it was lifted a nav bar short, and the footer, closest to the bottom edge,
+  went under. Dropping the bottom safe-area inset from the sheet's padding while the keyboard is up
+  (right on iOS, where the keyboard covers the home indicator) had been the only thing masking it.
+  This is already a measured quantity here: `useKeyboardNudge` recorded a 640dp window with a 275dp
+  keyboard where content actually cut off at 342.5dp, the missing 22.5dp being the nav bar. The
+  sheet never used that correction. Now one `coveredByKeyboard` value — `keyboard + bottom inset` on
+  Android, raw height on iOS — feeds both the offset and the scroll cap, using the same formula
+  rather than a second one to drift from it.
+  - Worth remembering as a class: **any bottom-anchored surface that avoids the Android keyboard
+    needs the nav bar added.** That's now three places that have needed it (the Presets nudge, the
+    focus-scroll hook, and the sheet); a fourth will come along.
+
 ### Passes 4 and 5 — D11 only (2026-08-19)
 
 D8, D9, D10, D12 and Android's swipe-away-from-Recents all confirmed on both devices. **D11 is the

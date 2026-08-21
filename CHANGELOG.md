@@ -205,6 +205,8 @@ v1.1.3 together, so both sets of notes cover the same changes.
   store setup left the sheet price-less for the whole session — even though the same lookup
   succeeds by the time Unlock is tapped, which is why buying still worked. It's re-attempted each
   time the sheet opens, and with no price the button simply reads "Unlock Pro".
+- Android: a sheet's footer buttons (the generator's Cancel and Replace structure) are no longer
+  covered by the keypad. The sheet cleared the keyboard but not the navigation bar below it.
 - iOS: the structure generator's sheet is usable with the keyboard up. It didn't shrink to the
   space left above the keyboard, so it couldn't scroll and its top went off-screen. Scrolling a
   sheet no longer dismisses the keypad either — the fields above and below the one you're typing in
