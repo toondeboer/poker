@@ -16,6 +16,7 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { colors, radius, space, text } from "@/src/theme";
+import { InsideSheetContext } from "./SheetContext";
 
 /** Drag far enough, or flick fast enough, and the sheet closes. */
 const DISMISS_DISTANCE = 90;
@@ -117,6 +118,21 @@ export function Sheet({
     };
   }, []);
 
+  // What the keyboard actually takes away from the sheet, which is not the same number on the two
+  // platforms. **Android reports the IME height excluding the navigation bar**, so the covered
+  // strip is really `keyboard + bottom inset` — measured in this codebase at 640dp window / 275dp
+  // keyboard with content cut off at 342.5dp, the missing 22.5dp being the nav bar (see
+  // `useKeyboardNudge`, which derives the same value the same way). iOS's height already spans the
+  // home indicator, so it adds nothing there.
+  //
+  // Using the raw height on Android is what put the generator sheet's Cancel / Replace structure
+  // buttons under the keypad: the sheet was lifted a navigation bar short, and the footer is the
+  // part of the sheet closest to the bottom edge, so it was the part that went under.
+  const coveredByKeyboard =
+    keyboardHeight > 0
+      ? keyboardHeight + (Platform.OS === "android" ? insets.bottom : 0)
+      : 0;
+
   // Everything in the sheet that isn't the scroll region — grabber, title,
   // footer, padding, the gaps between them. Derived from one layout pass
   // (sheet height minus scroll height) rather than estimated from the styles,
@@ -134,8 +150,8 @@ export function Sheet({
   // it overflow and therefore actually scroll. MIN_SCROLL keeps a usable
   // window on a small phone whose keyboard leaves almost nothing.
   const scrollMaxHeight =
-    keyboardHeight > 0
-      ? Math.max(MIN_SCROLL_HEIGHT, height - keyboardHeight - chromeHeight)
+    coveredByKeyboard > 0
+      ? Math.max(MIN_SCROLL_HEIGHT, height - coveredByKeyboard - chromeHeight)
       : height * maxContentHeightRatio;
 
   // Lazy useState rather than useRef: the value has to be created once and stay
@@ -217,102 +233,126 @@ export function Sheet({
   );
 
   return (
-    <Modal
-      visible={rendered}
-      // We animate both halves ourselves; see the note above.
-      animationType="none"
-      transparent
-      // Android renders a Modal in its own window, which by default stops above
-      // the navigation bar — leaving a strip at the bottom where the screen
-      // behind shows through below the sheet. These make the modal window go
-      // edge-to-edge like the rest of the app. RN warns if the navigation bar is
-      // made translucent without the status bar, so both are required.
-      statusBarTranslucent
-      navigationBarTranslucent
-      onRequestClose={onClose}
-    >
-      <View style={styles.fill}>
-        {/* Rendered before the sheet so it sits behind it: taps outside land
+    <InsideSheetContext.Provider value={true}>
+      <Modal
+        visible={rendered}
+        // We animate both halves ourselves; see the note above.
+        animationType="none"
+        transparent
+        // Android renders a Modal in its own window, which by default stops above
+        // the navigation bar — leaving a strip at the bottom where the screen
+        // behind shows through below the sheet. These make the modal window go
+        // edge-to-edge like the rest of the app. RN warns if the navigation bar is
+        // made translucent without the status bar, so both are required.
+        statusBarTranslucent
+        navigationBarTranslucent
+        onRequestClose={onClose}
+      >
+        <View style={styles.fill}>
+          {/* Rendered before the sheet so it sits behind it: taps outside land
             here, taps on the sheet don't reach it. */}
-        <Animated.View
-          style={[styles.backdrop, { opacity: backdropOpacity }]}
-          pointerEvents="none"
-        />
-        {gestureDismissible && (
-          <Pressable
-            style={StyleSheet.absoluteFill}
-            onPress={onClose}
-            accessibilityRole="button"
-            accessibilityLabel="Close"
+          <Animated.View
+            style={[styles.backdrop, { opacity: backdropOpacity }]}
+            pointerEvents="none"
           />
-        )}
-        {/* No `KeyboardAvoidingView`: neither platform's version of it works
+          {gestureDismissible && (
+            <Pressable
+              style={StyleSheet.absoluteFill}
+              onPress={onClose}
+              accessibilityRole="button"
+              accessibilityLabel="Close"
+            />
+          )}
+          {/* No `KeyboardAvoidingView`: neither platform's version of it works
             inside a Modal's own window (see the keyboardHeight state above).
             The marginBottom lifts the sheet clear of the keyboard and the
             scroll cap below shrinks the region to match, which is the half
             KAV never did. The bottom inset is dropped while the keyboard is
             up — the keyboard already covers the home indicator, so keeping it
             would just waste room the fields need. */}
-        <View style={styles.avoider}>
-          <Animated.View
-            onLayout={(e) => setSheetHeight(e.nativeEvent.layout.height)}
-            style={[
-              styles.sheet,
-              {
-                paddingBottom:
-                  space.xl + (keyboardHeight > 0 ? 0 : insets.bottom),
-                marginBottom: keyboardHeight,
-                transform: [{ translateY }],
-              },
-            ]}
-          >
-            {/* The drag is bound to the grabber alone. On the whole sheet it
+          <View style={styles.avoider}>
+            <Animated.View
+              onLayout={(e) => setSheetHeight(e.nativeEvent.layout.height)}
+              style={[
+                styles.sheet,
+                {
+                  // The bottom inset is dropped from the padding while the keyboard
+                  // is up because it's already in the offset below — on Android via
+                  // `coveredByKeyboard`, on iOS because the keyboard covers the home
+                  // indicator outright. Counting it twice leaves a dead band under
+                  // the footer.
+                  paddingBottom:
+                    space.xl + (coveredByKeyboard > 0 ? 0 : insets.bottom),
+                  marginBottom: coveredByKeyboard,
+                  transform: [{ translateY }],
+                },
+              ]}
+            >
+              {/* The drag is bound to the grabber alone. On the whole sheet it
                 would fight the ScrollView for every vertical gesture, and on the
                 title row it would compete with the close button. */}
-            {gestureDismissible && (
-              <View
-                style={styles.grabberHitArea}
-                {...panResponder.panHandlers}
-                accessibilityRole="adjustable"
-                accessibilityLabel="Drag down to close"
-              >
-                <View style={styles.grabber} />
-              </View>
-            )}
-            {/* No close icon: every sheet already offers a labelled way out —
+              {gestureDismissible && (
+                <View
+                  style={styles.grabberHitArea}
+                  {...panResponder.panHandlers}
+                  accessibilityRole="adjustable"
+                  accessibilityLabel="Drag down to close"
+                >
+                  <View style={styles.grabber} />
+                </View>
+              )}
+              {/* No close icon: every sheet already offers a labelled way out —
                 the generator a Cancel button, the paywall "Maybe later" — plus
                 the grabber and backdrop where gestures are enabled. A second,
                 unlabelled affordance was just visual noise. */}
-            {title ? <Text style={styles.title}>{title}</Text> : null}
-            {/* A scroller here is safe and deliberate: a Modal is its own
+              {/* Done lives here rather than on the keyboard — see InsideSheetContext. Only while
+                the keypad is actually up, and it shares the title's row so it costs no height.
+                A sheet with no title still gets the row, since the control has to go somewhere. */}
+              {title || keyboardHeight > 0 ? (
+                <View style={styles.titleRow}>
+                  <Text style={styles.title}>{title ?? ""}</Text>
+                  {keyboardHeight > 0 && (
+                    <Pressable
+                      onPress={() => Keyboard.dismiss()}
+                      accessibilityRole="button"
+                      accessibilityLabel="Done editing"
+                      hitSlop={space.sm}
+                    >
+                      <Text style={styles.doneText}>Done</Text>
+                    </Pressable>
+                  )}
+                </View>
+              ) : null}
+              {/* A scroller here is safe and deliberate: a Modal is its own
                 scroll context, so this is never nested inside the screen's
                 list. It only engages when the sheet's controls outgrow a short
                 screen; the footer stays pinned below it either way. */}
-            <ScrollView
-              onLayout={(e) => setScrollHeight(e.nativeEvent.layout.height)}
-              style={{ maxHeight: scrollMaxHeight }}
-              contentContainerStyle={styles.scrollContent}
-              keyboardShouldPersistTaps="handled"
-              // "none", not "on-drag". A sheet like this is a *form*: the fields
-              // above and below the one you're typing in are the reason you'd
-              // scroll at all, and "on-drag" put the keyboard away the instant
-              // you tried — so the content jumped, the field you were editing
-              // moved, and reaching the next field cost two gestures instead of
-              // one. That mode belongs to scrolling *content* (Messages, Mail's
-              // list), where the keyboard is incidental to what you're reading;
-              // iOS form sheets keep it up and offer an explicit Done, which is
-              // what the accessory bar on NumberField is for.
-              keyboardDismissMode="none"
-              showsVerticalScrollIndicator={false}
-              bounces={false}
-            >
-              {children}
-            </ScrollView>
-            {footer && <View style={styles.footer}>{footer}</View>}
-          </Animated.View>
+              <ScrollView
+                onLayout={(e) => setScrollHeight(e.nativeEvent.layout.height)}
+                style={{ maxHeight: scrollMaxHeight }}
+                contentContainerStyle={styles.scrollContent}
+                keyboardShouldPersistTaps="handled"
+                // "none", not "on-drag". A sheet like this is a *form*: the fields
+                // above and below the one you're typing in are the reason you'd
+                // scroll at all, and "on-drag" put the keyboard away the instant
+                // you tried — so the content jumped, the field you were editing
+                // moved, and reaching the next field cost two gestures instead of
+                // one. That mode belongs to scrolling *content* (Messages, Mail's
+                // list), where the keyboard is incidental to what you're reading;
+                // iOS form sheets keep it up and offer an explicit Done, which is
+                // what the title row's Done button above is.
+                keyboardDismissMode="none"
+                showsVerticalScrollIndicator={false}
+                bounces={false}
+              >
+                {children}
+              </ScrollView>
+              {footer && <View style={styles.footer}>{footer}</View>}
+            </Animated.View>
+          </View>
         </View>
-      </View>
-    </Modal>
+      </Modal>
+    </InsideSheetContext.Provider>
   );
 }
 
@@ -348,7 +388,19 @@ const styles = StyleSheet.create({
     borderRadius: 2,
     backgroundColor: colors.borderInputCompact,
   },
-  title: text.cardTitle,
+  titleRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: space.md,
+  },
+  title: { ...text.cardTitle, flexShrink: 1 },
+  doneText: {
+    ...text.label,
+    color: colors.accent,
+    fontWeight: "600",
+    fontSize: 16,
+  },
   scrollContent: { gap: space.lg, paddingBottom: space.xs },
   footer: { flexDirection: "row", gap: space.md },
 });

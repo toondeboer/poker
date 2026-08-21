@@ -49,13 +49,16 @@ A fix landing never upgrades a row on its own: ❌ becomes 🔧, and only a re-t
    acquire side; found D8–D12. This is the first pass where Android was checked by hand rather than
    by emulator or Maestro.
 5. **Both devices again** — D8, D9, D10 and D12 confirmed on both, plus Android's swipe-away-from-
-   Recents. **[D11](#d11) is the only defect still open**, and the only thing between here and a
-   store build.
+   Recents. [D11](#d11) still failing, since accepted.
+6. **Both, during the release build** — D13 (iOS): the Done control floats in the gap between a
+   sheet and the keypad. D14 (Android): the keypad covers the generator sheet's footer buttons.
 
 **What's left before submission** — the whole rest of the file is ✅ 🤖 ➖ 🟡.
 
 | | What | Where |
 |---|---|---|
+| 🔧 | **[D13](#d13)** — Done floated in the gap above a sheet's keypad. Fixed, needs a look on the next build | §5 |
+| 🔧 | **[D14](#d14)** — the keypad covered a sheet's footer buttons on Android. Fixed, needs a look on the next build | §5 |
 | 🚫 | Android **purchase / restore / cancel** — needs the build on a Play internal-testing track | §1 |
 | 🚫 | iOS **cancel a purchase** — needs TestFlight; a sandbox purchase can't be cancelled once confirmed | §1 |
 | 🚫 | **Deep-link cold launch**, both platforms — the dev launcher owns the URL scheme, needs a release build | §9 |
@@ -182,6 +185,8 @@ Fully confirmed on both platforms as of pass 5 — the Presets nudge, the sheet'
 | **Any** focused field stays visible when the keypad opens — Settings, blind editor, sheet | ✅ | ✅ **[D8](#d8)** fixed and confirmed |
 | Number fields show a **Done** bar above the keypad (iOS), on the **first** open | ✅ appears on the first open now | ➖ |
 | …and it doesn't look bolted on next to the keyboard's rounded edge | ✅ **[D9](#d9)** fixed and confirmed | ➖ |
+| In a **sheet**, the Done control belongs to the sheet — nothing floating in the gap above the keypad | 🔧 **[D13](#d13)** | 🔧 **[D13](#d13)** |
+| A sheet's **footer buttons stay tappable** with the keypad up (generator: Cancel + Replace structure) | 🔧 **[D14](#d14)** | 🔧 **[D14](#d14)** |
 | Scrolling **keeps the keypad up** — generator sheet | ✅ | ✅ |
 | Scrolling **keeps the keypad up** — blind structure editor | ✅ **[D10](#d10)** fixed and confirmed | ✅ **[D10](#d10)** fixed and confirmed |
 | Generator sheet fields usable with the keyboard up | ✅ fixed — sheet resizes and scrolls correctly; the remaining complaints were [D5](#d5) and [D6](#d6) | ✅ fixed (Maestro: `generator-keyboard.yaml`) — was hidden behind the keyboard, see ROADMAP.md "Settings page UX — blind levels" |
@@ -296,6 +301,8 @@ reasoning survives.
 | [D10](#d10) Blind editor drops the keypad on scroll | pass 3 (both) | ✅ fixed, confirmed both platforms |
 | [D11](#d11) Keep-awake never released on pause/stop | pass 3 (both) | 🔧 **still open** — first fix didn't take, re-worked |
 | [D12](#d12) Rounds under 10s silently rewritten | pass 3 (Android) | ✅ fixed, confirmed both platforms |
+| [D13](#d13) Done button floats in the gap above a sheet's keypad | pass 6 (iOS) | 🔧 fixed, **re-test** |
+| [D14](#d14) Keypad covers a sheet's footer buttons on Android | pass 6 (Android) | 🔧 fixed, **re-test** |
 
 <a id="d1"></a>
 ### D1 · Paywall shows "one-time" with no price · §1
@@ -549,6 +556,61 @@ after the fact, reads as a broken field.
 **Fixed** — the floor is 1 second. Zero stays excluded: a zero-length round has no meaningful expiry
 and divides by zero in the missed-round maths. Two core tests pin the new behaviour (a 5-second round
 survives; 0 still clamps up).
+
+<a id="d13"></a>
+### D13 · Done floats in the gap between a sheet and the keypad · §5
+
+"When generating a new structure and opening the num pad, the done button floats between the num pad
+and the modal. This is really ugly."
+
+Caused by [D9](#d9)'s own fix, and only visible in a sheet. The accessory view is attached to the
+*keyboard*, and a sheet is lifted to sit on top of the keyboard — so the accessory occupies the band
+between the two. On a full screen that's fine: the app's own background is behind it and the stack
+reads as one surface. Over a sheet's dimmed backdrop it isn't — D9 made the bar transparent
+specifically so it couldn't clash with the keyboard's rounded corners, and transparency is exactly
+what turns that band into a visible gap with a control floating in it, belonging to neither surface.
+
+Making the bar opaque again just reinstates D9.
+
+**Fixed by moving the control instead of restyling it.** A new `InsideSheetContext` lets
+`NumberField` tell whether it's inside a `Sheet`; if it is, it renders no accessory at all, and the
+sheet puts **Done** in its own title row while the keypad is up. There's then nothing in the gap
+because there's no gap — with no accessory, the sheet sits directly on the keypad. Full-screen
+fields (blind editor, Settings) keep the accessory, which is the right affordance there.
+
+The context lives in its own module rather than in `Sheet.tsx`, so a leaf primitive can ask the
+question without importing a component that carries a Modal, a PanResponder and an animation.
+
+**Re-test:** the generator sheet on both platforms — Done sits in the sheet's header next to
+"Generate structure", the sheet's bottom edge meets the keypad with no band between them, and
+tapping Done dismisses the keypad without closing the sheet. Then a full-screen number field (blind
+editor) to confirm the accessory is still there and still appears on the first open.
+
+<a id="d14"></a>
+### D14 · The keypad covers a sheet's footer buttons on Android · §5
+
+"The numpad when opening from generate structure now blocks the cancel and replace structure
+buttons."
+
+The sheet lifts itself clear of the keyboard by the height the platform reports — and **Android
+reports the IME height excluding the navigation bar**. So the sheet was lifted a navigation bar
+short, and the footer, being the part closest to the bottom edge, is the part that went under.
+Compounding it, the bottom safe-area inset was dropped from the sheet's padding while the keyboard
+was up, which is right on iOS (the keyboard covers the home indicator) and wrong on Android, where
+it had been the only thing masking the shortfall.
+
+This is a *measured* quantity in this codebase, not a guess: `useKeyboardNudge` recorded a 640dp
+window with a 275dp keyboard where content was actually cut off at 342.5dp — the missing 22.5dp
+being the nav bar. The sheet simply never used that correction.
+
+**Fixed** — one `coveredByKeyboard` value, `keyboard + bottom inset` on Android and the raw height on
+iOS (where it already spans the home indicator), feeding both the sheet's offset and the scroll cap.
+The same formula `useKeyboardNudge` derives, rather than a second one to drift from it.
+
+**Re-test on Android specifically**, and on a device with **3-button navigation** if you have one —
+its nav bar is roughly twice a gesture bar's, so it's where a shortfall shows up worst. Open the
+generator, focus a number field, and confirm both footer buttons are fully tappable, then that the
+sheet's top hasn't been pushed off-screen in the process.
 
 ---
 

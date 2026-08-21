@@ -205,14 +205,17 @@ v1.1.3 together, so both sets of notes cover the same changes.
   store setup left the sheet price-less for the whole session — even though the same lookup
   succeeds by the time Unlock is tapped, which is why buying still worked. It's re-attempted each
   time the sheet opens, and with no price the button simply reads "Unlock Pro".
+- Android: a sheet's footer buttons (the generator's Cancel and Replace structure) are no longer
+  covered by the keypad. The sheet cleared the keyboard but not the navigation bar below it.
 - iOS: the structure generator's sheet is usable with the keyboard up. It didn't shrink to the
   space left above the keyboard, so it couldn't scroll and its top went off-screen. Scrolling a
   sheet no longer dismisses the keypad either — the fields above and below the one you're typing in
   are the reason to scroll, so throwing the keyboard away mid-gesture cost two moves instead of one.
 - iOS: number fields now carry a **Done** button above the keypad, since iOS's number pad has no
-  Return key and nothing else dismissed it short of tapping elsewhere. It's a floating pill rather
-  than a full-width bar, so it sits with the keyboard's rounded edge instead of squaring off against
-  it, and the keypad is dark to match the app.
+  Return key and nothing else dismissed it short of tapping elsewhere. On a full screen it's a
+  floating pill that sits with the keyboard's rounded edge instead of squaring off against it; in a
+  sheet, the sheet puts Done in its own header instead, so nothing is left hanging in the gap above
+  the keypad. The keypad is dark either way, to match the app.
 - Android: focusing a field near the bottom of the screen now scrolls it clear of the keypad, in
   Settings and the blind editor as well as the sheets. Android used to do this itself, and stopped
   when edge-to-edge became mandatory — the keyboard no longer resizes the window, so a field low on
