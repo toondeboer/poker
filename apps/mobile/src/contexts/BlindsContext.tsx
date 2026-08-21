@@ -3,37 +3,58 @@ import { logger } from "@/src/utils/logger";
 import {
   createContext,
   ReactNode,
+  useCallback,
   useContext,
+  useMemo,
   useState,
   useEffect,
 } from "react";
 import {
   BlindLevel,
+  BlindScheduleChange,
+  clampBlindIndex,
+  describeScheduleChange,
   generateBlindLevels,
   nextBlindIndex,
   previousBlindIndex,
   addBlindLevel as appendBlindLevel,
+  insertBlindLevel as spliceBlindLevel,
+  duplicateBlindLevel as copyBlindLevel,
   removeBlindLevel as deleteBlindLevel,
   updateBlindLevel as setBlindLevelField,
 } from "@poker/core";
 import { BlindsStorage } from "@/src/services/BlindsStorage";
 
 type BlindsContextType = {
+  /** The schedule the timer is actually playing. */
   blindLevels: BlindLevel[];
+  /** The editor's working copy, applied to `blindLevels` explicitly. */
   customBlindLevels: BlindLevel[];
   currentBlindIndex: number;
   increaseBlinds: () => void;
   decreaseBlinds: () => void;
+  /** Jump the running tournament to an arbitrary level. */
+  selectBlind: (index: number) => void;
   addBlindLevel: () => void;
+  insertBlindLevel: (index: number) => void;
+  duplicateBlindLevel: (index: number) => void;
   removeBlindLevel: (index: number) => void;
   updateBlindLevel: (
     index: number,
     field: "small" | "big",
     value: number,
   ) => void;
+  /** Wholesale draft replacement — used by the structure generator. */
+  replaceCustomBlindLevels: (levels: BlindLevel[]) => void;
+  /** Throw the draft away and re-seed it from the active schedule. */
+  discardCustomBlindLevels: () => void;
   applyCustomBlindLevels: () => void;
   loadBlindLevels: (levels: BlindLevel[]) => void;
   resetToDefaultBlinds: () => void;
+  /** True when the draft differs from the active schedule. */
+  isDraftDirty: boolean;
+  /** What applying the draft would do to the current level. */
+  draftChange: BlindScheduleChange;
   isLoading: boolean;
 };
 
@@ -54,7 +75,15 @@ export function BlindsProvider({
     const loadBlindsState = async () => {
       try {
         const savedState = await BlindsStorage.loadBlindsState();
-        setCurrentBlindIndex(savedState.currentBlindIndex);
+        // Clamp on the way in: PokerTimer indexes `blindLevels[currentBlindIndex]`
+        // directly, so a stored index pointing past a stored schedule (from an
+        // older build, or a partially-written save) would crash the timer screen.
+        setCurrentBlindIndex(
+          clampBlindIndex(
+            savedState.currentBlindIndex,
+            savedState.blindLevels.length,
+          ),
+        );
         setBlindLevels(savedState.blindLevels);
         setCustomBlindLevels(savedState.customBlindLevels);
       } catch (error) {
@@ -86,78 +115,152 @@ export function BlindsProvider({
     }
   }, [currentBlindIndex, blindLevels, customBlindLevels, isLoading]);
 
-  const increaseBlinds = () => {
-    const newIndex = nextBlindIndex(currentBlindIndex, blindLevels);
+  // The index is saved eagerly (not just via the effect above) because the
+  // process can be killed at any moment mid-round.
+  const commitIndex = useCallback((newIndex: number) => {
     setCurrentBlindIndex(newIndex);
-    // Save index immediately
     BlindsStorage.saveCurrentBlindIndex(newIndex);
-  };
+  }, []);
 
-  const decreaseBlinds = () => {
-    const newIndex = previousBlindIndex(currentBlindIndex);
-    setCurrentBlindIndex(newIndex);
-    // Save index immediately
-    BlindsStorage.saveCurrentBlindIndex(newIndex);
-  };
+  const increaseBlinds = useCallback(() => {
+    commitIndex(nextBlindIndex(currentBlindIndex, blindLevels));
+  }, [commitIndex, currentBlindIndex, blindLevels]);
 
-  const addBlindLevel = () => {
-    setCustomBlindLevels(appendBlindLevel(customBlindLevels));
-  };
+  const decreaseBlinds = useCallback(() => {
+    commitIndex(previousBlindIndex(currentBlindIndex));
+  }, [commitIndex, currentBlindIndex]);
 
-  const removeBlindLevel = (index: number) => {
-    setCustomBlindLevels(deleteBlindLevel(customBlindLevels, index));
-  };
+  const selectBlind = useCallback(
+    (index: number) => {
+      commitIndex(clampBlindIndex(index, blindLevels.length));
+    },
+    [commitIndex, blindLevels.length],
+  );
 
-  const updateBlindLevel = (
-    index: number,
-    field: "small" | "big",
-    value: number,
-  ) => {
-    setCustomBlindLevels(
-      setBlindLevelField(customBlindLevels, index, field, value),
-    );
-  };
+  const addBlindLevel = useCallback(() => {
+    setCustomBlindLevels(appendBlindLevel);
+  }, []);
 
-  const applyCustomBlindLevels = () => {
-    setBlindLevels([...customBlindLevels]);
-    setCurrentBlindIndex(0);
-  };
+  const insertBlindLevel = useCallback((index: number) => {
+    setCustomBlindLevels((levels) => spliceBlindLevel(levels, index));
+  }, []);
 
-  // Apply a saved preset's structure: make it both the editable and the active
-  // schedule, and restart from level 1. Persistence is handled by the save
-  // effect that watches these values.
-  const loadBlindLevels = (levels: BlindLevel[]) => {
+  const duplicateBlindLevel = useCallback((index: number) => {
+    setCustomBlindLevels((levels) => copyBlindLevel(levels, index));
+  }, []);
+
+  const removeBlindLevel = useCallback((index: number) => {
+    setCustomBlindLevels((levels) => deleteBlindLevel(levels, index));
+  }, []);
+
+  const updateBlindLevel = useCallback(
+    (index: number, field: "small" | "big", value: number) => {
+      setCustomBlindLevels((levels) =>
+        setBlindLevelField(levels, index, field, value),
+      );
+    },
+    [],
+  );
+
+  const replaceCustomBlindLevels = useCallback((levels: BlindLevel[]) => {
+    setCustomBlindLevels([...levels]);
+  }, []);
+
+  const discardCustomBlindLevels = useCallback(() => {
+    setCustomBlindLevels([...blindLevels]);
+  }, [blindLevels]);
+
+  /**
+   * Make the draft active.
+   *
+   * Deliberately *clamps* the current index rather than resetting it to 0: this
+   * is an edit to the structure you're already playing, so the host's place in
+   * the tournament is real information worth keeping. Only a draft short enough
+   * to drop the current level moves them, and then only to the new last level.
+   */
+  const applyCustomBlindLevels = useCallback(() => {
+    const next = [...customBlindLevels];
+    setBlindLevels(next);
+    setCurrentBlindIndex((index) => clampBlindIndex(index, next.length));
+  }, [customBlindLevels]);
+
+  /**
+   * Apply a saved preset's structure: make it both the editable and the active
+   * schedule, and restart from level 1. Persistence is handled by the save
+   * effect that watches these values.
+   *
+   * This one *does* reset the index (unlike `applyCustomBlindLevels`) because it
+   * swaps in a whole different tournament setup — "level 12" of the structure
+   * you were playing means nothing in the one you just loaded.
+   */
+  const loadBlindLevels = useCallback((levels: BlindLevel[]) => {
     setCustomBlindLevels(levels);
     setBlindLevels(levels);
     setCurrentBlindIndex(0);
-  };
+  }, []);
 
-  const resetToDefaultBlinds = () => {
+  /** Also a whole-setup replacement, so it resets the index for the same reason. */
+  const resetToDefaultBlinds = useCallback(() => {
     const defaultLevels = generateBlindLevels();
     setCustomBlindLevels(defaultLevels);
     setBlindLevels(defaultLevels);
     setCurrentBlindIndex(0);
-  };
+  }, []);
+
+  const draftChange = useMemo(
+    () =>
+      describeScheduleChange(blindLevels, customBlindLevels, currentBlindIndex),
+    [blindLevels, customBlindLevels, currentBlindIndex],
+  );
+
+  // Memoised so the blinds editor's 30+ memoised rows aren't invalidated by
+  // every unrelated provider render.
+  const value = useMemo(
+    () => ({
+      currentBlindIndex,
+      blindLevels,
+      customBlindLevels,
+      increaseBlinds,
+      decreaseBlinds,
+      selectBlind,
+      addBlindLevel,
+      insertBlindLevel,
+      duplicateBlindLevel,
+      removeBlindLevel,
+      updateBlindLevel,
+      replaceCustomBlindLevels,
+      discardCustomBlindLevels,
+      applyCustomBlindLevels,
+      loadBlindLevels,
+      resetToDefaultBlinds,
+      isDraftDirty: draftChange.changed,
+      draftChange,
+      isLoading,
+    }),
+    [
+      currentBlindIndex,
+      blindLevels,
+      customBlindLevels,
+      increaseBlinds,
+      decreaseBlinds,
+      selectBlind,
+      addBlindLevel,
+      insertBlindLevel,
+      duplicateBlindLevel,
+      removeBlindLevel,
+      updateBlindLevel,
+      replaceCustomBlindLevels,
+      discardCustomBlindLevels,
+      applyCustomBlindLevels,
+      loadBlindLevels,
+      resetToDefaultBlinds,
+      draftChange,
+      isLoading,
+    ],
+  );
 
   return (
-    <BlindsContext.Provider
-      value={{
-        currentBlindIndex,
-        blindLevels,
-        customBlindLevels,
-        increaseBlinds,
-        decreaseBlinds,
-        addBlindLevel,
-        removeBlindLevel,
-        updateBlindLevel,
-        applyCustomBlindLevels,
-        loadBlindLevels,
-        resetToDefaultBlinds,
-        isLoading,
-      }}
-    >
-      {children}
-    </BlindsContext.Provider>
+    <BlindsContext.Provider value={value}>{children}</BlindsContext.Provider>
   );
 }
 

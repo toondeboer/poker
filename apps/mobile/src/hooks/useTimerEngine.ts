@@ -19,7 +19,14 @@ import { useTimerPersistence } from "@/src/hooks/useTimerPersistence";
 import { useLiveActivitySync } from "@/src/hooks/useLiveActivitySync";
 
 export interface TimerEngineCallbacks {
-  onTimerComplete: () => void;
+  /**
+   * A round ran out. `missedRounds` is how many *further* rounds' worth of time
+   * passed before the app got a chance to notice — always 0 for an expiry that
+   * happens while the app is running and watching, and non-zero only when
+   * reloading persisted state reveals the round ended a while ago. The app
+   * advances one level either way; this is only so it can say what happened.
+   */
+  onTimerComplete: (missedRounds: number) => void;
   onTimeUpdate?: (timeLeft: number) => void;
 }
 
@@ -63,13 +70,17 @@ export function useTimerEngine(
   const loadTimerState = async (): Promise<void> => {
     try {
       const savedState = await load();
-      const { state: hydrated, expired } = hydrateTimerState(savedState);
+      const {
+        state: hydrated,
+        expired,
+        missedRounds,
+      } = hydrateTimerState(savedState);
 
       if (expired && !hasHandledTimerCompleteRef.current) {
         // Timer expired while app was closed. hydrate already produced reset
         // state; fire the completion callback (mobile's reopen-to-expired nudge).
         hasHandledTimerCompleteRef.current = true;
-        callbacksRef.current.onTimerComplete();
+        callbacksRef.current.onTimerComplete(missedRounds);
         setState(hydrated);
       } else {
         // Restore normal state and clear the completion flag.
@@ -86,16 +97,29 @@ export function useTimerEngine(
     }
   };
 
+  // Pause/resume. These used to take an exact timeLeft/endTime override, for reconciling a
+  // pause or resume that had happened out-of-band in a notification/Live-Activity button while
+  // JS wasn't running — the native side being the only thing that knew *when* the tap actually
+  // landed. Those buttons are gone (the app is the only writer of timer state now), so the
+  // overrides went with them: every transition here starts from this state machine's own state.
+  const pause = async (): Promise<void> => {
+    logger.log("Pausing timer at time left:", timeLeft);
+    setState((s) => pauseTimer(s));
+  };
+
+  const resume = async (): Promise<void> => {
+    logger.log("Resuming timer");
+    setState((s) => startTimer(s));
+    // Reset completion flag when starting timer
+    hasHandledTimerCompleteRef.current = false;
+  };
+
   // Toggle pause/resume
   const togglePause = async (): Promise<void> => {
     if (!paused) {
-      logger.log("Pausing timer at time left:", timeLeft);
-      setState((s) => pauseTimer(s));
+      await pause();
     } else {
-      logger.log("Resuming timer with time left:", timeLeft);
-      setState((s) => startTimer(s));
-      // Reset completion flag when starting timer
-      hasHandledTimerCompleteRef.current = false;
+      await resume();
     }
   };
 
@@ -163,7 +187,8 @@ export function useTimerEngine(
       !hasHandledTimerCompleteRef.current
     ) {
       hasHandledTimerCompleteRef.current = true;
-      callbacksRef.current.onTimerComplete();
+      // The app watched this one run out, so nothing was missed.
+      callbacksRef.current.onTimerComplete(0);
       resetTimer();
     }
   }, [timeLeft, paused, endTime]);

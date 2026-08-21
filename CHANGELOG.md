@@ -9,10 +9,224 @@ platform-tagged heading (e.g. `## [1.1.3] - 2026-07-20 — Android`) when you cu
 
 ## [Unreleased]
 
+_Nothing yet — next release's entries land here._
+
+## [1.1.4] - 2026-08-19 — iOS & Android
+
+**Release notes (App Store / Play Console "What's New" text) are drafted in
+[STORE_LISTING.md](./STORE_LISTING.md#release-notes--v114)** — kept there alongside
+the rest of the store copy rather than duplicated here. Both platforms shipped
+v1.1.3 together, so both sets of notes cover the same changes.
+
 ### Added
+- Mobile: blind levels now have their own **Blind structure** screen, reached from Settings,
+  replacing the fixed-height scrollable list that was nested inside the scrolling Settings page
+  (a scroll-inside-a-scroll that made a 30-level schedule awkward to edit). The new screen is a
+  single list, so the whole schedule scrolls normally.
+- Mobile: a level can now be inserted or duplicated anywhere in the schedule, not just appended to
+  the end. New levels inserted between two others are interpolated from their neighbours and
+  rounded to chip-friendly numbers.
+- Mobile: a structure **generator** — pick a starting small blind, a number of levels and a speed
+  (Slow / Standard / Turbo), preview the result, and replace the whole schedule in one go instead
+  of hand-editing every row. It follows the way real published structures are built rather than a
+  flat percentage: each speed walks a ladder of round numbers (1, 1.5, 2, 3, 4, 6 …) that wraps
+  into the next power of ten, so every blind is a value you can make with chips, the steps ease off
+  within each decade, and the top end is predictable — the sheet states how many levels it takes to
+  reach 10×. Slow keeps every step in the 20–33% band recommended for keeping players from lurching
+  between deep- and short-stacked.
+- Mobile: the generator takes a **smallest chip** (1 / 5 / 25 / 100), and every blind it produces is
+  a multiple of it — no more levels like 6/12 that can't be posted at a table whose smallest chip is
+  a 5. Where the next step would round back onto the previous level, the schedule advances by exactly
+  one chip instead. It's seeded from the structure you're already editing, so it usually needs no
+  thought. With 25-chips at slow speed this reproduces the standard casino sheet almost exactly:
+  25/50 → 50/100 → 75/150 → 100/200 → 125/250 → 150/300 → 200/400 → 250/500.
+- Mobile: tap a level number in the editor to jump the running tournament straight to that level
+  (the web app has had this; mobile only had next/previous).
+- Mobile: the editor marks which level the tournament is currently on, and the Settings entry point
+  shows an "Unapplied changes" badge when the editor holds edits that haven't been applied yet.
 - Web: new `/guide` page — "How to Run a Home Poker Tournament" — covering buy-ins, blind
   structures, payouts, and a blind-structure explainer, with `HowTo`/`FAQPage` structured data.
   Cross-linked from `/timer`.
+- Mobile: the screen now stays on while a round is counting down, and is released once the timer is
+  paused or stopped. A phone left on the table used to lock itself within a minute, which backgrounds
+  the app and stops the round advancing on its own — so most tournaments dropped out of the
+  foreground during their *first* level.
+- Mobile: the timer notification (Android) and Live Activity (iOS) both carry a standing line —
+  "Open the app at the buzzer to start the next level" — replacing the force-quit notes. Nothing
+  of the app's runs while it's backgrounded, so the app is what advances the blinds; saying so
+  beats a countdown that looks like the tournament is still progressing when it isn't.
+- Mobile: the generator and Pro sheets can now be dismissed by **dragging the handle down** or
+  tapping the dimmed area outside them. The handle was previously decorative — it looked draggable
+  but did nothing — and tapping outside had no effect either, so on iOS the only way out was a
+  button.
+
+### Changed
+- Round duration can now be as short as **1 second**, down from a 10-second floor that rewrote
+  anything shorter without saying so — typing 5 and coming back to 10 reads as a broken field rather
+  than a rule.
+- Mobile: the dimmed backdrop behind those sheets now **fades in place** instead of sliding up with
+  the sheet, and lightens as you drag one down, so the sheet reads as sitting over the screen rather
+  than being part of it.
+- Mobile: removed the small ✕ from the corner of both sheets. Each already has a labelled way out —
+  "Cancel" on the generator, "Maybe later" on the Pro sheet — so it was a second, unlabelled control
+  competing with them.
+- Mobile: updated RevenueCat (`react-native-purchases` 10.4.0 → 10.4.4, which moves the native SDK
+  from 5.78.0 to 5.81.1 via `PurchasesHybridCommon` 18.22.2). Purchase and restore should be
+  smoke-tested on a real device before this release is submitted.
+- Mobile: applying edited blind levels now **keeps your place in the tournament** instead of
+  silently restarting at Level 1 — the current level is clamped into the new schedule, and you're
+  only moved (to the new last level) if the level you were on no longer exists, which the Apply
+  button warns about before you confirm. Loading a preset or resetting to defaults still restarts
+  at Level 1, since those replace the whole tournament setup rather than editing the one you're
+  playing.
+- Mobile: round duration is now a minutes + seconds pair rather than a raw seconds field, and
+  applies as you edit instead of needing a separate "Save Timer Settings" button. Changing it
+  mid-round no longer requires a save step and still leaves a running round's remaining time alone.
+- Mobile: Settings redesigned — Pro, Tournament (round length + blind structure), Presets and Sound
+  Pack sections built on a shared theme and real icons instead of emoji placeholders, with the Pro
+  card collapsing to a single line once unlocked.
+- Mobile: numeric fields no longer turn into a literal `0` when you clear them — an empty field
+  stays empty while you retype, and reverts to its previous value if you leave it blank.
+- Mobile: saving a preset now captures the *active* blind structure rather than the editor's
+  working copy, so a preset can't silently record edits you never applied.
+- Mobile: recolored the Android foreground-service notification and iOS Live Activity/Dynamic
+  Island to match the app's own timer palette (`#10B981` green / `#F59E0B` amber / `#DC2626` red)
+  instead of each platform's own approximate shades. Also added two visual states neither platform
+  distinguished before: an expired round (red + alarm icon on iOS) and a low-time warning at 60s
+  or less remaining (amber, matching Android's existing threshold).
+- Mobile: the Android foreground-service notification uses a custom `RemoteViews` layout rather
+  than the stock one, so the round's state color reaches the timer text and the blinds get a line
+  of their own. The expanded view mirrors the iOS Lock Screen's layout (header, timer + blinds,
+  caption).
+- Mobile: the paused state's icon/timer-text color on both the Android notification and iOS Live
+  Activity changed from gray to amber, simplifying the palette to green (active) / amber (paused
+  or low-time) / red (expired).
+- Mobile: the blinds are much larger on the iOS Live Activity and the Android notification, now
+  matching the countdown's weight rather than sitting a size below it. They're what you actually
+  read off a lock screen — the countdown only tells you when to look again — and there's room for
+  it since those surfaces no longer carry buttons. Long late-structure numbers shrink to fit
+  instead of wrapping.
+
+### Fixed
+- Mobile: on Android, focusing the preset-name field on Settings only scrolled "Save Preset"
+  about 40% clear of the keyboard instead of fully clear — `useKeyboardNudge.ts` mixed two
+  coordinate frames that don't share an origin on Android (`measureInWindow`, excluding the
+  status bar, vs. `Dimensions.get("window").height`, including it), a gap the narrower number-pad
+  keyboards elsewhere never made large enough to notice. Fixed by threading a `topInset` prop
+  through and subtracting it before the comparison, Android-only.
+- Mobile: on Android, the generator sheet's footer ("Cancel"/"Replace structure") was unreachable
+  behind the keyboard — `Sheet.tsx`'s `KeyboardAvoidingView` silently produced no
+  adjustment at all inside this Modal's own separate Android window (same root cause
+  `useKeyboardNudge.ts` already documents for Presets: measuring against
+  `Dimensions.get('window').height` doesn't account for a Modal's own window). Fixed by tracking
+  the keyboard height directly via `Keyboard.addListener` and applying it as `marginBottom` on the
+  sheet, bypassing `KeyboardAvoidingView`'s broken Android measurement entirely.
+- Mobile: the blind-structure editor list wasn't tablet-capped/centred on iPad at all — genuinely
+  full-bleed, despite `BlindStructureScreen.tsx` having the same `isTablet`-based centering logic
+  that works correctly on Settings on the same device. A `FlatList`'s `contentContainerStyle`
+  combining `width: "100%"` with `alignSelf: "center"` + `maxWidth` resolved differently on iOS
+  than the identical pattern on a plain `ScrollView` — dropping the redundant `width: "100%"`
+  (`alignSelf: "center"` + `maxWidth` alone already caps and centers) fixed it, verified via
+  screenshot on an iPad Pro 11-inch simulator with no regression on Android tablet.
+- Mobile: on iOS, `NavRow`'s badge (e.g. the "Unapplied changes" pill on Settings' Blind structure
+  row) was invisible to VoiceOver — `NavRow.tsx`'s `TouchableOpacity` sets an explicit
+  `accessibilityLabel` that collapses its whole subtree, including the badge, into one opaque
+  string. Added a `badgeLabel` prop that folds the badge's text into that same label
+  (`"<title>. <summary>. <badgeLabel>"`), so a VoiceOver user now hears about the unapplied draft
+  instead of just the title and summary. Found while building iOS Maestro coverage.
+- Mobile: a `NumberField` (round duration's seconds, or any numeric field with a
+  stricter clamp layered on top by its parent) could keep showing a stale, out-of-range
+  digit string after blurring — e.g. typing `99` into the round-duration seconds field
+  and tapping away left the box reading "99" even though the round was already
+  correctly capped to 59 seconds underneath. `onBlur` was recomputing its own clamp
+  from just `min`, overwriting the display with that instead of trusting the already
+  fully-clamped `value` it had been passed. Found while building Maestro coverage for
+  `RELEASE_TESTING.md`.
+- Mobile: the Timer screen card no longer stretches edge-to-edge on tablets — capped it at the
+  same tablet-aware `maxWidth` + centered layout `PokerSettings.tsx` already used, so blind values
+  and buttons don't end up spread across the full iPad-width card. Found during a cross-device QA
+  pass (see `ROADMAP.md`).
+- Mobile: the Timer screen now fits on the smallest phones (iPhone SE-class) without feeling
+  cramped or overflowing — the whitespace between sections (progress bar, Current Blinds, Next
+  Level, etc.) now shrinks faster than text does as the screen gets tighter, instead of both
+  shrinking at the same rate down to the same floor.
+- Android: fixed tablets being letterboxed into a narrow portrait strip (black bars either side)
+  regardless of the device's actual screen size. `MainActivity` locked the whole app to portrait
+  via the manifest, but Android 12L+ letterboxes fixed-orientation activities on large screens
+  instead of ignoring the restriction (the opposite of what an earlier fix assumed) — moved the
+  portrait lock into code (`MainActivity.kt`, based on `smallestScreenWidthDp`) so it still applies
+  to phones with no exceptions, while tablets get `SCREEN_ORIENTATION_UNSPECIFIED` and the OS stops
+  letterboxing them. Tablets now use the full landscape screen, correctly triggering the existing
+  tablet layouts (Settings' side-by-side cards, Timer's centered column).
+- Android: app icon now has proper round/squircle corners matching the rest of the launcher —
+  added the missing adaptive-icon config (`app.json` had none), so the OS was rendering the flat
+  legacy square icon with no mask applied at all.
+- Android: edge-to-edge display now survives a clean `expo prebuild` instead of silently
+  reverting to the pre-v1.1.3 `Theme.AppCompat` theme. The `android.edgeToEdgeEnabled` app.json
+  key stopped being honored by this Expo SDK (Android 16 makes edge-to-edge mandatory, so Expo's
+  base prebuild config always resets `AppTheme` to the default theme now) and needed the
+  `react-native-edge-to-edge` config plugin registered in `plugins` to reapply `Theme.EdgeToEdge`
+  afterward — removed the stale key and added the plugin.
+- Mobile: the Android notification/iOS Live Activity Pause/Resume button no longer gets stuck
+  offering "Pause" once a round expires — it now correctly switches to "Resume" (Android also
+  restores the "Active"/green title once resumed). Resuming an already-expired round no longer
+  instantly re-expires it, and now correctly advances to the next blind level and starts a fresh
+  round instead of restarting the same (already-finished) one.
+- Mobile: the in-app "Time's Up" alert (and its alarm sound) could silently fail to show when a
+  round expired while the app was genuinely in the foreground — it would auto-advance the blind
+  level with no alert or sound instead, as if the app had been backgrounded the whole time.
+- Android: reopening the app after force-quitting (swiping away from Recents) mid-round no longer
+  resets the timer to the default 10-minute duration and blind Level 2 — a stale-closure race
+  meant a pending notification action could be reconciled against pre-load default values instead
+  of what was actually persisted.
+- Android: fixed a "Poker Timer keeps stopping" crash (`NullPointerException` in react-native's
+  `ReactActivityDelegate`) that could happen whenever the app was paused, resumed, or reconfigured
+  before the JS bridge finished attaching — most likely right after a fresh launch. `MainActivity`
+  now guards the affected lifecycle callbacks. See CLAUDE.md for the full root-cause writeup.
+- Mobile: the Timer card no longer visibly resizes a few times right after a fresh launch. Its
+  auto-fit-to-screen pass converges over several measure-and-rescale rounds, and does so
+  non-monotonically (measured on a small Android screen: 1.00 → 0.78 → 0.92 → 0.81), so every one
+  of those intermediate sizes was being painted. The card now stays hidden behind the native
+  splash screen (a dependency that was installed but never actually invoked before now) until that
+  fit has genuinely settled *and* the persisted timer state has loaded, then the splash lifts and
+  the card appears in the same frame — so the first thing you see is the final layout. Capped at
+  4s so a slow or stuck load can't hold the splash indefinitely.
+- Mobile: the card no longer resizes when the ad banner appears, which on iOS happened around half
+  a second after the app was already on screen (and on Android could be nearly three seconds in).
+  An adaptive banner has no height until it has loaded, so the slot used to jump from nothing to
+  full height under an already-visible layout; it now reserves that space up front, so the banner
+  arriving changes nothing.
+- Mobile: the auto-fit now converges in a couple of steps instead of visibly hunting for the right
+  size — its size estimate systematically overshot, so it used to ping-pong around the answer (11
+  steps in one measured case) and could come to rest on a size that still overflowed the screen
+  slightly.
+- iOS: the Pro sheet no longer offers "Unlock Pro · one-time" with no price in it. The price was
+  fetched once at launch and every failure discarded silently, so a fetch that lost a race with
+  store setup left the sheet price-less for the whole session — even though the same lookup
+  succeeds by the time Unlock is tapped, which is why buying still worked. It's re-attempted each
+  time the sheet opens, and with no price the button simply reads "Unlock Pro".
+- Android: a sheet's footer buttons (the generator's Cancel and Replace structure) are no longer
+  covered by the keypad. The sheet cleared the keyboard but not the navigation bar below it.
+- iOS: the structure generator's sheet is usable with the keyboard up. It didn't shrink to the
+  space left above the keyboard, so it couldn't scroll and its top went off-screen. Scrolling a
+  sheet no longer dismisses the keypad either — the fields above and below the one you're typing in
+  are the reason to scroll, so throwing the keyboard away mid-gesture cost two moves instead of one.
+- iOS: number fields now carry a **Done** button above the keypad, since iOS's number pad has no
+  Return key and nothing else dismissed it short of tapping elsewhere. On a full screen it's a
+  floating pill that sits with the keyboard's rounded edge instead of squaring off against it; in a
+  sheet, the sheet puts Done in its own header instead, so nothing is left hanging in the gap above
+  the keypad. The keypad is dark either way, to match the app.
+- Android: focusing a field near the bottom of the screen now scrolls it clear of the keypad, in
+  Settings and the blind editor as well as the sheets. Android used to do this itself, and stopped
+  when edge-to-edge became mandatory — the keyboard no longer resizes the window, so a field low on
+  the page simply sat underneath it with no way to scroll to it.
+- Both platforms: scrolling the blind editor no longer throws the keypad away mid-edit — the level
+  above or below the one you're changing is usually the reason to scroll.
+- Mobile: reopening the app after a round ran out while it was closed now always shows the
+  end-of-round alert. If the alarm sound hadn't finished loading at that moment — likely on the
+  reopen path specifically — the level used to advance silently with no alert and no sound, which
+  looks exactly like the app losing your place. When more than one round's worth of time passed,
+  the alert now says so, rather than presenting a long absence as an ordinary round change.
 
 ## [1.1.3] - 2026-07-21 — iOS & Android
 
@@ -104,7 +318,8 @@ _Before Android's launch. Reconstructed from build history — approximate._
 - Initial App Store release: a poker tournament timer with configurable blind levels, a
   per-round countdown, background timing, iOS Live Activities, and an Android foreground service.
 
-[Unreleased]: https://github.com/toondeboer/poker/compare/v1.1.3...HEAD
+[Unreleased]: https://github.com/toondeboer/poker/compare/v1.1.4...HEAD
+[1.1.4]: https://github.com/toondeboer/poker/compare/v1.1.3...v1.1.4
 [1.1.3]: https://github.com/toondeboer/poker/compare/v1.1.2...v1.1.3
 [1.1.2]: https://github.com/toondeboer/poker/compare/v1.1.1...v1.1.2
 [1.1.1]: https://github.com/toondeboer/poker/compare/v1.1.0...v1.1.1

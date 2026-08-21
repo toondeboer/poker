@@ -28,6 +28,25 @@ packages/
   core/     @poker/core     shared, framework-agnostic timer logic
 ```
 
+Inside `apps/mobile/src`:
+
+```
+app/            expo-router routes: index (timer), settings, blinds
+components/
+  ui/           shared primitives (Card, Button, TextField, Sheet, …)
+  settings/     the Settings screen, one file per card
+  blinds/       the blind-structure editor
+  PokerTimer    the timer screen (self-measuring, deliberately bespoke)
+theme/          colour / spacing / typography tokens, tablet breakpoint
+contexts/       Blinds, Timer, Premium, SoundPack, AppState, AppReadyGate
+```
+
+**Blind levels use a draft/active split.** `BlindsContext` holds `customBlindLevels` (what the
+`/blinds` editor mutates) separately from `blindLevels` (what the timer plays); the editor's Apply
+button is what promotes one to the other. Applying *clamps* the current level into the new schedule
+rather than resetting it, so editing mid-tournament doesn't restart the game — whereas loading a
+preset or resetting to defaults does restart, since those swap in a different tournament entirely.
+
 ## Tooling
 
 - **npm workspaces** link the packages. We use npm (not pnpm/yarn) because both original

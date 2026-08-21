@@ -36,15 +36,25 @@ export function createTimerState(
 
 /**
  * Start or resume: anchor an absolute `endTime` from the remaining time (falling
- * back to a full round if nothing is left) and run. `timeLeft` is left as-is and
- * recomputed from `endTime` by {@link tickTimer}.
+ * back to a full round if nothing is left) and run. `timeLeft` is set to the same
+ * `seconds` value immediately, not left for {@link tickTimer} to recompute a second
+ * later — resuming from an expired (`timeLeft === 0`) state falls back to a full
+ * `timerDuration` in `endTime`, but if `timeLeft` were left at 0 in the interim, the
+ * very next render would see `timeLeft === 0 && !paused && endTime`, which callers'
+ * completion-detection effects read as "just expired" and immediately reset the
+ * timer that was only just started.
  */
 export function startTimer(
   state: TimerMachineState,
   now: number = Date.now(),
 ): TimerMachineState {
   const seconds = state.timeLeft > 0 ? state.timeLeft : state.timerDuration;
-  return { ...state, endTime: computeEndTime(seconds, now), paused: false };
+  return {
+    ...state,
+    timeLeft: seconds,
+    endTime: computeEndTime(seconds, now),
+    paused: false,
+  };
 }
 
 /** Pause: drop the anchor (freezing the current `timeLeft`) and mark paused. */
@@ -121,6 +131,25 @@ export function clampToDuration(state: TimerMachineState): TimerMachineState {
   return state;
 }
 
+export interface HydratedTimerState {
+  state: TimerMachineState;
+  /** The stored round had already run out by `now`. */
+  expired: boolean;
+  /**
+   * How many *further* whole rounds would have run out since that first expiry,
+   * had anything been counting them. Zero unless `expired`.
+   *
+   * Nothing advances rounds while the app isn't running — mobile suspends its
+   * JS the moment it's backgrounded, and neither the Live Activity nor the
+   * foreground-service notification knows what a blind level is — so exactly one
+   * level advances on the way back in, no matter how long the app was away. This
+   * is what lets the caller *say* that rather than presenting a 40-minute
+   * absence as an ordinary round change: it's the count the player is owed an
+   * explanation for, not a count to advance by.
+   */
+  missedRounds: number;
+}
+
 /**
  * Rebuild machine state from persisted {@link TimerState}. When the timer was
  * running, `timeLeft` is recomputed from the stored `endTime`; if that has
@@ -131,7 +160,7 @@ export function clampToDuration(state: TimerMachineState): TimerMachineState {
 export function hydrateTimerState(
   stored: TimerState,
   now: number = Date.now(),
-): { state: TimerMachineState; expired: boolean } {
+): HydratedTimerState {
   const { timerDuration } = stored;
 
   if (stored.endTime && !stored.paused) {
@@ -145,8 +174,15 @@ export function hydrateTimerState(
           paused: false,
         },
         expired: false,
+        missedRounds: 0,
       };
     }
+    // Guarded against a zero/negative duration, which would otherwise divide to
+    // Infinity and report an absurd number of missed rounds.
+    const missedRounds =
+      timerDuration > 0
+        ? Math.floor((now - stored.endTime) / (timerDuration * 1000))
+        : 0;
     return {
       state: {
         timerDuration,
@@ -155,6 +191,7 @@ export function hydrateTimerState(
         paused: true,
       },
       expired: true,
+      missedRounds,
     };
   }
 
@@ -166,5 +203,6 @@ export function hydrateTimerState(
       paused: stored.paused,
     },
     expired: false,
+    missedRounds: 0,
   };
 }

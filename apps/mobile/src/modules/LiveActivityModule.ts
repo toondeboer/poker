@@ -10,6 +10,9 @@ export interface LiveActivityData {
   nextBigBlind: number;
   endTime?: number; // Unix timestamp in milliseconds for iOS, seconds for Android
   timeLeft?: number; // Duration in seconds from now
+  // Total configured round length in seconds. Part of the round snapshot both surfaces render
+  // from; neither writes timer state back, so this only ever flows app → native.
+  timerDuration?: number;
   paused: boolean;
 }
 

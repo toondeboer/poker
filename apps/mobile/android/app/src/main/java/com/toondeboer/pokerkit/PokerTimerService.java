@@ -18,8 +18,11 @@ import android.os.VibrationEffect;
 import android.os.Vibrator;
 import androidx.core.app.NotificationCompat;
 import androidx.annotation.Nullable;
+import androidx.core.content.ContextCompat;
 import android.os.Handler;
 import android.os.Looper;
+import android.content.SharedPreferences;
+import android.widget.RemoteViews;
 
 public class PokerTimerService extends Service {
     // Intent extras
@@ -31,6 +34,7 @@ public class PokerTimerService extends Service {
     public static final String EXTRA_NEXT_BIG_BLIND = "nextBigBlind";
     public static final String EXTRA_END_TIME = "endTime";
     public static final String EXTRA_TIME_LEFT = "timeLeft";
+    public static final String EXTRA_TIMER_DURATION = "timerDuration";
     public static final String EXTRA_PAUSED = "paused";
     public static final String EXTRA_SHOULD_ALERT_ON_EXPIRY = "shouldAlertOnExpiry";
     public static final String EXTRA_SOUND_ID = "soundId";
@@ -43,6 +47,10 @@ public class PokerTimerService extends Service {
     public static final String ACTION_UPDATE = "UPDATE_TIMER_SERVICE";
     public static final String ACTION_STOP = "STOP_TIMER_SERVICE";
     public static final String ACTION_DISMISS_ALERT = "DISMISS_ALERT";
+    // Every action here is JS-driven. The notification is a display surface only: it once carried
+    // Pause/Resume/Stop buttons, which meant this service could change the timer without the app
+    // running and then had to hand that change back across a persisted snapshot the app
+    // reconciled on next launch. That round trip was removed — the app is the only writer now.
 
     private static final String CHANNEL_ID = "PokerTimerChannel";
     private static final String ALERT_CHANNEL_ID = "PokerTimerAlertChannel";
@@ -68,6 +76,7 @@ public class PokerTimerService extends Service {
     private int nextBigBlind = 0;
     private long endTime = 0;
     private int timeLeft = 0;
+    private int timerDuration = 0;
     private boolean paused = true;
     private boolean shouldAlertOnExpiry = true;
     private String soundId = DEFAULT_SOUND_ID;
@@ -82,6 +91,7 @@ public class PokerTimerService extends Service {
         createNotificationChannels();
         handler = new Handler(Looper.getMainLooper());
         alertHandler = new Handler(Looper.getMainLooper());
+        ForegroundServiceBridge.setRunning(true);
     }
 
     @Override
@@ -117,6 +127,7 @@ public class PokerTimerService extends Service {
         nextBigBlind = intent.getIntExtra(EXTRA_NEXT_BIG_BLIND, 0);
         endTime = intent.getLongExtra(EXTRA_END_TIME, 0);
         timeLeft = intent.getIntExtra(EXTRA_TIME_LEFT, 0);
+        timerDuration = intent.getIntExtra(EXTRA_TIMER_DURATION, timerDuration);
         boolean newPaused = intent.getBooleanExtra(EXTRA_PAUSED, true);
         shouldAlertOnExpiry = intent.getBooleanExtra(EXTRA_SHOULD_ALERT_ON_EXPIRY, true);
         String newSoundId = intent.getStringExtra(EXTRA_SOUND_ID);
@@ -143,13 +154,23 @@ public class PokerTimerService extends Service {
 
                     if (newTimeLeft != timeLeft) {
                         timeLeft = newTimeLeft;
-                        updateNotification();
 
-                        // Check if timer just expired
-                        if (timeLeft == 0 && !timerExpired && shouldAlertOnExpiry) {
+                        // Flip timerExpired (and rebuild the notification off the back of it)
+                        // *before* the notification is rebuilt below — this is also the very last
+                        // tick this runnable ever reschedules (see the `timeLeft > 0` guard
+                        // below), so if the flag flipped after updateNotification() instead, the
+                        // "Pause" button/title would be frozen showing the pre-expiry state
+                        // forever, since nothing rebuilds the notification again on its own once
+                        // ticking stops. shouldAlertOnExpiry only gates the alarm/vibration, not
+                        // whether the round is considered over.
+                        if (timeLeft == 0 && !timerExpired) {
                             timerExpired = true;
-                            startAlert();
+                            if (shouldAlertOnExpiry) {
+                                startAlert();
+                            }
                         }
+
+                        updateNotification();
                     }
 
                     if (timeLeft > 0) {
@@ -407,9 +428,11 @@ public class PokerTimerService extends Service {
 
         String title = getModernTitle();
         String content = formatNotificationContent();
-        String bigText = formatBigText();
 
         NotificationCompat.Builder builder = new NotificationCompat.Builder(this, CHANNEL_ID)
+                // contentTitle/contentText aren't shown once a custom view is supplied below —
+                // kept as the fallback the system uses for a redacted lock-screen notification
+                // and for accessibility services.
                 .setContentTitle(title)
                 .setContentText(content)
                 .setSmallIcon(getNotificationIcon())
@@ -420,11 +443,17 @@ public class PokerTimerService extends Service {
                 .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
                 .setColor(getStatusColor()) // Dynamic color based on state
                 .setColorized(false)
-                .setStyle(new NotificationCompat.BigTextStyle()
-                        .bigText(bigText)
-                        .setBigContentTitle(title))
+                // DecoratedCustomViewStyle keeps the system-drawn header (small icon in its
+                // colored circle, app label, timestamp, expand chevron) while handing the content
+                // area to the custom RemoteViews below — which is what lets the round's state
+                // color reach the timer text and the blinds get their own line.
+                .setStyle(new NotificationCompat.DecoratedCustomViewStyle())
+                .setCustomContentView(buildCollapsedRemoteViews())
+                .setCustomBigContentView(buildExpandedRemoteViews())
                 .setShowWhen(false)
                 .setOnlyAlertOnce(true); // Don't repeatedly alert for updates
+        // No .addAction() calls here. This notification is a display surface: tapping it opens
+        // the app (setContentIntent above), which is the only thing that can change the timer.
 
         // Add custom large icon if available
         try {
@@ -441,15 +470,53 @@ public class PokerTimerService extends Service {
         return builder.build();
     }
 
+    // Collapsed body for the DecoratedCustomViewStyle notification (see createNotification) —
+    // a two-line text column. The custom view survives the button removal because the system's
+    // own layout can't render the state color the title carries.
+    private RemoteViews buildCollapsedRemoteViews() {
+        RemoteViews views = new RemoteViews(getPackageName(), R.layout.notification_timer_collapsed);
+
+        views.setTextViewText(R.id.timer_collapsed_title, getModernTitle());
+        views.setTextViewText(R.id.timer_collapsed_subtitle, formatNotificationContent());
+
+        return views;
+    }
+
+    // Expanded body — full layout mirroring the iOS Live Activity's Lock Screen view (header,
+    // timer+blinds, caption).
+    private RemoteViews buildExpandedRemoteViews() {
+        RemoteViews views = new RemoteViews(getPackageName(), R.layout.notification_timer_expanded);
+
+        views.setTextViewText(R.id.timer_expanded_title, getModernTitle());
+        views.setTextViewText(R.id.timer_expanded_level, "Level " + currentBlindLevel);
+
+        String timeText = timeLeft > 0 ? formatTime(timeLeft) : "0:00";
+        views.setTextViewText(R.id.timer_expanded_time, timeText);
+        views.setTextColor(R.id.timer_expanded_time, getStatusColor());
+
+        views.setTextViewText(
+                R.id.timer_expanded_current_blinds, formatBlinds(currentSmallBlind, currentBigBlind));
+        views.setTextViewText(
+                R.id.timer_expanded_next_blinds,
+                "→ " + formatBlinds(nextSmallBlind, nextBigBlind));
+
+        views.setTextViewText(R.id.timer_expanded_caption, OPEN_APP_CAPTION);
+
+        return views;
+    }
+
+    // Same hex values the app itself already uses for this timer's countdown states
+    // (PokerTimer.tsx's getGradientColors/getProgressBarColor) and the iOS Live Activity's
+    // TimerVisualState, rather than this notification picking its own approximate shades.
     private int getStatusColor() {
         if (timerExpired) {
-            return 0xFFDC2626; // Red for expired
+            return ContextCompat.getColor(this, R.color.pokerTimerRed);
         } else if (paused) {
-            return 0xFF6B7280; // Gray for paused
+            return ContextCompat.getColor(this, R.color.pokerTimerAmber);
         } else if (timeLeft <= 60) {
-            return 0xFFEA580C; // Orange for low time
+            return ContextCompat.getColor(this, R.color.pokerTimerAmber);
         } else {
-            return 0xFF059669; // Green for active
+            return ContextCompat.getColor(this, R.color.pokerTimerGreen);
         }
     }
 
@@ -511,32 +578,13 @@ public class PokerTimerService extends Service {
         return content.toString();
     }
 
-    private String formatBigText() {
-        StringBuilder bigText = new StringBuilder();
-
-        // Current level info
-        bigText.append("📊 Current Level: ").append(currentBlindLevel).append("\n");
-        bigText.append("💰 Blinds: ").append(formatBlinds(currentSmallBlind, currentBigBlind));
-
-        // Timer info
-        if (paused) {
-            bigText.append("\n⏸️ Status: Paused");
-            if (timeLeft > 0) {
-                bigText.append("\n⏱️ Time Remaining: ").append(formatTime(timeLeft));
-            }
-        } else if (timeLeft > 0) {
-            bigText.append("\n⏱️ Time Left: ").append(formatTime(timeLeft));
-        } else if (timerExpired) {
-            bigText.append("\n🚨 TIME'S UP! Level completed");
-        }
-
-        // Next level info
-        if (nextSmallBlind > 0 || nextBigBlind > 0) {
-            bigText.append("\n⬆️ Next Level: ").append(formatBlinds(nextSmallBlind, nextBigBlind));
-        }
-
-        return bigText.toString();
-    }
+    // Permanent notice, not conditional on any state — the same standing line the iOS Live
+    // Activity carries. This service counts the current round down on its own, but it has no
+    // notion of blind levels (that math lives only in the app), so it can't roll into the next
+    // one by itself: the app is what advances the level, on next foreground. Saying so plainly
+    // beats a countdown that looks like the tournament is still progressing when it isn't.
+    private static final String OPEN_APP_CAPTION =
+            "Open the app at the buzzer to start the next level.";
 
     private String formatBlinds(int smallBlind, int bigBlind) {
         return String.format("%,d/%,d", smallBlind, bigBlind);
@@ -559,6 +607,7 @@ public class PokerTimerService extends Service {
         super.onDestroy();
         stopTimer();
         stopAlert();
+        ForegroundServiceBridge.setRunning(false);
     }
 }
 

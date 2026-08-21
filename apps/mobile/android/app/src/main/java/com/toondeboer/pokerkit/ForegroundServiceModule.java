@@ -14,7 +14,6 @@ import android.Manifest;
 public class ForegroundServiceModule extends ReactContextBaseJavaModule {
     private static final String MODULE_NAME = "RNForegroundService";
     private ReactApplicationContext reactContext;
-    private boolean isServiceRunning = false;
 
     public ForegroundServiceModule(ReactApplicationContext reactContext) {
         super(reactContext);
@@ -74,6 +73,10 @@ public class ForegroundServiceModule extends ReactContextBaseJavaModule {
                 serviceIntent.putExtra(PokerTimerService.EXTRA_TIME_LEFT,
                         data.getInt("timeLeft"));
             }
+            if (data.hasKey("timerDuration")) {
+                serviceIntent.putExtra(PokerTimerService.EXTRA_TIMER_DURATION,
+                        data.getInt("timerDuration"));
+            }
             if (data.hasKey("paused")) {
                 serviceIntent.putExtra(PokerTimerService.EXTRA_PAUSED,
                         data.getBoolean("paused"));
@@ -88,7 +91,6 @@ public class ForegroundServiceModule extends ReactContextBaseJavaModule {
             }
 
             reactContext.startForegroundService(serviceIntent);
-            isServiceRunning = true;
             promise.resolve("Service started successfully");
 
         } catch (Exception e) {
@@ -99,7 +101,7 @@ public class ForegroundServiceModule extends ReactContextBaseJavaModule {
     @ReactMethod
     public void updateService(ReadableMap data, Promise promise) {
         try {
-            if (!isServiceRunning) {
+            if (!ForegroundServiceBridge.isRunning()) {
                 // If service isn't running, start it instead
                 startService(data, promise);
                 return;
@@ -141,6 +143,10 @@ public class ForegroundServiceModule extends ReactContextBaseJavaModule {
                 serviceIntent.putExtra(PokerTimerService.EXTRA_TIME_LEFT,
                         data.getInt("timeLeft"));
             }
+            if (data.hasKey("timerDuration")) {
+                serviceIntent.putExtra(PokerTimerService.EXTRA_TIMER_DURATION,
+                        data.getInt("timerDuration"));
+            }
             if (data.hasKey("paused")) {
                 serviceIntent.putExtra(PokerTimerService.EXTRA_PAUSED,
                         data.getBoolean("paused"));
@@ -169,7 +175,6 @@ public class ForegroundServiceModule extends ReactContextBaseJavaModule {
             serviceIntent.setAction(PokerTimerService.ACTION_STOP);
             reactContext.startService(serviceIntent);
 
-            isServiceRunning = false;
             promise.resolve("Service stopped successfully");
 
         } catch (Exception e) {
@@ -211,8 +216,9 @@ public class ForegroundServiceModule extends ReactContextBaseJavaModule {
 
     @ReactMethod
     public void isServiceRunning(Promise promise) {
-        promise.resolve(isServiceRunning);
+        promise.resolve(ForegroundServiceBridge.isRunning());
     }
+
 }
 
 

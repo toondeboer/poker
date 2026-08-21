@@ -1,0 +1,86 @@
+appId: com.toondeboer.pokerkit
+---
+# §2 editor: applying a schedule shorter than the level the tournament is
+# currently on shows a warning and clamps to the new last level without
+# crashing the timer.
+- runFlow: _cold-start.yaml
+- openLink: "pokerkit://blinds"
+- assertVisible: "Blind structure"
+- tapOn: "Reset to default"
+- tapOn:
+    text: "^Reset$"
+- assertVisible:
+    text: "^30 levels$"
+
+# Jump the running tournament to Level 12 (draft is clean, so tap-to-jump is
+# enabled).
+- scrollUntilVisible:
+    element:
+      text: "Jump the tournament to level 12"
+    direction: DOWN
+- tapOn:
+    text: "Jump the tournament to level 12"
+- assertVisible: "Jump to Level 12?"
+- tapOn: "Jump"
+- assertVisible: "LIVE"
+
+# Shrink the draft to 4 levels — well short of Level 12 — by deleting from
+# the top repeatedly.
+- scrollUntilVisible:
+    element:
+      text: "Delete level 1"
+    direction: UP
+- repeat:
+    times: 26
+    commands:
+      - tapOn:
+          text: "Delete level 1"
+- scrollUntilVisible:
+    element:
+      text: "^[0-9]+ levels$"
+    direction: UP
+- assertVisible:
+    text: "^4 levels$"
+
+# The footer computes the warning live, before Apply is even tapped. See
+# _dismiss-logbox.yaml re: the RevenueCat toast that tends to sit near here.
+# Note the `.*...*` — a bare substring doesn't match this node, since Maestro
+# full-matches a node's *entire* text and the warning is one long sentence.
+- runFlow: _dismiss-logbox.yaml
+- assertVisible: ".*no longer exists.*"
+- assertVisible: "Level 4"
+
+# The retry guard checks for the warning disappearing, not "^4 levels$" — the
+# level count is already 4 *before* Apply (that's the draft, unaffected by
+# Apply/Discard either way), so it could never actually detect a failed
+# Apply. Found the hard way while adapting this flow for iOS: the equivalent
+# level-count guard there let a LogBox-swallowed Apply tap through silently,
+# since the count "looked fine" throughout even though Apply never happened.
+- runFlow: _dismiss-logbox.yaml
+- tapOn: "Apply changes"
+- runFlow: _dismiss-logbox.yaml
+- runFlow:
+    when:
+      visible: ".*no longer exists.*"
+    commands:
+      - tapOn: "Apply changes"
+      - runFlow: _dismiss-logbox.yaml
+- runFlow:
+    when:
+      visible: ".*no longer exists.*"
+    commands:
+      - tapOn: "Apply changes"
+      - runFlow: _dismiss-logbox.yaml
+- assertVisible:
+    text: "^4 levels$"
+# The draft is no longer dirty post-apply, so the footer (and its warning) is
+# gone, and the LIVE marker has moved onto the new last row.
+- assertNotVisible: ".*no longer exists.*"
+- assertVisible: "LIVE"
+
+# Back out to the timer screen and confirm it picked up the clamped level
+# without crashing. One "back": the stack here is [timer, blinds] — we got
+# here via a deep link straight to /blinds, which doesn't synthesize a
+# Settings screen in between — so a second "back" would exit the app instead.
+- back
+- assertVisible: "Level 4"

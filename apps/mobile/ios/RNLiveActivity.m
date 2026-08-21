@@ -9,9 +9,7 @@
 #import "RNLiveActivity.h"
 #import "PokerTimer-Swift.h"
 
-
 @implementation RNLiveActivity
-
 
 RCT_EXPORT_MODULE();
 
@@ -104,6 +102,7 @@ RCT_EXPORT_METHOD(getActiveActivities:(RCTPromiseResolveBlock)resolve
     reject(@"get_activities_error", exception.reason, nil);
   }
 }
+
 
 
 @end

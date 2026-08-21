@@ -1,0 +1,39 @@
+appId: com.toondeboer.pokerkit
+---
+# §3 generator: chip 25 + starting small blind 25 at Slow speed should
+# reproduce the standard casino sheet almost exactly (see CHANGELOG/README):
+# 25/50 -> 50/100 -> 75/150 -> 100/200 -> 125/250 -> 150/300 -> 200/400 -> 250/500.
+- runFlow: _cold-start.yaml
+- openLink: "pokerkit://blinds"
+- assertVisible: "Blind structure"
+- tapOn: "Reset to default"
+- tapOn:
+    text: "^Reset$"
+- assertVisible:
+    text: "^30 levels$"
+
+- tapOn: "Generate"
+- assertVisible: "Generate structure"
+
+# Starting small blind seeds from Level 1's small blind (5 after a reset) —
+# change it to 25. A plain tap places the cursor rather than selecting, so
+# long-press-to-select-all is what makes eraseText take effect (same as the
+# editor's clear-blur flow).
+- tapOn:
+    text: "^5$"
+- longPressOn:
+    text: "^5$"
+- eraseText: 1
+- inputText: "25"
+- hideKeyboard
+
+# Segments carry an accessibilityLabel of "<control label>: <option label>",
+# which is what these selectors are matching — not the bare option text,
+# which for "Slow"/"25" etc. is unambiguous anyway but this is more robust.
+- tapOn: "Smallest chip: 25"
+- tapOn: "Speed: Slow"
+
+# Full-text match on the preview node's entire string (head + "…" + tail),
+# not a bare substring — same lesson as _dismiss-logbox.yaml's selector.
+- assertVisible:
+    text: ".*25/50.*50/100.*75/150.*100/200.*"

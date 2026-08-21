@@ -8,13 +8,59 @@ import ActivityKit
 import WidgetKit
 import SwiftUI
 
+// Brand palette, matching the exact hex values the app itself already uses for this timer's
+// countdown states (PokerTimer.tsx's getGradientColors/getProgressBarColor) and Android's
+// PokerTimerService#getStatusColor — kept in one place here instead of the system semantic
+// colors (.green/.orange) the widget used previously, which didn't line up with either.
+extension Color {
+  static let pokerGreen = Color(red: 0x10 / 255, green: 0xB9 / 255, blue: 0x81 / 255)  // #10B981
+  static let pokerAmber = Color(red: 0xF5 / 255, green: 0x9E / 255, blue: 0x0B / 255)  // #F59E0B
+  static let pokerRed = Color(red: 0xDC / 255, green: 0x26 / 255, blue: 0x26 / 255)  // #DC2626
+}
+
+// Single source of truth for the color/icon a given ContentState should render as, shared by
+// the Lock Screen view, the Dynamic Island's expanded/compact/minimal presentations. Previously
+// each of those four spots duplicated its own `paused ? .orange : .green` ternary and none of
+// them distinguished an expired round (red) or a low-time warning (amber) at all.
+enum TimerVisualState: Equatable {
+  case active, lowTime, paused, expired
+
+  init(_ state: PokerTimerWidgetAttributes.ContentState) {
+    if state.isExpired {
+      self = .expired
+    } else if state.paused {
+      self = .paused
+    } else if state.isLowTime {
+      self = .lowTime
+    } else {
+      self = .active
+    }
+  }
+
+  var color: Color {
+    switch self {
+    case .active: return .pokerGreen
+    case .lowTime, .paused: return .pokerAmber
+    case .expired: return .pokerRed
+    }
+  }
+
+  var systemImage: String {
+    switch self {
+    case .paused: return "pause.circle.fill"
+    case .expired: return "alarm.fill"
+    case .lowTime, .active: return "timer"
+    }
+  }
+}
+
 struct PokerTimerWidget: Widget {
   var body: some WidgetConfiguration {
     ActivityConfiguration(for: PokerTimerWidgetAttributes.self) { context in
       // Lock screen/banner UI
       PokerTimerLiveActivityView(context: context)
-        .activityBackgroundTint(Color.green.opacity(0.1))
-        .activitySystemActionForegroundColor(Color.green)
+        .activityBackgroundTint(Color.pokerGreen.opacity(0.1))
+        .activitySystemActionForegroundColor(Color.pokerGreen)
     } dynamicIsland: { context in
       DynamicIsland {
         // Expanded UI
@@ -46,149 +92,156 @@ struct PokerTimerWidget: Widget {
         }
                 
         DynamicIslandExpandedRegion(.bottom) {
-          HStack {
-            // Timer - most prominent element
-            HStack(spacing: 4) {
-              Image(
-                systemName: context.state.paused ? "pause.circle.fill" : "timer"
-              )
-              .foregroundColor(context.state.paused ? .orange : .green)
-              
-              if context.state.paused {
-                Text(formatTime(context.state.timeLeft))
+          let visualState = TimerVisualState(context.state)
+          VStack(spacing: 8) {
+            HStack {
+              // Timer - most prominent element
+              HStack(spacing: 4) {
+                Image(systemName: visualState.systemImage)
+                  .foregroundColor(visualState.color)
+
+                if context.state.paused {
+                  Text(formatTime(context.state.timeLeft))
+                    .font(.title2)
+                    .bold()
+                    .monospacedDigit()
+                    .foregroundColor(visualState.color)
+                } else {
+                  Text(
+                    timerInterval: Date()...context.state.endTime,
+                    countsDown: true
+                  )
                   .font(.title2)
                   .bold()
                   .monospacedDigit()
-                  .foregroundColor(.orange)
-              } else {
-                Text(
-                  timerInterval: Date()...context.state.endTime,
-                  countsDown: true
-                )
-                .font(.title2)
-                .bold()
-                .monospacedDigit()
-                .foregroundColor(.primary)
+                  .foregroundColor(visualState == .active ? .primary : visualState.color)
+                }
               }
+
+              Spacer()
+
+              Text("Level \(context.state.currentBlindLevel)")
+                .font(.caption)
+                .foregroundColor(.secondary)
             }
-                        
-            Spacer()
-                        
-            Text("Level \(context.state.currentBlindLevel)")
-              .font(.caption)
-              .foregroundColor(.secondary)
+
           }
         }
       } compactLeading: {
         Image(systemName: "suit.spade.fill")
-          .foregroundColor(.green)
+          .foregroundColor(.pokerGreen)
       } compactTrailing: {
+        let visualState = TimerVisualState(context.state)
         if context.state.paused {
           Text(formatTime(context.state.timeLeft))
             .font(.caption2)
             .bold()
             .monospacedDigit()
-            .foregroundColor(.orange)
+            .foregroundColor(visualState.color)
         } else {
           Text(timerInterval: Date()...context.state.endTime, countsDown: true)
             .font(.caption2)
             .bold()
             .monospacedDigit()
+            .foregroundColor(visualState == .active ? .primary : visualState.color)
         }
       } minimal: {
-        Image(systemName: context.state.paused ? "pause.circle.fill" : "timer")
-          .foregroundColor(context.state.paused ? .orange : .green)
+        let visualState = TimerVisualState(context.state)
+        Image(systemName: visualState.systemImage)
+          .foregroundColor(visualState.color)
       }
     }
   }
 }
 
+// Compact by necessity: the Lock Screen presentation has a real (if not precisely documented)
+// height budget, and the original design stacked a full header row, a full timer row, a full
+// blinds row, an action-button row AND a caption as five independent rows, which overflowed it and
+// clipped content at top and bottom. Timer + blinds share one row, and the redundant labels
+// ("Current Blinds", "Next", "Time Remaining") are gone in favour of visual hierarchy doing that
+// job.
+//
+// Removing the action buttons gave a row's worth of height back, and it went to the blinds: they
+// are what a player actually reads off a lock screen — the countdown says when to look again, the
+// blinds say what to post — and at .subheadline they were losing that contest to a .title2 timer.
+// Current blinds now match the timer's weight, with the next level a clear step below.
 struct PokerTimerLiveActivityView: View {
   let context: ActivityViewContext<PokerTimerWidgetAttributes>
-    
+
   var body: some View {
-    VStack(spacing: 8) {
-      // Header with tournament name and level
+    let visualState = TimerVisualState(context.state)
+    // Tight, uniform 4pt rhythm groups the header and the timer/blinds row as one "info" block;
+    // the caption's own .padding(.top, 6) is what sets it apart as the footnote it is.
+    VStack(alignment: .leading, spacing: 4) {
+      // Header: tournament name + level, single thin line.
       HStack {
         Text(context.attributes.tournamentName)
-          .font(.subheadline)
-          .foregroundColor(.primary)
+          .font(.caption2)
+          .foregroundColor(.secondary)
+          .lineLimit(1)
         Spacer()
         Text("Level \(context.state.currentBlindLevel)")
-          .font(.caption)
+          .font(.caption2)
           .foregroundColor(.secondary)
       }
-      
-      // Main timer section - most prominent
-      HStack(spacing: 8) {
-        Image(systemName: context.state.paused ? "pause.circle.fill" : "timer")
-          .font(.headline)
-          .foregroundColor(context.state.paused ? .orange : .green)
-        
-        if context.state.paused {
-          VStack(alignment: .leading, spacing: 1) {
-            Text("PAUSED")
-              .font(.headline)
-              .bold()
-              .foregroundColor(.orange)
-            Text("Time left: \(formatTime(context.state.timeLeft))")
+
+      // Timer + blinds, one row instead of two.
+      HStack(alignment: .firstTextBaseline, spacing: 12) {
+        HStack(spacing: 6) {
+          Image(systemName: visualState.systemImage)
+            .foregroundColor(visualState.color)
+
+          if context.state.paused {
+            Text(formatTime(context.state.timeLeft))
               .font(.title2)
               .bold()
               .monospacedDigit()
-              .foregroundColor(.primary)
-          }
-        } else {
-          VStack(alignment: .leading, spacing: 1) {
-            Text("Time Remaining")
-              .font(.caption2)
-              .foregroundColor(.secondary)
+              .foregroundColor(visualState.color)
+          } else {
             Text(
               timerInterval: Date()...context.state.endTime,
               countsDown: true
             )
-            .font(.title)
+            .font(.title2)
+            .bold()
+            .monospacedDigit()
+            .foregroundColor(visualState == .active ? .primary : visualState.color)
+          }
+        }
+
+        Spacer()
+
+        VStack(alignment: .trailing, spacing: 0) {
+          Text("\(context.state.currentSmallBlind)/\(context.state.currentBigBlind)")
+            .font(.title2)
             .bold()
             .monospacedDigit()
             .foregroundColor(.primary)
-          }
-        }
-        
-        Spacer()
-      }
-      
-      // Blinds section - current more prominent than next
-      HStack(spacing: 12) {
-        // Current blinds - larger and more prominent
-        VStack(alignment: .leading, spacing: 2) {
-          Text("Current Blinds")
+            // Four- and five-figure blinds (5000/10000 late in a deep structure) would otherwise
+            // wrap or force the timer to shrink; shrinking only this label keeps the row's shape.
+            .lineLimit(1)
+            .minimumScaleFactor(0.7)
+          Text("→ \(context.state.nextSmallBlind)/\(context.state.nextBigBlind)")
             .font(.caption)
-            .bold()
-            .foregroundColor(.primary)
-          Text(
-            "\(context.state.currentSmallBlind)/\(context.state.currentBigBlind)"
-          )
-          .font(.headline)
-          .bold()
-          .foregroundColor(.primary)
-        }
-        .frame(maxWidth: .infinity, alignment: .leading)
-        
-        // Arrow
-        Image(systemName: "arrow.right")
-          .font(.subheadline)
-          .foregroundColor(.secondary)
-        
-        // Next blinds - smaller and less prominent
-        VStack(alignment: .trailing, spacing: 2) {
-          Text("Next")
-            .font(.caption2)
-            .foregroundColor(Color.secondary.opacity(0.7))
-          Text("\(context.state.nextSmallBlind)/\(context.state.nextBigBlind)")
-            .font(.subheadline)
+            .monospacedDigit()
             .foregroundColor(.secondary)
+            .lineLimit(1)
+            .minimumScaleFactor(0.8)
         }
-        .frame(maxWidth: .infinity, alignment: .trailing)
       }
+
+      // Deliberately unconditional, not shown only once expired. WidgetKit does not re-render
+      // this view as the countdown runs — `Text(timerInterval:)` above animates without one —
+      // so anything keyed on `isExpired` would be evaluated at whatever moment the system last
+      // rendered, i.e. usually while the round was still running, and would never appear at the
+      // one time it mattered. A standing line is always true instead: the app is what advances
+      // the blinds, because nothing of ours executes out here while it's backgrounded.
+      Text("Open the app at the buzzer to start the next level.")
+        .font(.caption2)
+        .foregroundColor(.secondary)
+        .opacity(0.85)
+        .lineLimit(2)
+        .padding(.top, 6)
     }
     .padding(12)
     .background(Color(UIColor.systemBackground))

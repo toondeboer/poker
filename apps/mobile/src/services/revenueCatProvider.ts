@@ -1,6 +1,7 @@
 // src/services/revenueCatProvider.ts
 import { Platform } from "react-native";
 import Constants from "expo-constants";
+import { logger } from "@/src/utils/logger";
 import Purchases, {
   type CustomerInfo,
   type PurchasesPackage,
@@ -81,7 +82,13 @@ export const revenueCatProvider: BillingProvider = {
     try {
       const pkg = await getProPackage();
       return pkg.product.priceString;
-    } catch {
+    } catch (error) {
+      // Deliberately non-fatal — the paywall falls back to a price-less label
+      // rather than refusing to open. But it must not be *silent*: swallowing
+      // this bare was why a real device shipped "Unlock Pro · one-time" with
+      // nothing to say why, when the very same offering fetch succeeds a moment
+      // later from purchasePro().
+      logger.warn("Could not load the Pro price:", error);
       return null;
     }
   },

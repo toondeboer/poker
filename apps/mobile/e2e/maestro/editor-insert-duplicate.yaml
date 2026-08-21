@@ -1,0 +1,45 @@
+appId: com.toondeboer.pokerkit
+---
+# §2 editor: "+" -> Insert below / Duplicate this level, exercised at the top
+# and in the middle of the list. (The "end of a long list" case is covered
+# separately in editor-delete-discard.yaml against a short, already-scrolled
+# list — scrolling all the way to the bottom of a freshly-reset 30+ row list
+# and tapping there was unreliable in this environment: the FlatList's
+# reported accessibility bounds for the last couple of rows repeatedly lagged
+# behind where they actually render once the LogBox dev-error toast is
+# cycling in the background, so taps landed on nothing.)
+- runFlow: _cold-start.yaml
+- openLink: "pokerkit://blinds"
+- assertVisible: "Blind structure"
+- tapOn: "Reset to default"
+- tapOn:
+    text: "^Reset$"
+- assertVisible:
+    text: "^30 levels$"
+
+# Top: Insert below on Level 1.
+- tapOn:
+    text: "Add a level around level 1"
+- assertVisible: "Insert below"
+- tapOn: "Insert below"
+- assertVisible:
+    text: "^31 levels$"
+
+# Middle: Duplicate on (what is now) Level 15 — scroll it into view first.
+- scrollUntilVisible:
+    element:
+      text: "Add a level around level 15"
+    direction: DOWN
+- tapOn:
+    text: "Add a level around level 15"
+- assertVisible: "Duplicate this level"
+- tapOn: "Duplicate this level"
+# The header with the count badge is scrolled off-screen at this point (the
+# list keeps whatever scroll position it had when the alert opened) — scroll
+# back to it before asserting, rather than asserting against an off-screen node.
+- scrollUntilVisible:
+    element:
+      text: "^[0-9]+ levels$"
+    direction: UP
+- assertVisible:
+    text: "^32 levels$"

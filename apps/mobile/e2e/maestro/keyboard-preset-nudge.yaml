@@ -1,0 +1,37 @@
+appId: com.toondeboer.pokerkit
+---
+# §5 keyboard: focusing the preset-name field should scroll "Save Preset"
+# fully clear of the keyboard (useKeyboardNudge.ts) — Presets is Pro-gated,
+# so this only runs with FORCE_PRO_IN_DEV=true in PremiumContext.tsx (as
+# RELEASE_TESTING.md itself documents doing to exercise gated UI without a
+# real purchase). Not committed with that flag flipped — flip it locally,
+# run this, flip it back.
+#
+# Real bug, now fixed: useKeyboardNudge.ts's `windowHeight - covered` branch
+# (the one that wins for a full QWERTY keyboard) mixed `measureInWindow`
+# coordinates (y=0 at the top of the *content* area on Android, excluding
+# the status bar) with `Dimensions.get("window").height` (the *full* screen
+# height, status bar included) — understating how much of the screen the
+# keyboard covers by exactly the status bar's height (~54dp measured here).
+# Fixed by subtracting a new `topInset` param from `windowHeight` before
+# the comparison, Android-only (matching how `bottomInset` is already
+# gated) since iOS's `measureInWindow` frame wasn't verified to have the
+# same exclusion.
+#
+# IMPORTANT: `assertVisible` still isn't trustworthy proof of *full*
+# clearance on its own — Maestro's visibility check only looks at the
+# app's own layout bounds, with no idea the system IME window is drawn on
+# top. It would have trivially "passed" even at the old, broken ~40%-clear
+# state. The screenshot is what actually proves this — confirmed clean full
+# clearance with real breathing room, not just a corner of the button.
+- runFlow: _cold-start.yaml
+- openLink: "pokerkit://settings"
+- assertVisible: "Tournament Presets"
+- scrollUntilVisible:
+    element:
+      text: "Preset name"
+    direction: DOWN
+- tapOn:
+    text: "Preset name"
+- assertVisible: "Save Preset"
+- takeScreenshot: keyboard-preset-nudge-result

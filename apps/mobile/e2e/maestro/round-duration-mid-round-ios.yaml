@@ -1,0 +1,53 @@
+appId: com.toondeboer.pokerkit
+---
+# iOS version of round-duration-mid-round.yaml. Same field positions as
+# round-duration-ios.yaml: Minutes ~(29%,63%), Seconds ~(71%,63%).
+- runFlow: _cold-start-ios.yaml
+- openLink: "pokerkit://settings"
+- assertVisible: "Round duration"
+
+- tapOn:
+    point: "29%,63%"
+- longPressOn:
+    point: "29%,63%"
+- tapOn: "Select All"
+- eraseText: 5
+- inputText: "5"
+- tapOn:
+    point: "71%,63%"
+- longPressOn:
+    point: "71%,63%"
+- tapOn: "Select All"
+- eraseText: 5
+- inputText: "0"
+- tapOn: "Round duration"
+- assertVisible: "Each blind level lasts 05:00."
+
+- openLink: "pokerkit://"
+- assertVisible:
+    text: "^05:00$"
+# PokerTimer.tsx's primary button is a raw TouchableOpacity with an icon +
+# text sibling, same accessibility-merge behavior as Button.tsx elsewhere.
+- assertVisible:
+    text: ".*Start.*"
+- tapOn:
+    text: ".*Start.*"
+- assertVisible:
+    text: ".*Pause.*"
+
+- openLink: "pokerkit://settings"
+- tapOn:
+    point: "29%,63%"
+- longPressOn:
+    point: "29%,63%"
+- tapOn: "Select All"
+- eraseText: 5
+- inputText: "8"
+- tapOn: "Round duration"
+- assertVisible: "Each blind level lasts 08:00."
+
+- openLink: "pokerkit://"
+- assertVisible:
+    text: ".*Pause.*"
+- assertNotVisible:
+    text: "^08:00$"

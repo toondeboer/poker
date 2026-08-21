@@ -3,7 +3,7 @@
     "name": "Poker Timer",
     "slug": "poker-kit",
     "scheme": "pokerkit",
-    "version": "1.1.3",
+    "version": "1.1.4",
     "icon": "./src/assets/images/icon.png",
     "android": {
       "blockedPermissions": [
@@ -13,7 +13,10 @@
         "android.permission.WRITE_EXTERNAL_STORAGE"
       ],
       "package": "com.toondeboer.pokerkit",
-      "edgeToEdgeEnabled": true
+      "adaptiveIcon": {
+        "foregroundImage": "./src/assets/images/icon-adaptive-foreground.png",
+        "backgroundColor": "#0D3827"
+      }
     },
     "experiments": {
       "typedRoutes": true
@@ -34,7 +37,8 @@
           "androidAppId": "ca-app-pub-9738048037268359~6681894777",
           "iosAppId": "ca-app-pub-9738048037268359~7123618601"
         }
-      ]
+      ],
+      "react-native-edge-to-edge"
     ],
     "extra": {
       "router": {},
@@ -49,6 +53,9 @@
       "bundleIdentifier": "com.toondeboer.pokerkit",
       "config": {
         "usesNonExemptEncryption": false
+      },
+      "entitlements": {
+        "com.apple.security.application-groups": ["group.com.toondeboer.pokerkit"]
       }
     }
   }

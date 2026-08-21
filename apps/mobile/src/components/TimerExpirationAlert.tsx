@@ -20,6 +20,14 @@ interface TimerExpirationAlertProps {
     small: number;
     big: number;
   };
+  /**
+   * Rounds' worth of time that passed beyond the one that ran out, before the
+   * app was reopened. Only ever non-zero when the app was away — nothing counts
+   * rounds while it isn't running, so the level still advances by exactly one and
+   * this is what stops a 40-minute absence from looking like a normal round
+   * change.
+   */
+  missedRounds?: number;
   onDismiss: () => void;
   onNextBlinds: () => void;
 }
@@ -28,6 +36,7 @@ export function TimerExpirationAlert({
   visible,
   currentLevel,
   nextBlindLevel,
+  missedRounds = 0,
   onDismiss,
   onNextBlinds,
 }: TimerExpirationAlertProps) {
@@ -142,6 +151,17 @@ export function TimerExpirationAlert({
             <Text style={styles.title}>Time&apos;s Up!</Text>
             <Text style={styles.subtitle}>Level {currentLevel} Complete</Text>
 
+            {missedRounds > 0 && (
+              <View style={styles.missedRoundsBox}>
+                <Text style={styles.missedRoundsText}>
+                  This level ran out about {missedRounds + 1}{" "}
+                  {missedRounds + 1 === 1 ? "round" : "rounds"} ago, while the
+                  app was closed. Blinds only go up here, so the tournament
+                  picks up from the next level.
+                </Text>
+              </View>
+            )}
+
             {nextBlindLevel && (
               <View style={styles.nextLevelContainer}>
                 <Text style={styles.nextLevelTitle}>Next Level Blinds:</Text>
@@ -248,6 +268,19 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: "#6B7280",
     marginBottom: 24,
+    textAlign: "center",
+  },
+  missedRoundsBox: {
+    backgroundColor: "#FEF3C7",
+    borderRadius: 12,
+    padding: 14,
+    marginBottom: 16,
+    width: "100%",
+  },
+  missedRoundsText: {
+    fontSize: 13,
+    lineHeight: 18,
+    color: "#92400E",
     textAlign: "center",
   },
   nextLevelContainer: {

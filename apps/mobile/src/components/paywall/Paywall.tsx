@@ -2,13 +2,13 @@
 import { useState } from "react";
 import {
   ActivityIndicator,
-  Modal,
   StyleSheet,
   Text,
   TouchableOpacity,
   View,
 } from "react-native";
 import { usePremium } from "@/src/contexts/PremiumContext";
+import { Sheet } from "@/src/components/ui/Sheet";
 
 const PRO_FEATURES = [
   "Remove all ads — a clean, full-screen timer",
@@ -21,6 +21,12 @@ const PRO_FEATURES = [
  * The Pro upgrade sheet. Wired to {@link usePremium} so it works against the
  * stub today and against RevenueCat once that's added — no change needed here.
  * Includes Restore Purchases, which Apple requires for non-consumable IAPs.
+ *
+ * Uses the shared {@link Sheet} so there is one sheet implementation rather than
+ * two that drift — the backdrop was fixed to fade in place in `Sheet` and this
+ * screen kept sliding it because it had its own copy. Gesture dismissal is
+ * deliberately off: the paywall keeps its explicit "Maybe later", since how
+ * easily it can be dismissed is a product decision, not a styling one.
  */
 export function Paywall({
   visible,
@@ -29,11 +35,34 @@ export function Paywall({
   visible: boolean;
   onClose: () => void;
 }) {
-  const { isPremium, purchasing, proPriceString, purchasePro, restore } =
-    usePremium();
+  const {
+    isPremium,
+    purchasing,
+    proPriceString,
+    refreshProPrice,
+    purchasePro,
+    restore,
+  } = usePremium();
   const [error, setError] = useState<string | null>(null);
 
-  const priceLabel = proPriceString ? `${proPriceString} one-time` : "one-time";
+  // Re-attempt the price every time the sheet opens. The launch-time fetch can
+  // lose a race with SDK configuration or a cold network, and it used to be the
+  // only one — so the sheet stayed price-less for the whole session even though
+  // the offering resolves fine by the time anyone taps Unlock. Tracked on the
+  // closed→open edge during render (same pattern as GenerateStructureSheet's
+  // seeding) so the request is already in flight as the sheet animates in.
+  const [wasVisible, setWasVisible] = useState(visible);
+  if (wasVisible !== visible) {
+    setWasVisible(visible);
+    if (visible) refreshProPrice();
+  }
+
+  // With no price, the button says what it does and the subtitle already says
+  // "One-time unlock" — the old fallback rendered "Unlock Pro · one-time",
+  // which reads as though "one-time" were the price.
+  const buyLabel = proPriceString
+    ? `Unlock Pro · ${proPriceString}`
+    : "Unlock Pro";
 
   const run = async (action: () => Promise<void>) => {
     setError(null);
@@ -45,87 +74,68 @@ export function Paywall({
   };
 
   return (
-    <Modal
+    <Sheet
       visible={visible}
-      animationType="slide"
-      transparent
-      onRequestClose={onClose}
+      onClose={onClose}
+      gestureDismissible={false}
+      maxContentHeightRatio={0.72}
     >
-      <View style={styles.backdrop}>
-        <View style={styles.sheet}>
-          <Text style={styles.title}>Poker Blinds Buzzer Pro</Text>
-          <Text style={styles.subtitle}>One-time unlock. Yours forever.</Text>
+      <Text style={styles.title}>Poker Blinds Buzzer Pro</Text>
+      <Text style={styles.subtitle}>One-time unlock. Yours forever.</Text>
 
-          <View style={styles.features}>
-            {PRO_FEATURES.map((feature) => (
-              <View key={feature} style={styles.featureRow}>
-                <Text style={styles.check}>✓</Text>
-                <Text style={styles.featureText}>{feature}</Text>
-              </View>
-            ))}
+      <View style={styles.features}>
+        {PRO_FEATURES.map((feature) => (
+          <View key={feature} style={styles.featureRow}>
+            <Text style={styles.check}>✓</Text>
+            <Text style={styles.featureText}>{feature}</Text>
           </View>
-
-          {isPremium ? (
-            <View style={styles.unlockedBox}>
-              <Text style={styles.unlockedText}>
-                ✓ Pro unlocked — thank you!
-              </Text>
-            </View>
-          ) : (
-            <>
-              <TouchableOpacity
-                style={[styles.buyButton, purchasing && styles.disabled]}
-                onPress={() => run(purchasePro)}
-                disabled={purchasing}
-                activeOpacity={0.85}
-              >
-                {purchasing ? (
-                  <ActivityIndicator color="#1f2937" />
-                ) : (
-                  <Text style={styles.buyButtonText}>
-                    Unlock Pro · {priceLabel}
-                  </Text>
-                )}
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                style={styles.restoreButton}
-                onPress={() => run(restore)}
-                disabled={purchasing}
-                activeOpacity={0.7}
-              >
-                <Text style={styles.restoreText}>Restore purchases</Text>
-              </TouchableOpacity>
-            </>
-          )}
-
-          {error && <Text style={styles.error}>{error}</Text>}
-
-          <TouchableOpacity style={styles.closeButton} onPress={onClose}>
-            <Text style={styles.closeText}>
-              {isPremium ? "Done" : "Maybe later"}
-            </Text>
-          </TouchableOpacity>
-        </View>
+        ))}
       </View>
-    </Modal>
+
+      {isPremium ? (
+        <View style={styles.unlockedBox}>
+          <Text style={styles.unlockedText}>✓ Pro unlocked — thank you!</Text>
+        </View>
+      ) : (
+        <>
+          <TouchableOpacity
+            style={[styles.buyButton, purchasing && styles.disabled]}
+            onPress={() => run(purchasePro)}
+            disabled={purchasing}
+            activeOpacity={0.85}
+          >
+            {purchasing ? (
+              <ActivityIndicator color="#1f2937" />
+            ) : (
+              <Text style={styles.buyButtonText}>{buyLabel}</Text>
+            )}
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={styles.restoreButton}
+            onPress={() => run(restore)}
+            disabled={purchasing}
+            activeOpacity={0.7}
+          >
+            <Text style={styles.restoreText}>Restore purchases</Text>
+          </TouchableOpacity>
+        </>
+      )}
+
+      {error && <Text style={styles.error}>{error}</Text>}
+
+      <TouchableOpacity style={styles.closeButton} onPress={onClose}>
+        <Text style={styles.closeText}>
+          {isPremium ? "Done" : "Maybe later"}
+        </Text>
+      </TouchableOpacity>
+    </Sheet>
   );
 }
 
 const styles = StyleSheet.create({
-  backdrop: {
-    flex: 1,
-    backgroundColor: "rgba(0, 0, 0, 0.6)",
-    justifyContent: "flex-end",
-  },
-  sheet: {
-    backgroundColor: "#1e293b",
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
-    padding: 24,
-    paddingBottom: 36,
-    gap: 16,
-  },
+  // No backdrop, corners, padding or safe-area handling here — Sheet owns all of
+  // the sheet chrome now.
   title: {
     fontSize: 24,
     fontWeight: "700",

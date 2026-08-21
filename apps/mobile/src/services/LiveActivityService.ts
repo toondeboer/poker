@@ -90,6 +90,7 @@ class LiveActivityService {
         nextSmallBlind: state.nextSmallBlind,
         nextBigBlind: state.nextBigBlind,
         paused: state.paused,
+        timerDuration: state.timerDuration,
       };
 
       // Handle timing - iOS expects milliseconds
@@ -158,6 +159,7 @@ class LiveActivityService {
         nextSmallBlind: state.nextSmallBlind,
         nextBigBlind: state.nextBigBlind,
         paused: state.paused,
+        timerDuration: state.timerDuration,
         shouldAlertOnExpiry,
         soundId: soundPackId,
       };
@@ -315,6 +317,7 @@ class LiveActivityService {
       }
     }
   }
+
 
   // Request notification permission for Android 13+
   async requestNotificationPermission(): Promise<boolean> {
