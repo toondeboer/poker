@@ -49,13 +49,15 @@ A fix landing never upgrades a row on its own: ❌ becomes 🔧, and only a re-t
    acquire side; found D8–D12. This is the first pass where Android was checked by hand rather than
    by emulator or Maestro.
 5. **Both devices again** — D8, D9, D10 and D12 confirmed on both, plus Android's swipe-away-from-
-   Recents. **[D11](#d11) is the only defect still open**, and the only thing between here and a
-   store build.
+   Recents. [D11](#d11) still failing, since accepted.
+6. **iOS, during the release build** — D13: the Done control floats in the gap between a sheet and
+   the keypad. Found in the generator sheet.
 
 **What's left before submission** — the whole rest of the file is ✅ 🤖 ➖ 🟡.
 
 | | What | Where |
 |---|---|---|
+| 🔧 | **[D13](#d13)** — Done floated in the gap above a sheet's keypad. Fixed, needs a look on the next build | §5 |
 | 🚫 | Android **purchase / restore / cancel** — needs the build on a Play internal-testing track | §1 |
 | 🚫 | iOS **cancel a purchase** — needs TestFlight; a sandbox purchase can't be cancelled once confirmed | §1 |
 | 🚫 | **Deep-link cold launch**, both platforms — the dev launcher owns the URL scheme, needs a release build | §9 |
@@ -182,6 +184,7 @@ Fully confirmed on both platforms as of pass 5 — the Presets nudge, the sheet'
 | **Any** focused field stays visible when the keypad opens — Settings, blind editor, sheet | ✅ | ✅ **[D8](#d8)** fixed and confirmed |
 | Number fields show a **Done** bar above the keypad (iOS), on the **first** open | ✅ appears on the first open now | ➖ |
 | …and it doesn't look bolted on next to the keyboard's rounded edge | ✅ **[D9](#d9)** fixed and confirmed | ➖ |
+| In a **sheet**, the Done control belongs to the sheet — nothing floating in the gap above the keypad | 🔧 **[D13](#d13)** | 🔧 **[D13](#d13)** |
 | Scrolling **keeps the keypad up** — generator sheet | ✅ | ✅ |
 | Scrolling **keeps the keypad up** — blind structure editor | ✅ **[D10](#d10)** fixed and confirmed | ✅ **[D10](#d10)** fixed and confirmed |
 | Generator sheet fields usable with the keyboard up | ✅ fixed — sheet resizes and scrolls correctly; the remaining complaints were [D5](#d5) and [D6](#d6) | ✅ fixed (Maestro: `generator-keyboard.yaml`) — was hidden behind the keyboard, see ROADMAP.md "Settings page UX — blind levels" |
@@ -296,6 +299,7 @@ reasoning survives.
 | [D10](#d10) Blind editor drops the keypad on scroll | pass 3 (both) | ✅ fixed, confirmed both platforms |
 | [D11](#d11) Keep-awake never released on pause/stop | pass 3 (both) | 🔧 **still open** — first fix didn't take, re-worked |
 | [D12](#d12) Rounds under 10s silently rewritten | pass 3 (Android) | ✅ fixed, confirmed both platforms |
+| [D13](#d13) Done button floats in the gap above a sheet's keypad | pass 6 (iOS) | 🔧 fixed, **re-test** |
 
 <a id="d1"></a>
 ### D1 · Paywall shows "one-time" with no price · §1
@@ -549,6 +553,35 @@ after the fact, reads as a broken field.
 **Fixed** — the floor is 1 second. Zero stays excluded: a zero-length round has no meaningful expiry
 and divides by zero in the missed-round maths. Two core tests pin the new behaviour (a 5-second round
 survives; 0 still clamps up).
+
+<a id="d13"></a>
+### D13 · Done floats in the gap between a sheet and the keypad · §5
+
+"When generating a new structure and opening the num pad, the done button floats between the num pad
+and the modal. This is really ugly."
+
+Caused by [D9](#d9)'s own fix, and only visible in a sheet. The accessory view is attached to the
+*keyboard*, and a sheet is lifted to sit on top of the keyboard — so the accessory occupies the band
+between the two. On a full screen that's fine: the app's own background is behind it and the stack
+reads as one surface. Over a sheet's dimmed backdrop it isn't — D9 made the bar transparent
+specifically so it couldn't clash with the keyboard's rounded corners, and transparency is exactly
+what turns that band into a visible gap with a control floating in it, belonging to neither surface.
+
+Making the bar opaque again just reinstates D9.
+
+**Fixed by moving the control instead of restyling it.** A new `InsideSheetContext` lets
+`NumberField` tell whether it's inside a `Sheet`; if it is, it renders no accessory at all, and the
+sheet puts **Done** in its own title row while the keypad is up. There's then nothing in the gap
+because there's no gap — with no accessory, the sheet sits directly on the keypad. Full-screen
+fields (blind editor, Settings) keep the accessory, which is the right affordance there.
+
+The context lives in its own module rather than in `Sheet.tsx`, so a leaf primitive can ask the
+question without importing a component that carries a Modal, a PanResponder and an animation.
+
+**Re-test:** the generator sheet on both platforms — Done sits in the sheet's header next to
+"Generate structure", the sheet's bottom edge meets the keypad with no band between them, and
+tapping Done dismisses the keypad without closing the sheet. Then a full-screen number field (blind
+editor) to confirm the accessory is still there and still appears on the first open.
 
 ---
 

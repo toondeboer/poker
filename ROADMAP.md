@@ -361,6 +361,21 @@ D1, D2, D5's timing, D6 for the sheet, D7 and D3 on Android all confirmed. Five 
   was 10 and `clampRoundDuration` applied it with no feedback, so typing 5 gave back 10 — a rule the
   UI never states, applied after the fact, reads as a broken field. Floor is now 1 second; zero stays
   out (no meaningful expiry, and it divides by zero in the missed-round maths).
+### Pass 6 — during the release build (2026-08-21)
+
+- ✅ **D13 — the Done control floated in the gap between a sheet and the keypad**, found in the
+  generator sheet. Caused by D9's own fix and only visible in a sheet: an `InputAccessoryView` is
+  attached to the *keyboard*, and a sheet is lifted to sit on top of the keyboard, so the accessory
+  lands in the band between the two. On a full screen the app's background is behind it and the
+  stack reads as one surface; over a sheet's dimmed backdrop, D9's deliberate transparency turns
+  that band into a visible gap with a control floating in it. Reinstating an opaque bar just
+  reinstates D9, so the control moved instead of being restyled: a new `InsideSheetContext` lets
+  `NumberField` suppress its accessory inside a `Sheet`, and the sheet renders **Done** in its own
+  title row while the keypad is up. With no accessory there is no band — the sheet sits directly on
+  the keypad. Full-screen fields keep the accessory, which is the right affordance there. The
+  context lives in its own module so a leaf primitive doesn't have to import a component carrying a
+  Modal, a PanResponder and an animation.
+
 ### Passes 4 and 5 — D11 only (2026-08-19)
 
 D8, D9, D10, D12 and Android's swipe-away-from-Recents all confirmed on both devices. **D11 is the

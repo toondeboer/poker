@@ -11,6 +11,7 @@ import {
 } from "react-native";
 import { colors, radius, space, text } from "@/src/theme";
 import { TextField, TextFieldProps } from "./TextField";
+import { useIsInsideSheet } from "./SheetContext";
 
 /**
  * Per-instance id for the Done bar below. A plain counter rather than `useId`:
@@ -39,7 +40,9 @@ let nextAccessoryId = 0;
  *   the "only shows up the second time you open the keypad" flakiness. By the
  *   second focus it's still mounted from the first, so it works, which makes the
  *   bug look intermittent rather than ordered.
- * - It is a **floating pill on a transparent bar**, not a full-width block. The
+ * - It is **suppressed inside a `Sheet`**, which renders its own Done instead — see
+ *   `SheetContext.ts` for why an accessory can't work there.
+ * - On a full screen it is a **floating pill on a transparent bar**, not a full-width block. The
  *   keyboard is a rounded, inset panel on current iOS, so a hard-edged opaque
  *   strip pinned above it left a mismatched gap either side of its corners and
  *   read as two unrelated slabs. A transparent bar has no edges to disagree
@@ -66,6 +69,9 @@ export function NumberField({
   const [accessoryId] = useState(
     () => `number-field-done-${nextAccessoryId++}`,
   );
+  // A sheet supplies its own Done; ours would land in the gap above it.
+  const insideSheet = useIsInsideSheet();
+  const showAccessory = Platform.OS === "ios" && !insideSheet;
 
   // Re-sync when the value changes from somewhere else (a preset load, the
   // generator replacing the whole draft, or a row shifting under an insert).
@@ -90,7 +96,7 @@ export function NumberField({
         // keypad under a dark accessory bar is what made the pair look bolted
         // together.
         keyboardAppearance="dark"
-        inputAccessoryViewID={Platform.OS === "ios" ? accessoryId : undefined}
+        inputAccessoryViewID={showAccessory ? accessoryId : undefined}
         value={raw}
         onChangeText={handleChangeText}
         onFocus={(e) => {
@@ -111,7 +117,7 @@ export function NumberField({
           fieldProps.onBlur?.(e);
         }}
       />
-      {Platform.OS === "ios" && (
+      {showAccessory && (
         <InputAccessoryView nativeID={accessoryId}>
           <View style={styles.accessoryBar}>
             <Pressable
