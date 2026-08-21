@@ -115,8 +115,11 @@ Mobile releases are batched on a short-lived branch per version, not shipped str
   changelog stops being a reliable diff of what changed. Entries keep accumulating there across
   however many PRs land before the release ships; don't roll them into a dated heading until the
   release is actually being cut (last step below).
-- **Open the `release/<version>` → `main` PR immediately after cutting the branch, and leave it
-  open** (`gh pr create --base main --head release/<version>`) — don't merge it until the release
+- **Open the `release/<version>` → `main` PR as soon as the first change lands on the branch, and
+  leave it open** (`gh pr create --base main --head release/<version>`). Not *immediately* after
+  cutting, as this used to say — GitHub refuses with "No commits between main and
+  release/<version>" until the branch has diverged, so the first merged PR is the earliest it can
+  exist — don't merge it until the release
   actually ships. It's the running release-candidate diff, not a normal feature PR. Every time
   something merges into `release/<version>`, update this PR's description so it still reflects
   what's in the release — easiest way is to mirror the current `[Unreleased]` section of
