@@ -161,15 +161,24 @@ this release, so the long description needs no change — worth a look anyway if
 generator called out there, since it's the most demo-able thing in the app now.
 
 ### iOS — "What's New in This Version" (App Store Connect)
+
+**No emoji in this field** — see [the note below](#ios-metadata-emoji). Bullets are the typographic
+`•` (U+2022), which is punctuation rather than emoji and renders everywhere.
+
 ```
-♠️ Blind structure gets its own screen: edit every level in one place, insert or duplicate a level anywhere in the schedule, and tap a level number to jump the tournament straight to it.
-✨ New structure generator: pick a starting blind, how many levels, and a speed — Slow, Standard or Turbo — and get a schedule built the way real casino sheets are, with every blind a multiple of your smallest chip.
-📱 The screen now stays on while a round is counting down, so the timer stays put on the table.
-⏱️ Blinds are much bigger and easier to read on the Lock Screen timer.
-Applying an edited structure now keeps your place in the tournament instead of restarting at Level 1.
-Thanks for playing — feedback always welcome!
+• Blind structure now has its own screen. Edit every level in one place, insert or duplicate a level anywhere in the schedule, and tap a level number to jump the tournament straight to it.
+
+• New structure generator. Pick a starting blind, how many levels, and a speed — Slow, Standard or Turbo — and get a schedule built the way real casino sheets are, with every blind a multiple of your smallest chip.
+
+• The screen now stays on while a round is counting down, so the timer stays put on the table.
+
+• Blinds are bigger and easier to read on the Lock Screen timer.
+
+• Applying an edited structure keeps your place in the tournament instead of restarting at Level 1.
+
+Thanks for playing — feedback always welcome.
 ```
-`715` chars (App Store Connect's limit is ~4000).
+`714` chars.
 
 ### Android — "Release notes" (Play Console, ≤500 chars per language)
 ```
@@ -185,6 +194,44 @@ console before saving, since emoji and locale can shift it.
 **Deliberately not mentioned:** the Pause/Resume/Stop buttons on the Live Activity and notification.
 They were built during this cycle and descoped before shipping (see `ROADMAP.md`), so no user has
 ever seen them and announcing their absence would only confuse.
+
+<a id="ios-metadata-emoji"></a>
+### Field rules: what each store actually accepts
+
+**iOS "What's New" — plain text, and keep emoji out of it.**
+
+| | |
+|---|---|
+| Format | Plain text only. No Markdown, no HTML, no rich text — `**bold**` renders as literal asterisks. Line breaks and blank lines *are* preserved, so paragraphs and `•` bullets are the whole formatting toolkit. |
+| Length | 4000 characters (not stated in Apple's own help pages; it's what the field enforces). |
+| Emoji | **Don't.** See below. |
+
+On emoji specifically, be clear about what is and isn't established, because this cost a submission
+once and the reasoning matters more than the rule:
+
+- **Apple publishes no rule against emoji in release notes.** Its App Store Connect help pages for
+  app information and for localizable properties say nothing about character sets, formatting, HTML
+  or emoji for this field — checked directly, not inferred. Plenty of shipping apps use emoji in
+  "What's New" today.
+- **What is documented is a pattern of rejections under guideline 5.2.5 (Intellectual Property) for
+  using Apple's emoji**, applied inconsistently enough that
+  [TechCrunch covered developers assuming a crackdown](https://techcrunch.com/2018/02/08/theres-no-app-store-emoji-apocalypse-just-inconsistent-policy-enforcement/)
+  and concluded the policy hadn't changed, only its enforcement.
+- **Our own v1.1.3 notes below still contain emoji**, and v1.1.3 shipped. Whatever happened on
+  1.1.4, that's evidence the field doesn't reject them outright — which is the point: the risk is
+  inconsistent review, not a validation error you'd find out about in seconds.
+- So the decision here isn't "emoji are banned", it's **an asymmetric bet**: emoji buy a little
+  scannability, and a metadata rejection costs a review cycle measured in days on a release that's
+  already built and submitted. Write the iOS notes without them. The v1.1.3 block is left as it
+  shipped rather than rewritten — this file is a record of what was submitted, not a style guide.
+
+**Android "Release notes" — plain text too, but emoji are fine.** Play has no equivalent history of
+emoji rejections, and the existing v1.1.3 notes shipped with them. Limit is 500 characters per
+language, which is tight enough that emoji and locale shifts genuinely matter — re-count in the
+console before saving. Play strips HTML in this field as well.
+
+**Both stores:** typographic punctuation is safe on either side — `•`, `—`, `→`, curly quotes. It's
+pictographic emoji that carry the risk, not Unicode in general.
 
 ## Release notes — v1.1.3
 
