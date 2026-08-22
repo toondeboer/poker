@@ -9,6 +9,13 @@ platform-tagged heading (e.g. `## [1.1.3] - 2026-07-20 — Android`) when you cu
 
 ## [Unreleased]
 
+### Fixed
+- Mobile: `npm start` / `npm run ios` / `npm run android` work again. Since the SDK 56 alignment,
+  npm has installed `expo-router` under `apps/mobile/node_modules` instead of hoisting it, and the
+  expo CLI resolves that package from its own nested location — so every one of those commands died
+  with `Cannot find module 'expo-router/_ctx-shared'` before Metro served anything. The scripts now
+  set `NODE_PATH`, which appends the workspace's own `node_modules` to the CLI's lookup path.
+
 ### Changed
 - Mobile: brought every Expo package up to the version SDK 56 actually expects — the project had
   drifted 12 packages behind, including `expo` itself, the router, notifications, the splash screen
