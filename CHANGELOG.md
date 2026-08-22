@@ -10,6 +10,12 @@ platform-tagged heading (e.g. `## [1.1.3] - 2026-07-20 — Android`) when you cu
 ## [Unreleased]
 
 ### Fixed
+- Mobile: on iOS, the generator sheet's title and its Done button no longer sit underneath the status
+  bar and Dynamic Island when the keypad is up. The sheet sized its scroll region from the full
+  window height, so with the keyboard's share subtracted it grew to exactly the window height and
+  its top edge landed at y=0 — putting the first row of the sheet behind the clock. It stayed
+  scrollable and its footer still cleared the keypad, which is why 1.1.4's keyboard pass didn't
+  catch it.
 - Mobile: `npm start` / `npm run ios` / `npm run android` work again. Since the SDK 56 alignment,
   npm has installed `expo-router` under `apps/mobile/node_modules` instead of hoisting it, and the
   expo CLI resolves that package from its own nested location — so every one of those commands died

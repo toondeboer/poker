@@ -149,9 +149,22 @@ export function Sheet({
   // scroll region takes the space left after the chrome — which is what makes
   // it overflow and therefore actually scroll. MIN_SCROLL keeps a usable
   // window on a small phone whose keyboard leaves almost nothing.
+  //
+  // `insets.top` comes off the top as well, or the sheet is allowed to grow to
+  // exactly the full window height: the region takes everything above the
+  // keyboard, the chrome sits on top of that, and the sheet's own top edge
+  // lands at y=0 — underneath the status bar and, on a notched phone, the
+  // Dynamic Island. The title and its Done button are the first things in the
+  // sheet, so they're what ends up behind the clock. Without this the sheet is
+  // still *usable* (it scrolls, the footer clears the keypad), which is why it
+  // survived 1.1.4's keyboard pass — it just renders its header underneath the
+  // system furniture.
   const scrollMaxHeight =
     coveredByKeyboard > 0
-      ? Math.max(MIN_SCROLL_HEIGHT, height - coveredByKeyboard - chromeHeight)
+      ? Math.max(
+          MIN_SCROLL_HEIGHT,
+          height - coveredByKeyboard - chromeHeight - insets.top,
+        )
       : height * maxContentHeightRatio;
 
   // Lazy useState rather than useRef: the value has to be created once and stay
