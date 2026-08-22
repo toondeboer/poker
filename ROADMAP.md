@@ -13,20 +13,17 @@ are removed from this file when a release is cut rather than accumulating as ✅
 
 ## Carried over from 1.1.4 — needs verification
 
-- 🚧 **Keep-awake may not release on pause or stop** (was D11). The screen is held on while a round
-  counts down and should be released on pause/stop; the holding half is confirmed on both platforms,
-  the releasing half is not. Two fixes went in: chaining each release onto its own acquire (didn't
-  take), then routing every transition through one module-level queue in
-  `apps/mobile/src/hooks/useKeepScreenAwake.ts` that reconciles to the latest desired state with at
-  most one call in flight. That second fix **shipped in 1.1.4 untested** — accepted rather than held
-  for, because `expo-keep-awake` releases the lock natively when the app is backgrounded, so a
-  pocketed phone still sleeps; what's at stake is a paused timer sitting face-up on a table.
-  - It is **not** Expo: `expo-keep-awake` is the only thing in the dependency tree that touches
-    `isIdleTimerDisabled` or `FLAG_KEEP_SCREEN_ON`, and both native implementations are symmetric.
-  - **Rule the phone out before believing the app** — releasing re-arms the OS idle timer from that
-    moment, so the screen sleeps one full auto-lock interval *after* the pause, and never on *Never*.
-    Both calls log (`keep-awake: acquiring/releasing screen lock`), which separates an app bug from
-    OS behaviour in one line. See §10 of [RELEASE_TESTING.md](./RELEASE_TESTING.md#10-screen-stays-awake).
+- 🟡 **Keep-awake release: verified on Android, still unverified on iOS** (was D11). The screen is
+  held while a round counts down and released on pause/stop. The 1.1.4 fix — routing every
+  transition through one module-level queue in `apps/mobile/src/hooks/useKeepScreenAwake.ts` —
+  **shipped untested and does work**: on an API 35 emulator with a 30s timeout, `FLAG_KEEP_SCREEN_ON`
+  goes 0 → 1 on Start and 1 → 0 on both Pause and Reset, and the screen is `Asleep` ~50s after a
+  pause. What's left is the same check on iOS, which **can't be done on the Simulator** (it has no
+  auto-lock) and so needs a real device.
+  - **Measure the flag, don't watch the screen**, and take the reading from a force-stopped
+    baseline — a relaunch can restore a *running* tournament and re-acquire the lock before you
+    touch anything, which inverts the meaning of the next tap. See §10 of
+    [RELEASE_TESTING.md](./RELEASE_TESTING.md#10-screen-stays-awake).
 
 ## Android Play Store listing refresh
 - ⬜ **Upload the feature graphic to the Play Console** — the asset exists at

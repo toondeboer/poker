@@ -43,7 +43,9 @@ A fix landing never upgrades a row on its own: ❌ becomes 🔧, and only a re-t
 <a id="passes-run"></a>
 **Passes run**
 
-1. _(none yet this cycle)_
+1. **Android** — `Android_small` emulator, API 35, 30s screen timeout. §10 keep-awake: holding,
+   pause-releases and reset-releases all verified against the window flag and `mWakefulness`.
+   iOS not covered: the Simulator has no auto-lock, so §10 needs a real device there.
 
 ---
 
@@ -239,11 +241,19 @@ here no matter what the app does. If a row still fails, the Metro log shows whet
 `keep-awake: releasing screen lock` was reached, which splits an app bug from OS behaviour in one
 line.
 
+**Check the window flag, not just your eyes.** `adb shell dumpsys window | grep -c 'fl=KEEP_SCREEN_ON'`
+is 1 while the lock is held and 0 once it's released, which answers the question in one line and
+doesn't need you to sit and watch a screen for a whole auto-lock interval. Confirm the sleep itself
+with `adb shell dumpsys power | grep mWakefulness` (`Awake` / `Asleep`). **Read it from a known
+baseline** — force-stop, relaunch, and check the flag is 0 *before* starting a round. A relaunch can
+restore a running tournament and re-acquire the lock on its own, which makes the next Start/Pause tap
+land the opposite way round and reads exactly like a broken release.
+
 | | iOS | Android |
 |---|---|---|
-| Screen doesn't sleep while a round is running, left untouched past the OS timeout | ⬜ | ⬜ |
-| Pausing releases it — the screen sleeps normally again | ⬜ **never verified** | ⬜ **never verified** |
-| Stopping/resetting releases it too | ⬜ **never verified** | ⬜ **never verified** |
+| Screen doesn't sleep while a round is running, left untouched past the OS timeout | ⬜ | ✅ |
+| Pausing releases it — the screen sleeps normally again | ⬜ **never verified** | ✅ |
+| Stopping/resetting releases it too | ⬜ **never verified** | ✅ |
 | With a round **running**, leave the timer screen for Settings — the screen should still stay awake (the round is still going), and start sleeping again once you pause from there | ⬜ | ⬜ |
 
 ---
