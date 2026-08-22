@@ -158,7 +158,16 @@ Mobile releases are batched on a short-lived branch per version, not shipped str
   2. Roll the accumulated `[Unreleased]` entries into a dated heading (e.g.
      `## [1.1.3] - 2026-07-20 — Android`, or `— iOS & Android` when both platforms ship together
      in one heading), add the compare link at the bottom.
-  3. Update `ROADMAP.md` if it references the release.
+  3. **Clear the finished work out of `ROADMAP.md` and `RELEASE_TESTING.md`.** Neither is a
+     record — `CHANGELOG.md` and git history are. Delete every ✅ item from `ROADMAP.md` (an item
+     that shipped is described in the changelog and reasoned about in its commit; keeping it here
+     just buries what's actually open — the file was 1,044 lines and almost none of it was work),
+     and reset `RELEASE_TESTING.md`'s rows to ⬜, dropping the defect write-ups and the pass log.
+     What survives in both is only what's still open, accepted (🟡), or durable — an automated
+     Maestro flow's 🤖 coverage, a known-and-accepted entry, a blocker explaining *why* a row can't
+     be run locally. Anything carried into the next version (a fix that shipped untested, say)
+     moves to a "Carried over from `<version>`" section at the top of `ROADMAP.md`, so it can't be
+     lost between cycles.
   4. Commit those release-prep changes on the release branch.
   5. `eas build` **from the release branch** — EAS builds whatever's checked out locally, so make
      sure `release/<version>` is checked out when you run it.

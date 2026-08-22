@@ -14,8 +14,8 @@ import { createContext, useContext } from "react";
  * accessory attached to the keyboard lands in the band *between* the two, and whatever it doesn't
  * paint shows the dimmed backdrop through it — the Done control ends up floating in a gap,
  * belonging to neither surface. Making the bar opaque only trades that for a hard-edged slab that
- * can't line its corners up with the keyboard's rounded ones, which is where this started (see D9
- * in RELEASE_TESTING.md).
+ * can't line its corners up with the keyboard's rounded ones, which is where this started — the
+ * bar was made transparent precisely so it couldn't clash with a shape the OS is free to change.
  *
  * So a sheet owns its own chrome: it renders Done in its title row while the keyboard is up, and
  * `NumberField` suppresses its accessory when this is true. Nothing is left in the gap because
