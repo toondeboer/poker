@@ -15,7 +15,14 @@ import {
   View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { colors, radius, space, text } from "@/src/theme";
+import {
+  colors,
+  isTabletWidth,
+  radius,
+  space,
+  TABLET_MAX_WIDTH_SHEET,
+  text,
+} from "@/src/theme";
 import { InsideSheetContext } from "./SheetContext";
 
 /** Drag far enough, or flick fast enough, and the sheet closes. */
@@ -79,7 +86,7 @@ export function Sheet({
   maxContentHeightRatio?: number;
 }) {
   const insets = useSafeAreaInsets();
-  const { height } = useWindowDimensions();
+  const { height, width } = useWindowDimensions();
 
   // Both platforms track the keyboard themselves rather than delegating to
   // `KeyboardAvoidingView`.
@@ -288,6 +295,22 @@ export function Sheet({
               onLayout={(e) => setSheetHeight(e.nativeEvent.layout.height)}
               style={[
                 styles.sheet,
+                // A phone sheet is full-bleed because the phone *is* the sheet's
+                // width. On a tablet that leaves a form's fields stretched the
+                // whole way across a 1024pt screen, which is why every other
+                // tablet surface here (Settings, the blind editor) caps and
+                // centres its content. A native `formSheet` would have given us
+                // this for free — it can't be used (see CLAUDE.md), so the cap
+                // is applied by hand to match.
+                // `maxWidth`, never `width`: the cap has to be able to lose to
+                // the device. An 11" iPad is 834pt, so a fixed width above that
+                // makes the sheet wider than the screen and centring then pushes
+                // its left edge off — the header clipped mid-word.
+                isTabletWidth(width) && {
+                  maxWidth: TABLET_MAX_WIDTH_SHEET,
+                  alignSelf: "center" as const,
+                  width: "100%" as const,
+                },
                 {
                   // The bottom inset is dropped from the padding while the keyboard
                   // is up because it's already in the offset below — on Android via

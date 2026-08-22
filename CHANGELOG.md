@@ -10,6 +10,11 @@ platform-tagged heading (e.g. `## [1.1.3] - 2026-07-20 — Android`) when you cu
 ## [Unreleased]
 
 ### Fixed
+- Mobile: sheets no longer stretch the full width of a tablet. The generator and Pro sheets are
+  capped at 640pt and centred, like every other tablet surface in the app — previously `Sheet.tsx`
+  had no tablet handling at all, so a form's fields ran the entire width of an iPad. This was
+  accepted as a known gap for 1.1.4 partly on the expectation that moving to native form sheets
+  would fix it for free; that move is still blocked, so it's fixed here instead.
 - Mobile: on iOS, the generator sheet's title and its Done button no longer sit underneath the status
   bar and Dynamic Island when the keypad is up. The sheet sized its scroll region from the full
   window height, so with the keyboard's share subtracted it grew to exactly the window height and
