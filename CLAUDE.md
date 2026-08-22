@@ -86,7 +86,12 @@ Mobile releases are batched on a short-lived branch per version, not shipped str
   - The consequence to keep in mind: **`main` is not a buildable "what shipped" for mobile.** Don't
     reach for it when you need the exact code behind a store binary — use the tag, or
     `eas build:view <id>` for the built commit.
-- **`release/<version>` is the integration branch for the next release** (e.g. `release/1.1.4`),
+- **A release branch exists only while a release is being built.** Cut it when feature work for the
+  next version starts, not the moment the last one shipped — a branch standing empty between
+  releases just adds a routing decision to every PR for no benefit. Between releases, everything
+  goes to `main`; 1.1.5's branch was cut at 1.1.4's ship time and deleted again unused, which is
+  what prompted this.
+- **`release/<version>` is the integration branch for that release** (e.g. `release/1.1.4`),
   cut from `main` when you start batching work toward it:
   `git checkout main && git pull && git checkout -b release/<version>`. Name it
   `release/<version>`, not `v<version>` — a branch and the eventual `v<version>` tag can't share a
@@ -97,19 +102,33 @@ Mobile releases are batched on a short-lived branch per version, not shipped str
   PR into the release branch. The only exception is the release-prep commit(s) made as part of
   *cutting* the release itself (step-by-step below) — those go directly on the release branch.
 - **What targets the release branch, and what targets `main`** — the test is *"does this change the
-  mobile binary?"*, not *"is a release open?"*:
-  - **Release branch** (`gh pr create --base release/<version>`): anything under `apps/mobile`,
+  mobile binary?"*, and it only applies **while a release branch is open**:
+  - **No release branch open:** everything goes to `main`, including mobile changes. `main` is the
+    integration branch, and nothing reaches a store without a deliberate `eas build` + `eas submit`
+    from a release branch — so mobile work sitting on `main` isn't shipped work, it's queued work.
+  - **Release branch open** (`gh pr create --base release/<version>`): anything under `apps/mobile`,
     anything in `packages/core` that mobile consumes, and **dependency bumps that mobile bundles**
-    (`expo*`, `react-native*`, `react`, `react-native-purchases`, …). These change what gets
-    submitted, so they belong to a version and want the release's testing pass.
-  - **`main` directly:** `apps/web`, docs, CI, and tooling-only or web-only dependency bumps. These
-    ship on their own cadence and holding them for a mobile review buys nothing.
+    (`expo*`, `react-native*`, `react`, `react-native-purchases`, …) target it instead. Those change
+    what gets submitted, so they belong to a version and want the release's testing pass.
+  - **Always `main`, release branch or not:** `apps/web`, **docs**, CI, and tooling-only or web-only
+    dependency bumps. Docs and Dependabot may be **pushed straight to `main` without a PR** — they
+    can't change a binary, and a PR for a typo fix is ceremony. (Everything touching `apps/mobile`
+    or `packages/core` still goes through review.)
   - **Dependabot targets `main`, and that's correct** — don't set `target-branch` in
     `.github/dependabot.yml` to redirect it. Two reasons: a per-version branch is deleted at ship
     time, so the pin goes stale every cycle and errors in between; and `target-branch` only
     redirects *version* updates — **security updates are raised against the default branch
-    regardless**, so it can never give you a `main` free of Dependabot anyway. When a bump is
-    mobile-affecting, retarget that one PR: `gh pr edit <n> --base release/<version>`.
+    regardless**, so it can never give you a `main` free of Dependabot anyway. Retargeting a
+    mobile-affecting bump (`gh pr edit <n> --base release/<version>`) only matters while a release
+    branch is open; otherwise merge it to `main`.
+  - **The real filter for a mobile dependency isn't semver, it's the SDK.** Run
+    `npx expo install --check` in `apps/mobile`: it reports what the *installed* Expo SDK expects,
+    and for anything Expo version-matches that beats the registry's latest. Dependabot proposed
+    `react-native-screens` 4.27.0 and `react-native` 0.87.0 while SDK 56 wanted ~4.26.0 and 0.85.x
+    — un-mergeable, and it took a CI run to work out why. Close those and let
+    `npx expo install --fix` set them at SDK-upgrade time. `expo` and `react-native` are already in
+    the ignore list for this reason; the rest of the family still gets proposed and still needs the
+    check run against it.
 - Every change still gets a `CHANGELOG.md` entry under `[Unreleased]` in the same commit/PR that
   lands it (Keep a Changelog format) — no exceptions, don't defer this to release time, or the
   changelog stops being a reliable diff of what changed. Entries keep accumulating there across
