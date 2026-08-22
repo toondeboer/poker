@@ -9,7 +9,11 @@ platform-tagged heading (e.g. `## [1.1.3] - 2026-07-20 — Android`) when you cu
 
 ## [Unreleased]
 
-_Nothing yet — next release's entries land here._
+### Changed
+- Mobile: brought every Expo package up to the version SDK 56 actually expects — the project had
+  drifted 12 packages behind, including `expo` itself, the router, notifications, the splash screen
+  and `react-native-screens`. No new features; it's the accumulated bug-fix releases Expo has
+  published for this SDK.
 
 ## [1.1.4] - 2026-08-19 — iOS & Android
 
