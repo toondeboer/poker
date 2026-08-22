@@ -55,6 +55,24 @@ and [ARCHITECTURE.md](./ARCHITECTURE.md) for the full design.
   - So the sheets stay hand-rolled on `Modal` (`components/ui/Sheet.tsx`). Revisit when that flag
     graduates out of `experiment`, and **verify on a real iOS build before believing it** — Android
     looked perfect the whole time this was broken on iOS.
+  - **Retested on `react-native-screens` 4.26.2 (SDK 56, RN 0.85.3, iOS 26.5 simulator) — still
+    broken. Don't spend the day on it a third time.** The flag *did* change: in 4.25.2
+    `RNS_SYNCHRONOUS_SCREEN_STATE_UPDATES_DEFAULT` is `false`, in 4.26.2 it is `true`. That looks
+    like the blocker lifting, and it isn't. The whole diff to `getPositioningStyle()` between the
+    two versions is the removal of a now-redundant `rnMinorVersion >= 82` check; the
+    `allowedDetents !== 'fitToContents'` condition is untouched, so on iOS:
+    - **`sheetAllowedDetents: "fitToContents"`** (what `feat/native-form-sheets` uses) short-circuits
+      that condition and still gets `absoluteWithNoBottom` **regardless of the flag**. Observed: the
+      sheet frame draws correctly — grabber, corner radius, dimmed backdrop — and is then **empty**,
+      with the content stranded below it, half off the bottom of the screen. Identical to 4.25.2.
+    - **Fixed detents** (`[0.6, 1.0]`) take the path the flag was supposed to fix, and render an
+      **entirely empty sheet** — worse, since the content isn't visible anywhere.
+    - RNS's own source says of the no-bottom-constraint style: *"It was tested reliably only on
+      Android."* Take that at face value.
+  - **A passing `assertVisible` does not mean this works.** Maestro asserted "Generate structure"
+    visible on the `fitToContents` run and passed — the node is in the hierarchy, just positioned
+    outside the sheet. This defect is only visible in a screenshot, so verify it with pixels, not
+    with a flow.
 - **Only one scroller per screen.** Settings is a single `ScrollView`, the blind editor a single
   `FlatList`. A nested scroll region (`nestedScrollEnabled`) was the defect the Settings redesign
   removed — don't reintroduce one. A `ScrollView` inside a `Modal`/`Sheet` is fine: a modal is its
