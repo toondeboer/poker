@@ -21,6 +21,20 @@ updates:
       # Monthly, not weekly. Mobile releases are batched and every mobile-affecting bump needs a
       # device pass, so a weekly cadence only grew a queue nobody could act on.
       interval: "monthly"
+    ignore:
+      # These two are set by the Expo SDK, not by semver, and `npx expo install --fix` is what
+      # picks them. Dependabot proposed `react-native` 0.85.3 → 0.87.0 while SDK 56 pins 0.85.x —
+      # a minor by semver, un-mergeable in fact, and it took a full CI run and a read of Expo's own
+      # dependency check to establish that. Left open it would arrive again every month.
+      #
+      # Deliberately *only* these two. The `expo-*` and `react-native-*` families stay watched, so
+      # a genuinely independent bump (react-native-purchases, say) still surfaces. Security updates
+      # ignore this list entirely, which is the point — this hides noise, not vulnerabilities.
+      #
+      # To find out where the SDK actually wants to be, run `npx expo install --check` in
+      # apps/mobile; that's the authority, not the registry's latest.
+      - dependency-name: "expo"
+      - dependency-name: "react-native"
     groups:
       react:
         # React must stay a single version across web + mobile (see CLAUDE.md) — three copies broke
