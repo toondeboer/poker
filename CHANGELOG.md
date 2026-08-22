@@ -9,7 +9,18 @@ platform-tagged heading (e.g. `## [1.1.3] - 2026-07-20 — Android`) when you cu
 
 ## [Unreleased]
 
+### Added
+- The Maestro e2e flows are now runnable: `npm run e2e:ios` / `npm run e2e:android -w @poker/mobile`,
+  plus an Android job in CI on PRs touching `apps/mobile` or `packages/core`. The 26 flows had been
+  in the repo since 1.1.4 with nothing referencing them — no npm script, no CI job — so the only way
+  to run one was to remember the `maestro test` invocation and which files belonged to which
+  platform.
+
 ### Fixed
+- The Android e2e flows no longer carry a hardcoded LAN address for Metro. `_cold-start.yaml` pinned
+  one machine's IP, so the flows broke on any other machine — and on the same machine after a new
+  DHCP lease — failing at the cold-launch deep link with nothing pointing at the network as the
+  cause. The runner now resolves the address at run time and injects it as `METRO_HOST`.
 - Mobile: sheets no longer stretch the full width of a tablet. The generator and Pro sheets are
   capped at 640pt and centred, like every other tablet surface in the app — previously `Sheet.tsx`
   had no tablet handling at all, so a form's fields ran the entire width of an iPad. This was

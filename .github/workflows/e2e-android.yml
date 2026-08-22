@@ -1,0 +1,100 @@
+name: E2E (Android)
+
+# Kept out of ci.yml deliberately. That workflow is the fast gate — typecheck,
+# lint, unit tests, a couple of minutes on ubuntu-latest. This one boots an
+# emulator and builds a debug APK, so it runs in tens of minutes and has a
+# different failure profile (flaky emulators, not broken code). Mixing them
+# would make every web/docs PR wait on an Android emulator.
+#
+# There is no iOS counterpart: `npm run e2e:ios -w @poker/mobile` runs the same
+# suite locally, but it needs a macOS runner *and* an iOS build from source
+# (see CLAUDE.md — precompiled XCFrameworks break this monorepo), which is a
+# ~15-minute build before a single flow runs. Run it by hand for a release pass.
+
+on:
+  pull_request:
+    paths:
+      - "apps/mobile/**"
+      - "packages/core/**"
+      - ".github/workflows/e2e-android.yml"
+  workflow_dispatch:
+
+concurrency:
+  group: e2e-android-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  e2e-android:
+    # The emulator needs nested virtualisation (KVM), which the standard
+    # ubuntu-latest runner provides but macOS runners do not.
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+
+      - name: Enable KVM
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' \
+            | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install Maestro
+        run: |
+          curl -Ls https://get.maestro.mobile.dev | bash
+          echo "$HOME/.maestro/bin" >> "$GITHUB_PATH"
+
+      - name: Build debug APK
+        working-directory: apps/mobile/android
+        run: ./gradlew assembleDebug --no-daemon
+
+      # Metro has to be reachable from the emulator, which is a separate network
+      # host — hence the LAN address rather than localhost. `npm run e2e:android`
+      # detects it, but pin it here so a runner with several interfaces can't
+      # pick the wrong one.
+      - name: Start Metro
+        working-directory: apps/mobile
+        run: |
+          npx expo start --dev-client --port 8081 > /tmp/metro.log 2>&1 &
+          for _ in $(seq 1 120); do
+            curl -sf http://127.0.0.1:8081/status >/dev/null && exit 0
+            sleep 1
+          done
+          echo "Metro did not come up:"; cat /tmp/metro.log; exit 1
+
+      - name: Run Maestro flows
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 35
+          target: google_apis
+          arch: x86_64
+          profile: pixel_6
+          emulator-options: -no-window -gpu swiftshader_indirect -no-snapshot -noaudio -noboot-anim
+          script: |
+            adb install -r apps/mobile/android/app/build/outputs/apk/debug/app-debug.apk
+            METRO_HOST=$(hostname -I | awk '{print $1}') \
+              npm run e2e:android -w @poker/mobile
+
+      - name: Upload Maestro debug output
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: maestro-debug
+          path: |
+            ~/.maestro/tests/
+            /tmp/metro.log
+          retention-days: 7

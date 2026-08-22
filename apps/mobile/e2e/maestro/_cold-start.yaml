@@ -13,11 +13,14 @@ appId: com.toondeboer.pokerkit
 # that same link here is what actually gets a *cold* process (not just a
 # background→foreground resume) straight to the app.
 #
-# METRO_URL must match whatever `npm run android -w @poker/mobile` printed
-# ("Opening com.toondeboer.pokerkit://expo-development-client/?url=...") for
-# the machine currently running Metro — update it if that changes.
+# METRO_HOST is injected by `npm run e2e:android -w @poker/mobile`, which
+# resolves this machine's LAN address at run time (override with
+# `METRO_HOST=… npm run e2e:android`). It used to be a hardcoded IP here,
+# which silently rotted the moment the machine got a different DHCP lease —
+# the flows then failed at this line with no obvious connection to the
+# network. Don't paste an address back in.
 - stopApp
-- openLink: "com.toondeboer.pokerkit://expo-development-client/?url=http%3A%2F%2F192.168.68.62%3A8081"
+- openLink: "com.toondeboer.pokerkit://expo-development-client/?url=http%3A%2F%2F${METRO_HOST}%3A8081"
 # Not "Level 1": the current level persists in storage across relaunches, so
 # a flow that left the tournament on some other level (or errored out before
 # resetting it back) means the very next cold start can legitimately land on

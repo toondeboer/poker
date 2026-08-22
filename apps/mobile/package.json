@@ -27,6 +27,8 @@
     "lint": "expo lint",
     "pretypecheck": "node ./scripts/clean-expo-shims.js",
     "typecheck": "tsc --noEmit",
+    "e2e:ios": "node ./scripts/run-maestro.js ios",
+    "e2e:android": "node ./scripts/run-maestro.js android",
     "eas:submit:production": "eas submit --latest --profile production",
     "eas:submit:ios:production": "eas submit -p ios --latest --profile production",
     "eas:submit:android:production": "eas submit -p android --latest --profile production"

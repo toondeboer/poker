@@ -30,7 +30,7 @@ appId: com.toondeboer.pokerkit
 # same trick as _cold-start.yaml's own stopApp+deep-link, done here explicitly
 # so we land back on the blinds screen afterward instead of the timer.
 - stopApp
-- openLink: "com.toondeboer.pokerkit://expo-development-client/?url=http%3A%2F%2F192.168.68.62%3A8081"
+- openLink: "com.toondeboer.pokerkit://expo-development-client/?url=http%3A%2F%2F${METRO_HOST}%3A8081"
 - extendedWaitUntil:
     visible: "Current Blinds"
     timeout: 10000
