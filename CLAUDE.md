@@ -61,7 +61,8 @@ and [ARCHITECTURE.md](./ARCHITECTURE.md) for the full design.
     like the blocker lifting, and it isn't. The whole diff to `getPositioningStyle()` between the
     two versions is the removal of a now-redundant `rnMinorVersion >= 82` check; the
     `allowedDetents !== 'fitToContents'` condition is untouched, so on iOS:
-    - **`sheetAllowedDetents: "fitToContents"`** (what `feat/native-form-sheets` uses) short-circuits
+    - **`sheetAllowedDetents: "fitToContents"`** (what the attempt used — archived at the
+      `archive/native-form-sheets` tag, the branch is gone) short-circuits
       that condition and still gets `absoluteWithNoBottom` **regardless of the flag**. Observed: the
       sheet frame draws correctly — grabber, corner radius, dimmed backdrop — and is then **empty**,
       with the content stranded below it, half off the bottom of the screen. Identical to 4.25.2.
