@@ -131,6 +131,7 @@ export function PayoutScreen() {
           <SegmentedControl
             label="Paid places"
             options={placeOptions}
+            wrap
             value={
               settings.paidPlaces === null ? AUTO : String(settings.paidPlaces)
             }
