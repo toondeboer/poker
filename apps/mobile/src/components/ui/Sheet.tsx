@@ -15,7 +15,14 @@ import {
   View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { colors, radius, space, text } from "@/src/theme";
+import {
+  colors,
+  isTabletWidth,
+  radius,
+  space,
+  TABLET_MAX_WIDTH_SHEET,
+  text,
+} from "@/src/theme";
 import { InsideSheetContext } from "./SheetContext";
 
 /** Drag far enough, or flick fast enough, and the sheet closes. */
@@ -79,7 +86,7 @@ export function Sheet({
   maxContentHeightRatio?: number;
 }) {
   const insets = useSafeAreaInsets();
-  const { height } = useWindowDimensions();
+  const { height, width } = useWindowDimensions();
 
   // Both platforms track the keyboard themselves rather than delegating to
   // `KeyboardAvoidingView`.
@@ -149,9 +156,22 @@ export function Sheet({
   // scroll region takes the space left after the chrome — which is what makes
   // it overflow and therefore actually scroll. MIN_SCROLL keeps a usable
   // window on a small phone whose keyboard leaves almost nothing.
+  //
+  // `insets.top` comes off the top as well, or the sheet is allowed to grow to
+  // exactly the full window height: the region takes everything above the
+  // keyboard, the chrome sits on top of that, and the sheet's own top edge
+  // lands at y=0 — underneath the status bar and, on a notched phone, the
+  // Dynamic Island. The title and its Done button are the first things in the
+  // sheet, so they're what ends up behind the clock. Without this the sheet is
+  // still *usable* (it scrolls, the footer clears the keypad), which is why it
+  // survived 1.1.4's keyboard pass — it just renders its header underneath the
+  // system furniture.
   const scrollMaxHeight =
     coveredByKeyboard > 0
-      ? Math.max(MIN_SCROLL_HEIGHT, height - coveredByKeyboard - chromeHeight)
+      ? Math.max(
+          MIN_SCROLL_HEIGHT,
+          height - coveredByKeyboard - chromeHeight - insets.top,
+        )
       : height * maxContentHeightRatio;
 
   // Lazy useState rather than useRef: the value has to be created once and stay
@@ -275,6 +295,22 @@ export function Sheet({
               onLayout={(e) => setSheetHeight(e.nativeEvent.layout.height)}
               style={[
                 styles.sheet,
+                // A phone sheet is full-bleed because the phone *is* the sheet's
+                // width. On a tablet that leaves a form's fields stretched the
+                // whole way across a 1024pt screen, which is why every other
+                // tablet surface here (Settings, the blind editor) caps and
+                // centres its content. A native `formSheet` would have given us
+                // this for free — it can't be used (see CLAUDE.md), so the cap
+                // is applied by hand to match.
+                // `maxWidth`, never `width`: the cap has to be able to lose to
+                // the device. An 11" iPad is 834pt, so a fixed width above that
+                // makes the sheet wider than the screen and centring then pushes
+                // its left edge off — the header clipped mid-word.
+                isTabletWidth(width) && {
+                  maxWidth: TABLET_MAX_WIDTH_SHEET,
+                  alignSelf: "center" as const,
+                  width: "100%" as const,
+                },
                 {
                   // The bottom inset is dropped from the padding while the keyboard
                   // is up because it's already in the offset below — on Android via
