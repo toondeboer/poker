@@ -77,6 +77,14 @@ export {
   DEFAULT_PAYOUT_SETTINGS,
 } from "./storage/payoutStorage";
 export type { PayoutStorage, PayoutSettings } from "./storage/payoutStorage";
+export {
+  createLeaderboardStorage,
+  EMPTY_LEADERBOARD,
+} from "./storage/leaderboardStorage";
+export type {
+  LeaderboardStorage,
+  LeaderboardState,
+} from "./storage/leaderboardStorage";
 
 // Timer state machine
 export {
@@ -148,6 +156,28 @@ export type {
   PayoutOptions,
   PayoutValidationError,
 } from "./payouts/payoutStructure";
+
+// Leaderboard
+export {
+  createPlayer,
+  isValidPlayerName,
+  addPlayer,
+  removePlayer,
+  createGameResult,
+  validateGameResult,
+  addGameResult,
+  removeGameResult,
+  MAX_GAME_RESULTS,
+  MAX_PLAYERS,
+} from "./leaderboard/gameResult";
+export type {
+  Player,
+  Placing,
+  GameResult,
+  GameResultValidationError,
+} from "./leaderboard/gameResult";
+export { computeStandings } from "./leaderboard/standings";
+export type { LeaderboardStanding } from "./leaderboard/standings";
 
 // Share
 export { SITE_URL, SHARE_MESSAGE } from "./share/links";
