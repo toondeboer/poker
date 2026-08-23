@@ -6,6 +6,7 @@ import { useTimer } from "@/src/contexts/TimerContext";
 import { useBlinds } from "@/src/contexts/BlindsContext";
 import { usePremium } from "@/src/contexts/PremiumContext";
 import { usePayouts } from "@/src/contexts/PayoutContext";
+import { useLeaderboard } from "@/src/contexts/LeaderboardContext";
 import { Badge } from "@/src/components/ui/Badge";
 import { Card, CardContent, CardHeader } from "@/src/components/ui/Card";
 import { DurationField } from "@/src/components/ui/DurationField";
@@ -19,6 +20,7 @@ export function TournamentCard({ style }: { style?: StyleProp<ViewStyle> }) {
   const { blindLevels, isDraftDirty } = useBlinds();
   const { isPremium } = usePremium();
   const { settings } = usePayouts();
+  const { players, results } = useLeaderboard();
 
   // The row summarises the saved setup even while locked, so the value on
   // offer is visible before paying rather than described in the abstract.
@@ -55,6 +57,17 @@ export function TournamentCard({ style }: { style?: StyleProp<ViewStyle> }) {
           // and offers the unlock, which converts better than a row that just
           // refuses to open.
           onPress={() => router.navigate("/payouts")}
+        />
+        <NavRow
+          title="Leaderboard"
+          summary={
+            results.length > 0
+              ? `${results.length} ${results.length === 1 ? "game" : "games"} · ${players.length} ${players.length === 1 ? "player" : "players"}`
+              : "Track who wins across game nights"
+          }
+          badge={isPremium ? undefined : <ProPill />}
+          badgeLabel={isPremium ? undefined : "Pro"}
+          onPress={() => router.navigate("/leaderboard")}
         />
       </CardContent>
     </Card>
