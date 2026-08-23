@@ -69,10 +69,11 @@ and [ARCHITECTURE.md](./ARCHITECTURE.md) for the full design.
       **entirely empty sheet** — worse, since the content isn't visible anywhere.
     - RNS's own source says of the no-bottom-constraint style: *"It was tested reliably only on
       Android."* Take that at face value.
-  - **A passing `assertVisible` does not mean this works.** Maestro asserted "Generate structure"
-    visible on the `fitToContents` run and passed — the node is in the hierarchy, just positioned
-    outside the sheet. This defect is only visible in a screenshot, so verify it with pixels, not
-    with a flow.
+  - **An element being "visible" to a test does not mean this works.** An `assertVisible` on
+    "Generate structure" passed on the `fitToContents` run — the node is in the view hierarchy, just
+    positioned outside the sheet frame. This defect is only visible in a screenshot, so verify it
+    with pixels. It's the standing example of why layout is on the manual checklist rather than
+    automated (see [RELEASE_TESTING.md](./RELEASE_TESTING.md)).
 - **Only one scroller per screen.** Settings is a single `ScrollView`, the blind editor a single
   `FlatList`. A nested scroll region (`nestedScrollEnabled`) was the defect the Settings redesign
   removed — don't reintroduce one. A `ScrollView` inside a `Modal`/`Sheet` is fine: a modal is its
@@ -181,9 +182,8 @@ Mobile releases are batched on a short-lived branch per version, not shipped str
      that shipped is described in the changelog and reasoned about in its commit; keeping it here
      just buries what's actually open — the file was 1,044 lines and almost none of it was work),
      and reset `RELEASE_TESTING.md`'s rows to ⬜, dropping the defect write-ups and the pass log.
-     What survives in both is only what's still open, accepted (🟡), or durable — an automated
-     Maestro flow's 🤖 coverage, a known-and-accepted entry, a blocker explaining *why* a row can't
-     be run locally. Anything carried into the next version (a fix that shipped untested, say)
+     What survives in both is only what's still open, accepted (🟡), or durable — a
+     known-and-accepted entry, a blocker explaining *why* a row can't be run locally. Anything carried into the next version (a fix that shipped untested, say)
      moves to a "Carried over from `<version>`" section at the top of `ROADMAP.md`, so it can't be
      lost between cycles.
   4. Commit those release-prep changes on the release branch.
