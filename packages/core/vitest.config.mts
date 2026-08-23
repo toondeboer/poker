@@ -31,8 +31,8 @@ export default defineConfig({
        * them when real coverage rises.
        */
       thresholds: {
-        statements: 98,
-        branches: 96,
+        statements: 99,
+        branches: 97,
         functions: 100,
         lines: 99,
       },
