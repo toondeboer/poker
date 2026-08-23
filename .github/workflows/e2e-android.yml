@@ -66,10 +66,12 @@ jobs:
       # host — hence the LAN address rather than localhost. `npm run e2e:android`
       # detects it, but pin it here so a runner with several interfaces can't
       # pick the wrong one.
+      # Through the package script, not `npx expo start` — the script carries the
+      # NODE_PATH the expo CLI needs to resolve expo-router at all (see CLAUDE.md).
+      # Invoking the CLI directly here is exactly how this step failed first time.
       - name: Start Metro
-        working-directory: apps/mobile
         run: |
-          npx expo start --dev-client --port 8081 > /tmp/metro.log 2>&1 &
+          npm run start -w @poker/mobile > /tmp/metro.log 2>&1 &
           for _ in $(seq 1 120); do
             curl -sf http://127.0.0.1:8081/status >/dev/null && exit 0
             sleep 1
