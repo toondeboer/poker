@@ -9,6 +9,23 @@ platform-tagged heading (e.g. `## [1.1.3] - 2026-07-20 — Android`) when you cu
 
 ## [Unreleased]
 
+### Removed
+- The Maestro end-to-end suite (26 flows, the npm scripts and the Android CI job) is gone. It cost a
+  ~20-minute Android CI job on every mobile PR — almost all of it a cold Gradle build rather than the
+  flows themselves — and had rotted while nothing referenced it: a hardcoded LAN address and stale
+  selectors. Verification now splits along a clearer line: logic is unit-tested in `@poker/core`,
+  and everything a unit test structurally cannot see (layout, real platform behaviour, purchases) is
+  a human pass driven by [RELEASE_TESTING.md](./RELEASE_TESTING.md), which now spells those rows out
+  instead of deferring them to a flow.
+
+### Added
+- `@poker/core` coverage is now measured across **every** source file and enforced by a threshold in
+  CI, so a module with no test at all fails the build instead of being invisible. Coverage read 97%
+  before this and was really 86% — v8 only reports files a test imports. It is now 99% statements /
+  100% functions, with 38 new tests covering preset, review and sound-pack persistence, the
+  corrupt-value and storage-unavailable fallbacks in every loader, the shared store/entitlement ids,
+  and blind-maths edges at the top and bottom of the chip ladder.
+
 ### Fixed
 - Mobile: sheets no longer stretch the full width of a tablet. The generator and Pro sheets are
   capped at 640pt and centred, like every other tablet surface in the app — previously `Sheet.tsx`

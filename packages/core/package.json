@@ -7,11 +7,12 @@
   "sideEffects": false,
   "scripts": {
     "typecheck": "tsc --noEmit",
-    "test": "vitest run",
+    "test": "vitest run --coverage",
     "lint": "eslint src"
   },
   "devDependencies": {
     "@eslint/js": "^9.39.4",
+    "@vitest/coverage-v8": "^4.1.11",
     "eslint": "^9.39.4",
     "typescript": "~5.8.3",
     "typescript-eslint": "^8.67.0",

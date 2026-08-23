@@ -157,3 +157,36 @@ describe("updateBlindLevel", () => {
     expect(input[1]).toEqual({ small: 10, big: 20 }); // original untouched
   });
 });
+
+describe("insertBlindLevel at the front with the smallest possible blinds", () => {
+  it("clamps to 1 rather than going below a whole chip", () => {
+    // Halving normally rounds to a chip-friendly value, but at the very bottom
+    // of the ladder there is nowhere below to go: 1 is the smallest blind you
+    // can post. So inserting before 1/2 repeats 1/2 rather than inventing a
+    // fractional or zero blind. Duplicating the opener is recoverable by
+    // editing; a 0 blind is not.
+    const result = insertBlindLevel([{ small: 1, big: 2 }], 0);
+    expect(result).toHaveLength(2);
+    expect(result[0].small).toBe(1);
+    expect(result[0].small).toBeLessThanOrEqual(result[1].small);
+  });
+
+  it("keeps blinds whole and positive when halving a 2/4 opener", () => {
+    const result = insertBlindLevel([{ small: 2, big: 4 }], 0);
+    expect(result[0].small).toBeGreaterThanOrEqual(1);
+    expect(Number.isInteger(result[0].small)).toBe(true);
+    expect(result[0].small).toBeLessThan(2);
+  });
+
+  it("never produces a zero or negative blind at the floor", () => {
+    for (const opener of [
+      { small: 1, big: 1 },
+      { small: 1, big: 2 },
+      { small: 2, big: 3 },
+    ]) {
+      const [inserted] = insertBlindLevel([opener], 0);
+      expect(inserted.small).toBeGreaterThanOrEqual(1);
+      expect(inserted.big).toBeGreaterThanOrEqual(1);
+    }
+  });
+});

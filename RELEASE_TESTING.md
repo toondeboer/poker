@@ -1,8 +1,26 @@
 # Manual test checklist
 
-What still needs a human before a release ships. Everything here is either impossible to automate
-(real purchases), or was attempted and blocked (see notes). Automated coverage — `@poker/core` tests,
-typecheck, lint, web build — runs in CI and is not repeated here.
+What a human runs before a release ships. **This is the app's only end-to-end coverage** — the
+Maestro suite was removed deliberately (see below), so nothing in this file is covered by a machine.
+
+**Where the line sits.** Everything that is *logic* lives in `@poker/core` and is unit-tested there
+at ~99% coverage, enforced by a threshold in CI: blind maths, the generator's chip ladder, schedule
+diffing, timer state, persistence and its corrupt/unavailable-storage fallbacks. If a rule about
+*what the numbers should be* is broken, a unit test should catch it and this checklist shouldn't
+need to. What's left for a human is what unit tests structurally cannot see:
+
+- **Does it render where it should** — safe areas, keyboard overlap, tablet width. A test can assert
+  an element exists while it sits off-screen; that exact false pass happened with a native form
+  sheet, whose content was in the view hierarchy and outside the sheet frame.
+- **Real platform behaviour** — notifications, Live Activities, the foreground service, deep links,
+  screen-wake, cold launch.
+- **Real purchases.** Play Billing can't be exercised from a local build at all.
+
+**Why there is no automated e2e.** A Maestro suite existed and was deleted in 1.1.5. It cost a
+~20-minute Android CI job (a cold Gradle build dominated it, not the flows), and it had rotted while
+unwired — a hardcoded LAN address and stale selectors. The judgement was that a fast CI plus an
+honest manual pass beats a slow CI plus flows nobody trusts. **If you reintroduce it, cache Gradle
+and gate it behind a label** — the flows themselves were never the expensive part.
 
 **This file is a template, not a record.** Rows are reset to ⬜ when a release is cut; what actually
 shipped is in [CHANGELOG.md](./CHANGELOG.md) and past results are in git history. Fill the results in
@@ -19,7 +37,6 @@ touching notifications, billing, or the keyboard — those are the paths that di
 | | |
 |---|---|
 | ✅ | passed, checked by hand on a real device |
-| 🤖 | covered by an automated Maestro flow (`apps/mobile/e2e/maestro`) — re-run the flow, don't hand-test |
 | ➖ | doesn't apply on this platform |
 
 **Decided — shipping as-is**
@@ -99,21 +116,21 @@ Tablet layout is covered separately in §7.
 
 | | iOS | Android |
 |---|---|---|
-| Settings scrolls as one page — no scroll island | ⬜ | 🤖 |
-| Blind structure row shows correct count + range, opens the editor | ⬜ | 🤖 |
-| 30 rows scroll smoothly; inputs editable | ⬜ | 🤖 |
-| Clearing a blind field shows **empty**, not `0`; blur restores the old value | 🤖 `editor-clear-blur-ios.yaml` | 🤖 `editor-clear-blur.yaml` |
-| `+` → Insert below / Duplicate, at top, middle and end | 🤖 `editor-insert-duplicate-ios.yaml` | 🤖 `editor-insert-duplicate.yaml` (top+middle), `editor-delete-discard.yaml` (end on a short list — see notes in those files for why the full 30-row list's last rows weren't used) |
-| Delete down to 2 levels → trash buttons disable | 🤖 `editor-delete-discard-ios.yaml` | 🤖 `editor-delete-discard.yaml` |
-| Sticky footer appears only when dirty | ⬜ | 🤖 |
-| **Discard** restores the active values | 🤖 `editor-delete-discard-ios.yaml` | 🤖 `editor-delete-discard.yaml` |
-| **Apply mid-tournament keeps your level** (start Level 12, edit, apply → still 12) | ⬜ | 🤖 |
-| Apply a schedule **shorter** than the current level → warning shown, lands on last level, **timer does not crash** | 🤖 `editor-apply-shorter-schedule-ios.yaml` | 🤖 `editor-apply-shorter-schedule.yaml` |
-| Tap-to-jump: confirm → timer *and* notification/Live Activity both follow | ⬜ | 🤖 |
-| Jump chip is **inert** while the draft is dirty | ⬜ | 🤖 |
-| Back with unapplied edits → Apply / Discard / Keep editing | ⬜ | 🤖 |
-| …via **hardware back** (Android) and **swipe-back** (iOS) | ⬜ | 🤖 |
-| Kill the app with a dirty draft → relaunch → draft and footer still there | 🤖 `editor-kill-dirty-draft-ios.yaml` | 🤖 `editor-kill-dirty-draft.yaml` |
+| Settings scrolls as one page — no scroll island | ⬜ | ⬜ |
+| Blind structure row shows correct count + range, opens the editor | ⬜ | ⬜ |
+| 30 rows scroll smoothly; inputs editable | ⬜ | ⬜ |
+| Clearing a blind field shows **empty**, not `0`; blur restores the old value | ⬜ | ⬜ |
+| `+` → Insert below / Duplicate, at top, middle and end | ⬜ | ⬜ |
+| Delete down to 2 levels → trash buttons disable | ⬜ | ⬜ |
+| Sticky footer appears only when dirty | ⬜ | ⬜ |
+| **Discard** restores the active values | ⬜ | ⬜ |
+| **Apply mid-tournament keeps your level** (start Level 12, edit, apply → still 12) | ⬜ | ⬜ |
+| Apply a schedule **shorter** than the current level → warning shown, lands on last level, **timer does not crash** | ⬜ | ⬜ |
+| Tap-to-jump: confirm → timer *and* notification/Live Activity both follow | ⬜ | ⬜ |
+| Jump chip is **inert** while the draft is dirty | ⬜ | ⬜ |
+| Back with unapplied edits → Apply / Discard / Keep editing | ⬜ | ⬜ |
+| …via **hardware back** (Android) and **swipe-back** (iOS) | ⬜ | ⬜ |
+| Kill the app with a dirty draft → relaunch → draft and footer still there | ⬜ | ⬜ |
 
 ---
 
@@ -121,13 +138,13 @@ Tablet layout is covered separately in §7.
 
 | | iOS | Android |
 |---|---|---|
-| Slow / Standard / Turbo produce **visibly different** schedules | ⬜ | 🤖 |
-| Smallest chip 5, start 5 → `5/10 10/20 15/30 20/40…`, **never 6/12** | ⬜ | 🤖 |
-| Chip 25, start 25 → matches a real casino sheet (`25/50 50/100 75/150 100/200…`) | 🤖 `generator-chip25-casino-sheet-ios.yaml` | 🤖 `generator-chip25-casino-sheet.yaml` |
-| Chip seeds itself from the structure you're editing | ⬜ | 🤖 |
-| Sheet reaches the bottom edge — **no see-through strip** below it | ⬜ | 🤖 |
-| "Replace structure" fits on **one line** with its icon | ⬜ | 🤖 |
-| Replace writes the draft only; active schedule unchanged until Apply | 🤖 `generator-replace-draft-only-ios.yaml` (also asserts the "Unapplied changes" badge is in the accessibility tree — `NavRow`'s `badgeLabel`, which an explicit `accessibilityLabel` used to swallow on iOS) | 🤖 `generator-replace-draft-only.yaml` |
+| Slow / Standard / Turbo produce **visibly different** schedules | ⬜ | ⬜ |
+| Smallest chip 5, start 5 → `5/10 10/20 15/30 20/40…`, **never 6/12** | ⬜ | ⬜ |
+| Chip 25, start 25 → matches a real casino sheet (`25/50 50/100 75/150 100/200…`) | ⬜ | ⬜ |
+| Chip seeds itself from the structure you're editing | ⬜ | ⬜ |
+| Sheet reaches the bottom edge — **no see-through strip** below it | ⬜ | ⬜ |
+| "Replace structure" fits on **one line** with its icon | ⬜ | ⬜ |
+| Replace writes the draft only; active schedule unchanged until Apply | ⬜ | ⬜ |
 
 ---
 
@@ -135,11 +152,11 @@ Tablet layout is covered separately in §7.
 
 | | iOS | Android |
 |---|---|---|
-| mm:ss commits on blur — no Save button needed | 🤖 `round-duration-ios.yaml` | 🤖 `round-duration.yaml` |
-| Type `12`/`30`, back out → next round is 12:30 | 🤖 `round-duration-ios.yaml` | 🤖 `round-duration.yaml` |
-| Changing it **mid-round leaves the running round's remaining time alone** | 🤖 `round-duration-mid-round-ios.yaml` | 🤖 `round-duration-mid-round.yaml` |
+| mm:ss commits on blur — no Save button needed | ⬜ | ⬜ |
+| Type `12`/`30`, back out → next round is 12:30 | ⬜ | ⬜ |
+| Changing it **mid-round leaves the running round's remaining time alone** | ⬜ | ⬜ |
 | A round shorter than 10s is **kept**, not silently rewritten (type `5`, leave, come back → still 5) | ⬜ | ⬜ |
-| Seconds field caps at 59, and the field shows the clamped value after blur | 🤖 `round-duration-ios.yaml` | 🤖 `round-duration.yaml` |
+| Seconds field caps at 59, and the field shows the clamped value after blur | ⬜ | ⬜ |
 
 ---
 
@@ -151,7 +168,7 @@ or a number field is touched.
 
 | | iOS | Android |
 |---|---|---|
-| Focus the preset-name field → **Save Preset is fully visible** above the keyboard | ⬜ | 🤖 `keyboard-preset-nudge.yaml` (screenshot-based; `assertVisible` alone can't prove full IME clearance) |
+| Focus the preset-name field → **Save Preset is fully visible** above the keyboard | ⬜ | ⬜ |
 | No dead space / over-scroll after the nudge — clearance matches `BREATHING_ROOM = 24` | ⬜ | ⬜ |
 | Same on a **small** phone (iPhone SE class / 720×1280) | ⬜ | ⬜ |
 | **Any** focused field stays visible when the keypad opens — Settings, blind editor, sheet | ⬜ | ⬜ |
@@ -159,9 +176,9 @@ or a number field is touched.
 | …and it doesn't look bolted on next to the keyboard's rounded edge | ⬜ | ➖ |
 | In a **sheet**, the Done control belongs to the sheet — nothing floating in the gap above the keypad | ⬜ | ⬜ |
 | A sheet's **footer buttons stay tappable** with the keypad up (generator: Cancel + Replace structure) | ⬜ | ⬜ — check on **3-button navigation** if you have it; its nav bar is roughly twice a gesture bar's, and Android reports the IME height *excluding* it, so a shortfall shows up worst there |
-| Scrolling **keeps the keypad up** — generator sheet | ⬜ | 🤖 `generator-keyboard.yaml` |
+| Scrolling **keeps the keypad up** — generator sheet | ⬜ | ⬜ |
 | Scrolling **keeps the keypad up** — blind structure editor | ⬜ | ⬜ |
-| Generator sheet fields usable with the keyboard up — sheet resizes *and* scrolls, top not pushed off-screen | ⬜ | 🤖 `generator-keyboard.yaml` |
+| Generator sheet fields usable with the keyboard up — sheet resizes *and* scrolls, top not pushed off-screen | ⬜ | ⬜ |
 
 ---
 
@@ -169,7 +186,7 @@ or a number field is touched.
 
 | | iOS | Android |
 |---|---|---|
-| Round expiry fires the alert + alarm with the app **foregrounded** | 🤖 `notification-foreground-expiry-ios.yaml` | 🤖 `notification-foreground-expiry.yaml` |
+| Round expiry fires the alert + alarm with the app **foregrounded** | ⬜ | ⬜ |
 | Expiry while **backgrounded** advances **exactly one** level, and says so if more time passed | ⬜ | ⬜ (automation blocked, see below — needs a hand pass) |
 | Live Activity / notification show the right level + time, and the "open the app" caption | ⬜ | ⬜ |
 | Blinds are the most prominent thing on it, after the countdown | ⬜ | ⬜ |
@@ -193,9 +210,9 @@ expected, not a bug.
 
 | | iPad | Android tablet |
 |---|---|---|
-| Settings: Tournament + Presets **side by side**, capped and centred | ⬜ | 🤖 |
-| Blind editor list + sticky footer capped at 900 and centred | ⬜ | 🤖 |
-| Timer card centred, not full-bleed | ⬜ | 🤖 |
+| Settings: Tournament + Presets **side by side**, capped and centred | ⬜ | ⬜ |
+| Blind editor list + sticky footer capped at 900 and centred | ⬜ | ⬜ |
+| Timer card centred, not full-bleed | ⬜ | ⬜ |
 | Generator sheet sensible at tablet width | 🟡 accepted — `Sheet.tsx` has no tablet-cap logic at all, so it's full-bleed on both platforms (see ROADMAP.md) | 🟡 |
 | iPad **mini** still gets the phone layout | ⬜ | ➖ |
 
