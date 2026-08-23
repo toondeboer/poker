@@ -9,6 +9,8 @@ platform-tagged heading (e.g. `## [1.1.3] - 2026-07-20 — Android`) when you cu
 
 ## [Unreleased]
 
+## [1.1.5] - 2026-08-23 — iOS & Android
+
 ### Removed
 - The Maestro end-to-end suite (26 flows, the npm scripts and the Android CI job) is gone. It cost a
   ~20-minute Android CI job on every mobile PR — almost all of it a cold Gradle build rather than the
@@ -357,7 +359,8 @@ _Before Android's launch. Reconstructed from build history — approximate._
 - Initial App Store release: a poker tournament timer with configurable blind levels, a
   per-round countdown, background timing, iOS Live Activities, and an Android foreground service.
 
-[Unreleased]: https://github.com/toondeboer/poker/compare/v1.1.4...HEAD
+[Unreleased]: https://github.com/toondeboer/poker/compare/v1.1.5...HEAD
+[1.1.5]: https://github.com/toondeboer/poker/compare/v1.1.4...v1.1.5
 [1.1.4]: https://github.com/toondeboer/poker/compare/v1.1.3...v1.1.4
 [1.1.3]: https://github.com/toondeboer/poker/compare/v1.1.2...v1.1.3
 [1.1.2]: https://github.com/toondeboer/poker/compare/v1.1.1...v1.1.2
