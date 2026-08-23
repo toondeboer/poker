@@ -302,6 +302,35 @@ Mobile releases are batched on a short-lived branch per version, not shipped str
     adding anything to the root.
 - **`@types/node` leaks to mobile via hoisting** — use `ReturnType<typeof setInterval>` for interval
   refs, not `number`.
+- **`expo-router` does not hoist to the root `node_modules`, and the expo CLI can't find it without
+  `NODE_PATH`.** This is why `start`/`android`/`android:device`/`ios`/`ios:device` in
+  `apps/mobile/package.json` are all prefixed `NODE_PATH=node_modules`. Remove it and every one of
+  them dies before Metro serves anything:
+  ```
+  Error: Cannot find module 'expo-router/_ctx-shared'
+    at typedRoutes (…/@expo/cli/build/src/start/server/type-generation/routes.js:77)
+  ```
+  - **The path matters more than the package.** npm installs `expo-router` to
+    `apps/mobile/node_modules/expo-router`, but `@expo/router-server` — which does the bare
+    `require('expo-router/_ctx-shared')` — lives at
+    `node_modules/expo/node_modules/@expo/cli/node_modules/@expo/router-server`. Node walks *up*
+    from there, so it sees `node_modules/expo/node_modules` and the root `node_modules`, and never
+    `apps/mobile/node_modules`. `NODE_PATH` is appended *after* that chain, so it fixes the lookup
+    without shadowing anything — which also means it can't reintroduce the shim problem below, and
+    the `pre*` hooks have cleaned those out by then anyway.
+  - **It's `app.json`'s `experiments.typedRoutes: true` that makes this fatal** rather than a
+    warning. Turning that off also "fixes" it — don't. It's a real feature, and the generated
+    `.expo/types/router.d.ts` is gitignored, so CI never notices either way.
+  - **Not lockfile rot — don't try to fix it by regenerating.** A full
+    `rm -rf node_modules package-lock.json && npm install` nests it exactly the same way. It's
+    `apps/web`'s presence in the workspace that does it: an identical install with only
+    `apps/mobile` + `packages/core` hoists `expo-router` to the root. Nothing in expo-router's
+    dependencies or its *required* peers conflicts with root by then, so this is npm's placement
+    heuristic, not a declaration of ours to correct — which is why the fix is `NODE_PATH` and not a
+    root dependency (forbidden, see below) or an `override` (also forbidden).
+  - It regressed in `45c1573` (the SDK 56 alignment): before it, `expo-router@56.2.11` sat at
+    `node_modules/expo-router`; after, `56.2.19` sits under `apps/mobile` and the root entry is gone.
+    Nothing about that commit was wrong — the version bump just changed what npm decided to hoist.
 - **Metro monorepo config** is in `apps/mobile/metro.config.js`; if Metro can't resolve a hoisted
   dep or `@poker/core`, check `watchFolders`/`nodeModulesPaths` there.
 - **Mobile is a bare Expo workflow** — `apps/mobile/ios` and `apps/mobile/android` are committed.
