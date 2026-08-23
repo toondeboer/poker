@@ -271,3 +271,28 @@ const clamp = (value: number, min: number, max: number): number =>
 
 const sanitize = (value: number, fallback: number): number =>
   Number.isFinite(value) ? value : fallback;
+
+/**
+ * A finishing position as an English ordinal: 1 → "1st", 22 → "22nd".
+ *
+ * Lives here rather than in the app because it's pure and therefore testable,
+ * and because both apps would otherwise write their own. English-only, like
+ * `SHARE_MESSAGE` — the app is not localised.
+ */
+export const formatPlace = (place: number): string => {
+  const n = Math.floor(sanitize(place, 0));
+  const lastTwo = Math.abs(n) % 100;
+  const lastOne = Math.abs(n) % 10;
+  // 11th, 12th and 13th break the pattern the last digit would otherwise set.
+  const suffix =
+    lastTwo >= 11 && lastTwo <= 13
+      ? "th"
+      : lastOne === 1
+        ? "st"
+        : lastOne === 2
+          ? "nd"
+          : lastOne === 3
+            ? "rd"
+            : "th";
+  return `${n}${suffix}`;
+};

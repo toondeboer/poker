@@ -138,6 +138,7 @@ export {
   defaultPaidPlaces,
   suggestedBounty,
   validatePayoutOptions,
+  formatPlace,
   PAYOUT_SPLITS,
   MAX_PAID_PLACES,
 } from "./payouts/payoutStructure";

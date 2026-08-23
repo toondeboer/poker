@@ -8,6 +8,7 @@ import { BlindsProvider } from "@/src/contexts/BlindsContext";
 import { AppStateProvider } from "@/src/contexts/AppStateContext";
 import { PremiumProvider } from "@/src/contexts/PremiumContext";
 import { SoundPackProvider } from "@/src/contexts/SoundPackContext";
+import { PayoutProvider } from "@/src/contexts/PayoutContext";
 import AppReadyGate from "@/src/components/AppReadyGate";
 import { initializeAds } from "@/src/services/ads";
 import { configurePurchases } from "@/src/services/revenueCatProvider";
@@ -30,6 +31,7 @@ export default function RootLayout() {
         <AppStateProvider>
           <BlindsProvider>
             <SoundPackProvider>
+              <PayoutProvider>
               <TimerProvider>
                 <AppReadyGate>
                   <Stack
@@ -63,9 +65,17 @@ export default function RootLayout() {
                         headerBackTitle: "Settings",
                       }}
                     />
+                    <Stack.Screen
+                      name="payouts"
+                      options={{
+                        title: "Payouts",
+                        headerBackTitle: "Settings",
+                      }}
+                    />
                   </Stack>
                 </AppReadyGate>
               </TimerProvider>
+              </PayoutProvider>
             </SoundPackProvider>
           </BlindsProvider>
         </AppStateProvider>

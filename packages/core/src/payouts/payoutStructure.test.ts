@@ -6,6 +6,7 @@ import {
   validatePayoutOptions,
   MAX_PAID_PLACES,
   PAYOUT_SPLITS,
+  formatPlace,
   PayoutOptions,
 } from "./payoutStructure";
 
@@ -303,5 +304,35 @@ describe("suggestedBounty", () => {
     expect(suggestedBounty(1)).toBe(0);
     expect(suggestedBounty(0)).toBe(0);
     expect(suggestedBounty(Number.NaN)).toBe(0);
+  });
+});
+
+describe("formatPlace", () => {
+  it.each([
+    [1, "1st"],
+    [2, "2nd"],
+    [3, "3rd"],
+    [4, "4th"],
+    [5, "5th"],
+    [21, "21st"],
+    [22, "22nd"],
+    [23, "23rd"],
+    [101, "101st"],
+  ])("formats %i as %s", (place, expected) => {
+    expect(formatPlace(place)).toBe(expected);
+  });
+
+  it("uses -th for the eleven-to-thirteen exceptions", () => {
+    expect(formatPlace(11)).toBe("11th");
+    expect(formatPlace(12)).toBe("12th");
+    expect(formatPlace(13)).toBe("13th");
+    expect(formatPlace(111)).toBe("111th");
+    expect(formatPlace(112)).toBe("112th");
+    expect(formatPlace(113)).toBe("113th");
+  });
+
+  it("survives nonsense rather than rendering NaN into the table", () => {
+    expect(formatPlace(Number.NaN)).toBe("0th");
+    expect(formatPlace(2.9)).toBe("2nd");
   });
 });
