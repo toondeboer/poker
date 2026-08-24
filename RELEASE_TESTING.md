@@ -16,9 +16,10 @@ need to. What's left for a human is what unit tests structurally cannot see:
   screen-wake, cold launch.
 - **Real purchases.** Play Billing can't be exercised from a local build at all.
 
-**Why there is no automated e2e.** A Maestro suite existed and was deleted in 1.1.5. It cost a
-~20-minute Android CI job (a cold Gradle build dominated it, not the flows), and it had rotted while
-unwired — a hardcoded LAN address and stale selectors. The judgement was that a fast CI plus an
+**Why there is no automated e2e.** A Maestro suite existed and was deleted in 1.1.5. It had rotted
+while unwired — a hardcoded LAN address and stale selectors, no npm script and no CI job — and
+wiring it up would have cost a ~20-minute Android job per PR, dominated by a cold Gradle build
+rather than the flows. The judgement was that a fast CI plus an
 honest manual pass beats a slow CI plus flows nobody trusts. **If you reintroduce it, cache Gradle
 and gate it behind a label** — the flows themselves were never the expensive part.
 

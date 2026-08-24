@@ -83,13 +83,23 @@ export function PayoutScreen() {
   const structure = computePayouts(options);
   const autoPlaces = defaultPaidPlaces(settings.entrants);
 
+  // What Auto would *actually* pay, which can be fewer than the field-size rule
+  // suggests when the pool can't fund that many at the chosen denomination.
+  // Showing the unreduced number here would advertise places that don't pay.
+  const autoStructure = computePayouts({
+    ...options,
+    paidPlaces: undefined,
+  });
+  const autoPaid = autoStructure?.payouts.length ?? autoPlaces;
+
+
   // Only offer place counts this field can actually seat.
   const maxPlaces = Math.min(
     Math.floor(settings.entrants) || 1,
     MAX_PAID_PLACES,
   );
   const placeOptions = [
-    { value: AUTO, label: "Auto", meta: autoPlaces > 0 ? `${autoPlaces}` : "—" },
+    { value: AUTO, label: "Auto", meta: autoPaid > 0 ? `${autoPaid}` : "—" },
     ...Array.from({ length: maxPlaces }, (_, index) => ({
       value: String(index + 1),
       label: String(index + 1),
@@ -107,6 +117,12 @@ export function PayoutScreen() {
    * way applying a shorter blind schedule clamps the current level rather than
    * resetting it.
    */
+  /** True when the pool forced fewer places than were asked for. */
+  const placesReduced =
+    structure !== null &&
+    structure.payouts.length <
+      Math.min(settings.paidPlaces ?? autoPlaces, maxPlaces);
+
   const selectedPlaces =
     settings.paidPlaces === null
       ? AUTO
@@ -130,8 +146,8 @@ export function PayoutScreen() {
             onChangeValue={(entrants) => update({ entrants })}
             min={0}
             helper={
-              autoPlaces > 0
-                ? `A field this size normally pays ${autoPlaces} ${autoPlaces === 1 ? "place" : "places"}.`
+              autoPaid > 0
+                ? `A field this size pays ${autoPaid} ${autoPaid === 1 ? "place" : "places"}.`
                 : undefined
             }
           />
@@ -161,6 +177,9 @@ export function PayoutScreen() {
           />
           <Text style={styles.hint}>
             Auto follows the field — more players, more places paid.
+            {placesReduced
+              ? ` Paying ${structure?.payouts.length} here: the pool won't stretch further in ${settings.denomination}s without a place winning nothing.`
+              : ""}
           </Text>
           <SegmentedControl
             label="Round payouts to"

@@ -10,10 +10,9 @@ platform-tagged heading (e.g. `## [1.1.3] - 2026-07-20 — Android`) when you cu
 ## [Unreleased]
 
 ### Removed
-- The Maestro end-to-end suite (26 flows, the npm scripts and the Android CI job) is gone. It cost a
-  ~20-minute Android CI job on every mobile PR — almost all of it a cold Gradle build rather than the
-  flows themselves — and had rotted while nothing referenced it: a hardcoded LAN address and stale
-  selectors. Verification now splits along a clearer line: logic is unit-tested in `@poker/core`,
+- The Maestro end-to-end suite (26 flows) is gone. It had rotted while nothing referenced it: a
+  hardcoded LAN address and stale selectors, no npm script, and no CI job — running it would have
+  meant a ~20-minute cold Gradle build per PR, which is why it never got wired up. Verification now splits along a clearer line: logic is unit-tested in `@poker/core`,
   and everything a unit test structurally cannot see (layout, real platform behaviour, purchases) is
   a human pass driven by [RELEASE_TESTING.md](./RELEASE_TESTING.md), which now spells those rows out
   instead of deferring them to a flow.
@@ -25,7 +24,9 @@ platform-tagged heading (e.g. `## [1.1.3] - 2026-07-20 — Android`) when you cu
   prize pool and 5 to knockouts — because the alternative means collecting more than the buy-in you
   advertised. Every payout is rounded to a note you can actually hand over (1, 5, 10 or 25) while
   the table still sums to *exactly* the prize pool: the split uses the largest-remainder method, so
-  nothing is quietly lost to rounding and nothing is quietly handed to the winner. Paid places
+  nothing is quietly lost to rounding and nothing is quietly handed to the winner. If the pool can't
+  stretch to the usual number of places at your chosen note size, it pays fewer places rather than
+  announcing one that wins nothing. Paid places
   follow the field size by default — roughly the top fifth, the home-game convention rather than a
   casino's tenth — and can be pinned instead. Bounties are flat and untracked: the app states the
   per-knockout figure and players settle it between themselves at the table, since progressive

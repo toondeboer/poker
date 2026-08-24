@@ -56,15 +56,20 @@ export function PayoutProvider({
     };
   }, []);
 
-  const update = useCallback((patch: Partial<PayoutSettings>) => {
-    setSettings((previous) => {
-      const next = { ...previous, ...patch };
+  // The write lives outside the state updater on purpose. React may call an
+  // updater more than once for the same change (StrictMode, a replayed render),
+  // so persisting from inside it means duplicate writes for one edit — and an
+  // updater that has side effects is not one React promises to call once.
+  const update = useCallback(
+    (patch: Partial<PayoutSettings>) => {
+      const next = { ...settings, ...patch };
+      setSettings(next);
       PayoutStorage.savePayoutSettings(next).catch((error) =>
         logger.error("Failed to save payout settings:", error),
       );
-      return next;
-    });
-  }, []);
+    },
+    [settings],
+  );
 
   return (
     <PayoutContext.Provider value={{ settings, isLoading, update }}>
