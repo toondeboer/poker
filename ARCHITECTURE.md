@@ -14,9 +14,9 @@ full-featured web timer, an iOS/Android app, and the shared logic both build on.
 The web and mobile UIs are **deliberately separate** — desktop and phone have different
 needs (the phone manages sleep, background timers, Live Activities and push notifications;
 the desktop does not). What they share is **logic, not components**: blind schedules, timer
-math, serialization, and types all live in `@poker/core`. Running the React Native UI on the
-web (`react-native-web`) was evaluated and rejected as high-effort/fragile for no real desktop
-benefit.
+math, payout and standings maths, serialization, and types all live in `@poker/core`.
+Running the React Native UI on the web (`react-native-web`) was evaluated and rejected as
+high-effort/fragile for no real desktop benefit.
 
 ## Repository layout
 
@@ -31,14 +31,17 @@ packages/
 Inside `apps/mobile/src`:
 
 ```
-app/            expo-router routes: index (timer), settings, blinds
+app/            expo-router routes: index (timer), settings, blinds, payouts, leaderboard
 components/
   ui/           shared primitives (Card, Button, TextField, Sheet, …)
   settings/     the Settings screen, one file per card
   blinds/       the blind-structure editor
+  payouts/      the buy-in / payout calculator (Pro)
+  leaderboard/  standings, roster and the record-a-game sheet (Pro)
   PokerTimer    the timer screen (self-measuring, deliberately bespoke)
 theme/          colour / spacing / typography tokens, tablet breakpoint
-contexts/       Blinds, Timer, Premium, SoundPack, AppState, AppReadyGate
+contexts/       Blinds, Timer, Premium, SoundPack, Payout, Leaderboard, AppState,
+                AppReadyGate
 ```
 
 **Blind levels use a draft/active split.** `BlindsContext` holds `customBlindLevels` (what the
@@ -60,9 +63,9 @@ preset or resetting to defaults does restart, since those swap in a different to
 
 ## The shared seam: `StorageAdapter`
 
-`@poker/core` defines a small async key/value `StorageAdapter` interface and builds the
-timer/blinds stores on top of it (`createTimerStorage`, `createBlindsStorage`). Each app
-supplies its own backend:
+`@poker/core` defines a small async key/value `StorageAdapter` interface and builds every
+store on top of it — `createTimerStorage`, `createBlindsStorage`, and the preset, review,
+sound-pack, payout and leaderboard stores. Each app supplies its own backend:
 
 | | Adapter | Backend |
 |---|---|---|
@@ -71,6 +74,10 @@ supplies its own backend:
 
 This is what gives the web timer persistence (custom blinds, round length, current level
 survive a reload) using the exact same serialization the app uses.
+
+The Pro stores are **mobile-only in practice** — nothing on the web reads payouts or the
+leaderboard yet — but they are built on the same seam and gated in the app rather than in
+`@poker/core`, so the web timer could adopt them without the maths moving.
 
 ## Platform-coupling map
 
