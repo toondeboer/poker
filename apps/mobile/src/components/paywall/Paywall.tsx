@@ -12,6 +12,8 @@ import { Sheet } from "@/src/components/ui/Sheet";
 
 const PRO_FEATURES = [
   "Remove all ads — a clean, full-screen timer",
+  "Work out buy-ins, payouts and bounties",
+  "Keep a leaderboard across game nights",
   "Save & load tournament presets",
   "Choose your alarm sound",
   "Support an indie developer",
