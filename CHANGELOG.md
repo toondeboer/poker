@@ -33,6 +33,13 @@ platform-tagged heading (e.g. `## [1.1.3] - 2026-07-20 — Android`) when you cu
   bounties would mean tracking eliminations live. The maths is in `@poker/core`, with the
   sums-to-the-pool invariant asserted across the whole realistic range of buy-ins, field sizes,
   bounties and denominations rather than at a handful of points.
+- **The timer offers to record a game when one ends (Pro).** Reset the timer after the blinds have
+  climbed and the app asks whether to add the result to the leaderboard, opening the record sheet
+  straight from the prompt. There is no true "tournament over" signal in a blinds timer — reset
+  deliberately clears the round and leaves the blind level alone — so this is a deliberate
+  heuristic: resetting *after progressing* is someone starting fresh, which almost always means the
+  last game just finished. Resetting on level one is a mis-tap and is left alone, and the prompt
+  stays quiet unless Pro is unlocked and there is someone on the roster to record against.
 - **Leaderboard (Pro).** Keep score across game nights: who has won most, who turns up, and what
   everyone has taken home. **Local-first and single-device** — no accounts, no sign-in, and nothing
   leaves the phone; the host's device is the source of truth for their group. Recording a game is

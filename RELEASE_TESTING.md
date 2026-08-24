@@ -320,6 +320,10 @@ it**.
 | Un-picking a player who was already ranked also clears their place | ⬜ | ⬜ |
 | Saving updates the standings, and Settings' summary row, immediately | ⬜ | ⬜ |
 | Removing a player keeps past games — everyone else's totals unchanged | ⬜ | ⬜ |
+| **End-of-game prompt:** advance past level 1, then reset → "Record this game?" appears; "Record" opens the sheet with the roster in it | ⬜ | ⬜ |
+| Resetting on **level 1** does *not* prompt (it's a mis-tap, not a finished game) | ⬜ | ⬜ |
+| No prompt with an **empty roster**, or when Pro is locked — the sheet would have nothing to offer | ⬜ | ⬜ |
+| Back from a prompt-opened leaderboard returns to the **timer**, and the header says "Back" | ⬜ | ⬜ |
 | Record sheet: header clears the status bar and the footer clears the keypad (the §5 failure mode) | ⬜ | ⬜ |
 
 ---
