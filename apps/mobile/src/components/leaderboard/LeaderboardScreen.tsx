@@ -52,6 +52,7 @@ export function LeaderboardScreen() {
     deletePlayer,
     deleteResult,
     recordResult,
+    isLoading,
   } = useLeaderboard();
 
   // Arriving from the timer's end-of-game prompt opens the sheet straight away.
@@ -110,7 +111,12 @@ export function LeaderboardScreen() {
     ]);
   };
 
-  const content = isPremium ? (
+  // Nothing renders until the stored leaderboard has landed. Without this the
+  // screen is interactive over empty state, and any edit made in that window
+  // persists `{players: [], results: []}` straight over a season of game
+  // nights — the arriving load then repairs the *state* and hides it until the
+  // next launch. This is the one store here whose contents can't be retyped.
+  const content = isLoading ? null : isPremium ? (
     <>
       <Card>
         <CardHeader
@@ -285,12 +291,17 @@ export function LeaderboardScreen() {
         {content}
       </ScrollView>
 
+      {/* Pro-gated here as well as in `content`: this sits outside that
+          ternary, and `showRecord` can be seeded from `?record=1`, so without
+          the check a deep link opens the record flow with Pro locked. */}
+      {isPremium && !isLoading && (
       <RecordResultSheet
         visible={showRecord}
         onClose={() => setShowRecord(false)}
         players={players}
         onRecord={recordResult}
       />
+      )}
       <Paywall visible={showPaywall} onClose={() => setShowPaywall(false)} />
     </View>
   );

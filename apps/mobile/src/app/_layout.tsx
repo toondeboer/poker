@@ -34,58 +34,58 @@ export default function RootLayout() {
             <SoundPackProvider>
               <PayoutProvider>
                 <LeaderboardProvider>
-              <TimerProvider>
-                <AppReadyGate>
-                  <Stack
-                    screenOptions={{
-                      headerStyle: {
-                        backgroundColor: "#0f172a",
-                      },
-                      headerTintColor: "#fff",
-                      headerTitleStyle: {
-                        fontWeight: "bold",
-                      },
-                    }}
-                  >
-                    <Stack.Screen
-                      name="index"
-                      options={{
-                        headerShown: false,
-                      }}
-                    />
-                    <Stack.Screen
-                      name="settings"
-                      options={{
-                        title: "Settings",
-                        headerBackTitle: "Back",
-                      }}
-                    />
-                    <Stack.Screen
-                      name="blinds"
-                      options={{
-                        title: "Blind structure",
-                        headerBackTitle: "Settings",
-                      }}
-                    />
-                    <Stack.Screen
-                      name="payouts"
-                      options={{
-                        title: "Payouts",
-                        headerBackTitle: "Settings",
-                      }}
-                    />
-                    <Stack.Screen
-                      name="leaderboard"
-                      options={{
-                        title: "Leaderboard",
-                        // Reachable from Settings *and* from the timer's
-                        // end-of-game prompt, so it can't name either one.
-                        headerBackTitle: "Back",
-                      }}
-                    />
-                  </Stack>
-                </AppReadyGate>
-              </TimerProvider>
+                  <TimerProvider>
+                    <AppReadyGate>
+                      <Stack
+                        screenOptions={{
+                          headerStyle: {
+                            backgroundColor: "#0f172a",
+                          },
+                          headerTintColor: "#fff",
+                          headerTitleStyle: {
+                            fontWeight: "bold",
+                          },
+                        }}
+                      >
+                        <Stack.Screen
+                          name="index"
+                          options={{
+                            headerShown: false,
+                          }}
+                        />
+                        <Stack.Screen
+                          name="settings"
+                          options={{
+                            title: "Settings",
+                            headerBackTitle: "Back",
+                          }}
+                        />
+                        <Stack.Screen
+                          name="blinds"
+                          options={{
+                            title: "Blind structure",
+                            headerBackTitle: "Settings",
+                          }}
+                        />
+                        <Stack.Screen
+                          name="payouts"
+                          options={{
+                            title: "Payouts",
+                            headerBackTitle: "Settings",
+                          }}
+                        />
+                        <Stack.Screen
+                          name="leaderboard"
+                          options={{
+                            title: "Leaderboard",
+                            // Reachable from Settings *and* from the timer's
+                            // end-of-game prompt, so it can't name either one.
+                            headerBackTitle: "Back",
+                          }}
+                        />
+                      </Stack>
+                    </AppReadyGate>
+                  </TimerProvider>
                 </LeaderboardProvider>
               </PayoutProvider>
             </SoundPackProvider>

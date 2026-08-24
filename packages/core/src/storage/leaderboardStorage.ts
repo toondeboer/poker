@@ -8,8 +8,6 @@ export type LeaderboardState = {
   results: GameResult[];
 };
 
-export const EMPTY_LEADERBOARD: LeaderboardState = { players: [], results: [] };
-
 export interface LeaderboardStorage {
   loadLeaderboard(): Promise<LeaderboardState>;
   saveLeaderboard(state: LeaderboardState): Promise<void>;

@@ -77,10 +77,7 @@ export {
   DEFAULT_PAYOUT_SETTINGS,
 } from "./storage/payoutStorage";
 export type { PayoutStorage, PayoutSettings } from "./storage/payoutStorage";
-export {
-  createLeaderboardStorage,
-  EMPTY_LEADERBOARD,
-} from "./storage/leaderboardStorage";
+export { createLeaderboardStorage } from "./storage/leaderboardStorage";
 export type {
   LeaderboardStorage,
   LeaderboardState,

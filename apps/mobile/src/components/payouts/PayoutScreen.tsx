@@ -56,7 +56,7 @@ export function PayoutScreen() {
   const { width } = useWindowDimensions();
   const isTablet = isTabletWidth(width);
   const { isPremium } = usePremium();
-  const { settings, update } = usePayouts();
+  const { settings, update, isLoading } = usePayouts();
 
   const [showPaywall, setShowPaywall] = useState(false);
 
@@ -92,7 +92,6 @@ export function PayoutScreen() {
   });
   const autoPaid = autoStructure?.payouts.length ?? autoPlaces;
 
-
   // Only offer place counts this field can actually seat.
   const maxPlaces = Math.min(
     Math.floor(settings.entrants) || 1,
@@ -106,6 +105,12 @@ export function PayoutScreen() {
     })),
   ];
 
+  /** True when the pool forced fewer places than were asked for. */
+  const placesReduced =
+    structure !== null &&
+    structure.payouts.length <
+      Math.min(settings.paidPlaces ?? autoPlaces, maxPlaces);
+
   /**
    * Clamped for display, deliberately without rewriting what's stored.
    *
@@ -117,18 +122,14 @@ export function PayoutScreen() {
    * way applying a shorter blind schedule clamps the current level rather than
    * resetting it.
    */
-  /** True when the pool forced fewer places than were asked for. */
-  const placesReduced =
-    structure !== null &&
-    structure.payouts.length <
-      Math.min(settings.paidPlaces ?? autoPlaces, maxPlaces);
-
   const selectedPlaces =
     settings.paidPlaces === null
       ? AUTO
       : String(Math.min(Math.max(settings.paidPlaces, 1), maxPlaces));
 
-  const content = isPremium ? (
+  // Same reasoning as the leaderboard: editing before the stored settings
+  // arrive would persist the defaults over them.
+  const content = isLoading ? null : isPremium ? (
     <>
       <Card>
         <CardHeader icon="cash" title="The money" />

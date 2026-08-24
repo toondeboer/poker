@@ -77,9 +77,17 @@ export const computeStandings = (
       if (standing) standing.gamesPlayed += 1;
     }
 
+    // Deduplicated for the same reason `playerIds` is: `validateGameResult`
+    // rejects a repeated placing, but nothing re-validates on the way *out* of
+    // storage, so a hand-edited or half-written record could still carry one.
+    // Left alone it would double a player's wins, podiums, cashes and winnings
+    // off a single game while `gamesPlayed` counted it once.
+    const placed = new Set<string>();
     for (const placing of result.placings) {
       const standing = standings.get(placing.playerId);
       if (!standing) continue;
+      if (placed.has(placing.playerId)) continue;
+      placed.add(placing.playerId);
       if (placing.winnings > 0) standing.cashes += 1;
       standing.totalWon += placing.winnings;
       if (placing.place === 1) standing.wins += 1;
