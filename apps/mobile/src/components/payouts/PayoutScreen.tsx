@@ -276,7 +276,7 @@ export function PayoutScreen() {
     </>
   ) : (
     <Card>
-      <CardHeader icon="trophy" title="Payouts" />
+      <CardHeader icon="cash" title="Payouts" />
       <CardContent>
         <Text style={styles.description}>
           Set a buy-in and Poker Blinds Buzzer works out what each place wins —

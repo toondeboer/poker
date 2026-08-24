@@ -61,6 +61,12 @@ A fix landing never upgrades a row on its own: ❌ becomes 🔧, and only a re-t
 <a id="passes-run"></a>
 **Passes run**
 
+1. **iOS Simulator** — iPhone 17 Pro, iOS 26.5, dev client. Covers the **locked/non-Pro states
+   only**: both Pro pills in Settings, the Payouts and Leaderboard screens rendering their locked
+   cards and unlock buttons, the paywall listing all six Pro features, and the banner ad appearing
+   (so `shouldShowAds` is live). Also confirmed the end-of-game prompt produces **nothing** with Pro
+   locked, driven from a temporary mount trigger rather than the reset button. A Simulator can't
+   speak to billing, notifications or screen-wake, so nothing else here is claimed from it.
 1. **Android** — `Android_small` emulator, API 35, 30s screen timeout. §10 keep-awake: holding,
    pause-releases and reset-releases all verified against the window flag and `mWakefulness`.
    iOS not covered: the Simulator has no auto-lock, so §10 needs a real device there.
@@ -294,7 +300,7 @@ Set `FORCE_PRO_IN_DEV` in `PremiumContext.tsx` to see the unlocked screen withou
 
 | | iOS | Android |
 |---|---|---|
-| Locked state: Settings row shows the Pro pill, the screen still opens and offers the unlock | ⬜ | ⬜ |
+| Locked state: Settings row shows the Pro pill, the screen still opens and offers the unlock | ✅ | ⬜ |
 | Buy-in / Players / Bounty accept typing and a **cleared field doesn't show a literal `0`** | ⬜ | ⬜ |
 | Payout rows and "Where it comes from" reconcile on screen: prize pool + bounties = collected | ⬜ | ⬜ |
 | A bounty **equal to or above** the buy-in explains itself instead of showing an empty table | ⬜ | ⬜ |
@@ -312,7 +318,7 @@ it**.
 
 | | iOS | Android |
 |---|---|---|
-| Locked state: Pro pill on the Settings row, screen opens and offers the unlock | ⬜ | ⬜ |
+| Locked state: Pro pill on the Settings row, screen opens and offers the unlock | ✅ | ⬜ |
 | Adding a player: duplicate and empty names keep the button disabled | ⬜ | ⬜ |
 | Name field isn't covered by the keypad, and dismisses on return | ⬜ | ⬜ |
 | Record a game: tapping who played, then tapping them in finishing order, gives 1st/2nd/3rd | ⬜ | ⬜ |
