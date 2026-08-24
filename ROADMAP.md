@@ -52,11 +52,11 @@ are removed from this file when a release is cut rather than accumulating as ✅
 ## Cross-device QA
 - 🔍 **Physical-device spot-check (small phone + tablet, both platforms) still outstanding** —
   everything so far has been simulators/emulators plus an iPhone 13 Pro and one real Android phone.
-- 🟡 **The generator sheet is full-bleed at tablet width on both platforms.** `Sheet.tsx` has no
-  tablet-cap logic at all, unlike `SettingsScreen`/`BlindStructureScreen` — so this is
-  pre-existing/never-implemented rather than a regression, and was accepted for 1.1.4. It's also
-  unclear whether Android's tablet pass was ever judged at a genuinely capped width or at this same
-  full-bleed one.
+- ⬜ **Sheets are capped at tablet width as of 1.1.5 — verify it on a real tablet.** This was the
+  🟡 accepted gap in 1.1.4 (`Sheet.tsx` had no tablet-cap logic at all); it now caps at 640 and
+  centres. Only checked on an iPad Pro simulator so far, and it was never clear whether Android's
+  earlier tablet pass was judged at a capped width or the old full-bleed one, so both platforms
+  want a look.
 - 🟡 **iPad mini gets the phone layout.** `isTablet` is `width > 768` and an iPad mini (A17 Pro) is
   744×1133pt in portrait, just under it — confirmed by measuring rendered card widths
   pixel-for-pixel. This is how the threshold has always behaved on **both** Timer and Settings, not
@@ -96,32 +96,19 @@ are removed from this file when a release is cut rather than accumulating as ✅
   interop story.
 
 ## Pro feature: Leaderboard
-- ⬜ Track who's won the most games among a friend group (local group, not global/online ranking).
-- ⬜ Data model + storage: likely local-first (matches the app's no-account philosophy — see
-  `StorageAdapter` pattern in [CLAUDE.md](./CLAUDE.md)) rather than requiring sign-in; needs
-  design decisions:
-  - How a "game" and its winner get recorded (manual entry at game end vs. derived from timer
-    session).
-  - Whether this is single-device only or needs to sync across players' phones somehow (multi-device
-    sync would be a much bigger scope — a shared account/backend — vs. one host's device being the
-    source of truth for their group).
-- ⬜ UI: leaderboard view (wins per player, maybe games played / win rate).
-- ⬜ Gate behind Pro entitlement (`EntitlementProvider`, `shouldShowAds`-style seam in
-  `@poker/core`).
+- ✅ **Shipped in 1.1.5** (unreleased). Local-first, single-device, no accounts — the host's phone
+  is the source of truth. Recording is manual but pre-filled from the payout setup; the timer offers
+  to record when a game looks finished. Ranked by wins with a deterministic tie-break; shows prize
+  money won rather than net profit, because bounty winnings can't be reconstructed after the fact.
+  The design questions this entry used to carry are answered in the changelog entry and the commits.
+  **Delete this section when 1.1.5 is cut** (cutting step 3).
 
 ## Pro feature: Buy-in & payout structure
-- ⬜ Let the host set a buy-in amount and get a recommended payout structure for the prize pool
-  (e.g. standard splits like 50/30/20 or configurable place count).
-- ⬜ Support **bounties** — a portion of each player's buy-in that goes to whoever eliminates
-  them, on top of / instead of part of the standard prize pool. Needs design decisions:
-  - Bounty amount as a flat fee per player vs. a percentage of buy-in.
-  - How bounty payouts interact with the main payout structure (does bounty money come out of the
-    pool before computing places, or is it separate money on top).
-  - Whether to support progressive/knockout-style bounties (bounty grows as it's collected) or
-    just flat bounties for v1.
-- ⬜ Payout math is pure calculation — belongs in `@poker/core` alongside the existing blind/timer
-  math, with the UI in the app.
-- ⬜ Gate behind Pro entitlement.
+- ✅ **Shipped in 1.1.5** (unreleased). Flat bounties carved out of the buy-in rather than added on
+  top; payouts rounded to a chosen note size with the largest-remainder method, so the table sums to
+  the pool exactly and no paid place ever wins nothing. Progressive/knockout bounties were
+  deliberately left out — they need live elimination tracking, which is a much larger feature.
+  **Delete this section when 1.1.5 is cut** (cutting step 3).
 
 ## Docs & website parity
 - ⬜ Update the website with all current app features (once the above Pro features and Watch app
@@ -131,6 +118,19 @@ are removed from this file when a release is cut rather than accumulating as ✅
   actually shipped, once the rest of this list is done.
 
 ## Minor cleanups
+- ⬜ **No `target` is set in `tsconfig.base.json`, so TypeScript compiles as ES5.** That makes
+  `for (const x of someSet)` and `[...map.values()]` compile errors anywhere in the monorepo —
+  `standings.ts` hit it and had to be written around. Vitest transpiles such code happily, so the
+  suite passes while `tsc` fails, which is a confusing way to find out. Setting an explicit modern
+  target would remove the trap, but it changes output for web and mobile alike, so it wants its own
+  PR and its own verification rather than riding along with feature work.
+- ⬜ **Leaderboard dates use `toLocaleDateString()`**, and Hermes' Intl support on Android is
+  uneven — the format may differ from iOS or from what the locale implies. It won't crash. If it
+  reads badly on a device, a fixed format is the fallback.
+- ⬜ **`prettier --check` fails on files nobody touched** (e.g. `soundPackStorage.ts`), so it's
+  version drift rather than a formatting regression. Nothing in CI runs it. Either pin prettier at
+  the root and reformat once, deliberately, or drop the expectation that it passes — the current
+  state means "prettier says no" carries no information.
 - ⬜ **Rename two misleading notification-permission functions.**
   `LiveActivityService.requestNotificationPermission` and
   `ForegroundServiceModule.hasNotificationPermission` disagree with what they do on Android: the
