@@ -10,6 +10,7 @@ import {
   View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { useLocalSearchParams } from "expo-router";
 import { formatPlace, isValidPlayerName, MAX_PLAYERS } from "@poker/core";
 import { usePremium } from "@/src/contexts/PremiumContext";
 import { useLeaderboard } from "@/src/contexts/LeaderboardContext";
@@ -53,8 +54,14 @@ export function LeaderboardScreen() {
     recordResult,
   } = useLeaderboard();
 
+  // Arriving from the timer's end-of-game prompt opens the sheet straight away.
+  // Read once as the initial state rather than in an effect: the sheet should
+  // open on arrival, and reopening it on every re-render would fight the user
+  // closing it.
+  const { record } = useLocalSearchParams<{ record?: string }>();
+
   const [showPaywall, setShowPaywall] = useState(false);
-  const [showRecord, setShowRecord] = useState(false);
+  const [showRecord, setShowRecord] = useState(record === "1");
   const [name, setName] = useState("");
 
   const scrollViewRef = useRef<ScrollView>(null);

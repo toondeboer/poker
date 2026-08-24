@@ -78,7 +78,9 @@ export default function RootLayout() {
                       name="leaderboard"
                       options={{
                         title: "Leaderboard",
-                        headerBackTitle: "Settings",
+                        // Reachable from Settings *and* from the timer's
+                        // end-of-game prompt, so it can't name either one.
+                        headerBackTitle: "Back",
                       }}
                     />
                   </Stack>
