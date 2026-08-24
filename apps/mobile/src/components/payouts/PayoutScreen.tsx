@@ -84,13 +84,33 @@ export function PayoutScreen() {
   const autoPlaces = defaultPaidPlaces(settings.entrants);
 
   // Only offer place counts this field can actually seat.
+  const maxPlaces = Math.min(
+    Math.floor(settings.entrants) || 1,
+    MAX_PAID_PLACES,
+  );
   const placeOptions = [
     { value: AUTO, label: "Auto", meta: autoPlaces > 0 ? `${autoPlaces}` : "—" },
-    ...Array.from(
-      { length: Math.min(Math.floor(settings.entrants) || 1, MAX_PAID_PLACES) },
-      (_, index) => ({ value: String(index + 1), label: String(index + 1) }),
-    ),
+    ...Array.from({ length: maxPlaces }, (_, index) => ({
+      value: String(index + 1),
+      label: String(index + 1),
+    })),
   ];
+
+  /**
+   * Clamped for display, deliberately without rewriting what's stored.
+   *
+   * Pin five places, then drop the field to three: `computePayouts` clamps to
+   * three, so the table below is right, but the control was still asking for
+   * "5" — an option that no longer exists — so *nothing* looked selected while
+   * the table quietly disagreed. Clamping only the displayed value keeps the two
+   * in step and still remembers the five for when the field grows back, the same
+   * way applying a shorter blind schedule clamps the current level rather than
+   * resetting it.
+   */
+  const selectedPlaces =
+    settings.paidPlaces === null
+      ? AUTO
+      : String(Math.min(Math.max(settings.paidPlaces, 1), maxPlaces));
 
   const content = isPremium ? (
     <>
@@ -132,9 +152,7 @@ export function PayoutScreen() {
             label="Paid places"
             options={placeOptions}
             wrap
-            value={
-              settings.paidPlaces === null ? AUTO : String(settings.paidPlaces)
-            }
+            value={selectedPlaces}
             onChange={(value) =>
               update({
                 paidPlaces: value === AUTO ? null : Number(value),

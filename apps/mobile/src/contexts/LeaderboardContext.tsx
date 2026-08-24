@@ -15,6 +15,7 @@ import {
   createPlayer,
   removeGameResult,
   removePlayer,
+  validateGameResult,
   GameResult,
   LeaderboardStanding,
   Placing,
@@ -120,6 +121,18 @@ export function LeaderboardProvider({
       buyIn: number;
       bounty: number;
     }) => {
+      // Guard the persistence boundary, not just the UI. The sheet already
+      // constrains what it can build, but this is the one store whose data
+      // can't be recreated by retyping it, so a malformed result must not reach
+      // it if that ever stops being true.
+      const invalid = validateGameResult({
+        playerIds: params.playerIds,
+        placings: params.placings,
+      });
+      if (invalid) {
+        logger.error("Refusing to record an invalid game result:", invalid);
+        return;
+      }
       const result = createGameResult({
         id: generateId(),
         playerIds: params.playerIds,
