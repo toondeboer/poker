@@ -240,6 +240,55 @@ describe("computePayouts", () => {
   });
 });
 
+describe("every paid place actually wins something", () => {
+  it("never announces a place that pays nothing", () => {
+    // The sum invariant below is satisfied perfectly by handing someone 0,
+    // which is exactly how this shipped unnoticed: 938 combinations in this
+    // very sweep produced a paid place winning nothing.
+    for (let buyIn = 1; buyIn <= 60; buyIn += 1) {
+      for (let entrants = 1; entrants <= 30; entrants += 1) {
+        for (const denomination of [1, 5, 10, 25]) {
+          for (const bounty of [0, 1, Math.floor(buyIn / 4)]) {
+            if (bounty >= buyIn) continue;
+            const result = structure({ buyIn, entrants, bounty, denomination });
+            for (const payout of result.payouts) {
+              expect(payout.amount).toBeGreaterThan(0);
+            }
+          }
+        }
+      }
+    }
+  });
+
+  it("pays fewer places when the pool can't fund them at that denomination", () => {
+    // 13 × (5 − 1) = 52, which in 10s split four ways gave 22/20/10/0.
+    const result = structure({
+      buyIn: 5,
+      entrants: 13,
+      bounty: 1,
+      denomination: 10,
+    });
+    expect(defaultPaidPlaces(13)).toBe(4);
+    expect(result.payouts.length).toBeLessThan(4);
+    expect(sum(result.payouts.map((p) => p.amount))).toBe(result.prizePool);
+  });
+
+  it("reduces an explicit override too, not just the automatic count", () => {
+    const result = structure({
+      buyIn: 1,
+      entrants: 5,
+      paidPlaces: 2,
+      denomination: 5,
+    });
+    expect(result.payouts).toEqual([{ place: 1, amount: 5 }]);
+  });
+
+  it("still pays one place when the pool can fund nothing more", () => {
+    const result = structure({ buyIn: 1, entrants: 1, denomination: 25 });
+    expect(result.payouts).toEqual([{ place: 1, amount: 1 }]);
+  });
+});
+
 describe("the payout table always sums to the prize pool", () => {
   it("holds across the whole realistic input space", () => {
     for (let buyIn = 1; buyIn <= 60; buyIn += 1) {

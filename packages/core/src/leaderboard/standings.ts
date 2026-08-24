@@ -10,7 +10,14 @@ export type LeaderboardStanding = {
   wins: number;
   /** Top-three finishes, used to break a tie on wins. */
   podiums: number;
-  /** Games finishing in a paid place. */
+  /**
+   * Games finishing in a place that actually won money.
+   *
+   * Not simply "was ranked": `RecordResultSheet` deliberately records finishes
+   * past the paid places so the podium tie-break has something to work from in
+   * small fields, and those win nothing. Counting them here would make "cashes"
+   * mean "was ranked", which is a different and much less interesting fact.
+   */
   cashes: number;
   /**
    * Prize money won.
@@ -73,7 +80,7 @@ export const computeStandings = (
     for (const placing of result.placings) {
       const standing = standings.get(placing.playerId);
       if (!standing) continue;
-      standing.cashes += 1;
+      if (placing.winnings > 0) standing.cashes += 1;
       standing.totalWon += placing.winnings;
       if (placing.place === 1) standing.wins += 1;
       if (placing.place <= 3) standing.podiums += 1;

@@ -185,6 +185,10 @@ export const suggestedBounty = (buyIn: number): number => {
  * remainder to first place instead would be simpler and would quietly hand the
  * winner an extra 4 on a 3-way split of 100.
  *
+ * **`payouts.length` is authoritative, and can be fewer than asked for**, when
+ * the pool can't fund the requested places at the chosen denomination. Callers
+ * should render that number rather than the count they passed in.
+ *
  * Returns `null` when {@link validatePayoutOptions} rejects the options.
  */
 export const computePayouts = (
@@ -211,8 +215,23 @@ export const computePayouts = (
     Math.min(entrants, MAX_PAID_PLACES),
   );
 
-  const split = PAYOUT_SPLITS[paidPlaces - 1];
-  const amounts = distribute(prizePool, split, denomination);
+  // Pay one place fewer until every paid place actually wins something.
+  //
+  // The place count comes from the field size, which knows nothing about
+  // whether the pool can fund it at the chosen denomination. A 5 buy-in with a
+  // 1 bounty across 13 players is a 52 pool, and rounding to 10s that splits
+  // four ways as 22/20/10/**0** — a fourth place, announced as paid, winning
+  // nothing. Summing to the pool is not enough on its own: handing someone 0
+  // satisfies that invariant perfectly.
+  //
+  // Reducing terminates: one place always pays the whole pool, and the pool is
+  // at least 1 because validation rejects a bounty at or above the buy-in.
+  let places = paidPlaces;
+  let amounts = distribute(prizePool, PAYOUT_SPLITS[places - 1], denomination);
+  while (places > 1 && amounts.some((amount) => amount <= 0)) {
+    places -= 1;
+    amounts = distribute(prizePool, PAYOUT_SPLITS[places - 1], denomination);
+  }
 
   return {
     totalCollected,

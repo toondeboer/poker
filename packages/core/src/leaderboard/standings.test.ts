@@ -97,6 +97,24 @@ describe("computeStandings", () => {
     expect(byId(standings, "d").podiums).toBe(0);
   });
 
+  it("does not count a ranked-but-unpaid finish as a cash", () => {
+    // RecordResultSheet ranks the top three even when only one place pays, so
+    // the podium tie-break has something to work from in a small field. Those
+    // finishes win nothing and must not read as cashes.
+    const standings = computeStandings(players, [
+      game(
+        ["a", "b", "c"],
+        [
+          { playerId: "a", place: 1, winnings: 60 },
+          { playerId: "b", place: 2, winnings: 0 },
+        ],
+      ),
+    ]);
+    expect(byId(standings, "b").cashes).toBe(0);
+    expect(byId(standings, "b").podiums).toBe(1);
+    expect(byId(standings, "a").cashes).toBe(1);
+  });
+
   it("ranks by wins first", () => {
     const standings = computeStandings(players, [
       game(["a", "b", "c"], [{ playerId: "b", place: 1, winnings: 10 }]),
