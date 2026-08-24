@@ -197,6 +197,28 @@ describe("computeStandings", () => {
     expect(byId(standings, "a").totalWon).toBe(40);
   });
 
+  it("counts a duplicated placing only once", () => {
+    // validateGameResult rejects this on the way in, but nothing re-validates
+    // on the way out of storage — so a half-written or hand-edited record
+    // could still carry it, and it would double one game's worth of wins and
+    // winnings while gamesPlayed counted 1.
+    const standings = computeStandings(players, [
+      game(
+        ["a", "b"],
+        [
+          { playerId: "a", place: 1, winnings: 60 },
+          { playerId: "a", place: 2, winnings: 40 },
+        ],
+      ),
+    ]);
+    const ana = byId(standings, "a");
+    expect(ana.wins).toBe(1);
+    expect(ana.podiums).toBe(1);
+    expect(ana.cashes).toBe(1);
+    expect(ana.totalWon).toBe(60);
+    expect(ana.gamesPlayed).toBe(1);
+  });
+
   it("counts a player listed twice in one game only once", () => {
     const standings = computeStandings(players, [
       game(["a", "a", "b"], [{ playerId: "a", place: 1, winnings: 10 }]),

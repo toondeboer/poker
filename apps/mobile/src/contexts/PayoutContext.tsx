@@ -4,6 +4,7 @@ import {
   useCallback,
   useContext,
   useEffect,
+  useRef,
   useState,
 } from "react";
 import { DEFAULT_PAYOUT_SETTINGS, PayoutSettings } from "@poker/core";
@@ -56,20 +57,30 @@ export function PayoutProvider({
     };
   }, []);
 
-  // The write lives outside the state updater on purpose. React may call an
-  // updater more than once for the same change (StrictMode, a replayed render),
-  // so persisting from inside it means duplicate writes for one edit — and an
-  // updater that has side effects is not one React promises to call once.
-  const update = useCallback(
-    (patch: Partial<PayoutSettings>) => {
-      const next = { ...settings, ...patch };
-      setSettings(next);
-      PayoutStorage.savePayoutSettings(next).catch((error) =>
-        logger.error("Failed to save payout settings:", error),
-      );
-    },
-    [settings],
-  );
+  /**
+   * Latest settings, readable synchronously.
+   *
+   * The write has to live outside the state updater — React may call an updater
+   * more than once for one change, so persisting from inside means duplicate
+   * writes, and an updater with side effects isn't one React promises to call
+   * once. But reading `settings` from the closure instead loses a second patch
+   * in the same tick, in state *and* on disk. A ref updated in the effect below
+   * (never during render, which the lint rules forbid) and again inside
+   * `update` gives both: a pure updater and a correct read.
+   */
+  const settingsRef = useRef(settings);
+  useEffect(() => {
+    settingsRef.current = settings;
+  }, [settings]);
+
+  const update = useCallback((patch: Partial<PayoutSettings>) => {
+    const next = { ...settingsRef.current, ...patch };
+    settingsRef.current = next;
+    setSettings(next);
+    PayoutStorage.savePayoutSettings(next).catch((error) =>
+      logger.error("Failed to save payout settings:", error),
+    );
+  }, []);
 
   return (
     <PayoutContext.Provider value={{ settings, isLoading, update }}>
