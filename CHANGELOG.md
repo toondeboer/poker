@@ -19,6 +19,30 @@ platform-tagged heading (e.g. `## [1.1.3] - 2026-07-20 — Android`) when you cu
   instead of deferring them to a flow.
 
 ### Added
+- **Payouts (Pro).** Set a buy-in and the app works out what each place wins, so the split is agreed
+  before the first hand instead of argued about heads-up. Bounties come **out of** the buy-in rather
+  than sitting on top of it — a 20 buy-in with a 5 bounty is still 20 out of each pocket, 15 to the
+  prize pool and 5 to knockouts — because the alternative means collecting more than the buy-in you
+  advertised. Every payout is rounded to a note you can actually hand over (1, 5, 10 or 25) while
+  the table still sums to *exactly* the prize pool: the split uses the largest-remainder method, so
+  nothing is quietly lost to rounding and nothing is quietly handed to the winner. Paid places
+  follow the field size by default — roughly the top fifth, the home-game convention rather than a
+  casino's tenth — and can be pinned instead. Bounties are flat and untracked: the app states the
+  per-knockout figure and players settle it between themselves at the table, since progressive
+  bounties would mean tracking eliminations live. The maths is in `@poker/core`, with the
+  sums-to-the-pool invariant asserted across the whole realistic range of buy-ins, field sizes,
+  bounties and denominations rather than at a handful of points.
+- **Leaderboard (Pro).** Keep score across game nights: who has won most, who turns up, and what
+  everyone has taken home. **Local-first and single-device** — no accounts, no sign-in, and nothing
+  leaves the phone; the host's device is the source of truth for their group. Recording a game is
+  two taps per player and no typing: tap who bought in, then tap them in the order they finished.
+  Winnings are never entered by hand — they come from the payout structure above, recomputed for the
+  field that actually turned up rather than the one you planned for. Games played counts everyone
+  who bought in, not just who cashed, so a player on a bad run still appears on the board. The board
+  ranks by wins and breaks ties predictably (podiums, then money, then fewer games). It shows prize
+  money **won**, deliberately not net profit: flat bounties change hands in cash during play and
+  can't be reconstructed at the end of the night, so a profit figure would be confidently wrong for
+  anyone in a bounty game.
 - `@poker/core` coverage is now measured across **every** source file and enforced by a threshold in
   CI, so a module with no test at all fails the build instead of being invisible. Coverage read 97%
   before this and was really 86% — v8 only reports files a test imports. It is now 99% statements /

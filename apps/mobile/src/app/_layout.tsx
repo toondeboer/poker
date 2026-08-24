@@ -8,6 +8,8 @@ import { BlindsProvider } from "@/src/contexts/BlindsContext";
 import { AppStateProvider } from "@/src/contexts/AppStateContext";
 import { PremiumProvider } from "@/src/contexts/PremiumContext";
 import { SoundPackProvider } from "@/src/contexts/SoundPackContext";
+import { PayoutProvider } from "@/src/contexts/PayoutContext";
+import { LeaderboardProvider } from "@/src/contexts/LeaderboardContext";
 import AppReadyGate from "@/src/components/AppReadyGate";
 import { initializeAds } from "@/src/services/ads";
 import { configurePurchases } from "@/src/services/revenueCatProvider";
@@ -30,6 +32,8 @@ export default function RootLayout() {
         <AppStateProvider>
           <BlindsProvider>
             <SoundPackProvider>
+              <PayoutProvider>
+                <LeaderboardProvider>
               <TimerProvider>
                 <AppReadyGate>
                   <Stack
@@ -63,9 +67,25 @@ export default function RootLayout() {
                         headerBackTitle: "Settings",
                       }}
                     />
+                    <Stack.Screen
+                      name="payouts"
+                      options={{
+                        title: "Payouts",
+                        headerBackTitle: "Settings",
+                      }}
+                    />
+                    <Stack.Screen
+                      name="leaderboard"
+                      options={{
+                        title: "Leaderboard",
+                        headerBackTitle: "Settings",
+                      }}
+                    />
                   </Stack>
                 </AppReadyGate>
               </TimerProvider>
+                </LeaderboardProvider>
+              </PayoutProvider>
             </SoundPackProvider>
           </BlindsProvider>
         </AppStateProvider>

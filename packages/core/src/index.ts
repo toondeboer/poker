@@ -71,6 +71,20 @@ export { createPresetStorage } from "./storage/presetStorage";
 export type { PresetStorage } from "./storage/presetStorage";
 export { createSoundPackStorage } from "./storage/soundPackStorage";
 export type { SoundPackStorage } from "./storage/soundPackStorage";
+export {
+  createPayoutStorage,
+  toPayoutOptions,
+  DEFAULT_PAYOUT_SETTINGS,
+} from "./storage/payoutStorage";
+export type { PayoutStorage, PayoutSettings } from "./storage/payoutStorage";
+export {
+  createLeaderboardStorage,
+  EMPTY_LEADERBOARD,
+} from "./storage/leaderboardStorage";
+export type {
+  LeaderboardStorage,
+  LeaderboardState,
+} from "./storage/leaderboardStorage";
 
 // Timer state machine
 export {
@@ -125,6 +139,45 @@ export {
   isValidSoundPackId,
 } from "./sounds/soundPack";
 export type { SoundPackId } from "./sounds/soundPack";
+
+// Payouts
+export {
+  computePayouts,
+  defaultPaidPlaces,
+  suggestedBounty,
+  validatePayoutOptions,
+  formatPlace,
+  PAYOUT_SPLITS,
+  MAX_PAID_PLACES,
+} from "./payouts/payoutStructure";
+export type {
+  Payout,
+  PayoutStructure,
+  PayoutOptions,
+  PayoutValidationError,
+} from "./payouts/payoutStructure";
+
+// Leaderboard
+export {
+  createPlayer,
+  isValidPlayerName,
+  addPlayer,
+  removePlayer,
+  createGameResult,
+  validateGameResult,
+  addGameResult,
+  removeGameResult,
+  MAX_GAME_RESULTS,
+  MAX_PLAYERS,
+} from "./leaderboard/gameResult";
+export type {
+  Player,
+  Placing,
+  GameResult,
+  GameResultValidationError,
+} from "./leaderboard/gameResult";
+export { computeStandings } from "./leaderboard/standings";
+export type { LeaderboardStanding } from "./leaderboard/standings";
 
 // Share
 export { SITE_URL, SHARE_MESSAGE } from "./share/links";

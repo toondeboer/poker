@@ -87,9 +87,9 @@ sandbox/test account, and for Android, a build uploaded to a Play track.
 
 | | iOS | Android |
 |---|---|---|
-| Paywall opens from all three entry points (Pro card, Presets, Sound Pack) | ⬜ | ⬜ |
+| Paywall opens from all five entry points (Pro card, Presets, Sound Pack, Payouts, Leaderboard) | ⬜ | ⬜ |
 | Price string renders (not blank, not `one-time` alone) | ⬜ | ⬜ |
-| **Purchase completes** and Pro unlocks (ads gone, Presets + Sound Pack usable) | ⬜ | 🚫 [see below](#android-billing) |
+| **Purchase completes** and Pro unlocks (ads gone, Presets, Sound Pack, Payouts + Leaderboard usable) | ⬜ | 🚫 [see below](#android-billing) |
 | **Restore purchases** works on a fresh install of the same account | ⬜ | 🚫 [see below](#android-billing) |
 | Cancelling a purchase leaves the app in a sane state, no error toast | ⬜ | 🚫 [see below](#android-billing) |
 
@@ -179,6 +179,8 @@ or a number field is touched.
 | Scrolling **keeps the keypad up** — generator sheet | ⬜ | ⬜ |
 | Scrolling **keeps the keypad up** — blind structure editor | ⬜ | ⬜ |
 | Generator sheet fields usable with the keyboard up — sheet resizes *and* scrolls, top not pushed off-screen | ⬜ | ⬜ |
+| Payouts: focus the **Bounty** field — lowest of the three, so it's the one Android's edge-to-edge would leave under the keypad | ⬜ | ⬜ |
+| Leaderboard: focus **Add a player** with the roster long enough to scroll — field stays visible | ⬜ | ⬜ |
 
 ---
 
@@ -213,7 +215,9 @@ expected, not a bug.
 | Settings: Tournament + Presets **side by side**, capped and centred | ⬜ | ⬜ |
 | Blind editor list + sticky footer capped at 900 and centred | ⬜ | ⬜ |
 | Timer card centred, not full-bleed | ⬜ | ⬜ |
-| Generator sheet sensible at tablet width | 🟡 accepted — `Sheet.tsx` has no tablet-cap logic at all, so it's full-bleed on both platforms (see ROADMAP.md) | 🟡 |
+| Generator and Pro sheets capped at 640 and centred, **not** full-bleed (the 1.1.5 fix — was 🟡 accepted in 1.1.4) | ⬜ | ⬜ |
+| Payouts: cards capped and centred, payout rows readable | ⬜ | ⬜ |
+| Leaderboard: standings and the record sheet capped and centred | ⬜ | ⬜ |
 | iPad **mini** still gets the phone layout | ⬜ | ➖ |
 
 ---
@@ -225,6 +229,7 @@ expected, not a bug.
 | Timer fits with no scrolling, nothing clipped | ⬜ | ⬜ |
 | Settings cards readable, no overlap | ⬜ | ⬜ |
 | Blind rows: level chip, LIVE badge and both buttons all fit | ⬜ | ⬜ |
+| Payouts: "Paid places" segments wrap rather than breaking a label mid-word — check at **25+ players**, which offers the most segments | ⬜ | ⬜ |
 
 ---
 
@@ -233,6 +238,8 @@ expected, not a bug.
 | | iOS | Android |
 |---|---|---|
 | Launch → no visible resize before the timer appears | ⬜ | ⬜ |
+| Leaderboard survives a force-stop: players, games and standings all still there | ⬜ | ⬜ |
+| Payout settings survive a force-stop (buy-in, bounty, denomination, pinned places) | ⬜ | ⬜ |
 | Deep link straight to `pokerkit://settings` and `pokerkit://blinds` → splash lifts **immediately**, not after 4s | 🚫 | 🚫 |
 
 > **Why the deep-link row is 🚫:** same root cause as §6's blocker. `adb shell am start -W -a
@@ -275,6 +282,47 @@ land the opposite way round and reads exactly like a broken release.
 
 ---
 
+## 11. Payouts (Pro)
+
+Almost all of the *arithmetic* here is unit-tested in `@poker/core` — the table summing to exactly
+the prize pool is asserted across the whole realistic input range, so a row that just re-adds the
+numbers is wasted effort. **What's left for a human is the screen**: that the controls fit, the
+keypad doesn't cover them, and the figures land where you can read them.
+
+Set `FORCE_PRO_IN_DEV` in `PremiumContext.tsx` to see the unlocked screen without buying.
+
+| | iOS | Android |
+|---|---|---|
+| Locked state: Settings row shows the Pro pill, the screen still opens and offers the unlock | ⬜ | ⬜ |
+| Buy-in / Players / Bounty accept typing and a **cleared field doesn't show a literal `0`** | ⬜ | ⬜ |
+| Payout rows and "Where it comes from" reconcile on screen: prize pool + bounties = collected | ⬜ | ⬜ |
+| A bounty **equal to or above** the buy-in explains itself instead of showing an empty table | ⬜ | ⬜ |
+| Pinning a place count overrides Auto; switching back to Auto follows the field again | ⬜ | ⬜ |
+| Settings' Payouts summary row updates after editing and going **back** (not just on relaunch) | ⬜ | ⬜ |
+
+---
+
+## 12. Leaderboard (Pro)
+
+The aggregation, ranking and tie-breaks are unit-tested. The human rows are the roster editing, the
+record-a-game interaction, and persistence — see also the cold-launch row in §9, which is the one
+that matters most here because **this is the only data in the app a user can't recreate by retyping
+it**.
+
+| | iOS | Android |
+|---|---|---|
+| Locked state: Pro pill on the Settings row, screen opens and offers the unlock | ⬜ | ⬜ |
+| Adding a player: duplicate and empty names keep the button disabled | ⬜ | ⬜ |
+| Name field isn't covered by the keypad, and dismisses on return | ⬜ | ⬜ |
+| Record a game: tapping who played, then tapping them in finishing order, gives 1st/2nd/3rd | ⬜ | ⬜ |
+| Winnings shown per place match the Payouts screen **for the field that turned up**, not the saved player count | ⬜ | ⬜ |
+| Un-picking a player who was already ranked also clears their place | ⬜ | ⬜ |
+| Saving updates the standings, and Settings' summary row, immediately | ⬜ | ⬜ |
+| Removing a player keeps past games — everyone else's totals unchanged | ⬜ | ⬜ |
+| Record sheet: header clears the status bar and the footer clears the keypad (the §5 failure mode) | ⬜ | ⬜ |
+
+---
+
 ## Open defects
 
 One entry per defect found this cycle, numbered in the order they were found (D1, D2, …), with an
@@ -291,8 +339,6 @@ changelog and the reasoning is in the commit.
 ## Known-and-accepted — do not file these
 
 - **iPad mini uses the phone layout** — 744pt is under the 768 threshold, deliberate.
-- **The generator sheet is full-bleed at tablet width on both platforms** — `Sheet.tsx` never had
-  tablet-cap logic, so it predates 1.1.4 rather than regressing in it.
 - **`uuid` advisory (moderate)** — `xcode@3.0.1` hard-requires `^7.0.3`; no in-range fix exists.
   Build tooling only, unreachable from app code.
 - **Neither the Live Activity nor the Android notification can advance the blind level on its own**
