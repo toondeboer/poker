@@ -236,6 +236,29 @@ export type {
   GameResultValidationError,
 } from "./leaderboard/gameResult";
 export { computeStandings } from "./leaderboard/standings";
+export {
+  MAX_GROUPS,
+  EMPTY_LEADERBOARD,
+  createGroup,
+  isValidGroupName,
+  addGroup,
+  removeGroup,
+  renameGroup,
+  setActiveGroup,
+  activeGroup,
+  updateGroup,
+  claimPlayer,
+  unclaimPlayer,
+  playerForAccount,
+  migrateToGroups,
+} from "./leaderboard/groups";
+export type {
+  Group,
+  GroupState,
+  GroupedLeaderboard,
+  ClaimError,
+  ClaimResult,
+} from "./leaderboard/groups";
 export type { LeaderboardStanding } from "./leaderboard/standings";
 
 // Share

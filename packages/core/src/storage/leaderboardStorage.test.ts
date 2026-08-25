@@ -193,3 +193,47 @@ describe("createLeaderboardStorage", () => {
     });
   });
 });
+
+describe("accounts on the roster", () => {
+  it("keeps a claimed player's account across a save and load", () => {
+    // Player gained `accountId` when groups arrived, and the loader rebuilt
+    // each row as { id, name } — so the first claim to be persisted vanished
+    // on the next launch, silently.
+    const adapter = createMemoryAdapter();
+    const storage = createLeaderboardStorage(adapter);
+    return storage
+      .saveLeaderboard({
+        players: [
+          { id: "p1", name: "Dave", accountId: "acct-1" },
+          { id: "p2", name: "Sam" },
+        ],
+        results: [],
+      })
+      .then(() => storage.loadLeaderboard())
+      .then((loaded) => {
+        expect(loaded.players[0]).toEqual({
+          id: "p1",
+          name: "Dave",
+          accountId: "acct-1",
+        });
+        expect(Object.hasOwn(loaded.players[1], "accountId")).toBe(false);
+      });
+  });
+
+  it("degrades a corrupt account to a guest rather than dropping the player", () => {
+    const adapter = createMemoryAdapter();
+    const storage = createLeaderboardStorage(adapter);
+    return adapter
+      .setItem(
+        "leaderboard",
+        JSON.stringify({
+          players: [{ id: "p1", name: "Dave", accountId: 42 }],
+          results: [],
+        }),
+      )
+      .then(() => storage.loadLeaderboard())
+      .then((loaded) => {
+        expect(loaded.players).toEqual([{ id: "p1", name: "Dave" }]);
+      });
+  });
+});

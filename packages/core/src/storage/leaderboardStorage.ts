@@ -25,7 +25,16 @@ const coercePlayers = (raw: unknown): Player[] => {
     if (typeof entry.id !== "string" || typeof entry.name !== "string") {
       continue;
     }
-    players.push({ id: entry.id, name: entry.name });
+    // `accountId` is optional and only carried when it is genuinely a string,
+    // so a corrupt value degrades the player to a guest rather than taking the
+    // whole row with it. The key is omitted entirely when absent — writing
+    // `accountId: undefined` would survive one JSON round-trip as a missing key
+    // and compare unequal in the meantime.
+    players.push(
+      typeof entry.accountId === "string"
+        ? { id: entry.id, name: entry.name, accountId: entry.accountId }
+        : { id: entry.id, name: entry.name },
+    );
   }
   return players;
 };

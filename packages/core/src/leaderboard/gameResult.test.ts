@@ -34,6 +34,22 @@ describe("createPlayer", () => {
   it("trims the name", () => {
     expect(createPlayer({ id: "a", name: "  Dave  " }).name).toBe("Dave");
   });
+
+  it("omits accountId entirely when nobody has claimed the player", () => {
+    // A guest is the default. The key is absent rather than set to undefined,
+    // so a round-trip through JSON gives back the same object.
+    const guest = createPlayer({ id: "a", name: "Dave" });
+    expect(guest).toEqual({ id: "a", name: "Dave" });
+    expect(Object.hasOwn(guest, "accountId")).toBe(false);
+  });
+
+  it("carries an accountId through when one is given", () => {
+    expect(createPlayer({ id: "a", name: "Dave", accountId: "acct-1" })).toEqual({
+      id: "a",
+      name: "Dave",
+      accountId: "acct-1",
+    });
+  });
 });
 
 describe("isValidPlayerName", () => {
