@@ -22,14 +22,23 @@ export type Payout = {
 };
 
 export type PayoutStructure = {
-  /** Total collected: `entrants × buyIn`. */
+  /**
+   * Buy-ins sold: `entrants + rebuys`. A rebuy is another buy-in, so it feeds
+   * the pool and the bounties exactly like the first one — but it is **not**
+   * another player, which is why {@link defaultPaidPlaces} keys off `entrants`
+   * alone. Thirteen players with five rebuys is still thirteen people to pay.
+   */
+  totalEntries: number;
+  /** Add-on money: `addOns × addOnPrice`. All of it funds the prize pool. */
+  addOnPool: number;
+  /** Total collected: `totalEntries × buyIn + addOnPool`. */
   totalCollected: number;
   /**
    * The part of the take that funds the placed payouts, after bounties are
-   * carved out: `entrants × (buyIn − bounty)`.
+   * carved out: `totalEntries × (buyIn − bounty) + addOnPool`.
    */
   prizePool: number;
-  /** The part of the take paid out per knockout: `entrants × bounty`. */
+  /** The part of the take paid out per knockout: `totalEntries × bounty`. */
   bountyPool: number;
   /** Paid per elimination, flat. 0 when the tournament has no bounty. */
   bountyPerKnockout: number;
@@ -40,8 +49,22 @@ export type PayoutStructure = {
 export type PayoutOptions = {
   /** Whole currency units each player puts in. */
   buyIn: number;
-  /** How many players bought in. */
+  /** How many players bought in. Drives the paid-place count. */
   entrants: number;
+  /**
+   * How many times players bought back in after busting. Each costs `buyIn`
+   * and splits exactly like one — including re-arming that player's bounty,
+   * which is what a rebuy means in a bounty tournament. Defaults to 0.
+   */
+  rebuys?: number;
+  /** How many add-ons were bought. Defaults to 0. */
+  addOns?: number;
+  /**
+   * What one add-on costs. **All of it goes to the prize pool** — an add-on
+   * buys chips, not a new bounty, so unlike a buy-in nothing is carved out of
+   * it. Ignored when `addOns` is 0.
+   */
+  addOnPrice?: number;
   /**
    * Whole units of each buy-in that fund knockout bounties instead of the
    * prize pool. Defaults to 0. Must be less than `buyIn` — see
@@ -113,7 +136,10 @@ export type PayoutValidationError =
   | "buy-in-not-positive"
   | "no-entrants"
   | "bounty-negative"
-  | "bounty-not-below-buy-in";
+  | "bounty-not-below-buy-in"
+  | "rebuys-negative"
+  | "add-ons-negative"
+  | "add-on-price-not-positive";
 
 /**
  * Check options before computing. The app uses this to disable its generate
@@ -141,6 +167,15 @@ export const validatePayoutOptions = (
   if (entrants < 1) return "no-entrants";
   if (bounty < 0) return "bounty-negative";
   if (bounty >= buyIn) return "bounty-not-below-buy-in";
+
+  const rebuys = Math.floor(sanitize(options.rebuys ?? 0, 0));
+  const addOns = Math.floor(sanitize(options.addOns ?? 0, 0));
+  const addOnPrice = Math.floor(sanitize(options.addOnPrice ?? 0, 0));
+  if (rebuys < 0) return "rebuys-negative";
+  if (addOns < 0) return "add-ons-negative";
+  // Only a problem once add-ons are actually being sold; a price sitting at 0
+  // with no add-ons is just an unused field.
+  if (addOns > 0 && addOnPrice <= 0) return "add-on-price-not-positive";
   return null;
 };
 
@@ -204,8 +239,14 @@ export const computePayouts = (
     Math.floor(sanitize(options.denomination ?? 1, 1)),
   );
 
-  const totalCollected = buyIn * entrants;
-  const bountyPool = bounty * entrants;
+  const rebuys = Math.floor(sanitize(options.rebuys ?? 0, 0));
+  const addOns = Math.floor(sanitize(options.addOns ?? 0, 0));
+  const addOnPrice = Math.floor(sanitize(options.addOnPrice ?? 0, 0));
+
+  const totalEntries = entrants + rebuys;
+  const addOnPool = addOns * addOnPrice;
+  const totalCollected = buyIn * totalEntries + addOnPool;
+  const bountyPool = bounty * totalEntries;
   const prizePool = totalCollected - bountyPool;
 
   const requested = options.paidPlaces ?? defaultPaidPlaces(entrants);
@@ -234,6 +275,8 @@ export const computePayouts = (
   }
 
   return {
+    totalEntries,
+    addOnPool,
     totalCollected,
     prizePool,
     bountyPool,

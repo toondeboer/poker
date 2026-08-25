@@ -4,6 +4,7 @@ import { StyleSheet, Text, View } from "react-native";
 import {
   computePayouts,
   formatPlace,
+  toPayoutOptions,
   Placing,
   Player,
 } from "@poker/core";
@@ -47,15 +48,20 @@ export function RecordResultSheet({
   const [playedIds, setPlayedIds] = useState<string[]>([]);
   const [order, setOrder] = useState<string[]>([]);
 
-  // The field is who actually turned up, not the number saved in settings.
+  /**
+   * The saved setup, with the field replaced by who actually turned up.
+   *
+   * Derived from `toPayoutOptions` rather than hand-built: listing the fields
+   * out meant that adding rebuys and add-ons silently left them behind here,
+   * so recorded winnings came from a smaller pool than the Payouts screen was
+   * showing — and got stored that way permanently. Spreading keeps this
+   * correct the next time the model grows.
+   */
   const structure = useMemo(
     () =>
       computePayouts({
-        buyIn: settings.buyIn,
+        ...toPayoutOptions(settings),
         entrants: playedIds.length,
-        bounty: settings.bounty,
-        paidPlaces: settings.paidPlaces ?? undefined,
-        denomination: settings.denomination,
       }),
     [settings, playedIds.length],
   );

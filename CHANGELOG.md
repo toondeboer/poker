@@ -33,6 +33,12 @@ platform-tagged heading (e.g. `## [1.1.3] - 2026-07-20 — Android`) when you cu
   bounties would mean tracking eliminations live. The maths is in `@poker/core`, with the
   sums-to-the-pool invariant asserted across the whole realistic range of buy-ins, field sizes,
   bounties and denominations rather than at a handful of points.
+  - **Rebuys and add-ons** are counted too. A rebuy is another buy-in — it grows the prize pool and
+    re-arms that player's bounty, exactly as buying in did. An add-on is different: it buys chips,
+    not a bounty, so all of it goes to the prize pool and it can carry its own price. How many
+    places get paid still follows the number of *players* rather than the number of entries —
+    thirteen players with five rebuys is thirteen people to pay, not eighteen — though the extra
+    money can fund a place a thinner pool couldn't have paid at your chosen note size.
 - **The timer offers to record a game when one ends (Pro).** Reset the timer after the blinds have
   climbed and the app asks whether to add the result to the leaderboard, opening the record sheet
   straight from the prompt. There is no true "tournament over" signal in a blinds timer — reset

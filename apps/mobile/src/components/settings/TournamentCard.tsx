@@ -48,7 +48,7 @@ export function TournamentCard({ style }: { style?: StyleProp<ViewStyle> }) {
           title="Payouts"
           summary={
             payouts
-              ? `${settings.entrants} × ${settings.buyIn} · ${payouts.payouts.length} paid${payouts.bountyPool > 0 ? ` · ${payouts.bountyPerKnockout} bounty` : ""}`
+              ? `${settings.buyIn} buy-in · ${settings.entrants} players · ${payouts.payouts.length} paid${payouts.bountyPool > 0 ? ` · ${payouts.bountyPerKnockout} bounty` : ""}`
               : "Set a buy-in and split the prize pool"
           }
           badge={isPremium ? undefined : <ProPill />}

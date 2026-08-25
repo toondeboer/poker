@@ -11,6 +11,9 @@ import { computePayouts } from "../payouts/payoutStructure";
 const SETTINGS: PayoutSettings = {
   buyIn: 30,
   entrants: 12,
+  rebuys: 4,
+  addOns: 3,
+  addOnPrice: 15,
   bounty: 5,
   paidPlaces: 4,
   denomination: 10,
@@ -112,6 +115,35 @@ describe("toPayoutOptions", () => {
     const result = computePayouts(toPayoutOptions(SETTINGS));
     expect(result).not.toBeNull();
     expect(result!.payouts).toHaveLength(4);
+  });
+
+  it("loads settings saved before rebuys existed, at their defaults", async () => {
+    // The realistic route: a 1.1.4 user's stored settings, read by 1.1.5.
+    // Field-by-field coercion is what makes this a non-event.
+    const storage = createPayoutStorage(
+      createMemoryAdapter({
+        payout_settings: JSON.stringify({
+          buyIn: 50,
+          entrants: 9,
+          bounty: 10,
+          paidPlaces: null,
+          denomination: 5,
+        }),
+      }),
+    );
+    const loaded = await storage.loadPayoutSettings();
+    expect(loaded.buyIn).toBe(50);
+    expect(loaded.rebuys).toBe(0);
+    expect(loaded.addOns).toBe(0);
+    expect(loaded.addOnPrice).toBe(DEFAULT_PAYOUT_SETTINGS.addOnPrice);
+    expect(computePayouts(toPayoutOptions(loaded))).not.toBeNull();
+  });
+
+  it("carries rebuys and add-ons through to the calculator", () => {
+    const result = computePayouts(toPayoutOptions(SETTINGS));
+    expect(result).not.toBeNull();
+    expect(result!.totalEntries).toBe(16);
+    expect(result!.addOnPool).toBe(45);
   });
 
   it("produces a usable table from the shipped defaults", () => {

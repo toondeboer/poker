@@ -15,6 +15,9 @@ const STORAGE_KEY = "payout_settings";
 export type PayoutSettings = {
   buyIn: number;
   entrants: number;
+  rebuys: number;
+  addOns: number;
+  addOnPrice: number;
   bounty: number;
   paidPlaces: number | null;
   denomination: number;
@@ -23,6 +26,11 @@ export type PayoutSettings = {
 export const DEFAULT_PAYOUT_SETTINGS: PayoutSettings = {
   buyIn: 20,
   entrants: 8,
+  rebuys: 0,
+  addOns: 0,
+  // Non-zero so that setting an add-on count works immediately instead of
+  // tripping the "price must be positive" check on the very next render.
+  addOnPrice: 20,
   bounty: 0,
   paidPlaces: null,
   denomination: 5,
@@ -38,6 +46,9 @@ export interface PayoutStorage {
 export const toPayoutOptions = (settings: PayoutSettings): PayoutOptions => ({
   buyIn: settings.buyIn,
   entrants: settings.entrants,
+  rebuys: settings.rebuys,
+  addOns: settings.addOns,
+  addOnPrice: settings.addOnPrice,
   bounty: settings.bounty,
   paidPlaces: settings.paidPlaces ?? undefined,
   denomination: settings.denomination,
@@ -61,6 +72,11 @@ const coerce = (raw: unknown): PayoutSettings => {
   return {
     buyIn: numberOr(value.buyIn, DEFAULT_PAYOUT_SETTINGS.buyIn),
     entrants: numberOr(value.entrants, DEFAULT_PAYOUT_SETTINGS.entrants),
+    // Absent in settings saved before 1.1.5 — field-by-field coercion means
+    // they simply pick up the defaults, so there is no migration to run.
+    rebuys: numberOr(value.rebuys, DEFAULT_PAYOUT_SETTINGS.rebuys),
+    addOns: numberOr(value.addOns, DEFAULT_PAYOUT_SETTINGS.addOns),
+    addOnPrice: numberOr(value.addOnPrice, DEFAULT_PAYOUT_SETTINGS.addOnPrice),
     bounty: numberOr(value.bounty, DEFAULT_PAYOUT_SETTINGS.bounty),
     paidPlaces:
       typeof paidPlaces === "number" && Number.isFinite(paidPlaces)
