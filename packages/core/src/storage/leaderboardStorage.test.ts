@@ -286,8 +286,9 @@ describe("migrating the board that shipped first", () => {
     const adapter = createMemoryAdapter({ leaderboard: JSON.stringify(STATE) });
     const first = await store(adapter).loadLeaderboard();
 
-    const stored: unknown = JSON.parse(adapter.store.get("leaderboard")!);
-    expect(stored).toEqual(first);
+    const stored = JSON.parse(adapter.store.get("leaderboard")!);
+    expect(stored.groups).toEqual(first.groups);
+    expect(stored.activeGroupId).toBe(first.activeGroupId);
 
     // A second load reads the grouped shape rather than migrating again.
     const second = await store(adapter).loadLeaderboard();
@@ -361,6 +362,72 @@ describe("reading a grouped board back", () => {
       activeGroupId: "g1",
     });
     const loaded = await seeded(raw).loadLeaderboard();
+    expect(loaded.groups[0].players).toEqual([{ id: "a", name: "Ana" }]);
+  });
+});
+
+describe("staying readable by a build from before groups", () => {
+  /** Exactly what the old loader did: read the two top-level arrays. */
+  const readAsOldBuild = (raw: string) => {
+    const parsed = JSON.parse(raw);
+    return { players: parsed.players, results: parsed.results };
+  };
+
+  it("mirrors the active group in the old shape, so a rollback loses nothing", async () => {
+    // Writing only `groups` makes the update one-way: an older build finds no
+    // players or results, shows an empty leaderboard, and the first edit there
+    // saves that emptiness over a season of history.
+    const adapter = createMemoryAdapter();
+    await store(adapter).saveLeaderboard(GROUPED);
+    expect(readAsOldBuild(adapter.store.get("leaderboard")!)).toEqual({
+      players: STATE.players,
+      results: STATE.results,
+    });
+  });
+
+  it("mirrors on the migration write-back too, not only on later saves", async () => {
+    const adapter = createMemoryAdapter({ leaderboard: JSON.stringify(STATE) });
+    await store(adapter).loadLeaderboard();
+    expect(readAsOldBuild(adapter.store.get("leaderboard")!)).toEqual({
+      players: STATE.players,
+      results: STATE.results,
+    });
+  });
+
+  it("prefers the grouped fields when reading its own write back", async () => {
+    // The mirror must never be mistaken for the source of truth.
+    const adapter = createMemoryAdapter();
+    await store(adapter).saveLeaderboard(GROUPED);
+    expect(await store(adapter).loadLeaderboard()).toEqual(GROUPED);
+  });
+
+  it("mirrors empty arrays when there are no groups at all", async () => {
+    const adapter = createMemoryAdapter();
+    await store(adapter).saveLeaderboard(EMPTY_LEADERBOARD);
+    expect(readAsOldBuild(adapter.store.get("leaderboard")!)).toEqual({
+      players: [],
+      results: [],
+    });
+  });
+});
+
+describe("tolerating a damaged group", () => {
+  it("keeps a group whose name is unusable, since only the id is fatal", async () => {
+    // Losing a name costs a label; dropping the group costs a roster and every
+    // game it recorded.
+    const raw = JSON.stringify({
+      groups: [
+        {
+          group: { id: "g1", name: 42, createdAt: 3 },
+          players: [{ id: "a", name: "Ana" }],
+          results: [],
+        },
+      ],
+      activeGroupId: "g1",
+    });
+    const loaded = await seeded(raw).loadLeaderboard();
+    expect(loaded.groups).toHaveLength(1);
+    expect(loaded.groups[0].group.name).toBe("My games");
     expect(loaded.groups[0].players).toEqual([{ id: "a", name: "Ana" }]);
   });
 });

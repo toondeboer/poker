@@ -42,7 +42,9 @@ platform-tagged heading (e.g. `## [1.1.3] - 2026-07-20 — Android`) when you cu
   everybody. A leaderboard that already exists is turned into a group the first time the app opens
   after updating, keeping every player and every game, and it stays the one you are looking at, so
   nothing changes on screen. The migration is written back straight away rather than being redone
-  every launch. There is still only one board visible for now: a host who plays with one crowd
+  every launch, and the board is also saved in the old format alongside the new one — so if this
+  version ever had to be rolled back, the previous one would still find everybody's history rather
+  than an empty board it would then overwrite. There is still only one board visible for now: a host who plays with one crowd
   never meets the concept, and the picker for switching between groups comes next.
 - Groundwork for **poker groups** in `@poker/core` — a separate board for each set of friends you
   play with, instead of one list for everybody. Nothing user-facing yet. The important decision is
