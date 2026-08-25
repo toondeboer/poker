@@ -12,6 +12,42 @@ import {
 
 const sum = (values: number[]) => values.reduce((a, b) => a + b, 0);
 
+/**
+ * Every combination the invariants are claimed to hold across: buy-ins 1-60 ×
+ * fields 1-30 × four denominations × three bounty shapes × four rebuy/add-on
+ * mixes, skipping the ones validation rejects. Roughly 86k configurations.
+ */
+const sweep = (check: (options: PayoutOptions) => void) => {
+  for (let buyIn = 1; buyIn <= 60; buyIn += 1) {
+    for (let entrants = 1; entrants <= 30; entrants += 1) {
+      for (const denomination of [1, 5, 10, 25]) {
+        for (const bounty of [0, 1, Math.floor(buyIn / 4)]) {
+          if (bounty >= buyIn) continue;
+          for (const [rebuys, addOns] of [
+            [0, 0],
+            [3, 0],
+            [0, 4],
+            [2, 5],
+          ]) {
+            check({
+              buyIn,
+              entrants,
+              bounty,
+              denomination,
+              rebuys,
+              addOns,
+              addOnPrice: 10,
+            });
+          }
+        }
+      }
+    }
+  }
+};
+
+const describeOptions = (o: PayoutOptions) =>
+  `buyIn ${o.buyIn}, ${o.entrants} players, bounty ${o.bounty}, denom ${o.denomination}, ${o.rebuys ?? 0} rebuys, ${o.addOns ?? 0} add-ons`;
+
 const structure = (options: PayoutOptions) => {
   const result = computePayouts(options);
   if (!result) throw new Error("expected a payout structure");
@@ -348,19 +384,22 @@ describe("every paid place actually wins something", () => {
     // The sum invariant below is satisfied perfectly by handing someone 0,
     // which is exactly how this shipped unnoticed: 938 combinations in this
     // very sweep produced a paid place winning nothing.
-    for (let buyIn = 1; buyIn <= 60; buyIn += 1) {
-      for (let entrants = 1; entrants <= 30; entrants += 1) {
-        for (const denomination of [1, 5, 10, 25]) {
-          for (const bounty of [0, 1, Math.floor(buyIn / 4)]) {
-            if (bounty >= buyIn) continue;
-            const result = structure({ buyIn, entrants, bounty, denomination });
-            for (const payout of result.payouts) {
-              expect(payout.amount).toBeGreaterThan(0);
-            }
-          }
+    //
+    // Failures are collected and asserted once rather than asserted per
+    // iteration: `expect` in a loop this size is what the work actually is,
+    // and doing it ~350k times timed the suite out on CI while passing
+    // locally. One assertion, same coverage, and a message that names the
+    // combination instead of just the amount.
+    let failure: string | null = null;
+    sweep((options) => {
+      const result = structure(options);
+      for (const payout of result.payouts) {
+        if (payout.amount <= 0) {
+          failure ??= `${describeOptions(options)} → place ${payout.place} wins ${payout.amount}`;
         }
       }
-    }
+    });
+    expect(failure).toBeNull();
   });
 
   it("pays fewer places when the pool can't fund them at that denomination", () => {
@@ -393,42 +432,33 @@ describe("every paid place actually wins something", () => {
 });
 
 describe("the payout table always sums to the prize pool", () => {
+  it("actually visits the input space it claims to", () => {
+    // Guards the collapsed assertions above and below: a sweep that stopped
+    // iterating would now pass silently, since a loop that runs zero times
+    // records zero failures.
+    let visited = 0;
+    sweep(() => {
+      visited += 1;
+    });
+    expect(visited).toBeGreaterThan(80_000);
+  });
+
   it("holds across the whole realistic input space", () => {
-    for (let buyIn = 1; buyIn <= 60; buyIn += 1) {
-      for (let entrants = 1; entrants <= 30; entrants += 1) {
-        for (const denomination of [1, 5, 10, 25]) {
-          for (const bounty of [0, 1, Math.floor(buyIn / 4)]) {
-            if (bounty >= buyIn) continue;
-            for (const [rebuys, addOns] of [
-              [0, 0],
-              [3, 0],
-              [0, 4],
-              [2, 5],
-            ]) {
-              const result = structure({
-                buyIn,
-                entrants,
-                bounty,
-                denomination,
-                rebuys,
-                addOns,
-                addOnPrice: 10,
-              });
-              expect(sum(result.payouts.map((p) => p.amount))).toBe(
-                result.prizePool,
-              );
-              expect(result.prizePool + result.bountyPool).toBe(
-                result.totalCollected,
-              );
-              expect(result.totalEntries).toBe(entrants + rebuys);
-              for (const payout of result.payouts) {
-                expect(payout.amount).toBeGreaterThan(0);
-              }
-            }
-          }
-        }
+    let failure: string | null = null;
+    sweep((options) => {
+      const result = structure(options);
+      const total = sum(result.payouts.map((p) => p.amount));
+      if (total !== result.prizePool) {
+        failure ??= `${describeOptions(options)} → paid ${total}, pool ${result.prizePool}`;
       }
-    }
+      if (result.prizePool + result.bountyPool !== result.totalCollected) {
+        failure ??= `${describeOptions(options)} → ${result.prizePool} + ${result.bountyPool} != ${result.totalCollected}`;
+      }
+      if (result.totalEntries !== options.entrants + (options.rebuys ?? 0)) {
+        failure ??= `${describeOptions(options)} → entries ${result.totalEntries}`;
+      }
+    });
+    expect(failure).toBeNull();
   });
 
   it("holds for every explicit place count too", () => {

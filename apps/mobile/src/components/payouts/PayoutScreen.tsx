@@ -2,6 +2,7 @@
 import { useRef, useState } from "react";
 import {
   ScrollView,
+  Share,
   StyleSheet,
   Text,
   useWindowDimensions,
@@ -11,6 +12,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import {
   computePayouts,
   defaultPaidPlaces,
+  formatPayoutSummary,
   formatPlace,
   MAX_PAID_PLACES,
   PAYOUT_SPLITS,
@@ -130,6 +132,19 @@ export function PayoutScreen() {
     settings.paidPlaces === null
       ? AUTO
       : String(Math.min(Math.max(settings.paidPlaces, 1), maxPlaces));
+
+  // Same swallow-the-rejection shape as the timer's share: a dismissed share
+  // sheet rejects on iOS, and that isn't an error worth surfacing.
+  const handleShare = () => {
+    if (!structure) return;
+    Share.share({
+      message: formatPayoutSummary({
+        structure,
+        buyIn: settings.buyIn,
+        entrants: settings.entrants,
+      }),
+    }).catch(() => {});
+  };
 
   // Same reasoning as the leaderboard: editing before the stored settings
   // arrive would persist the defaults over them.
@@ -258,6 +273,11 @@ export function PayoutScreen() {
                   />
                 ))}
               </View>
+              <Button
+                label="Share payouts"
+                icon="share-social-outline"
+                onPress={handleShare}
+              />
             </CardContent>
           </Card>
 
