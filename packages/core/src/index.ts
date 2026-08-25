@@ -168,6 +168,29 @@ export type {
   ChopValidationError,
 } from "./payouts/chop";
 
+// Poker (multiplayer)
+export {
+  SUITS,
+  MIN_RANK,
+  MAX_RANK,
+  DECK_SIZE,
+  createRandom,
+  createDeck,
+  shuffle,
+  cardToString,
+} from "./poker/cards";
+export type { Card, Rank, Suit, RandomSource } from "./poker/cards";
+export {
+  HAND_CATEGORIES,
+  HAND_SIZE,
+  packHandValue,
+  handCategory,
+  evaluateFive,
+} from "./poker/handValue";
+export type { HandCategory, HandValue } from "./poker/handValue";
+export { evaluateHand, rankHands } from "./poker/evaluate";
+export type { EvaluatedHand } from "./poker/evaluate";
+
 // Leaderboard
 export {
   createPlayer,

@@ -18,6 +18,26 @@ platform-tagged heading (e.g. `## [1.1.3] - 2026-07-20 — Android`) when you cu
   instead of deferring them to a flow.
 
 ### Added
+- Groundwork for the multiplayer game mode: a card model, a **seeded** shuffle and a hand
+  evaluator in `@poker/core`. Nothing user-facing yet. Randomness is injected rather than
+  generated, so a deal is reproducible from its seed — which is what lets the same hand be replayed
+  exactly in a test, and lets a server prove after the fact that a shuffle wasn't rigged. The
+  evaluator finds the best five cards out of seven by checking all 21 combinations rather than
+  consulting a lookup table: there is no generated data to get wrong, and the correctness argument
+  fits in a sentence. Hand strength is packed into a single integer so that comparing two hands and
+  asking whether they *tie* are the same operation — split pots turn on exact equality, and a
+  multi-field comparison is one wrong branch away from paying the wrong player. It is checked
+  against the published five-card frequencies across all 2,598,960 hands in the deck, and against
+  the number of genuinely different hands in each category, so every hand is verified rather than
+  the handful someone thought to write down.
+  The seeded shuffle is for **tests and replay only, never for dealing a real hand.** It carries
+  32 bits of state, which is about four billion possible shuffles — a space one processor core can
+  sweep in a quarter of an hour. Someone holding two cards and looking at the flop could narrow
+  that to a few candidates and the turn would settle it, handing them the river and everybody
+  else's cards. Choosing the seed carefully doesn't help, because the weakness is how few seeds
+  there are. A real deal has to come from the platform's cryptographic random source, which the
+  game will pass in; `@poker/core` deliberately doesn't ship one, since it has no platform to take
+  it from and a guess would put a fake in the one place that can't have one.
 - **Payouts (Pro).** Set a buy-in and the app works out what each place wins, so the split is agreed
   before the first hand instead of argued about heads-up. Bounties come **out of** the buy-in rather
   than sitting on top of it — a 20 buy-in with a 5 bounty is still 20 out of each pocket, 15 to the
