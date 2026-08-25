@@ -107,6 +107,13 @@ export { shouldShowAds } from "./monetization/adPolicy";
 export type { AdPolicyInput } from "./monetization/adPolicy";
 export { ENTITLEMENT_PRO, PRODUCT_PRO_LIFETIME } from "./monetization/products";
 
+// Live Activity reconciliation
+export { reconcileActivities } from "./liveActivity/activityReconciliation";
+export type {
+  ActivityReconciliation,
+  ActivityReconciliationInput,
+} from "./liveActivity/activityReconciliation";
+
 // Reviews
 export {
   shouldRequestReview,

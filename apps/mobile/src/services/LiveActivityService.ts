@@ -7,7 +7,12 @@ import {
   LiveActivityData,
   LiveActivityDataAndroid,
 } from "../modules/LiveActivityModule";
-import { DEFAULT_SOUND_PACK_ID, PokerTimerState, SoundPackId } from "@poker/core";
+import {
+  DEFAULT_SOUND_PACK_ID,
+  PokerTimerState,
+  SoundPackId,
+  reconcileActivities,
+} from "@poker/core";
 
 class LiveActivityService {
   private activityId: string | null = null;
@@ -100,29 +105,33 @@ class LiveActivityService {
         activityData.timeLeft = state.timeLeft;
       }
 
-      // Check if we have an activity ID and if it's still active
-      if (this.activityId) {
-        const activeActivities = await this.getActiveActivities();
+      // Reduce however many activities exist to exactly one *before* touching
+      // any of them. `activityId` lives in memory only, so a force-quit
+      // mid-round leaves iOS running a card this session knows nothing about;
+      // the old code went straight to `startActivity` and stacked a second one
+      // on top, which is how Notification Centre filled up with stale rounds.
+      const plan = reconcileActivities({
+        activeIds: await this.getActiveActivities(),
+        currentId: this.activityId,
+      });
+      await this.endActivities(plan.endIds);
 
-        if (activeActivities.includes(this.activityId)) {
-          // Activity still exists, update it
-          try {
-            await LiveActivity.updateActivity(this.activityId, activityData);
-            logger.log("Live Activity updated successfully");
-            return this.activityId;
-          } catch (updateError) {
-            logger.error("Failed to update Live Activity:", updateError);
-            // If update fails, clear the ID and create a new one
-            this.activityId = null;
-          }
-        } else {
-          // Activity no longer exists, clear the local reference
-          logger.warn("Activity no longer active, clearing local reference");
+      if (plan.adoptId) {
+        try {
+          await LiveActivity.updateActivity(plan.adoptId, activityData);
+          this.activityId = plan.adoptId;
+          logger.log("Live Activity updated successfully");
+          return this.activityId;
+        } catch (updateError) {
+          logger.error("Failed to update Live Activity:", updateError);
+          // End it before replacing it. An activity we can't update is already
+          // useless, and leaving it live is exactly the stacking this fix is
+          // about.
+          await this.endActivities([plan.adoptId]);
           this.activityId = null;
         }
       }
 
-      // If we reach here, we need to create a new activity
       this.activityId = await LiveActivity.startActivity(activityData);
       if (this.activityId) {
         logger.log("Live Activity started:", this.activityId);
@@ -191,20 +200,34 @@ class LiveActivityService {
     }
   }
 
+  /**
+   * Ends the given activities, one failure never stopping the rest. Ids come
+   * from a {@link reconcileActivities} plan, which guarantees they are live and
+   * that none of them is the one being kept.
+   */
+  private async endActivities(ids: readonly string[]): Promise<void> {
+    for (const id of ids) {
+      try {
+        await LiveActivity.endActivity(id);
+        logger.log("Ended stray Live Activity:", id);
+      } catch (error) {
+        logger.warn("Failed to end stray Live Activity:", id, error);
+      }
+    }
+  }
+
   async endActivity(): Promise<void> {
     if (Platform.OS === "ios") {
-      if (!this.isIOSSupported || !this.activityId) {
+      if (!this.isIOSSupported) {
         return;
       }
 
-      try {
-        await LiveActivity.endActivity(this.activityId);
-        logger.log("Live Activity ended");
-      } catch (error) {
-        logger.error("Failed to end Live Activity:", error);
-      } finally {
-        this.activityId = null;
-      }
+      // Ends everything live, not just the remembered id. Stopping the timer
+      // should leave no card behind, and a stray from a previous session is
+      // just as stale as ours.
+      await this.endActivities(await this.getActiveActivities());
+      this.activityId = null;
+      logger.log("Live Activity ended");
     } else if (Platform.OS === "android") {
       try {
         await ForegroundService.stopService();
@@ -255,55 +278,21 @@ class LiveActivityService {
     );
   }
 
-  // Helper method to clean up any orphaned activities
-  async cleanupActivities(): Promise<void> {
-    if (Platform.OS === "ios") {
-      if (!this.isIOSSupported) return;
-
-      try {
-        const activeActivities = await this.getActiveActivities();
-
-        // If we think we have an active activity but it's not in the list, clear it
-        if (this.activityId && !activeActivities.includes(this.activityId)) {
-          logger.log("Clearing orphaned activity ID");
-          this.activityId = null;
-        }
-      } catch (error) {
-        logger.warn("Error during cleanup:", error);
-      }
-    } else if (Platform.OS === "android") {
-      // For Android, we can try to stop the service to ensure cleanup
-      try {
-        await ForegroundService.stopService();
-      } catch (error) {
-        logger.warn("Error during Android service cleanup:", error);
-      }
-    }
-  }
-
   // New method to check and sync the current activity state
   async syncActivityState(): Promise<void> {
     if (Platform.OS === "ios") {
       if (!this.isIOSSupported) return;
 
       try {
-        const activeActivities = await this.getActiveActivities();
-
-        if (this.activityId && !activeActivities.includes(this.activityId)) {
-          // Our stored activity ID is no longer active
-          logger.log("Stored activity ID is no longer active, clearing it");
-          this.activityId = null;
-        } else if (!this.activityId && activeActivities.length > 0) {
-          // We don't have an activity ID but there are active activities
-          // This could happen if the app was restarted while an activity was running
-          logger.log("Found active activities but no stored ID, syncing...");
-          // End all active activities except the first one
-          for (let i = 1; i < activeActivities.length; i++) {
-            await LiveActivity.endActivity(activeActivities[i]);
-            logger.log(`Ended orphaned activity: ${activeActivities[i]}`);
-          }
-          this.activityId = activeActivities[0]; // Adopt the first one
-        }
+        // Same one-card invariant as the start path. The old version adopted
+        // `activeActivities[0]` — ActivityKit documents no ordering for that
+        // array, so it could keep a stale card and end the live one.
+        const plan = reconcileActivities({
+          activeIds: await this.getActiveActivities(),
+          currentId: this.activityId,
+        });
+        await this.endActivities(plan.endIds);
+        this.activityId = plan.adoptId;
       } catch (error) {
         logger.warn("Error syncing activity state:", error);
       }

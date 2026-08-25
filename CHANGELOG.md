@@ -74,6 +74,18 @@ platform-tagged heading (e.g. `## [1.1.3] - 2026-07-20 — Android`) when you cu
   and blind-maths edges at the top and bottom of the chip ladder.
 
 ### Fixed
+- Mobile: iOS no longer collects a stack of stale Live Activities. The app can only hold one, but
+  its record of *which* one lived in memory alone — so force-quitting mid-round left iOS running a
+  card the next launch knew nothing about, and the app started a second one beside it rather than
+  taking the first one over. Do that across a few game nights and Notification Centre fills up with
+  rounds that ended days ago. Every path that touches a Live Activity now reduces however many
+  exist to exactly one first: it keeps the app's own card if it is still live, adopts the single
+  survivor of a force-quit rather than replacing a perfectly good card, and otherwise ends
+  everything and starts fresh. Stopping the timer now clears every card rather than only the
+  remembered one. The decision itself moved into `@poker/core` with tests, because it has four
+  cases and the previous version got one of them wrong — with no stored id it adopted whichever
+  activity the platform happened to list first, and ActivityKit documents no ordering for that
+  array, so it could keep a stale card and end the live one.
 - Mobile: sheets no longer stretch the full width of a tablet. The generator and Pro sheets are
   capped at 640pt and centred, like every other tablet surface in the app — previously `Sheet.tsx`
   had no tablet handling at all, so a form's fields ran the entire width of an iPad. This was

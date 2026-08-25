@@ -201,6 +201,9 @@ or a number field is touched.
 | Blinds are the most prominent thing on it, after the countdown | ⬜ | ⬜ |
 | After a level jump, the pending "time's up" notification names the **new** next blind | ⬜ | ➖ |
 | Notification survives swipe-away from Recents — start a round, swipe the app out of the app switcher, and the timer notification keeps counting down instead of vanishing with it | ➖ | ⬜ |
+| **Force-quit mid-round, relaunch → exactly one Live Activity**, not two. Repeat three times: still one, and it's the live round rather than a stale one | ⬜ | ➖ |
+| Stopping/resetting the timer leaves **no** Live Activity behind, including any stray from an earlier session | ⬜ | ➖ |
+| Swipe a Live Activity away by hand mid-round, then change level → a fresh card appears and there is still only one | ⬜ | ➖ |
 
 > **Backgrounded-expiry automation blocker:** `adb shell input keyevent KEYCODE_HOME` reliably
 > brings Expo's own `DevLauncherActivity` back on top of the task stack on a dev-client build
