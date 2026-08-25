@@ -309,6 +309,9 @@ Set `FORCE_PRO_IN_DEV` in `PremiumContext.tsx` to see the unlocked screen withou
 | Pinning a place count overrides Auto; switching back to Auto follows the field again | ⬜ | ⬜ |
 | Settings' Payouts summary row updates after editing and going **back** (not just on relaunch) | ⬜ | ⬜ |
 | **Share payouts** opens the share sheet, and the pasted text matches the table on screen | ⬜ | ⬜ |
+| **Chop sheet**: shares add up to the money still on the table, and nobody is below the guarantee | ⬜ | ⬜ |
+| Chop sheet: the chip fields are usable with the keypad up, and the sheet header clears the status bar | ⬜ | ⬜ |
+| Chop button is hidden when only **one** place is paid — there is nothing to split | ⬜ | ⬜ |
 
 ---
 

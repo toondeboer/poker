@@ -286,18 +286,22 @@ export const computePayouts = (
 };
 
 /**
- * Split `pool` across `split` (percentages summing to 100) in multiples of
- * `denomination`, using the largest-remainder method so the result sums to
- * `pool` exactly.
+ * Split `pool` across `weights` in multiples of `denomination`, using the
+ * largest-remainder method so the result sums to `pool` exactly.
+ *
+ * The weights are relative, not absolute: the payout splits pass percentages
+ * that happen to total 100, and the chop calculator passes chip stacks. Callers
+ * must pass a positive total and a pool of at least 1 — both are checked by
+ * their own validation before they get here.
  *
  * When the pool isn't a whole number of denominations the leftover can't be
  * expressed in the chosen units at all — it's added to first place rather than
  * dropped, because money that vanishes from a payout table is a bug the host
  * discovers at the table with cash in hand.
  */
-const distribute = (
+export const distribute = (
   pool: number,
-  split: readonly number[],
+  weights: readonly number[],
   denomination: number,
 ): number[] => {
   // `pool` is always ≥ 1 here: validation floors the same values this uses and
@@ -305,7 +309,8 @@ const distribute = (
   const units = Math.floor(pool / denomination);
   const indivisible = pool - units * denomination;
 
-  const ideal = split.map((percent) => (units * percent) / 100);
+  const totalWeight = weights.reduce((sum, weight) => sum + weight, 0);
+  const ideal = weights.map((weight) => (units * weight) / totalWeight);
   const floors = ideal.map(Math.floor);
   let remaining = units - floors.reduce((sum, value) => sum + value, 0);
 

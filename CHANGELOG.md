@@ -46,6 +46,11 @@ platform-tagged heading (e.g. `## [1.1.3] - 2026-07-20 — Android`) when you cu
   heuristic: resetting *after progressing* is someone starting fresh, which almost always means the
   last game just finished. Resetting on level one is a mis-tap and is left alone, and the prompt
   stays quiet unless Pro is unlocked and there is someone on the roster to record against.
+- **Chop the remaining money (Pro).** When the players still in agree to end it there, the payouts
+  screen works out the deal: everyone left keeps the lowest prize still live, and whatever is above
+  that is split by chip stack. A purely chip-proportional split is the obvious version and it's
+  wrong — a short stack can come out below the place they'd already locked up, which no table would
+  accept. The shares always add up to exactly the money still on the table.
 - **Share the payouts or the standings to your group chat (Pro).** A button on each screen hands the
   table a plain-text message — buy-in, field, what each place wins and the bounty; or who's winning
   after however many nights. Plain text on purpose, since chat apps render no formatting, and with

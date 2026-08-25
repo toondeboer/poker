@@ -38,6 +38,7 @@ import { Card, CardContent, CardHeader } from "@/src/components/ui/Card";
 import { ListRow } from "@/src/components/ui/ListRow";
 import { NumberField } from "@/src/components/ui/NumberField";
 import { SegmentedControl } from "@/src/components/ui/SegmentedControl";
+import { ChopSheet } from "./ChopSheet";
 
 /** Cash denominations a home game realistically settles in. */
 const DENOMINATIONS = [1, 5, 10, 25] as const;
@@ -65,6 +66,7 @@ export function PayoutScreen() {
   const { settings, update, isLoading } = usePayouts();
 
   const [showPaywall, setShowPaywall] = useState(false);
+  const [showChop, setShowChop] = useState(false);
 
   const scrollViewRef = useRef<ScrollView>(null);
   const scrollOffsetRef = useRef(0);
@@ -278,6 +280,13 @@ export function PayoutScreen() {
                 icon="share-social-outline"
                 onPress={handleShare}
               />
+              {structure.payouts.length > 1 && (
+                <Button
+                  label="Chop the remaining money"
+                  icon="cut-outline"
+                  onPress={() => setShowChop(true)}
+                />
+              )}
             </CardContent>
           </Card>
 
@@ -393,6 +402,14 @@ export function PayoutScreen() {
         {content}
       </ScrollView>
 
+      {structure && (
+        <ChopSheet
+          visible={showChop}
+          onClose={() => setShowChop(false)}
+          structure={structure}
+          settings={settings}
+        />
+      )}
       <Paywall visible={showPaywall} onClose={() => setShowPaywall(false)} />
     </View>
   );
