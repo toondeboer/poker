@@ -3,7 +3,7 @@
  *
  * This is the module that joins the other three up: {@link shuffle} deals it,
  * {@link createBettingRound} runs each street, {@link buildPots} and
- * {@link awardPots} settle it, and {@link rankHands} decides the showdown. It
+ * {@link awardPots} settle it, and {@link evaluateHand} decides the showdown. It
  * owns only what none of them can: the deck, the board, whose turn it is when a
  * street opens, and when the hand is over.
  *
@@ -28,11 +28,20 @@ import {
   legalActions as roundLegalActions,
 } from "./bettingRound";
 import { type Award, type Pot, awardPots, buildPots } from "./pots";
-import { type EvaluatedHand, evaluateHand, rankHands } from "./evaluate";
+import { type EvaluatedHand, evaluateHand } from "./evaluate";
 
 export type Street = "preflop" | "flop" | "turn" | "river" | "complete";
 
 export const HOLE_CARDS = 2;
+/** Flop, turn and river. */
+export const BOARD_CARDS = 5;
+/**
+ * The most players a single deck can deal. Two cards each plus five on the
+ * board is `2n + 5 <= 52`, so 23 — well above any real table, but it is the
+ * point at which the deck silently runs out rather than a matter of taste, so
+ * it is enforced here and any smaller limit belongs to the product.
+ */
+export const MAX_SEATS = 23;
 
 export type HandSeat = {
   playerId: string;
@@ -124,6 +133,17 @@ export const startHand = ({
 }): Hand => {
   if (seats.length < 2) {
     throw new Error(`a hand needs at least 2 players, got ${seats.length}`);
+  }
+  if (seats.length > MAX_SEATS) {
+    throw new Error(
+      `a hand needs ${HOLE_CARDS} cards each plus ${BOARD_CARDS} on the board, so ${MAX_SEATS} players is the most a deck can deal; got ${seats.length}`,
+    );
+  }
+  const ids = new Set(seats.map((seat) => seat.playerId));
+  if (ids.size !== seats.length) {
+    // Awards are paid by id, so a duplicate is paid twice — once for each seat,
+    // including a seat that folded. Chips appear out of nowhere.
+    throw new Error("every seat needs its own player id");
   }
   if (!Number.isInteger(buttonIndex) || buttonIndex < 0 || buttonIndex >= seats.length) {
     throw new Error(
@@ -223,7 +243,17 @@ const openRound = (hand: Hand, firstToActIndex: number): Hand => {
     hand.street === "preflop"
       ? hand.seats.map((seat) => seat.committed)
       : hand.seats.map(() => 0);
-  const currentBet = Math.max(0, ...roundCommitted);
+
+  // Preflop the bet is **the big blind**, not whatever the big blind managed to
+  // post. A player too short to cover it is all-in for less; everyone behind
+  // still has to call the full amount. Taking the maximum of what was actually
+  // committed would let a short blind quietly lower the price of the hand — and
+  // if the big blind were shorter than the small blind, hand the small blind a
+  // free check.
+  const currentBet =
+    hand.street === "preflop"
+      ? Math.max(hand.bigBlind, ...roundCommitted)
+      : 0;
 
   const round = createBettingRound({
     seats: toRoundSeats(hand, roundCommitted),
@@ -365,6 +395,25 @@ const showdownFor = (hand: Hand): Showdown[] =>
  * With no showdown — everyone folded to one player — that player is the whole
  * ranking, which lets the same path pay both endings.
  */
+/**
+ * Strongest-first tiers from an already-evaluated showdown.
+ *
+ * Same shape and same rule as {@link rankHands} — an exact tie is one tier, and
+ * everyone in it splits the pot — but reading the values that are already in
+ * hand rather than re-deriving them.
+ */
+const rankShowdown = (showdown: readonly Showdown[]): { ids: string[] }[] => {
+  const byValue = new Map<number, string[]>();
+  for (const entry of showdown) {
+    const bucket = byValue.get(entry.hand.value);
+    if (bucket) bucket.push(entry.playerId);
+    else byValue.set(entry.hand.value, [entry.playerId]);
+  }
+  return Array.from(byValue.entries())
+    .sort((a, b) => b[0] - a[0])
+    .map(([, ids]) => ({ ids }));
+};
+
 const settleHand = (hand: Hand, showdown: Showdown[] | null): Hand => {
   const pots = buildPots(
     hand.seats.map((seat) => ({
@@ -374,13 +423,11 @@ const settleHand = (hand: Hand, showdown: Showdown[] | null): Hand => {
     })),
   );
 
+  // Group the showdown that has already been computed rather than evaluating
+  // every hand a second time: `showdownFor` has just done exactly this work,
+  // and this is the hottest path in the module.
   const ranking = showdown
-    ? rankHands(
-        contenders(hand.seats).map((seat) => ({
-          id: seat.playerId,
-          cards: [...seat.hole, ...hand.board],
-        })),
-      )
+    ? rankShowdown(showdown)
     : contenders(hand.seats).map((seat) => ({ ids: [seat.playerId] }));
 
   // Odd chips go to the seat nearest the button's left, which is where the

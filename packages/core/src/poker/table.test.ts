@@ -110,6 +110,87 @@ describe("startHand", () => {
     ).toThrow(/smallBlind must be a positive whole number/);
   });
 
+  it("keeps the bet at the big blind when the big blind is short", () => {
+    // A player too short to cover the big blind is all-in for less; everyone
+    // behind still has to call the full amount. Taking the maximum of what was
+    // actually posted would quietly lower the price of the hand.
+    const hand = startHand({
+      seats: [
+        { playerId: "utg", stack: 500 },
+        { playerId: "sb", stack: 500 },
+        { playerId: "shortbb", stack: 7 },
+      ],
+      buttonIndex: 0,
+      smallBlind: 5,
+      bigBlind: 10,
+      random: createRandom(21),
+    });
+    expect(hand.seats[2].committed).toBe(7);
+    expect(hand.seats[2].status).toBe("all-in");
+    const legal = legalActions(hand)!;
+    expect(legal.playerId).toBe("utg");
+    expect(legal.callAmount).toBe(10);
+    expect(legal.minRaiseTo).toBe(20);
+  });
+
+  it("does not hand the small blind a free check when the big blind is shorter", () => {
+    const hand = startHand({
+      seats: [
+        { playerId: "utg", stack: 500 },
+        { playerId: "sb", stack: 500 },
+        { playerId: "tiny", stack: 2 },
+      ],
+      buttonIndex: 0,
+      smallBlind: 5,
+      bigBlind: 10,
+      random: createRandom(22),
+    });
+    const legal = legalActions(hand)!;
+    expect(legal.canCheck).toBe(false);
+    expect(legal.callAmount).toBe(10);
+  });
+
+  it("refuses two seats sharing a player id", () => {
+    // Awards are paid by id, so a duplicate is paid twice — once per seat,
+    // including a seat that folded. Chips appear out of nowhere.
+    expect(() =>
+      startHand({
+        seats: [
+          { playerId: "same", stack: 100 },
+          { playerId: "same", stack: 100 },
+          { playerId: "other", stack: 100 },
+        ],
+        buttonIndex: 0,
+        smallBlind: 1,
+        bigBlind: 2,
+        random: createRandom(1),
+      }),
+    ).toThrow(/every seat needs its own player id/);
+  });
+
+  it("refuses more players than one deck can deal", () => {
+    // 2 each plus 5 on the board: 24 players runs the deck out mid-river and
+    // used to complete the hand on a four-card board without a word.
+    expect(() =>
+      startHand({
+        seats: players(24, 100),
+        buttonIndex: 0,
+        smallBlind: 1,
+        bigBlind: 2,
+        random: createRandom(1),
+      }),
+    ).toThrow(/23 players is the most a deck can deal/);
+    // 23 is fine.
+    const hand = startHand({
+      seats: players(23, 100),
+      buttonIndex: 0,
+      smallBlind: 1,
+      bigBlind: 2,
+      random: createRandom(1),
+    });
+    expect(hand.seats).toHaveLength(23);
+  });
+
   it("finds no seat to act when nobody qualifies", () => {
     // `nextIndex` returning -1 is the "there is nobody" answer the street
     // machinery leans on; every other path reaches it only through a hand
@@ -306,6 +387,7 @@ describe("invariants", () => {
       moneyMismatch: [],
       wrongShowdown: [],
       negativeStack: [],
+      shortBoard: [],
     };
 
     for (let seed = 1; seed <= 2000; seed++) {
@@ -346,6 +428,12 @@ describe("invariants", () => {
         );
       }
 
+      // Every showdown is judged on a full five-card board. A deck that ran
+      // short would otherwise settle a pot on four cards without a word.
+      if (hand.showdown !== null && hand.board.length !== 5) {
+        failures.shortBoard.push(`seed ${seed}: ${hand.board.length}-card board`);
+      }
+
       const stillIn = hand.seats.filter((s) => s.status !== "folded").length;
       if (hand.showdown === null && stillIn >= 2) {
         failures.wrongShowdown.push(`seed ${seed}: ${stillIn} in but no showdown`);
@@ -368,6 +456,7 @@ describe("invariants", () => {
       moneyMismatch: [],
       wrongShowdown: [],
       negativeStack: [],
+      shortBoard: [],
     });
   });
 });

@@ -207,6 +207,8 @@ export type {
 } from "./poker/bettingRound";
 export {
   HOLE_CARDS,
+  BOARD_CARDS,
+  MAX_SEATS,
   startHand,
   act,
   legalActions,
