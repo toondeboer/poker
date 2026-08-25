@@ -74,6 +74,15 @@ platform-tagged heading (e.g. `## [1.1.3] - 2026-07-20 — Android`) when you cu
   and blind-maths edges at the top and bottom of the chip ladder.
 
 ### Fixed
+- Mobile: Android no longer asks twice for notification permission. The request passed a
+  `rationale` object, and React Native responds to that by showing **its own** explanatory alert
+  before the system permission sheet whenever `shouldShowRequestPermissionRationale` returns true —
+  which it does on every launch after the first denial. So a fresh install saw one dialog and
+  everyone who had ever tapped "Don't allow" saw two, for the rest of the app's life. The rationale
+  is dropped: this is a timer whose entire job is to notify you, and the sheet says as much on its
+  own. The service method behind the status check is also renamed
+  `requestNotificationPermission` → `hasNotificationPermission`, because it only ever read the
+  status and never prompted.
 - Mobile: sheets no longer stretch the full width of a tablet. The generator and Pro sheets are
   capped at 640pt and centred, like every other tablet surface in the app — previously `Sheet.tsx`
   had no tablet handling at all, so a form's fields ran the entire width of an iPad. This was

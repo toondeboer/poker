@@ -12,7 +12,7 @@ export function useNotificationPermission() {
         setIsLoading(true);
         try {
             if (Platform.OS === 'android') {
-                const hasNotificationPermission = await liveActivityService.requestNotificationPermission();
+                const hasNotificationPermission = await liveActivityService.hasNotificationPermission();
                 setHasPermission(hasNotificationPermission);
             } else {
                 // iOS handles Live Activity permissions automatically
@@ -29,15 +29,14 @@ export function useNotificationPermission() {
     const requestPermission = async (): Promise<boolean> => {
         if (Platform.OS === 'android' && Platform.Version >= 33) {
             try {
+                // No `rationale` argument, deliberately: passing one makes
+                // React Native show *its own* Alert before the system sheet
+                // whenever `shouldShowRequestPermissionRationale` is true —
+                // which it is on every launch after the first denial. That's
+                // the "Android asks twice" report. The permission also needs no
+                // explaining: this is a timer whose whole job is to notify you.
                 const granted = await PermissionsAndroid.request(
                     PermissionsAndroid.PERMISSIONS.POST_NOTIFICATIONS,
-                    {
-                        title: 'Notification Permission',
-                        message: 'This app needs notification permission to show timer updates when running in the background.',
-                        buttonNeutral: 'Ask Me Later',
-                        buttonNegative: 'Cancel',
-                        buttonPositive: 'OK',
-                    }
                 );
 
                 const hasPermission = granted === PermissionsAndroid.RESULTS.GRANTED;

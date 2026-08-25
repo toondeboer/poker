@@ -146,13 +146,6 @@ are removed from this file when a release is cut rather than accumulating as ✅
   version drift rather than a formatting regression. Nothing in CI runs it. Either pin prettier at
   the root and reformat once, deliberately, or drop the expectation that it passes — the current
   state means "prettier says no" carries no information.
-- ⬜ **Rename two misleading notification-permission functions.**
-  `LiveActivityService.requestNotificationPermission` and
-  `ForegroundServiceModule.hasNotificationPermission` disagree with what they do on Android: the
-  "request" only calls `ContextCompat.checkSelfPermission(...)` — it reads status and never shows a
-  dialog. Not a functional bug (the only call that actually triggers the Android system dialog is
-  `TimerContext`'s `checkBackgroundSupport` → `PermissionsAndroid.request(POST_NOTIFICATIONS)`, one
-  path, one dialog, verified on-device), just worth a rename next time this code is touched.
 
 ## Parked: Live Activity / foreground service controls
 

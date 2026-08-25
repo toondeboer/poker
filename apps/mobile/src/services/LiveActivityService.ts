@@ -319,8 +319,14 @@ class LiveActivityService {
   }
 
 
-  // Request notification permission for Android 13+
-  async requestNotificationPermission(): Promise<boolean> {
+  /**
+   * Reads whether POST_NOTIFICATIONS is granted on Android 13+. **This only
+   * checks** — it never shows a dialog, despite what the old name
+   * (`requestNotificationPermission`) claimed. The one call that actually
+   * prompts is `TimerContext`'s `checkBackgroundSupport`, via
+   * `PermissionsAndroid.request`.
+   */
+  async hasNotificationPermission(): Promise<boolean> {
     if (Platform.OS === "android") {
       try {
         return await ForegroundService.hasNotificationPermission();
