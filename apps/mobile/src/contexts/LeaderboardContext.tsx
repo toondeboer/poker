@@ -9,27 +9,35 @@ import {
 } from "react";
 import {
   addGameResult,
+  addGroup,
   addPlayer,
   computeStandings,
   createGameResult,
+  createGroup,
   createPlayer,
+  EMPTY_LEADERBOARD,
   removeGameResult,
   removePlayer,
+  updateGroup,
   validateGameResult,
   GameResult,
+  GroupedLeaderboard,
+  GroupState,
   LeaderboardStanding,
   Placing,
   Player,
 } from "@poker/core";
-import { LeaderboardStorage } from "@/src/services/LeaderboardStorage";
+import {
+  DEFAULT_GROUP_NAME,
+  LeaderboardStorage,
+} from "@/src/services/LeaderboardStorage";
+import { generateId } from "@/src/utils/id";
 import { logger } from "@/src/utils/logger";
 
-/** Short, collision-resistant id — core stays clock/crypto-free, so we mint it here. */
-const generateId = () =>
-  Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
-
 type LeaderboardContextValue = {
+  /** The active group's roster. Empty when there is no group yet. */
   players: Player[];
+  /** The active group's game history. */
   results: GameResult[];
   /** Derived from the two above; ranked and tie-broken in @poker/core. */
   standings: LeaderboardStanding[];
@@ -47,6 +55,11 @@ type LeaderboardContextValue = {
 
 const LeaderboardContext = createContext<LeaderboardContextValue | null>(null);
 
+const EMPTY_GROUP: Pick<GroupState, "players" | "results"> = {
+  players: [],
+  results: [],
+};
+
 /**
  * The group's players and game history (Pro feature).
  *
@@ -55,14 +68,19 @@ const LeaderboardContext = createContext<LeaderboardContextValue | null>(null);
  * screen underneath mounted, so two local copies would disagree the moment a
  * game is recorded.
  *
- * Players and results are written together under one key, so a save that adds
- * a player and the game they just played in can't half-land.
+ * **Stored as groups; read here as one board.** The data model holds a board
+ * per set of friends, but everything above this reads the *active* one, so the
+ * screens are unchanged and a host who only ever plays with one crowd never
+ * meets the concept. A board that already existed before groups is migrated on
+ * load and stays selected.
+ *
+ * Everything is written under one key, so a save that adds a player and the
+ * game they just played in can't half-land.
  */
 export function LeaderboardProvider({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
-  const [players, setPlayers] = useState<Player[]>([]);
-  const [results, setResults] = useState<GameResult[]>([]);
+  const [state, setState] = useState<GroupedLeaderboard>(EMPTY_LEADERBOARD);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
@@ -70,8 +88,7 @@ export function LeaderboardProvider({
     LeaderboardStorage.loadLeaderboard()
       .then((loaded) => {
         if (!active) return;
-        setPlayers(loaded.players);
-        setResults(loaded.results);
+        setState(loaded);
       })
       .catch((error) => logger.error("Failed to load leaderboard:", error))
       .finally(() => {
@@ -82,26 +99,52 @@ export function LeaderboardProvider({
     };
   }, []);
 
-  const persist = useCallback(
-    (nextPlayers: Player[], nextResults: GameResult[]) => {
-      setPlayers(nextPlayers);
-      setResults(nextResults);
-      LeaderboardStorage.saveLeaderboard({
-        players: nextPlayers,
-        results: nextResults,
-      }).catch((error) => logger.error("Failed to save leaderboard:", error));
+  const persist = useCallback((next: GroupedLeaderboard) => {
+    setState(next);
+    LeaderboardStorage.saveLeaderboard(next).catch((error) =>
+      logger.error("Failed to save leaderboard:", error),
+    );
+  }, []);
+
+  const activeEntry = useMemo(
+    () => state.groups.find((entry) => entry.group.id === state.activeGroupId),
+    [state],
+  );
+  const board = activeEntry ?? EMPTY_GROUP;
+
+  /**
+   * Apply a change to the active group, creating one first if there isn't one.
+   *
+   * The implicit first group is what keeps groups invisible until somebody
+   * wants them: adding a player to an empty leaderboard works exactly as it did
+   * before, rather than demanding a group be named up front for a feature the
+   * user hasn't asked for yet.
+   */
+  const withActiveGroup = useCallback(
+    (update: (entry: GroupState) => GroupState) => {
+      if (activeEntry) {
+        persist(updateGroup(state, activeEntry.group.id, update));
+        return;
+      }
+      const group = createGroup({
+        id: generateId(),
+        name: DEFAULT_GROUP_NAME,
+        now: Date.now(),
+      });
+      const seeded = addGroup(state, group);
+      persist(updateGroup(seeded, group.id, update));
     },
-    [],
+    [activeEntry, state, persist],
   );
 
   const addNewPlayer = useCallback(
     (name: string) => {
-      persist(
-        addPlayer(players, createPlayer({ id: generateId(), name })),
-        results,
-      );
+      withActiveGroup((entry) => ({
+        ...entry,
+        players: addPlayer(entry.players, createPlayer({ id: generateId(), name })),
+      }));
     },
-    [players, results, persist],
+    [withActiveGroup],
   );
 
   const deletePlayer = useCallback(
@@ -109,9 +152,12 @@ export function LeaderboardProvider({
       // Results keep the id. The games still happened, and everyone else's
       // history depends on the field sizes they were part of; computeStandings
       // simply ignores placings for players no longer on the roster.
-      persist(removePlayer(players, id), results);
+      withActiveGroup((entry) => ({
+        ...entry,
+        players: removePlayer(entry.players, id),
+      }));
     },
-    [players, results, persist],
+    [withActiveGroup],
   );
 
   const recordResult = useCallback(
@@ -141,26 +187,33 @@ export function LeaderboardProvider({
         bounty: params.bounty,
         now: Date.now(),
       });
-      persist(players, addGameResult(results, result));
+      withActiveGroup((entry) => ({
+        ...entry,
+        results: addGameResult(entry.results, result),
+      }));
     },
-    [players, results, persist],
+    [withActiveGroup],
   );
 
   const deleteResult = useCallback(
-    (id: string) => persist(players, removeGameResult(results, id)),
-    [players, results, persist],
+    (id: string) =>
+      withActiveGroup((entry) => ({
+        ...entry,
+        results: removeGameResult(entry.results, id),
+      })),
+    [withActiveGroup],
   );
 
   const standings = useMemo(
-    () => computeStandings(players, results),
-    [players, results],
+    () => computeStandings(board.players, board.results),
+    [board.players, board.results],
   );
 
   return (
     <LeaderboardContext.Provider
       value={{
-        players,
-        results,
+        players: board.players,
+        results: board.results,
         standings,
         isLoading,
         addNewPlayer,

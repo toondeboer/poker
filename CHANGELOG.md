@@ -38,6 +38,12 @@ platform-tagged heading (e.g. `## [1.1.3] - 2026-07-20 — Android`) when you cu
   there are. A real deal has to come from the platform's cryptographic random source, which the
   game will pass in; `@poker/core` deliberately doesn't ship one, since it has no platform to take
   it from and a guess would put a fake in the one place that can't have one.
+- The leaderboard is now stored as **groups** — a board per set of friends rather than one list for
+  everybody. A leaderboard that already exists is turned into a group the first time the app opens
+  after updating, keeping every player and every game, and it stays the one you are looking at, so
+  nothing changes on screen. The migration is written back straight away rather than being redone
+  every launch. There is still only one board visible for now: a host who plays with one crowd
+  never meets the concept, and the picker for switching between groups comes next.
 - Groundwork for **poker groups** in `@poker/core` — a separate board for each set of friends you
   play with, instead of one list for everybody. Nothing user-facing yet. The important decision is
   that a group's roster is *people*, not accounts: someone who turns up to one game night on holiday
