@@ -153,6 +153,13 @@ export type {
   PayoutOptions,
   PayoutValidationError,
 } from "./payouts/payoutStructure";
+export { computeChop, validateChop } from "./payouts/chop";
+export type {
+  ChopResult,
+  ChopShare,
+  ChopOptions,
+  ChopValidationError,
+} from "./payouts/chop";
 
 // Leaderboard
 export {
