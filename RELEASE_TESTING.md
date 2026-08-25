@@ -204,6 +204,9 @@ or a number field is touched.
 | First launch after install asks for notification permission **exactly once** | ➖ | ⬜ |
 | **After denying once**, force-stop and relaunch → still **exactly one** dialog, and it's the system sheet ("Allow Poker Timer to send you notifications?"), not an app-drawn alert in front of it | ➖ | ⬜ |
 | Denying **twice** blocks the permission permanently (Android's own behaviour) — confirm the background timer degrades rather than crashes, and that Metro logs the "permanently denied" warning. **There is no in-app route back**; see the ROADMAP entry | ➖ | 🟡 |
+| **Force-quit mid-round, relaunch → exactly one Live Activity**, not two. Repeat three times: still one, and it's the live round rather than a stale one | ⬜ | ➖ |
+| Stopping/resetting the timer leaves **no** Live Activity behind, including any stray from an earlier session | ⬜ | ➖ |
+| Swipe a Live Activity away by hand mid-round, then change level → a fresh card appears and there is still only one | ⬜ | ➖ |
 
 > **Backgrounded-expiry automation blocker:** `adb shell input keyevent KEYCODE_HOME` reliably
 > brings Expo's own `DevLauncherActivity` back on top of the task stack on a dev-client build

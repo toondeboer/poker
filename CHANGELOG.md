@@ -83,6 +83,28 @@ platform-tagged heading (e.g. `## [1.1.3] - 2026-07-20 — Android`) when you cu
   own. The service method behind the status check is also renamed
   `requestNotificationPermission` → `hasNotificationPermission`, because it only ever read the
   status and never prompted.
+- Mobile: iOS no longer collects a stack of stale Live Activities. The app can only hold one, but
+  its record of *which* one lived in memory alone — so force-quitting mid-round left iOS running a
+  card the next launch knew nothing about, and the app started a second one beside it rather than
+  taking the first one over. Do that across a few game nights and Notification Centre fills up with
+  rounds that ended days ago. Every path that touches a Live Activity now reduces however many
+  exist to exactly one first: it keeps the app's own card if it is still live, adopts the single
+  survivor of a force-quit rather than replacing a perfectly good card, and otherwise ends
+  everything and starts fresh. Stopping the timer now clears every card rather than only the
+  remembered one. The decision itself moved into `@poker/core` with tests, because it has four
+  cases and the previous version got one of them wrong — with no stored id it adopted whichever
+  activity the platform happened to list first, and ActivityKit documents no ordering for that
+  array, so it could keep a stale card and end the live one.
+  - Three further faults in the same area, found reviewing the fix. **iOS reported activities that
+    were no longer on screen**: the app read `Activity.activities` unfiltered, which keeps listing
+    cards that have ended, been dismissed, or been closed by iOS itself at the eight-hour limit — so
+    the app could adopt a dead card, update it to no effect, and leave the user staring at a frozen
+    round while believing all was well. **Updating an activity always reported success**, even when
+    the id named nothing, so the app's own fallback for that case could never run. And **ending an
+    activity raced the timer reset**: resetting both ends the card and redraws it, and the two ran
+    concurrently, so the redraw could land after the end had already looked for cards to close and
+    found none — leaving a card on screen for a tournament that had finished. Every Live Activity
+    operation now runs one at a time, the same way the screen-wake lock already did.
 - Mobile: sheets no longer stretch the full width of a tablet. The generator and Pro sheets are
   capped at 640pt and centred, like every other tablet surface in the app — previously `Sheet.tsx`
   had no tablet handling at all, so a form's fields ran the entire width of an iPad. This was
