@@ -38,6 +38,14 @@ platform-tagged heading (e.g. `## [1.1.3] - 2026-07-20 — Android`) when you cu
   there are. A real deal has to come from the platform's cryptographic random source, which the
   game will pass in; `@poker/core` deliberately doesn't ship one, since it has no platform to take
   it from and a guess would put a fake in the one place that can't have one.
+- Side pots for the multiplayer game mode, in `@poker/core`. Nothing user-facing yet. When someone
+  is all-in for less than the bet, the money splits into a main pot they can win and side pots they
+  can't, so the biggest stack can't win chips nobody had to match — and a player who folds leaves
+  their chips behind without being able to win them back. A pot that won't divide evenly hands its
+  odd chips out one at a time starting to the left of the button, the way a dealer does it, rather
+  than to whoever happens to be first in a list: the result is identical however the players are
+  ordered, which is asserted by shuffling every input and comparing. What is paid out always adds
+  up to exactly what went in.
 - **Payouts (Pro).** Set a buy-in and the app works out what each place wins, so the split is agreed
   before the first hand instead of argued about heads-up. Bounties come **out of** the buy-in rather
   than sitting on top of it — a 20 buy-in with a 5 bounty is still 20 out of each pocket, 15 to the
