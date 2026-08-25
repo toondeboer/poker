@@ -38,6 +38,15 @@ platform-tagged heading (e.g. `## [1.1.3] - 2026-07-20 — Android`) when you cu
   there are. A real deal has to come from the platform's cryptographic random source, which the
   game will pass in; `@poker/core` deliberately doesn't ship one, since it has no platform to take
   it from and a guess would put a fake in the one place that can't have one.
+- The betting round for the multiplayer game mode, in `@poker/core`. Nothing user-facing yet. It
+  decides whose turn it is, what they may legally do, and when the round is over — including the
+  three rules people actually get wrong at the table: a raise must be at least as big again as the
+  last one; a player can always put their last chip in even when that falls short of a legal raise;
+  and **going all-in for less than a full raise does not reopen the betting** — everyone still has
+  to match it, but players who have already acted may only call or fold rather than raise again.
+  A betting round that could never end would be the worst possible failure here, so termination is
+  asserted over thousands of randomly played-out rounds, along with chip conservation and the
+  guarantee that everyone still in has either matched the bet or is all-in.
 - Side pots for the multiplayer game mode, in `@poker/core`. Nothing user-facing yet. When someone
   is all-in for less than the bet, the money splits into a main pot they can win and side pots they
   can't, so the biggest stack can't win chips nobody had to match — and a player who folds leaves

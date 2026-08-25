@@ -192,6 +192,19 @@ export { evaluateHand, rankHands } from "./poker/evaluate";
 export type { EvaluatedHand } from "./poker/evaluate";
 export { buildPots, awardPots, totalPotAmount } from "./poker/pots";
 export type { Contribution, Pot, Award } from "./poker/pots";
+export {
+  createBettingRound,
+  legalActions,
+  applyAction,
+  isRoundComplete,
+} from "./poker/bettingRound";
+export type {
+  BettingRound,
+  BettingAction,
+  RoundSeat,
+  SeatStatus,
+  LegalActions,
+} from "./poker/bettingRound";
 
 // Leaderboard
 export {
