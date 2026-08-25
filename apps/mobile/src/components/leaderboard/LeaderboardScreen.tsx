@@ -4,6 +4,7 @@ import {
   Alert,
   Keyboard,
   ScrollView,
+  Share,
   StyleSheet,
   Text,
   useWindowDimensions,
@@ -11,7 +12,12 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useLocalSearchParams } from "expo-router";
-import { formatPlace, isValidPlayerName, MAX_PLAYERS } from "@poker/core";
+import {
+  formatPlace,
+  formatStandingsSummary,
+  isValidPlayerName,
+  MAX_PLAYERS,
+} from "@poker/core";
 import { usePremium } from "@/src/contexts/PremiumContext";
 import { useLeaderboard } from "@/src/contexts/LeaderboardContext";
 import { useKeyboardFocusScroll } from "@/src/hooks/useKeyboardFocusScroll";
@@ -89,6 +95,15 @@ export function LeaderboardScreen() {
     Keyboard.dismiss();
   };
 
+  const handleShare = () => {
+    Share.share({
+      message: formatStandingsSummary({
+        standings,
+        gamesRecorded: results.length,
+      }),
+    }).catch(() => {});
+  };
+
   const confirmDeletePlayer = (id: string, playerName: string) => {
     Alert.alert(
       "Remove player",
@@ -161,6 +176,12 @@ export function LeaderboardScreen() {
             icon="add"
             onPress={() => setShowRecord(true)}
             disabled={players.length === 0}
+          />
+          <Button
+            label="Share standings"
+            icon="share-social-outline"
+            onPress={handleShare}
+            disabled={results.length === 0}
           />
         </CardContent>
       </Card>

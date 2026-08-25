@@ -46,6 +46,10 @@ platform-tagged heading (e.g. `## [1.1.3] - 2026-07-20 — Android`) when you cu
   heuristic: resetting *after progressing* is someone starting fresh, which almost always means the
   last game just finished. Resetting on level one is a mis-tap and is left alone, and the prompt
   stays quiet unless Pro is unlocked and there is someone on the roster to record against.
+- **Share the payouts or the standings to your group chat (Pro).** A button on each screen hands the
+  table a plain-text message — buy-in, field, what each place wins and the bounty; or who's winning
+  after however many nights. Plain text on purpose, since chat apps render no formatting, and with
+  no app link appended: you're telling your table what the payouts are, not advertising.
 - **Leaderboard (Pro).** Keep score across game nights: who has won most, who turns up, and what
   everyone has taken home. **Local-first and single-device** — no accounts, no sign-in, and nothing
   leaves the phone; the host's device is the source of truth for their group. Recording a game is

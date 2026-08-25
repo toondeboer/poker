@@ -308,6 +308,7 @@ Set `FORCE_PRO_IN_DEV` in `PremiumContext.tsx` to see the unlocked screen withou
 | A bounty **equal to or above** the buy-in explains itself instead of showing an empty table | ⬜ | ⬜ |
 | Pinning a place count overrides Auto; switching back to Auto follows the field again | ⬜ | ⬜ |
 | Settings' Payouts summary row updates after editing and going **back** (not just on relaunch) | ⬜ | ⬜ |
+| **Share payouts** opens the share sheet, and the pasted text matches the table on screen | ⬜ | ⬜ |
 
 ---
 
@@ -333,6 +334,8 @@ it**.
 | No prompt with an **empty roster**, or when Pro is locked — the sheet would have nothing to offer | ⬜ | ⬜ |
 | Back from a prompt-opened leaderboard returns to the **timer**, and the header says "Back" | ⬜ | ⬜ |
 | Record sheet: header clears the status bar and the footer clears the keypad (the §5 failure mode) | ⬜ | ⬜ |
+| **Share standings** is disabled with no games recorded, and enabled once there is one | ⬜ | ⬜ |
+| Shared standings text lists only players who have played, ranked, with no markdown characters | ⬜ | ⬜ |
 
 ---
 
