@@ -38,6 +38,20 @@ platform-tagged heading (e.g. `## [1.1.3] - 2026-07-20 — Android`) when you cu
   there are. A real deal has to come from the platform's cryptographic random source, which the
   game will pass in; `@poker/core` deliberately doesn't ship one, since it has no platform to take
   it from and a guess would put a fake in the one place that can't have one.
+- A whole hand of Texas hold'em in `@poker/core` — the piece that joins the others up. Nothing
+  user-facing yet, but this is the first time the cards, the betting and the pots play a hand from
+  the shuffle to the chips being pushed. It deals, posts the blinds, runs each street, deals the
+  flop, turn and river, and settles: the last player standing takes it without showing, or the
+  hands are compared and the pots — including side pots — go to whoever can win them. When everyone
+  is all-in the rest of the board runs out with no more betting, the way a table does it. The
+  heads-up exception is handled, because it is the one everybody forgets: with two players the
+  button posts the small blind and acts first before the flop, then acts last on every street after
+  it. There are no burn cards: a dealer burns one so a marked or glimpsed top card can't be read,
+  and with a shuffle nobody can see it would remove a card for no gain. Asserted over two thousand
+  randomly played hands — every hand finishes, no chip is created or destroyed, no card is ever
+  dealt twice, every showdown is judged on a full five-card board, and what is paid out is exactly
+  what went in. A player too short to cover the big blind is all-in for less and everybody behind
+  still has to call the full amount, which is the rule rather than the easier thing to write.
 - The betting round for the multiplayer game mode, in `@poker/core`. Nothing user-facing yet. It
   decides whose turn it is, what they may legally do, and when the round is over — including the
   three rules people actually get wrong at the table: a raise must be at least as big again as the

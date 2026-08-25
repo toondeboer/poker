@@ -194,7 +194,7 @@ export { buildPots, awardPots, totalPotAmount } from "./poker/pots";
 export type { Contribution, Pot, Award } from "./poker/pots";
 export {
   createBettingRound,
-  legalActions,
+  legalActions as roundLegalActions,
   applyAction,
   isRoundComplete,
 } from "./poker/bettingRound";
@@ -205,6 +205,16 @@ export type {
   SeatStatus,
   LegalActions,
 } from "./poker/bettingRound";
+export {
+  HOLE_CARDS,
+  BOARD_CARDS,
+  MAX_SEATS,
+  startHand,
+  act,
+  legalActions,
+  isHandComplete,
+} from "./poker/table";
+export type { Hand, HandSeat, Street, Showdown } from "./poker/table";
 
 // Leaderboard
 export {
