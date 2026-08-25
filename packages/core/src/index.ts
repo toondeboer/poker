@@ -190,6 +190,8 @@ export {
 export type { HandCategory, HandValue } from "./poker/handValue";
 export { evaluateHand, rankHands } from "./poker/evaluate";
 export type { EvaluatedHand } from "./poker/evaluate";
+export { buildPots, awardPots, totalPotAmount } from "./poker/pots";
+export type { Contribution, Pot, Award } from "./poker/pots";
 
 // Leaderboard
 export {
