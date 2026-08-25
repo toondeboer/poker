@@ -106,13 +106,50 @@ export const createBettingRound = ({
 }): BettingRound => {
   assertChipCount(currentBet, "currentBet");
   assertChipCount(minimumRaiseSize, "minimumRaiseSize");
+
+  if (seats.length < 2) {
+    throw new Error(`a betting round needs at least 2 seats, got ${seats.length}`);
+  }
+  if (
+    !Number.isInteger(firstToActIndex) ||
+    firstToActIndex < 0 ||
+    firstToActIndex >= seats.length
+  ) {
+    throw new Error(
+      `firstToActIndex ${firstToActIndex} is not a seat on a table of ${seats.length}`,
+    );
+  }
+
   for (const seat of seats) {
     assertChipCount(seat.stack, `${seat.playerId}'s stack`);
     assertChipCount(seat.committed, `${seat.playerId}'s committed`);
+    // `currentBet` is what everyone must match, so it cannot start below what
+    // somebody has already put in. It defaults to 0, which makes forgetting it
+    // on a preflop round easy — and the result is a negative amount owed, a
+    // raise "to" less than the seat's own commitment, and chips flowing back
+    // out of the pot into a stack.
+    if (seat.committed > currentBet) {
+      throw new Error(
+        `${seat.playerId} has ${seat.committed} in with the bet at ${currentBet}`,
+      );
+    }
   }
 
   const round: BettingRound = {
-    seats: seats.map((seat) => ({ ...seat })),
+    seats: seats.map((seat) => ({
+      ...seat,
+      // A new round means nobody has acted in it. Carrying this over is the
+      // obvious mistake when feeding one street's seats into the next — the
+      // type round-trips, so it type-checks — and it would silently skip the
+      // street's betting entirely rather than failing.
+      lastActedBet: null,
+      // A seat with nothing behind is all-in by definition, whatever the
+      // caller labelled it. Left as "active" it can never act, never becomes
+      // all-in, and survives to the close as an unmatched contender — which
+      // breaks the postcondition side-pot building relies on.
+      status:
+        seat.status === "active" && seat.stack === 0 ? "all-in" : seat.status,
+    })),
     toActIndex: firstToActIndex,
     currentBet,
     lastFullRaiseSize: minimumRaiseSize,

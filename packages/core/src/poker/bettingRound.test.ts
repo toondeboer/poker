@@ -55,11 +55,77 @@ describe("createBettingRound", () => {
   it("rejects fractional chips", () => {
     expect(() =>
       createBettingRound({
-        seats: [seat("a", 10.5)],
+        seats: [seat("a", 10.5), seat("b", 100)],
         firstToActIndex: 0,
         minimumRaiseSize: 2,
       }),
     ).toThrow(/whole number of chips/);
+  });
+
+  it("needs at least two seats to have a round at all", () => {
+    expect(() =>
+      createBettingRound({
+        seats: [seat("a", 100)],
+        firstToActIndex: 0,
+        minimumRaiseSize: 2,
+      }),
+    ).toThrow(/at least 2 seats, got 1/);
+  });
+
+  it("rejects an opener who isn't at the table", () => {
+    // Silently wrapping is the same class of defect as the settle off-by-one
+    // this module already had: the action opens on the wrong seat, and nothing
+    // says so.
+    const seats = [seat("a", 100), seat("b", 100)];
+    expect(() =>
+      createBettingRound({ seats, firstToActIndex: 5, minimumRaiseSize: 2 }),
+    ).toThrow(/firstToActIndex 5 is not a seat on a table of 2/);
+    expect(() =>
+      createBettingRound({ seats, firstToActIndex: -1, minimumRaiseSize: 2 }),
+    ).toThrow(/is not a seat/);
+  });
+
+  it("rejects a bet lower than what someone has already put in", () => {
+    // `currentBet` defaults to 0, so forgetting it on a preflop round is easy
+    // — and it used to mean a negative amount owed and chips flowing back out
+    // of the pot into a stack.
+    expect(() =>
+      createBettingRound({
+        seats: [seat("a", 100, 10), seat("b", 100, 2)],
+        firstToActIndex: 0,
+        minimumRaiseSize: 2,
+      }),
+    ).toThrow(/a has 10 in with the bet at 0/);
+  });
+
+  it("forgets that anyone acted in the previous round", () => {
+    // Feeding one street's finished seats into the next type-checks, so this
+    // is the obvious mistake. Carrying `lastActedBet` over would make everyone
+    // look settled and skip the street's betting in silence.
+    const finished = [
+      { ...seat("a", 100), lastActedBet: 20 },
+      { ...seat("b", 100), lastActedBet: 20 },
+    ];
+    const round = createBettingRound({
+      seats: finished,
+      firstToActIndex: 0,
+      minimumRaiseSize: 2,
+    });
+    expect(round.toActIndex).toBe(0);
+    expect(round.seats.every((s) => s.lastActedBet === null)).toBe(true);
+  });
+
+  it("treats a seat with nothing behind as all-in, whatever it was labelled", () => {
+    // Left "active" it can never act, never becomes all-in, and reaches the
+    // close as an unmatched contender — breaking the postcondition side-pot
+    // building depends on.
+    const round = createBettingRound({
+      seats: [seat("a", 0, 5), seat("b", 100, 5)],
+      firstToActIndex: 1,
+      currentBet: 5,
+      minimumRaiseSize: 2,
+    });
+    expect(round.seats[0].status).toBe("all-in");
   });
 
   it("copies the seats rather than aliasing the caller's array", () => {
@@ -314,7 +380,31 @@ describe("invariants", () => {
       { length: 2 + Math.floor(next() * 5) },
       () => 2 + Math.floor(next() * 200),
     );
-    let round = preflop(stacks);
+
+    // Half the sweeps play a *postflop* round instead: no blinds in front,
+    // some seats already all-in from an earlier street, and the opener
+    // anywhere on the table. The first version of this sweep only ever went
+    // through `preflop`, so none of that shape was covered at all.
+    let round: BettingRound;
+    if (next() < 0.5) {
+      round = preflop(stacks);
+    } else {
+      const seats = stacks.map((stack, i) => {
+        const alreadyAllIn = next() < 0.2;
+        return alreadyAllIn
+          ? seat(`p${i}`, 0, 0, "all-in")
+          : seat(`p${i}`, stack);
+      });
+      if (seats.filter((s) => s.status !== "all-in").length < 2) {
+        seats[0] = seat("p0", stacks[0]);
+        seats[1] = seat("p1", stacks[1]);
+      }
+      round = createBettingRound({
+        seats,
+        firstToActIndex: Math.floor(next() * seats.length),
+        minimumRaiseSize: 2,
+      });
+    }
     const startingChips = round.seats.reduce(
       (sum, s) => sum + s.stack + s.committed,
       0,
