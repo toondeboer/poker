@@ -52,14 +52,74 @@ describe("reconcileActivities", () => {
     ).toEqual({ adoptId: null, endIds: [], createNew: true });
   });
 
+  describe("mustKeepOne — for callers that reconcile but cannot create", () => {
+    it("keeps one instead of ending everything when none is ours", () => {
+      expect(
+        reconcileActivities({
+          activeIds: ["x", "y", "z"],
+          currentId: null,
+          mustKeepOne: true,
+        }),
+      ).toEqual({ adoptId: "x", endIds: ["y", "z"], createNew: false });
+    });
+
+    it("still cannot conjure a card when nothing is live", () => {
+      expect(
+        reconcileActivities({
+          activeIds: [],
+          currentId: null,
+          mustKeepOne: true,
+        }),
+      ).toEqual({ adoptId: null, endIds: [], createNew: true });
+    });
+
+    it("changes nothing when our own activity is live", () => {
+      expect(
+        reconcileActivities({
+          activeIds: ["a", "b"],
+          currentId: "a",
+          mustKeepOne: true,
+        }),
+      ).toEqual({ adoptId: "a", endIds: ["b"], createNew: false });
+    });
+
+    it("never asks a caller that cannot create to create", () => {
+      // The whole point: `createNew` may only be true when there was nothing to
+      // keep. Anything else strands the user with no card.
+      const failures: string[] = [];
+      const pool = ["a", "b", "c", "d"];
+      for (let mask = 0; mask < 1 << pool.length; mask++) {
+        const activeIds = pool.filter((_, i) => mask & (1 << i));
+        for (const currentId of [null, ...pool, "absent"]) {
+          const plan = reconcileActivities({
+            activeIds,
+            currentId,
+            mustKeepOne: true,
+          });
+          if (plan.createNew && activeIds.length > 0) {
+            failures.push(
+              `${JSON.stringify({ activeIds, currentId })} asked to create`,
+            );
+          }
+        }
+      }
+      expect(failures).toEqual([]);
+    });
+  });
+
   it("never asks the caller to end the activity it just adopted", () => {
     // The invariant that makes the plan safe to execute in any order.
-    const inputs: { activeIds: string[]; currentId: string | null }[] = [];
+    const inputs: {
+      activeIds: string[];
+      currentId: string | null;
+      mustKeepOne: boolean;
+    }[] = [];
     const pool = ["a", "b", "c"];
     for (let mask = 0; mask < 1 << pool.length; mask++) {
       const activeIds = pool.filter((_, i) => mask & (1 << i));
       for (const currentId of [null, "a", "b", "c", "absent"]) {
-        inputs.push({ activeIds, currentId });
+        inputs.push({ activeIds, currentId, mustKeepOne: false });
+        inputs.push({ activeIds, currentId, mustKeepOne: true });
       }
     }
 
@@ -99,13 +159,19 @@ describe("reconcileActivities", () => {
     for (let mask = 0; mask < 1 << pool.length; mask++) {
       const activeIds = pool.filter((_, i) => mask & (1 << i));
       for (const currentId of [null, ...pool, "absent"]) {
-        const plan = reconcileActivities({ activeIds, currentId });
-        const survivors = activeIds.filter((id) => !plan.endIds.includes(id));
-        const total = survivors.length + (plan.createNew ? 1 : 0);
-        if (total !== 1) {
-          failures.push(
-            `${JSON.stringify({ activeIds, currentId })} leaves ${total}`,
-          );
+        for (const mustKeepOne of [false, true]) {
+          const plan = reconcileActivities({
+            activeIds,
+            currentId,
+            mustKeepOne,
+          });
+          const survivors = activeIds.filter((id) => !plan.endIds.includes(id));
+          const total = survivors.length + (plan.createNew ? 1 : 0);
+          if (total !== 1) {
+            failures.push(
+              `${JSON.stringify({ activeIds, currentId, mustKeepOne })} leaves ${total}`,
+            );
+          }
         }
       }
     }

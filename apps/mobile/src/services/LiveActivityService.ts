@@ -19,6 +19,26 @@ class LiveActivityService {
   private isIOSSupported: boolean;
   private isAndroidSupported: boolean = true; // Android foreground services are widely supported
 
+  /**
+   * Serializes every Live Activity operation, for the same reason
+   * `useKeepScreenAwake` serializes its lock: each one is a multi-step
+   * read-then-act against native state, and two of them interleaved undo each
+   * other. Resetting the timer is the case that bites — it both ends the
+   * activity *and* drives the sync effect into `startOrUpdateActivity`, so an
+   * `endActivity` that took its snapshot first happily ends nothing while the
+   * new card it never saw stays on screen forever.
+   *
+   * A rejected operation must not wedge the queue, so the next one is chained
+   * onto both outcomes.
+   */
+  private queue: Promise<unknown> = Promise.resolve();
+
+  private enqueue<T>(operation: () => Promise<T>): Promise<T> {
+    const run = this.queue.then(operation, operation);
+    this.queue = run.catch(() => undefined);
+    return run;
+  }
+
   constructor() {
     // Live Activities require iOS 16.1+
     this.isIOSSupported =
@@ -58,7 +78,7 @@ class LiveActivityService {
     soundPackId: SoundPackId = DEFAULT_SOUND_PACK_ID,
   ): Promise<string | null> {
     if (Platform.OS === "ios") {
-      return this.handleiOSLiveActivity(state);
+      return this.enqueue(() => this.handleiOSLiveActivity(state));
     } else if (Platform.OS === "android") {
       return this.handleAndroidForegroundService(
         state,
@@ -222,12 +242,14 @@ class LiveActivityService {
         return;
       }
 
-      // Ends everything live, not just the remembered id. Stopping the timer
-      // should leave no card behind, and a stray from a previous session is
-      // just as stale as ours.
-      await this.endActivities(await this.getActiveActivities());
-      this.activityId = null;
-      logger.log("Live Activity ended");
+      await this.enqueue(async () => {
+        // Ends everything live, not just the remembered id. Stopping the timer
+        // should leave no card behind, and a stray from a previous session is
+        // just as stale as ours.
+        await this.endActivities(await this.getActiveActivities());
+        this.activityId = null;
+        logger.log("Live Activity ended");
+      });
     } else if (Platform.OS === "android") {
       try {
         await ForegroundService.stopService();
@@ -284,15 +306,19 @@ class LiveActivityService {
       if (!this.isIOSSupported) return;
 
       try {
-        // Same one-card invariant as the start path. The old version adopted
-        // `activeActivities[0]` — ActivityKit documents no ordering for that
-        // array, so it could keep a stale card and end the live one.
-        const plan = reconcileActivities({
-          activeIds: await this.getActiveActivities(),
-          currentId: this.activityId,
+        await this.enqueue(async () => {
+          // Same one-card invariant as the start path, but `mustKeepOne`:
+          // this path has no round state to build a card from, so ending
+          // everything would leave the user with none until something else
+          // happened to draw one.
+          const plan = reconcileActivities({
+            activeIds: await this.getActiveActivities(),
+            currentId: this.activityId,
+            mustKeepOne: true,
+          });
+          await this.endActivities(plan.endIds);
+          this.activityId = plan.adoptId;
         });
-        await this.endActivities(plan.endIds);
-        this.activityId = plan.adoptId;
       } catch (error) {
         logger.warn("Error syncing activity state:", error);
       }

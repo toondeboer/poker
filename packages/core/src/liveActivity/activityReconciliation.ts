@@ -27,6 +27,20 @@ export type ActivityReconciliationInput = {
   activeIds: readonly string[];
   /** The activity this session believes it owns, if any. */
   currentId: string | null;
+  /**
+   * When true, never reduce to zero: if something is live but none of it is
+   * ours, keep one rather than ending everything and asking for a new card.
+   *
+   * This is for callers that **reconcile without being able to create** — the
+   * foreground sync knows what exists but not what the round currently says, so
+   * ending everything would leave the user with no card until something else
+   * happened to draw one. Any surviving card is refreshed moments later; a
+   * stale card for a moment beats no card for a blind level.
+   *
+   * Callers that hold fresh state and will create immediately leave this false,
+   * so they get a correct new card rather than an arbitrary old one.
+   */
+  mustKeepOne?: boolean;
 };
 
 /**
@@ -38,11 +52,15 @@ export type ActivityReconciliationInput = {
  * 2. **We own nothing and exactly one is live** — adopt it. This is the cold
  *    launch after a force-quit, and adopting avoids ending a perfectly good
  *    card only to immediately draw another one in its place.
- * 3. **We own nothing and several are live** — end all of them and start fresh.
- *    ActivityKit does not document an ordering for its `activities` array, so
- *    there is no basis for picking one as "the newest"; the previous code took
- *    `activeIds[0]`, which could adopt a stale card and end the live one.
- * 4. **Nothing is live** — start fresh.
+ * 3. **We own nothing and several are live** — end all of them and start fresh,
+ *    unless `mustKeepOne` says the caller cannot create one, in which case keep
+ *    the first and end the rest. ActivityKit does not document an ordering for
+ *    its `activities` array, so "the first" carries no meaning and is only ever
+ *    a placeholder to be refreshed — which is why the *default* is to create a
+ *    correct card instead. The previous code always took `activeIds[0]`, and
+ *    could therefore keep a stale card and end the live one.
+ * 4. **Nothing is live** — start fresh. `mustKeepOne` cannot help here; there is
+ *    nothing to keep.
  *
  * A `currentId` that is no longer in `activeIds` is treated as owning nothing:
  * the platform has already ended it.
@@ -50,6 +68,7 @@ export type ActivityReconciliationInput = {
 export const reconcileActivities = ({
   activeIds,
   currentId,
+  mustKeepOne = false,
 }: ActivityReconciliationInput): ActivityReconciliation => {
   const ours = currentId !== null && activeIds.includes(currentId);
 
@@ -63,6 +82,14 @@ export const reconcileActivities = ({
 
   if (activeIds.length === 1) {
     return { adoptId: activeIds[0], endIds: [], createNew: false };
+  }
+
+  if (mustKeepOne && activeIds.length > 1) {
+    return {
+      adoptId: activeIds[0],
+      endIds: activeIds.slice(1),
+      createNew: false,
+    };
   }
 
   return { adoptId: null, endIds: activeIds.slice(), createNew: true };
