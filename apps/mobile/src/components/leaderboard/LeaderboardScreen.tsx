@@ -34,7 +34,9 @@ import { Button } from "@/src/components/ui/Button";
 import { Card, CardContent, CardHeader } from "@/src/components/ui/Card";
 import { IconButton } from "@/src/components/ui/IconButton";
 import { ListRow } from "@/src/components/ui/ListRow";
+import { NavRow } from "@/src/components/ui/NavRow";
 import { TextField } from "@/src/components/ui/TextField";
+import { GroupsSheet } from "./GroupsSheet";
 import { RecordResultSheet } from "./RecordResultSheet";
 
 /** Rendered as "3 wins · 8 games", skipping the parts that are still zero. */
@@ -59,6 +61,8 @@ export function LeaderboardScreen() {
     deleteResult,
     recordResult,
     isLoading,
+    groups,
+    activeGroupName,
   } = useLeaderboard();
 
   // Arriving from the timer's end-of-game prompt opens the sheet straight away.
@@ -69,6 +73,7 @@ export function LeaderboardScreen() {
 
   const [showPaywall, setShowPaywall] = useState(false);
   const [showRecord, setShowRecord] = useState(record === "1");
+  const [showGroups, setShowGroups] = useState(false);
   const [name, setName] = useState("");
 
   const scrollViewRef = useRef<ScrollView>(null);
@@ -137,6 +142,18 @@ export function LeaderboardScreen() {
     ]);
   };
 
+  // The group row is shown even with a single group, so switching boards is
+  // discoverable rather than something you have to already know about. Its
+  // summary carries the count, so a host with one group can see there is
+  // nothing to switch to without opening the sheet — and with no group at all
+  // it says what the row will actually do rather than offering "another" one.
+  const groupSummary =
+    groups.length === 0
+      ? "Tap to name your first group"
+      : groups.length === 1
+        ? "Tap to add another group"
+        : `${groups.length} groups · tap to switch`;
+
   // Nothing renders until the stored leaderboard has landed. Without this the
   // screen is interactive over empty state, and any edit made in that window
   // persists `{players: [], results: []}` straight over a season of game
@@ -157,6 +174,11 @@ export function LeaderboardScreen() {
           }
         />
         <CardContent>
+          <NavRow
+            title={activeGroupName || "Your first group"}
+            summary={groupSummary}
+            onPress={() => setShowGroups(true)}
+          />
           {standings.length === 0 ? (
             <Text style={styles.empty}>
               Add the people you play with, then record a game to start the
@@ -333,6 +355,14 @@ export function LeaderboardScreen() {
         players={players}
         onRecord={recordResult}
       />
+      )}
+      {/* Same reasoning as the record sheet: this sits outside the Pro-gated
+          `content`, so it needs its own check. */}
+      {isPremium && !isLoading && (
+        <GroupsSheet
+          visible={showGroups}
+          onClose={() => setShowGroups(false)}
+        />
       )}
       <Paywall visible={showPaywall} onClose={() => setShowPaywall(false)} />
     </View>

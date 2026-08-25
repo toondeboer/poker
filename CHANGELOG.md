@@ -38,6 +38,12 @@ platform-tagged heading (e.g. `## [1.1.3] - 2026-07-20 — Android`) when you cu
   there are. A real deal has to come from the platform's cryptographic random source, which the
   game will pass in; `@poker/core` deliberately doesn't ship one, since it has no platform to take
   it from and a guess would put a fake in the one place that can't have one.
+- **Multiple leaderboards (Pro).** Keep a separate board for each set of people you play with —
+  the regular Thursday game and the friends you only play with on holiday don't have to share one
+  list of names and one set of standings any more. The leaderboard screen shows which board you're
+  looking at and switches between them in two taps; groups can be renamed, and deleting one asks
+  first and says how many games go with it. Players and games belong to the group they were added
+  to, so nothing bleeds between them.
 - The leaderboard is now stored as **groups** — a board per set of friends rather than one list for
   everybody. A leaderboard that already exists is turned into a group the first time the app opens
   after updating, keeping every player and every game, and it stays the one you are looking at, so

@@ -343,6 +343,13 @@ it**.
 | No prompt with an **empty roster**, or when Pro is locked — the sheet would have nothing to offer | ⬜ | ⬜ |
 | Back from a prompt-opened leaderboard returns to the **timer**, and the header says "Back" | ⬜ | ⬜ |
 | Record sheet: header clears the status bar and the footer clears the keypad (the §5 failure mode) | ⬜ | ⬜ |
+| Group row shows the current board and opens the sheet; switching groups swaps the standings **and** the roster | ⬜ | ⬜ |
+| Creating a group makes it active and empty; the previous group's players and games are untouched when you switch back | ⬜ | ⬜ |
+| Renaming a group in place commits on return **and** when you tap away — a row, another group's buttons, the backdrop, Done — rather than being discarded | ⬜ | ⬜ |
+| An empty or duplicate rename shows the reason under the field **while typing**, and leaves the group's name as it was | ⬜ | ⬜ |
+| Reopening the sheet after a rename doesn't come back mid-edit with the keyboard up | ⬜ | ⬜ |
+| Deleting a group warns how many games go with it, and the board falls back to another group rather than showing nothing | ⬜ | ⬜ |
+| Groups sheet: the rename field isn't covered by the keypad, and the sheet header clears the status bar (the §5 failure mode) | ⬜ | ⬜ |
 | **Upgrading keeps an existing leaderboard.** Record a game on the *previous* build, update, reopen → the same players, games and standings, unchanged | ⬜ | ⬜ |
 | **Share standings** is disabled with nothing to report, and enabled once a game is recorded — including after **removing every player**, which keeps the games but leaves nothing to say | ⬜ | ⬜ |
 | Shared standings text lists only players who have played, ranked, with no markdown characters | ⬜ | ⬜ |
