@@ -12,7 +12,7 @@ export function useNotificationPermission() {
         setIsLoading(true);
         try {
             if (Platform.OS === 'android') {
-                const hasNotificationPermission = await liveActivityService.requestNotificationPermission();
+                const hasNotificationPermission = await liveActivityService.hasNotificationPermission();
                 setHasPermission(hasNotificationPermission);
             } else {
                 // iOS handles Live Activity permissions automatically
@@ -29,18 +29,29 @@ export function useNotificationPermission() {
     const requestPermission = async (): Promise<boolean> => {
         if (Platform.OS === 'android' && Platform.Version >= 33) {
             try {
+                // No `rationale` argument, deliberately: passing one makes
+                // React Native show *its own* Alert before the system sheet
+                // whenever `shouldShowRequestPermissionRationale` is true —
+                // which it is on every launch after the first denial. That's
+                // the "Android asks twice" report. The permission also needs no
+                // explaining: this is a timer whose whole job is to notify you.
                 const granted = await PermissionsAndroid.request(
                     PermissionsAndroid.PERMISSIONS.POST_NOTIFICATIONS,
-                    {
-                        title: 'Notification Permission',
-                        message: 'This app needs notification permission to show timer updates when running in the background.',
-                        buttonNeutral: 'Ask Me Later',
-                        buttonNegative: 'Cancel',
-                        buttonPositive: 'OK',
-                    }
                 );
 
                 const hasPermission = granted === PermissionsAndroid.RESULTS.GRANTED;
+                if (granted === PermissionsAndroid.RESULTS.NEVER_ASK_AGAIN) {
+                    // Android blocks the permission permanently after a second
+                    // denial: every later `request` returns this immediately,
+                    // without showing anything. The foreground service then
+                    // refuses to start, so the background timer and its expiry
+                    // alarm are silently dead. Logged distinctly because
+                    // there is currently no in-app route back — the user has to
+                    // find it in system settings (see ROADMAP.md).
+                    logger.warn(
+                        'POST_NOTIFICATIONS is permanently denied; background timer notifications cannot start until it is re-enabled in system settings',
+                    );
+                }
                 setHasPermission(hasPermission);
                 return hasPermission;
             } catch (error) {
