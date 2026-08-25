@@ -149,7 +149,7 @@ copy below adds the sound-pack mention that was still missing.
   internal description/notes field, match the copy above so the dashboard reads
   the same. No entitlement/offering changes — just the text.
 
-## Release notes — v1.1.5
+## Release notes — v1.2.0
 
 **Both platforms together**, as in 1.1.4.
 
