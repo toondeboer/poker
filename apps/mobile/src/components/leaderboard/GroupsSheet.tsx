@@ -57,7 +57,54 @@ export function GroupsSheet({
 
   const canCreate = isGroupNameAvailable(newName) && canAddGroup;
 
+  /**
+   * Why the name being typed can't be used, or `null`.
+   *
+   * Shown while editing rather than on commit, because a rename has no Save
+   * button — so by the time it is refused the field is gone, and a silent
+   * refusal is indistinguishable from a rename that worked.
+   */
+  const renameProblem = (() => {
+    if (renamingId === null) return null;
+    if (renameValue.trim().length === 0) return "A group needs a name.";
+    if (!isGroupNameAvailable(renameValue, renamingId)) {
+      return "You already have a group with that name.";
+    }
+    return null;
+  })();
+
+  /**
+   * Finish any rename in progress.
+   *
+   * Called from every other action in this sheet, not just from blur. The
+   * sheet's scroll view keeps taps from dismissing the keyboard
+   * (`keyboardShouldPersistTaps="handled"`), so tapping a row, the backdrop, or
+   * another row's buttons never blurs the field — it just unmounts it with the
+   * modal, and the edit is gone. Committing here instead follows the same
+   * commits-on-blur rule the round duration field already uses.
+   */
+  const commitRename = () => {
+    if (!renamingId) return;
+    // A name that can't be used leaves the group exactly as it was. Not silent:
+    // the reason has been under the field the whole time it was being typed.
+    if (isGroupNameAvailable(renameValue, renamingId)) {
+      renameGroupById(renamingId, renameValue);
+    }
+    setRenamingId(null);
+    Keyboard.dismiss();
+  };
+
+  /** Close, finishing a rename rather than throwing it away. */
+  const handleClose = () => {
+    commitRename();
+    // The create field is a different matter: leaving the sheet is not an
+    // instruction to make a group, so it is simply dropped.
+    setNewName("");
+    onClose();
+  };
+
   const handleCreate = () => {
+    commitRename();
     if (!canCreate) return;
     createNewGroup(newName);
     setNewName("");
@@ -68,22 +115,13 @@ export function GroupsSheet({
   };
 
   const startRename = (id: string, current: string) => {
+    commitRename();
     setRenamingId(id);
     setRenameValue(current);
   };
 
-  const commitRename = () => {
-    if (!renamingId) return;
-    // An unusable name leaves the group as it was rather than clearing it —
-    // renameGroup refuses it anyway, and this keeps the two in step.
-    if (isGroupNameAvailable(renameValue, renamingId)) {
-      renameGroupById(renamingId, renameValue);
-    }
-    setRenamingId(null);
-    Keyboard.dismiss();
-  };
-
   const confirmDelete = (id: string, name: string, gameCount: number) => {
+    commitRename();
     const played =
       gameCount > 0
         ? ` Its ${gameCount} recorded ${gameCount === 1 ? "game" : "games"} will be deleted with it.`
@@ -103,7 +141,7 @@ export function GroupsSheet({
   };
 
   return (
-    <Sheet visible={visible} onClose={onClose} title="Groups">
+    <Sheet visible={visible} onClose={handleClose} title="Groups">
       <Text style={styles.blurb}>
         A separate board for each set of people you play with. Players and games
         belong to the group they were added to.
@@ -122,6 +160,7 @@ export function GroupsSheet({
               returnKeyType="done"
               maxLength={40}
               placeholder="Group name"
+              helper={renameProblem ?? undefined}
               accessibilityLabel={`Rename ${group.name}`}
             />
           ) : (
@@ -131,6 +170,7 @@ export function GroupsSheet({
               meta={describeGroup(group.playerCount, group.gameCount)}
               selected={group.id === activeGroupId}
               onPress={() => {
+                commitRename();
                 selectGroup(group.id);
                 onClose();
               }}

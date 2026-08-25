@@ -142,20 +142,23 @@ export function LeaderboardScreen() {
     ]);
   };
 
+  // The group row is shown even with a single group, so switching boards is
+  // discoverable rather than something you have to already know about. Its
+  // summary carries the count, so a host with one group can see there is
+  // nothing to switch to without opening the sheet — and with no group at all
+  // it says what the row will actually do rather than offering "another" one.
+  const groupSummary =
+    groups.length === 0
+      ? "Tap to name your first group"
+      : groups.length === 1
+        ? "Tap to add another group"
+        : `${groups.length} groups · tap to switch`;
+
   // Nothing renders until the stored leaderboard has landed. Without this the
   // screen is interactive over empty state, and any edit made in that window
   // persists `{players: [], results: []}` straight over a season of game
   // nights — the arriving load then repairs the *state* and hides it until the
   // next launch. This is the one store here whose contents can't be retyped.
-  // The group row is shown even with a single group, so switching boards is
-  // discoverable rather than something you have to already know about. Its
-  // summary carries the count so a host with one group can see there is
-  // nothing to switch to without opening the sheet.
-  const groupSummary =
-    groups.length > 1
-      ? `${groups.length} groups · tap to switch`
-      : "Tap to add another group";
-
   const content = isLoading ? null : isPremium ? (
     <>
       <Card>
