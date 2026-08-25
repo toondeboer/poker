@@ -147,6 +147,25 @@ are removed from this file when a release is cut rather than accumulating as ✅
   the root and reformat once, deliberately, or drop the expectation that it passes — the current
   state means "prettier says no" carries no information.
 
+## Android notification permission: no recovery path once blocked
+
+- 🔍 **`showPermissionAlert` is dead code.** `useNotificationPermission` defines it, `TimerContext`
+  threads it through the context value, and **nothing calls it** — so the one piece of UI that would
+  send a user to system settings never runs.
+- The state it exists for is reachable: Android permanently blocks `POST_NOTIFICATIONS` after a
+  second denial, after which every `PermissionsAndroid.request` returns `never_ask_again`
+  immediately with no dialog. `ForegroundServiceModule.startService` then rejects with
+  `PERMISSION_DENIED`, `LiveActivityService.isEnabled()` is false forever, and the background timer
+  notification and its expiry alarm silently never fire. The app's only reaction is a `logger.warn`.
+- **Not caused by dropping the permission rationale**, though that made the blocked state easier to
+  reach. RN's rationale alert resolved `DENIED` in JS without calling the OS when the user picked
+  "Cancel"/"Ask Me Later", so it burned no denial on *that* path — but a user who tapped OK and then
+  denied hit the same block, and everyone paid a permanent double dialog for the partial protection.
+- **What it wants is not a launch-time modal.** A blocked user would see it on every cold launch,
+  since the request returns instantly. The right shape is a persistent, dismissible row in Settings
+  ("Notifications are blocked — open settings"), shown only while the permission is actually denied.
+  That's UI work needing a layout pass, which is why it isn't bundled into the dialog fix.
+
 ## Parked: Live Activity / foreground service controls
 
 > **Descoped in 1.1.4, before ever shipping.** Pause/Resume/Stop buttons were built on both the

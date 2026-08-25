@@ -40,6 +40,18 @@ export function useNotificationPermission() {
                 );
 
                 const hasPermission = granted === PermissionsAndroid.RESULTS.GRANTED;
+                if (granted === PermissionsAndroid.RESULTS.NEVER_ASK_AGAIN) {
+                    // Android blocks the permission permanently after a second
+                    // denial: every later `request` returns this immediately,
+                    // without showing anything. The foreground service then
+                    // refuses to start, so the background timer and its expiry
+                    // alarm are silently dead. Logged distinctly because
+                    // there is currently no in-app route back — the user has to
+                    // find it in system settings (see ROADMAP.md).
+                    logger.warn(
+                        'POST_NOTIFICATIONS is permanently denied; background timer notifications cannot start until it is re-enabled in system settings',
+                    );
+                }
                 setHasPermission(hasPermission);
                 return hasPermission;
             } catch (error) {
