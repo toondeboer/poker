@@ -153,12 +153,13 @@ copy below adds the sound-pack mention that was still missing.
 
 **Both platforms together**, as in 1.1.4.
 
-Unlike 1.1.4, this release **does** add behind the paywall: Payouts and the Leaderboard are both
-Pro. That means the long description and the Pro feature lists in both stores need updating too —
-the in-app paywall was already missing them, which is exactly the mistake to avoid repeating in the
-store copy. See `ROADMAP.md`'s Play listing item.
+Unlike 1.1.4, this release **does** add behind the paywall — payouts, the chop calculator, the
+leaderboard and sharing are all Pro. The long description and the Pro feature lists in both stores
+need updating too, not just these notes: the in-app paywall was found still selling the 1.1.4
+feature set during this cycle, and the store copy has exactly the same failure mode one level out.
+See `ROADMAP.md`'s Play listing item.
 
-The **website** has not been updated for these features yet; keep store copy and landing-page copy
+The **website** has not been updated for these features yet. Keep store copy and landing-page copy
 describing the same app, so do that before or alongside submission.
 
 ### iOS — "What's New in This Version" (App Store Connect)
@@ -167,34 +168,37 @@ describing the same app, so do that before or alongside submission.
 `•` (U+2022), which is punctuation rather than emoji and renders everywhere.
 
 ```
-• New Payouts screen (Pro). Set a buy-in and see exactly what each place wins, with optional knockout bounties taken out of the buy-in rather than added on top. Payouts round to notes you can actually hand over, and the table always adds up to the prize pool.
+• New Payouts screen (Pro). Set a buy-in and see exactly what each place wins, with optional knockout bounties taken out of the buy-in rather than added on top. Rebuys and add-ons are counted too, and the table always adds up to the prize pool.
 
-• New Leaderboard (Pro). Keep score across game nights — who has won the most, who turns up, and what everyone has taken home. It all stays on your device: no accounts, nothing to sign up for.
+• Chop the remaining money (Pro). When the players still in agree to end it there, everyone left keeps the lowest prize still live and whatever is above that is split by chip stack — so nobody ends up below the place they had already locked up.
 
-• Recording a game takes two taps per player. Mark who bought in, tap them in finishing order, and the winnings fill themselves in from your payout setup.
+• New Leaderboard (Pro). Keep score across game nights: who has won the most, who turns up, and what everyone has taken home. It all stays on your device, with no accounts and nothing to sign up for.
 
-• Reset the timer after a game and the app offers to add the result to your leaderboard.
+• Recording a game takes two taps per player. Mark who bought in, tap them in finishing order, and the winnings fill themselves in from your payout setup. Reset the timer after a game and the app offers to record it for you.
+
+• Share the payouts or the standings straight to your group chat.
 
 • Sheets no longer stretch the full width of a tablet, and the generator's header stays clear of the status bar with the keypad up.
 
 Thanks for playing — feedback always welcome.
 ```
-`879` chars.
+`1164` chars.
 
 ### Android — "Release notes" (Play Console, ≤500 chars per language)
 ```
-💰 New Payouts screen (Pro): set a buy-in and see what every place wins, with optional knockout bounties. Rounded to notes you can actually hand over, and it always adds up.
-🏆 New Leaderboard (Pro): track who wins across game nights. Stays on your device — no accounts.
-✌️ Recording a game is two taps per player; winnings fill in from your payout setup.
-⏱️ Reset after a game and the app offers to record it.
+💰 Payouts (Pro): set a buy-in and see what every place wins — bounties, rebuys and add-ons included, and it always adds up.
+🤝 Chop (Pro): split the money left fairly when you agree to end it early.
+🏆 Leaderboard (Pro): track who wins across game nights. Stays on your device.
+📤 Share payouts or standings straight to your group chat.
 📐 Sheets no longer run full-width on tablets.
 ```
-`454` chars — fits the 500-char Play Console limit. Re-count in the console before
-saving, since emoji and locale can shift it.
+`379` chars — fits the 500-char Play Console limit. Re-count in the
+console before saving, since emoji and locale can shift it.
 
 **Deliberately not mentioned:** the record-a-game prompt only appears once the blinds have moved on
-from level 1, and only with Pro unlocked and players on the roster. That nuance belongs in the app,
-not in 500 characters of store copy.
+from level 1, and only with Pro unlocked and players on the roster; and the chop is only offered
+while more than one place is paid. Those nuances belong in the app, not in 500 characters of store
+copy.
 
 ---
 
