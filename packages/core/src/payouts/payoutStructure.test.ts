@@ -240,6 +240,80 @@ describe("computePayouts", () => {
   });
 });
 
+describe("rebuys and add-ons", () => {
+  it("a rebuy is another buy-in: it grows the pool and the bounties", () => {
+    const plain = structure({ buyIn: 20, entrants: 10, bounty: 5 });
+    const withRebuys = structure({
+      buyIn: 20,
+      entrants: 10,
+      bounty: 5,
+      rebuys: 4,
+    });
+    expect(withRebuys.totalEntries).toBe(14);
+    expect(withRebuys.totalCollected).toBe(280);
+    expect(withRebuys.prizePool).toBe(plain.prizePool + 4 * 15);
+    // A rebuy re-arms that player's bounty, so bounty money grows too.
+    expect(withRebuys.bountyPool).toBe(plain.bountyPool + 4 * 5);
+  });
+
+  it("does not pay more places just because there were rebuys", () => {
+    // Thirteen players with five rebuys is still thirteen people to pay.
+    const withRebuys = structure({ buyIn: 20, entrants: 13, rebuys: 5 });
+    expect(withRebuys.payouts).toHaveLength(defaultPaidPlaces(13));
+  });
+
+  it("puts add-on money entirely in the prize pool, never the bounties", () => {
+    const withAddOns = structure({
+      buyIn: 20,
+      entrants: 10,
+      bounty: 5,
+      addOns: 6,
+      addOnPrice: 10,
+    });
+    expect(withAddOns.addOnPool).toBe(60);
+    // Bounties are unchanged by add-ons: an add-on buys chips, not a bounty.
+    expect(withAddOns.bountyPool).toBe(50);
+    expect(withAddOns.prizePool).toBe(10 * 15 + 60);
+    expect(withAddOns.totalCollected).toBe(260);
+  });
+
+  it("ignores an add-on price when no add-ons were sold", () => {
+    const result = structure({
+      buyIn: 20,
+      entrants: 8,
+      addOns: 0,
+      addOnPrice: 999,
+    });
+    expect(result.addOnPool).toBe(0);
+    expect(result.totalCollected).toBe(160);
+  });
+
+  it("defaults both to zero, leaving the plain case untouched", () => {
+    const plain = structure({ buyIn: 20, entrants: 9 });
+    expect(plain.totalEntries).toBe(9);
+    expect(plain.addOnPool).toBe(0);
+    expect(plain.totalCollected).toBe(180);
+  });
+
+  it.each([
+    [{ buyIn: 20, entrants: 8, rebuys: -1 }, "rebuys-negative"],
+    [{ buyIn: 20, entrants: 8, addOns: -1 }, "add-ons-negative"],
+    [
+      { buyIn: 20, entrants: 8, addOns: 3, addOnPrice: 0 },
+      "add-on-price-not-positive",
+    ],
+  ])("rejects %o as %s", (options, expected) => {
+    expect(validatePayoutOptions(options as PayoutOptions)).toBe(expected);
+    expect(computePayouts(options as PayoutOptions)).toBeNull();
+  });
+
+  it("accepts an unused add-on price sitting at zero", () => {
+    expect(
+      validatePayoutOptions({ buyIn: 20, entrants: 8, addOnPrice: 0 }),
+    ).toBeNull();
+  });
+});
+
 describe("every paid place actually wins something", () => {
   it("never announces a place that pays nothing", () => {
     // The sum invariant below is satisfied perfectly by handing someone 0,
@@ -296,18 +370,32 @@ describe("the payout table always sums to the prize pool", () => {
         for (const denomination of [1, 5, 10, 25]) {
           for (const bounty of [0, 1, Math.floor(buyIn / 4)]) {
             if (bounty >= buyIn) continue;
-            const result = structure({
-              buyIn,
-              entrants,
-              bounty,
-              denomination,
-            });
-            expect(sum(result.payouts.map((p) => p.amount))).toBe(
-              result.prizePool,
-            );
-            expect(result.prizePool + result.bountyPool).toBe(
-              result.totalCollected,
-            );
+            for (const [rebuys, addOns] of [
+              [0, 0],
+              [3, 0],
+              [0, 4],
+              [2, 5],
+            ]) {
+              const result = structure({
+                buyIn,
+                entrants,
+                bounty,
+                denomination,
+                rebuys,
+                addOns,
+                addOnPrice: 10,
+              });
+              expect(sum(result.payouts.map((p) => p.amount))).toBe(
+                result.prizePool,
+              );
+              expect(result.prizePool + result.bountyPool).toBe(
+                result.totalCollected,
+              );
+              expect(result.totalEntries).toBe(entrants + rebuys);
+              for (const payout of result.payouts) {
+                expect(payout.amount).toBeGreaterThan(0);
+              }
+            }
           }
         }
       }

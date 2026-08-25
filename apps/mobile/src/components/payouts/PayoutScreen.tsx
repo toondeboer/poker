@@ -49,6 +49,10 @@ const VALIDATION_MESSAGE: Record<PayoutValidationError, string> = {
   "bounty-negative": "A bounty can't be negative.",
   "bounty-not-below-buy-in":
     "The bounty has to be smaller than the buy-in — it comes out of it, so an equal bounty leaves nothing to win.",
+  "rebuys-negative": "Rebuys can't be negative.",
+  "add-ons-negative": "Add-ons can't be negative.",
+  "add-on-price-not-positive":
+    "Set what an add-on costs, or put the add-on count back to 0.",
 };
 
 export function PayoutScreen() {
@@ -153,6 +157,29 @@ export function PayoutScreen() {
             }
           />
           <NumberField
+            label="Rebuys"
+            value={settings.rebuys}
+            onChangeValue={(rebuys) => update({ rebuys })}
+            min={0}
+            helper="How many times players bought back in. Each one costs the buy-in and splits the same way."
+          />
+          <NumberField
+            label="Add-ons"
+            value={settings.addOns}
+            onChangeValue={(addOns) => update({ addOns })}
+            min={0}
+            helper="Extra chips bought at the break. All of it goes to the prize pool — an add-on doesn't create a new bounty."
+          />
+          {settings.addOns > 0 && (
+            <NumberField
+              label="Add-on price"
+              value={settings.addOnPrice}
+              onChangeValue={(addOnPrice) => update({ addOnPrice })}
+              min={0}
+              helper="Often less than the buy-in."
+            />
+          )}
+          <NumberField
             label="Bounty per knockout"
             value={settings.bounty}
             onChangeValue={(bounty) => update({ bounty })}
@@ -240,13 +267,37 @@ export function PayoutScreen() {
               <View style={styles.list}>
                 <ListRow
                   title="Collected"
-                  meta={`${settings.entrants} × ${settings.buyIn}`}
+                  meta={
+                    structure.addOnPool > 0
+                      ? `${structure.totalEntries} × ${settings.buyIn} + ${settings.addOns} × ${settings.addOnPrice}`
+                      : `${structure.totalEntries} × ${settings.buyIn}`
+                  }
                   right={
                     <Text style={styles.amount}>
                       {structure.totalCollected}
                     </Text>
                   }
                 />
+                {settings.rebuys > 0 && (
+                  <ListRow
+                    title="Entries"
+                    meta={`${settings.entrants} players + ${settings.rebuys} ${settings.rebuys === 1 ? "rebuy" : "rebuys"} — still ${structure.payouts.length} paid`}
+                    right={
+                      <Text style={styles.amount}>
+                        {structure.totalEntries}
+                      </Text>
+                    }
+                  />
+                )}
+                {structure.addOnPool > 0 && (
+                  <ListRow
+                    title="Add-ons"
+                    meta={`${settings.addOns} × ${settings.addOnPrice}, all to the prize pool`}
+                    right={
+                      <Text style={styles.amount}>{structure.addOnPool}</Text>
+                    }
+                  />
+                )}
                 <ListRow
                   title="Prize pool"
                   meta="Split across the places above"

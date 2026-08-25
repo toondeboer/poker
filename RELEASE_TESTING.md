@@ -186,7 +186,7 @@ or a number field is touched.
 | Scrolling **keeps the keypad up** — generator sheet | ⬜ | ⬜ |
 | Scrolling **keeps the keypad up** — blind structure editor | ⬜ | ⬜ |
 | Generator sheet fields usable with the keyboard up — sheet resizes *and* scrolls, top not pushed off-screen | ⬜ | ⬜ |
-| Payouts: focus the **Bounty** field — lowest of the three, so it's the one Android's edge-to-edge would leave under the keypad | ⬜ | ⬜ |
+| Payouts: focus the **Bounty** field — now the lowest of six, so it's the one Android's edge-to-edge would leave under the keypad | ⬜ | ⬜ |
 | Leaderboard: focus **Add a player** with the roster long enough to scroll — field stays visible | ⬜ | ⬜ |
 
 ---
@@ -301,7 +301,9 @@ Set `FORCE_PRO_IN_DEV` in `PremiumContext.tsx` to see the unlocked screen withou
 | | iOS | Android |
 |---|---|---|
 | Locked state: Settings row shows the Pro pill, the screen still opens and offers the unlock | ✅ | ⬜ |
-| Buy-in / Players / Bounty accept typing and a **cleared field doesn't show a literal `0`** | ⬜ | ⬜ |
+| Buy-in / Players / Rebuys / Add-ons / Bounty accept typing and a **cleared field doesn't show a literal `0`** | ⬜ | ⬜ |
+| **Add-on price** appears only once Add-ons is above 0, and disappears again at 0 | ⬜ | ⬜ |
+| Rebuys grow the pool but **not** the paid-place count — "8 players + 4 rebuys — still 3 paid" | ⬜ | ⬜ |
 | Payout rows and "Where it comes from" reconcile on screen: prize pool + bounties = collected | ⬜ | ⬜ |
 | A bounty **equal to or above** the buy-in explains itself instead of showing an empty table | ⬜ | ⬜ |
 | Pinning a place count overrides Auto; switching back to Auto follows the field again | ⬜ | ⬜ |
