@@ -38,6 +38,20 @@ platform-tagged heading (e.g. `## [1.1.3] - 2026-07-20 — Android`) when you cu
   there are. A real deal has to come from the platform's cryptographic random source, which the
   game will pass in; `@poker/core` deliberately doesn't ship one, since it has no platform to take
   it from and a guess would put a fake in the one place that can't have one.
+- Groundwork for **poker groups** in `@poker/core` — a separate board for each set of friends you
+  play with, instead of one list for everybody. Nothing user-facing yet. The important decision is
+  that a group's roster is *people*, not accounts: someone who turns up to one game night on holiday
+  and will never install anything still belongs on the board, so a name is all that is needed and
+  signing in is an optional extra on top. Modelling it the other way round would mean nobody can be
+  scored until they have downloaded the app, which is backwards for a game played in someone's
+  kitchen. Because every recorded game refers to the person rather than to an account, **signing up
+  later never rewrites anything**: you claim the name you have been playing under and every night
+  you were ever part of is already yours. Two things are refused rather than guessed at — a person
+  somebody else has already claimed, and holding two seats in the same group, since one person is
+  one seat and holding two would double-count their nights. Claiming can also be undone, so a
+  mistake doesn't mean rebuilding the group. An existing single board becomes a group when the time
+  comes, keeping every player and every game, and someone who never used the leaderboard gets no
+  group at all rather than an empty one to delete.
 - A whole hand of Texas hold'em in `@poker/core` — the piece that joins the others up. Nothing
   user-facing yet, but this is the first time the cards, the betting and the pots play a hand from
   the shuffle to the chips being pushed. It deals, posts the blinds, runs each street, deals the

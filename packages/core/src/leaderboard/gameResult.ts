@@ -11,10 +11,24 @@
  * `now`, since there's no clock or crypto in here.
  */
 
-/** Someone who plays in this group. A name is all the app ever knows. */
+/**
+ * Someone who plays in this group.
+ *
+ * **A player is not an account.** Most people at a home game will never install
+ * anything — someone who turns up once on holiday still belongs on the board —
+ * so a name is all this needs, and `accountId` is the optional extra for the
+ * ones who do sign in. Modelling it the other way round, with accounts as the
+ * roster, would mean nobody can be scored until they have downloaded the app.
+ *
+ * Because every {@link Placing} and {@link GameResult} refers to `id` and never
+ * to an account, attaching one later **never rewrites history**: the account
+ * simply inherits everything that player has already done.
+ */
 export type Player = {
   id: string;
   name: string;
+  /** The account that has claimed this player, if any. */
+  accountId?: string;
 };
 
 /** One player's paid finish in a game. */
@@ -57,9 +71,14 @@ export type GameResult = {
 export const MAX_GAME_RESULTS = 200;
 export const MAX_PLAYERS = 50;
 
-export const createPlayer = (params: { id: string; name: string }): Player => ({
+export const createPlayer = (params: {
+  id: string;
+  name: string;
+  accountId?: string;
+}): Player => ({
   id: params.id,
   name: params.name.trim(),
+  ...(params.accountId === undefined ? {} : { accountId: params.accountId }),
 });
 
 /**
