@@ -21,6 +21,10 @@ export type Card = {
   suit: Suit;
 };
 
+/** Position of each suit in a four-bit mask. Order is arbitrary — poker has no
+ * suit ranking — and exists only so a hand can be summarised as bits. */
+export const SUIT_INDEX: Record<Suit, number> = { c: 0, d: 1, h: 2, s: 3 };
+
 export const MIN_RANK = 2;
 export const MAX_RANK = 14;
 export const DECK_SIZE = 52;
@@ -30,10 +34,26 @@ export const DECK_SIZE = 52;
 export type RandomSource = () => number;
 
 /**
- * A small deterministic PRNG (mulberry32). Not cryptographic — for a real deal
- * the server must seed from a cryptographic source and keep the seed secret
- * until the hand is over. What this provides is *reproducibility*: the same
- * seed always yields the same shuffle, so a hand can be replayed exactly.
+ * A small deterministic PRNG (mulberry32), **for tests and replay only**.
+ *
+ * **Never deal a real hand from this, however the seed was chosen.** It carries
+ * 32 bits of state, so the entire seed space is about four billion shuffles —
+ * sweepable in roughly fifteen minutes on one core. An opponent who sees their
+ * own two cards and the flop has enough information to narrow 2^32 seeds to a
+ * handful of candidates, and the turn pins it exactly; from there they know the
+ * river and everybody's hole cards. Choosing the seed with a cryptographic
+ * source does not help: the weakness is the *size* of the space, not how the
+ * seed was picked. For the same reason a commit-reveal scheme over a 32-bit
+ * seed proves nothing, because the commitment can be brute-forced before the
+ * reveal.
+ *
+ * A real dealer must draw its shuffle from a CSPRNG — `crypto.getRandomValues`
+ * on the platform hosting the game — passed in as a {@link RandomSource}. This
+ * module deliberately does not provide one: `@poker/core` has no platform to
+ * get it from, and guessing would put a fake in the one place it must not be.
+ *
+ * What this *is* good for is reproducibility: the same seed always yields the
+ * same shuffle, so a hand can be replayed exactly in a test.
  */
 export const createRandom = (seed: number): RandomSource => {
   let state = seed >>> 0;
@@ -68,7 +88,12 @@ export const createDeck = (): Card[] => {
 export const shuffle = <T>(items: readonly T[], random: RandomSource): T[] => {
   const result = items.slice();
   for (let i = result.length - 1; i > 0; i--) {
-    const j = Math.floor(random() * (i + 1));
+    // Clamped because `random` is injected and the contract is [0, 1), not
+    // [0, 1]. A source returning exactly 1.0 — which the obvious
+    // `getRandomValues(u32)[0] / (2 ** 32 - 1)` adapter does — would otherwise
+    // index past the end on the first pass, leaving a hole in the deck and a
+    // 53rd entry. Cheaper to clamp than to trust every future caller.
+    const j = Math.min(i, Math.floor(random() * (i + 1)));
     const swap = result[i];
     result[i] = result[j];
     result[j] = swap;

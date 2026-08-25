@@ -106,6 +106,23 @@ describe("shuffle", () => {
     expect(pinned).toEqual([]);
   });
 
+  it("survives a source that returns exactly 1.0", () => {
+    // The contract is [0, 1), but `random` is injected and the obvious
+    // crypto adapter — getRandomValues(u32)[0] / (2 ** 32 - 1) — hits 1.0
+    // roughly once in four billion. Unclamped, that indexes past the end:
+    // a card slot becomes undefined and the deck grows to 53.
+    const alwaysOne = () => 1;
+    const result = shuffle(createDeck(), alwaysOne);
+    expect(result).toHaveLength(DECK_SIZE);
+    expect(result.every((card) => card !== undefined)).toBe(true);
+    expect(new Set(result.map(cardToString)).size).toBe(DECK_SIZE);
+  });
+
+  it("survives a source pinned at 0", () => {
+    const result = shuffle(createDeck(), () => 0);
+    expect(new Set(result.map(cardToString)).size).toBe(DECK_SIZE);
+  });
+
   it("handles the degenerate sizes", () => {
     expect(shuffle([], createRandom(1))).toEqual([]);
     expect(shuffle(["only"], createRandom(1))).toEqual(["only"]);

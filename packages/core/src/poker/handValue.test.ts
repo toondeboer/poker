@@ -56,6 +56,25 @@ describe("evaluateFive — categories", () => {
     expect(() => evaluateFive(hand("Ah Kc Qd Js"))).toThrow(/5 cards, got 4/);
     expect(() => evaluateFive(hand("Ah Kc Qd Js Ts 9h"))).toThrow(/got 6/);
   });
+
+  it("rejects the same card twice rather than scoring it as a pair", () => {
+    // Without this, Ah Ah reads as a pair of aces: a plausible number, and a
+    // plausible wrong number is what quietly loses somebody a pot.
+    expect(() => evaluateFive(hand("Ah Ah Kc Qd Js"))).toThrow(
+      /same card twice: Ah/,
+    );
+  });
+
+  it("rejects five of a kind, which used to score as nothing at all", () => {
+    // Five cards of one rank means at least one duplicate, so this is caught
+    // by the same guard — previously it fell through the count loop (which
+    // only runs 4 down to 1) and silently returned a value of 0.
+    expect(() => evaluateFive(hand("Ah Ah Ah Ah Ah"))).toThrow(/same card twice/);
+  });
+
+  it("still accepts four of a kind, which is the legitimate limit", () => {
+    expect(categoryOf("9h 9c 9d 9s 2c")).toBe("four-of-a-kind");
+  });
 });
 
 describe("evaluateFive — ordering", () => {

@@ -14,7 +14,14 @@
  * category needs fewer than five. Ranks run 2..14, so each fits in four bits.
  */
 
-import { MAX_RANK, MIN_RANK, type Card, type Rank } from "./cards";
+import {
+  MAX_RANK,
+  MIN_RANK,
+  SUIT_INDEX,
+  cardToString,
+  type Card,
+  type Rank,
+} from "./cards";
 
 export const HAND_CATEGORIES = [
   "high-card",
@@ -48,8 +55,12 @@ const CATEGORY_INDEX: Record<HandCategory, number> = {
   "straight-flush": 8,
 };
 
-/** Index one past the highest rank, so a presence array covers 0..14. */
+/** Index one past the highest rank, so a per-rank array covers 0..14. */
 const RANK_SLOTS = 15;
+
+/** Set bits in a four-bit suit mask — i.e. how many of that rank are held. A
+ * table rather than a loop because this sits in the hot path. */
+const POPCOUNT_4 = [0, 1, 1, 2, 1, 2, 2, 3, 1, 2, 2, 3, 2, 3, 3, 4];
 
 export const packHandValue = (
   category: HandCategory,
@@ -74,11 +85,12 @@ export const handCategory = (value: HandValue): HandCategory =>
  * and it is the *lowest* one, scored as five-high — so the ace is treated as
  * present at both 14 and 1, and the downward scan finds the wheel last.
  *
- * Takes the counts array rather than the cards so the caller can build it once.
+ * Takes the per-rank suit masks rather than the cards, so the caller builds
+ * them once and every use reads the same array.
  */
-const straightHigh = (countByRank: readonly number[]): Rank => {
+const straightHigh = (suitsByRank: readonly number[]): Rank => {
   const has = (rank: number) =>
-    rank === 1 ? countByRank[MAX_RANK] > 0 : countByRank[rank] > 0;
+    rank === 1 ? suitsByRank[MAX_RANK] > 0 : suitsByRank[rank] > 0;
 
   for (let high = MAX_RANK; high >= 5; high--) {
     if (
@@ -114,11 +126,22 @@ export const evaluateFive = (cards: readonly Card[]): HandValue => {
     );
   }
 
-  const countByRank = new Array<number>(RANK_SLOTS).fill(0);
+  // One four-bit suit mask per rank. This does the work three separate things
+  // would otherwise need — how many of each rank, whether it is a flush, and
+  // whether the same card arrived twice — from a single array and a single
+  // pass, which is what keeps the whole-deck frequency test affordable.
+  const suitsByRank = new Array<number>(RANK_SLOTS).fill(0);
   const firstSuit = cards[0].suit;
   let isFlush = true;
   for (const card of cards) {
-    countByRank[card.rank]++;
+    const bit = 1 << SUIT_INDEX[card.suit];
+    if ((suitsByRank[card.rank] & bit) !== 0) {
+      // The length guard's own reasoning applies here: a duplicate would score
+      // as a plausible-looking hand — two of the same ace reads as a pair —
+      // and a plausible wrong number is what quietly loses somebody a pot.
+      throw new Error(`evaluateFive got the same card twice: ${cardToString(card)}`);
+    }
+    suitsByRank[card.rank] |= bit;
     if (card.suit !== firstSuit) isFlush = false;
   }
 
@@ -132,14 +155,14 @@ export const evaluateFive = (cards: readonly Card[]): HandValue => {
   let shape = 0;
   for (let count = HAND_SIZE - 1; count >= 1; count--) {
     for (let rank = MAX_RANK; rank >= MIN_RANK; rank--) {
-      if (countByRank[rank] === count) {
+      if (POPCOUNT_4[suitsByRank[rank]] === count) {
         byCount.push(rank);
         shape = shape * 10 + count;
       }
     }
   }
 
-  const high = straightHigh(countByRank);
+  const high = straightHigh(suitsByRank);
 
   if (isFlush && high) return packHandValue("straight-flush", [high]);
   if (shape === 41) return packHandValue("four-of-a-kind", byCount);

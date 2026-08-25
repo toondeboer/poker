@@ -7,6 +7,8 @@ import { HAND_CATEGORIES, evaluateFive, handCategory } from "./handValue";
  * published frequencies.
  *
  * **This is the evaluator's correctness proof**, and it is worth its runtime.
+ * It checks two independent things in one pass: which category every hand
+ * lands in, and how many genuinely different values each category holds.
  * Example-based tests show that the hands someone thought of are scored right;
  * this shows that all 2,598,960 of them are, because getting any single hand
  * into the wrong category moves two of these counts. A wheel mis-detected, an
@@ -42,10 +44,39 @@ const EXPECTED_FREQUENCY: Record<string, number> = {
 
 const TOTAL_FIVE_CARD_HANDS = 2598960;
 
+/**
+ * How many *distinct* packed values each category should produce.
+ *
+ * The frequency counts above prove that every hand lands in the right
+ * category. They say nothing about the kickers — a packing that collapsed
+ * two different two-pair hands onto one value, or spread one hand across two,
+ * would leave every frequency untouched. These counts close that gap: they are
+ * the number of genuinely different hands in each category, so they check the
+ * kicker ordering and the bit layout across the whole deck as well.
+ *
+ * They are the standard equivalence-class counts, e.g. 13 x C(12,3) = 2860 for
+ * one pair, C(13,2) x 11 = 858 for two pair, 13 x 12 = 156 for a full house.
+ * Summed: the well-known 7,462 distinct five-card hand values.
+ */
+const EXPECTED_DISTINCT_VALUES: Record<string, number> = {
+  "high-card": 1277,
+  pair: 2860,
+  "two-pair": 858,
+  "three-of-a-kind": 858,
+  straight: 10,
+  flush: 1277,
+  "full-house": 156,
+  "four-of-a-kind": 156,
+  "straight-flush": 10,
+};
+
+const TOTAL_DISTINCT_VALUES = 7462;
+
 describe("hand frequencies across the whole deck", () => {
   it("matches the published five-card frequencies exactly", () => {
     const deck = createDeck();
     const counts = new Map<string, number>();
+    const distinct = new Map<string, Set<number>>();
     const hand = new Array(5);
     let total = 0;
 
@@ -59,8 +90,12 @@ describe("hand frequencies across the whole deck", () => {
             hand[3] = deck[d];
             for (let e = d + 1; e < 52; e++) {
               hand[4] = deck[e];
-              const category = handCategory(evaluateFive(hand));
+              const value = evaluateFive(hand);
+              const category = handCategory(value);
               counts.set(category, (counts.get(category) ?? 0) + 1);
+              const seen = distinct.get(category);
+              if (seen) seen.add(value);
+              else distinct.set(category, new Set([value]));
               total++;
             }
           }
@@ -72,6 +107,18 @@ describe("hand frequencies across the whole deck", () => {
     expect(
       Object.fromEntries(HAND_CATEGORIES.map((c) => [c, counts.get(c) ?? 0])),
     ).toEqual(EXPECTED_FREQUENCY);
+
+    expect(
+      Object.fromEntries(
+        HAND_CATEGORIES.map((c) => [c, distinct.get(c)?.size ?? 0]),
+      ),
+    ).toEqual(EXPECTED_DISTINCT_VALUES);
+
+    const allValues = new Set<number>();
+    for (const values of distinct.values()) {
+      for (const value of values) allValues.add(value);
+    }
+    expect(allValues.size).toBe(TOTAL_DISTINCT_VALUES);
     // Generous on purpose: see the note above. This is a fixed amount of work,
     // so a run that needs more than a minute means something is badly wrong
     // rather than merely slow.
