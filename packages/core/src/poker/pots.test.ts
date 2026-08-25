@@ -66,6 +66,27 @@ describe("buildPots", () => {
     expect(totalPotAmount(pots)).toBe(250);
   });
 
+  it("gives dead money to whoever is left when there is no earlier pot", () => {
+    // a is still in the hand having committed nothing; b put money in and
+    // folded. There is no earlier pot to fold the dead money into, so a — the
+    // last player standing — takes it. Losing it here would be 100 chips
+    // leaving the table.
+    const pots = buildPots([player("a", 0), player("b", 100, true)]);
+    expect(pots).toEqual([{ amount: 100, eligiblePlayerIds: ["a"] }]);
+    expect(awardPots(pots, ranking(["a"]), ["a", "b"])).toEqual([
+      { playerId: "a", amount: 100 },
+    ]);
+  });
+
+  it("rejects fractional or negative chips instead of rounding them away", () => {
+    // Contributions come from the engine, not from a text field, so a
+    // fractional chip is a bug rather than input to be sanitised.
+    expect(() => buildPots([player("a", 10.5)])).toThrow(
+      /a's contribution must be a whole number of chips, got 10.5/,
+    );
+    expect(() => buildPots([player("a", -5)])).toThrow(/got -5/);
+  });
+
   it("still reports a pot nobody can win when literally everyone folded", () => {
     // Degenerate, and also unreachable — the last aggressor wins uncontested —
     // but there is no sensible owner to hand it to, so it is surfaced rather
@@ -144,9 +165,11 @@ describe("buildPots — invariants", () => {
           player(`p${i}`, Math.floor(random() * 100), random() < 0.25),
         );
       }
-      const anyoneLeft = contributions.some(
-        (c) => !c.folded && c.contributed > 0,
-      );
+      // Deliberately NOT `&& c.contributed > 0`: a live player who has
+      // committed nothing is still in the hand and can still win the pot.
+      // Defining it the other way is what hid a bug where a lone unwinnable
+      // pot silently dropped its chips.
+      const anyoneLeft = contributions.some((c) => !c.folded);
       for (const pot of buildPots(contributions)) {
         if (pot.amount <= 0) failures.push(`pot of ${pot.amount}`);
         if (anyoneLeft && pot.eligiblePlayerIds.length === 0) {
@@ -238,6 +261,23 @@ describe("awardPots", () => {
     ]);
   });
 
+  it("rejects a fractional pot rather than inventing a chip", () => {
+    // 10.5 split two ways paid 6 + 5 = 11 before this guard.
+    expect(() =>
+      awardPots([{ amount: 10.5, eligiblePlayerIds: ["a", "b"] }], ranking(["a", "b"]), ["a", "b"]),
+    ).toThrow(/pot amount must be a whole number of chips/);
+  });
+
+  it("stays order-independent even when nobody is in the seating", () => {
+    // Both winners unknown to `oddChipOrder` compare equal on seat, and a
+    // stable sort would then follow the caller's list order — the exact
+    // order-dependence this module claims not to have.
+    const pots = [{ amount: 3, eligiblePlayerIds: ["a", "b"] }];
+    expect(awardPots(pots, ranking(["a", "b"]), [])).toEqual(
+      awardPots(pots, ranking(["b", "a"]), []),
+    );
+  });
+
   it("puts a winner missing from the seating last for odd chips", () => {
     // Defensive: a caller that forgets a seat should lose the tie-break, not
     // the chip. "b" is unknown to the seating and so sorts behind "a".
@@ -254,8 +294,11 @@ describe("awardPots — invariants", () => {
   const scenario = (random: () => number) => {
     const size = 2 + Math.floor(random() * 7);
     const ids = Array.from({ length: size }, (_, i) => `p${i}`);
+    // Contributions start at 0, not 1, on purpose: a live player who has
+    // committed nothing is the case that hid the lone-unwinnable-pot bug, and
+    // a generator that can't produce it can't catch it.
     const contributions = ids.map((id) =>
-      player(id, 1 + Math.floor(random() * 150), random() < 0.3),
+      player(id, Math.floor(random() * 150), random() < 0.3),
     );
     // Somebody always survives the hand: a pot with nobody left to win it is
     // unreachable in real play, and has no defined payout.

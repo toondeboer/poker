@@ -14,6 +14,19 @@
  *   array position, and there is a test that permutes everything to prove it.
  */
 
+/**
+ * Chips are whole. A fractional or negative amount here is a bug upstream, not
+ * user input — unlike `payouts`, which sanitises because it reads a text field
+ * — so this rejects rather than rounding. Silently flooring would turn a
+ * programming error into money quietly leaving the table, which is the failure
+ * mode this whole module exists to prevent.
+ */
+const assertChipCount = (value: number, label: string): void => {
+  if (!Number.isInteger(value) || value < 0) {
+    throw new Error(`${label} must be a whole number of chips, got ${value}`);
+  }
+};
+
 /** What one player has put into the pot this hand, and whether they're still in. */
 export type Contribution = {
   playerId: string;
@@ -60,6 +73,10 @@ export type Award = {
  * "return the excess" rule.
  */
 export const buildPots = (contributions: readonly Contribution[]): Pot[] => {
+  for (const contribution of contributions) {
+    assertChipCount(contribution.contributed, `${contribution.playerId}'s contribution`);
+  }
+
   const levels = Array.from(
     new Set(contributions.map((c) => c.contributed).filter((c) => c > 0)),
   ).sort((a, b) => a - b);
@@ -103,9 +120,20 @@ export const buildPots = (contributions: readonly Contribution[]): Pot[] => {
   // total, and silently building a pot with no winner means those chips leave
   // the game. They belong to the last contested pot.
   const last = pots[pots.length - 1];
-  if (pots.length > 1 && last.eligiblePlayerIds.length === 0) {
-    pots[pots.length - 2].amount += last.amount;
-    pots.pop();
+  if (last && last.eligiblePlayerIds.length === 0) {
+    if (pots.length > 1) {
+      pots[pots.length - 2].amount += last.amount;
+      pots.pop();
+    } else {
+      // No earlier pot to fold it into, but someone may still be in the hand
+      // having committed less than this level — a player who is all-in for
+      // nothing, or who checked to a bettor that then folded. They win it,
+      // which is just "last player standing takes the pot". Only if literally
+      // nobody survives does the pot stay unwinnable.
+      last.eligiblePlayerIds = contributions
+        .filter((c) => !c.folded)
+        .map((c) => c.playerId);
+    }
   }
 
   return pots;
@@ -139,9 +167,20 @@ export const awardPots = (
 ): Award[] => {
   const seatIndex = new Map<string, number>();
   oddChipOrder.forEach((id, index) => seatIndex.set(id, index));
-  const bySeat = (a: string, b: string) =>
-    (seatIndex.get(a) ?? Number.MAX_SAFE_INTEGER) -
-    (seatIndex.get(b) ?? Number.MAX_SAFE_INTEGER);
+  /**
+   * Total, deliberately. Two players both missing from `oddChipOrder` compare
+   * equal on seat, and a stable sort would then fall back to the order the
+   * caller happened to list them in — which is precisely the order-dependence
+   * this module claims not to have. Falling through to the id keeps the answer
+   * the same however the inputs arrive.
+   */
+  const bySeat = (a: string, b: string) => {
+    const difference =
+      (seatIndex.get(a) ?? Number.MAX_SAFE_INTEGER) -
+      (seatIndex.get(b) ?? Number.MAX_SAFE_INTEGER);
+    if (difference !== 0) return difference;
+    return a < b ? -1 : a > b ? 1 : 0;
+  };
 
   const totals = new Map<string, number>();
   const add = (playerId: string, amount: number) => {
@@ -150,6 +189,9 @@ export const awardPots = (
   };
 
   for (const pot of pots) {
+    // Pots built by `buildPots` are whole by construction, but this is exported
+    // and a hand-built pot of 10.5 split two ways would pay out 11.
+    assertChipCount(pot.amount, "pot amount");
     const eligible = new Set(pot.eligiblePlayerIds);
     const tier = ranking.find((t) => t.ids.some((id) => eligible.has(id)));
     if (!tier) continue; // nobody eligible can be ranked: leave it untouched
