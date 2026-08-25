@@ -51,7 +51,9 @@ platform-tagged heading (e.g. `## [1.1.3] - 2026-07-20 — Android`) when you cu
   one seat and holding two would double-count their nights. Claiming can also be undone, so a
   mistake doesn't mean rebuilding the group. An existing single board becomes a group when the time
   comes, keeping every player and every game, and someone who never used the leaderboard gets no
-  group at all rather than an empty one to delete.
+  group at all rather than an empty one to delete. The stored leaderboard already carries the
+  account a player has been claimed by, so the first claim to be saved survives the next launch
+  instead of quietly vanishing.
 - A whole hand of Texas hold'em in `@poker/core` — the piece that joins the others up. Nothing
   user-facing yet, but this is the first time the cards, the betting and the pots play a hand from
   the shuffle to the chips being pushed. It deals, posts the blinds, runs each street, deals the

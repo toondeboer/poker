@@ -51,10 +51,15 @@ export type GroupedLeaderboard = {
   activeGroupId: string | null;
 };
 
-export const EMPTY_LEADERBOARD: GroupedLeaderboard = {
-  groups: [],
-  activeGroupId: null,
-};
+/**
+ * Frozen, because it is a shared singleton that {@link migrateToGroups} also
+ * hands back. An unfrozen one that any consumer pushed into would be corrupt
+ * for the rest of the process, and the symptom — a group appearing in a board
+ * nobody added it to — would be baffling.
+ */
+const empty: GroupedLeaderboard = { groups: [], activeGroupId: null };
+Object.freeze(empty.groups);
+export const EMPTY_LEADERBOARD: GroupedLeaderboard = Object.freeze(empty);
 
 export const createGroup = (params: {
   id: string;
@@ -74,11 +79,19 @@ export const createGroup = (params: {
 export const isValidGroupName = (
   name: string,
   groups: readonly GroupState[],
+  /**
+   * The group being renamed, which must not count as a clash with itself —
+   * otherwise correcting a group's own capitalisation reports as a duplicate
+   * and there is no way for a caller to validate a rename at all.
+   */
+  excludeGroupId?: string,
 ): boolean => {
   const trimmed = name.trim();
   if (trimmed.length === 0) return false;
   return !groups.some(
-    (entry) => entry.group.name.toLowerCase() === trimmed.toLowerCase(),
+    (entry) =>
+      entry.group.id !== excludeGroupId &&
+      entry.group.name.toLowerCase() === trimmed.toLowerCase(),
   );
 };
 
@@ -115,18 +128,29 @@ export const removeGroup = (
   };
 };
 
+/**
+ * Rename a group, holding it to the same rule as creating one.
+ *
+ * Returns the state untouched when the name is unusable or the group isn't
+ * there — the same shape as every other refusal here, so a caller that ignores
+ * the result cannot end up with an unnamed group.
+ */
 export const renameGroup = (
   state: GroupedLeaderboard,
   groupId: string,
   name: string,
-): GroupedLeaderboard => ({
-  ...state,
-  groups: state.groups.map((entry) =>
-    entry.group.id === groupId
-      ? { ...entry, group: { ...entry.group, name: name.trim() } }
-      : entry,
-  ),
-});
+): GroupedLeaderboard => {
+  if (!state.groups.some((entry) => entry.group.id === groupId)) return state;
+  if (!isValidGroupName(name, state.groups, groupId)) return state;
+  return {
+    ...state,
+    groups: state.groups.map((entry) =>
+      entry.group.id === groupId
+        ? { ...entry, group: { ...entry.group, name: name.trim() } }
+        : entry,
+    ),
+  };
+};
 
 /** Switch the board on screen. A group that isn't there is ignored. */
 export const setActiveGroup = (
@@ -141,17 +165,27 @@ export const setActiveGroup = (
 export const activeGroup = (state: GroupedLeaderboard): GroupState | null =>
   state.groups.find((entry) => entry.group.id === state.activeGroupId) ?? null;
 
-/** Replace one group's board, leaving the others alone. */
+/**
+ * Replace one group's board, leaving the others alone.
+ *
+ * Returns the *same* state object when the group isn't there, rather than an
+ * equal copy. Every function here does, so a consumer can compare by reference
+ * to decide whether to re-render or write to disk — and a typo in an id shows
+ * up as nothing happening rather than as a pointless save.
+ */
 export const updateGroup = (
   state: GroupedLeaderboard,
   groupId: string,
   update: (entry: GroupState) => GroupState,
-): GroupedLeaderboard => ({
-  ...state,
-  groups: state.groups.map((entry) =>
-    entry.group.id === groupId ? update(entry) : entry,
-  ),
-});
+): GroupedLeaderboard => {
+  if (!state.groups.some((entry) => entry.group.id === groupId)) return state;
+  return {
+    ...state,
+    groups: state.groups.map((entry) =>
+      entry.group.id === groupId ? update(entry) : entry,
+    ),
+  };
+};
 
 /** Why an account couldn't be attached to a player. */
 export type ClaimError =
@@ -227,8 +261,13 @@ export const claimPlayer = (
 export const unclaimPlayer = (
   state: GroupedLeaderboard,
   params: { groupId: string; playerId: string },
-): GroupedLeaderboard =>
-  updateGroup(state, params.groupId, (group) => ({
+): GroupedLeaderboard => {
+  const entry = state.groups.find((g) => g.group.id === params.groupId);
+  const player = entry?.players.find((p) => p.id === params.playerId);
+  // Nothing to do: no such group, no such player, or they were never claimed.
+  if (!player || player.accountId === undefined) return state;
+
+  return updateGroup(state, params.groupId, (group) => ({
     ...group,
     players: group.players.map((player) => {
       if (player.id !== params.playerId) return player;
@@ -241,6 +280,7 @@ export const unclaimPlayer = (
       return rest;
     }),
   }));
+};
 
 /** Which player an account holds in a group, if any. */
 export const playerForAccount = (

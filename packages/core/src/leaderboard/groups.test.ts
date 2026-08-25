@@ -69,6 +69,44 @@ describe("groups", () => {
     expect(renamed.activeGroupId).toBe("g2");
   });
 
+  it("holds a rename to the same rule as creating a group", () => {
+    let state = addGroup(EMPTY_LEADERBOARD, group("g1", "Thursday"));
+    state = addGroup(state, group("g2", "Friday"));
+    expect(renameGroup(state, "g1", "   ")).toBe(state);
+    expect(renameGroup(state, "g1", "friday")).toBe(state);
+    expect(renameGroup(state, "nope", "Anything")).toBe(state);
+  });
+
+  it("lets a group keep its own name, in any casing", () => {
+    // Fixing a group's own capitalisation must not read as a duplicate — and
+    // without excluding the group itself, a caller cannot validate a rename.
+    const state = addGroup(EMPTY_LEADERBOARD, group("g1", "Thursday"));
+    expect(isValidGroupName("THURSDAY", state.groups, "g1")).toBe(true);
+    expect(isValidGroupName("THURSDAY", state.groups)).toBe(false);
+    expect(renameGroup(state, "g1", "THURSDAY").groups[0].group.name).toBe(
+      "THURSDAY",
+    );
+  });
+
+  it("hands back the very same state when nothing changed", () => {
+    // Consumers compare by reference to decide whether to re-render and write
+    // to disk, so an equal-but-new object is a pointless save and hides a typo
+    // in an id.
+    let state = addGroup(EMPTY_LEADERBOARD, group("g1"));
+    state = addGroup(state, group("g2"));
+    expect(updateGroup(state, "nope", (entry) => entry)).toBe(state);
+    expect(removeGroup(state, "nope")).toBe(state);
+    expect(setActiveGroup(state, "nope")).toBe(state);
+    expect(unclaimPlayer(state, { groupId: "nope", playerId: "x" })).toBe(state);
+  });
+
+  it("cannot be corrupted through the shared empty value", () => {
+    // EMPTY_LEADERBOARD is a singleton that migrateToGroups also returns; one
+    // in-place push would poison every board in the process.
+    expect(Object.isFrozen(EMPTY_LEADERBOARD)).toBe(true);
+    expect(Object.isFrozen(EMPTY_LEADERBOARD.groups)).toBe(true);
+  });
+
   it("moves the selection when the selected group is deleted", () => {
     // Coming back to a group that no longer exists would show an empty board
     // with no way to tell it apart from a real one.
@@ -289,7 +327,13 @@ describe("unclaiming", () => {
 
   it("does nothing for a player who was never claimed", () => {
     const state = withPlayers(["Dave"]);
-    expect(unclaimPlayer(state, { groupId: "g1", playerId: "Dave" })).toEqual(state);
+    expect(unclaimPlayer(state, { groupId: "g1", playerId: "Dave" })).toBe(state);
+  });
+
+  it("does nothing for a player or group that isn't there", () => {
+    const state = withPlayers(["Dave"]);
+    expect(unclaimPlayer(state, { groupId: "g1", playerId: "nope" })).toBe(state);
+    expect(unclaimPlayer(state, { groupId: "nope", playerId: "Dave" })).toBe(state);
   });
 });
 
