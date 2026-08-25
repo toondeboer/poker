@@ -32,10 +32,17 @@ export function ChopSheet({
   settings: PayoutSettings;
 }) {
   const maxPlayers = structure.payouts.length;
-  const [players, setPlayers] = useState(Math.min(3, maxPlayers));
-  const [chips, setChips] = useState<number[]>(() =>
-    Array.from({ length: maxPlayers }, () => DEFAULT_STACK),
-  );
+  const [players, setPlayers] = useState(3);
+  /**
+   * Sparse on purpose: read through {@link stackAt} rather than sized once.
+   *
+   * This sheet mounts with whatever `structure` exists at first render, which
+   * is the *default* settings until the stored ones load. Sizing the array
+   * there meant a host with a bigger saved field could pick six players and get
+   * three chip fields, a three-way split of the top-three money, and a share
+   * message claiming it was between six.
+   */
+  const [chips, setChips] = useState<number[]>([]);
 
   /**
    * Clamped rather than stored back, for the same reason the paid-place pin is:
@@ -44,17 +51,28 @@ export function ChopSheet({
    * `computeChop` for a deal involving players who aren't in the money — it
    * would refuse, and the sheet would show nothing with no explanation.
    */
-  const activePlayers = Math.min(players, maxPlayers);
+  // Clamped at both ends. The upper bound is the reason above; the lower one is
+  // that a sheet first rendered while only one place was paid would otherwise
+  // hold `players = 1` forever, and `computeChop` refuses a one-player deal —
+  // leaving exactly the unexplained empty state this clamp exists to prevent.
+  const activePlayers = Math.max(2, Math.min(players, maxPlayers));
+
+  const stackAt = (index: number) => chips[index] ?? DEFAULT_STACK;
 
   // Only the first `activePlayers` stacks are in play; the rest are kept so
   // stepping the count down and back up doesn't wipe what was typed.
-  const inPlay = chips.slice(0, activePlayers);
+  const inPlay = Array.from({ length: activePlayers }, (_, i) => stackAt(i));
 
   const result = useMemo(
     () =>
       computeChop({
         structure,
-        chips: chips.slice(0, activePlayers),
+        // Rebuilt inside the memo from the two things it actually depends on,
+        // so the dependency list stays honest and needs no lint exception.
+        chips: Array.from(
+          { length: activePlayers },
+          (_, index) => chips[index] ?? DEFAULT_STACK,
+        ),
         denomination: settings.denomination,
       }),
     [structure, settings.denomination, chips, activePlayers],
@@ -62,7 +80,10 @@ export function ChopSheet({
 
   const setStack = (index: number, value: number) =>
     setChips((previous) => {
-      const next = [...previous];
+      const next = Array.from(
+        { length: Math.max(previous.length, index + 1) },
+        (_, i) => previous[i] ?? DEFAULT_STACK,
+      );
       next[index] = value;
       return next;
     });

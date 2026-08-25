@@ -90,6 +90,48 @@ describe("computeChop", () => {
     expect(result.shares[0].amount).toBeGreaterThan(result.shares[1].amount);
   });
 
+  it("gives a player the same share wherever they were typed in", () => {
+    // The sum-and-floor properties below are both satisfied by an unfair deal:
+    // the indivisible remainder used to go to index 0, so two identical 1-chip
+    // stacks came out 10 apart and a 1-chip stack typed first beat a 1000-chip
+    // stack. Rotating the input is what catches it.
+    const fingerprint = (chips: number[], denomination: number, structure: PayoutStructure) => {
+      const result = computeChop({ structure, chips, denomination });
+      if (!result) return "none";
+      return result.shares
+        .map((share) => `${share.chips}:${share.amount}`)
+        .sort()
+        .join(",");
+    };
+
+    let failure: string | null = null;
+    for (let entrants = 2; entrants <= 30; entrants += 1) {
+      for (const denomination of [1, 5, 10, 25]) {
+        const structure = structureFor(entrants, 20, denomination);
+        for (let n = 2; n <= structure.payouts.length; n += 1) {
+          const stacks = Array.from({ length: n }, (_, i) =>
+            i === n - 1 ? 1000 : 1,
+          );
+          const rotated = [stacks[n - 1], ...stacks.slice(0, n - 1)];
+          const before = fingerprint(stacks, denomination, structure);
+          const after = fingerprint(rotated, denomination, structure);
+          if (before !== after) {
+            failure ??= `${entrants} entrants, ${n} left, denom ${denomination}: ${before} vs ${after}`;
+          }
+        }
+      }
+    }
+    expect(failure).toBeNull();
+  });
+
+  it("never lets a smaller stack out-earn a larger one", () => {
+    const structure = structureFor(8, 20, 25);
+    const result = chop({ structure, chips: [1, 1, 1000], denomination: 25 });
+    const [a, b, big] = result.shares;
+    expect(a.amount).toBe(b.amount);
+    expect(big.amount).toBeGreaterThan(a.amount);
+  });
+
   it("pays out the whole remaining pot for every stack shape and note size", () => {
     let failure: string | null = null;
     let visited = 0;
