@@ -16,8 +16,13 @@ import {
   createGroup,
   createPlayer,
   EMPTY_LEADERBOARD,
+  isValidGroupName,
+  MAX_GROUPS,
   removeGameResult,
+  removeGroup,
   removePlayer,
+  renameGroup,
+  setActiveGroup,
   updateGroup,
   validateGameResult,
   GameResult,
@@ -34,7 +39,27 @@ import {
 import { generateId } from "@/src/utils/id";
 import { logger } from "@/src/utils/logger";
 
+/** One group as the picker needs it: enough to list without loading a board. */
+export type GroupSummary = {
+  id: string;
+  name: string;
+  playerCount: number;
+  gameCount: number;
+};
+
 type LeaderboardContextValue = {
+  /** Every group, oldest first, for the picker. */
+  groups: GroupSummary[];
+  activeGroupId: string | null;
+  /** The active group's name, or `""` when there is no group yet. */
+  activeGroupName: string;
+  canAddGroup: boolean;
+  /** Whether a name is free to use, ignoring the group being renamed. */
+  isGroupNameAvailable: (name: string, exceptId?: string) => boolean;
+  selectGroup: (id: string) => void;
+  createNewGroup: (name: string) => void;
+  renameGroupById: (id: string, name: string) => void;
+  deleteGroup: (id: string) => void;
   /** The active group's roster. Empty when there is no group yet. */
   players: Player[];
   /** The active group's game history. */
@@ -209,9 +234,63 @@ export function LeaderboardProvider({
     [board.players, board.results],
   );
 
+  const groups = useMemo<GroupSummary[]>(
+    () =>
+      state.groups.map((entry) => ({
+        id: entry.group.id,
+        name: entry.group.name,
+        playerCount: entry.players.length,
+        gameCount: entry.results.length,
+      })),
+    [state.groups],
+  );
+
+  const isGroupNameAvailable = useCallback(
+    (name: string, exceptId?: string) =>
+      isValidGroupName(name, state.groups, exceptId),
+    [state.groups],
+  );
+
+  const selectGroup = useCallback(
+    (id: string) => persist(setActiveGroup(state, id)),
+    [state, persist],
+  );
+
+  const createNewGroup = useCallback(
+    (name: string) => {
+      if (!isValidGroupName(name, state.groups)) return;
+      persist(
+        addGroup(
+          state,
+          createGroup({ id: generateId(), name, now: Date.now() }),
+        ),
+      );
+    },
+    [state, persist],
+  );
+
+  const renameGroupById = useCallback(
+    (id: string, name: string) => persist(renameGroup(state, id, name)),
+    [state, persist],
+  );
+
+  const deleteGroup = useCallback(
+    (id: string) => persist(removeGroup(state, id)),
+    [state, persist],
+  );
+
   return (
     <LeaderboardContext.Provider
       value={{
+        groups,
+        activeGroupId: state.activeGroupId,
+        activeGroupName: activeEntry?.group.name ?? "",
+        canAddGroup: state.groups.length < MAX_GROUPS,
+        isGroupNameAvailable,
+        selectGroup,
+        createNewGroup,
+        renameGroupById,
+        deleteGroup,
         players: board.players,
         results: board.results,
         standings,
