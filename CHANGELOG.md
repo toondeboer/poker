@@ -18,6 +18,17 @@ platform-tagged heading (e.g. `## [1.1.3] - 2026-07-20 — Android`) when you cu
   instead of deferring them to a flow.
 
 ### Added
+- Groundwork for the multiplayer game mode: a card model, a **seeded** shuffle and a hand
+  evaluator in `@poker/core`. Nothing user-facing yet. Randomness is injected rather than
+  generated, so a deal is reproducible from its seed — which is what lets the same hand be replayed
+  exactly in a test, and lets a server prove after the fact that a shuffle wasn't rigged. The
+  evaluator finds the best five cards out of seven by checking all 21 combinations rather than
+  consulting a lookup table: there is no generated data to get wrong, and the correctness argument
+  fits in a sentence. Hand strength is packed into a single integer so that comparing two hands and
+  asking whether they *tie* are the same operation — split pots turn on exact equality, and a
+  multi-field comparison is one wrong branch away from paying the wrong player. It is checked
+  against the published five-card frequencies across all 2,598,960 hands in the deck, so every
+  hand is verified rather than the handful someone thought to write down.
 - **Payouts (Pro).** Set a buy-in and the app works out what each place wins, so the split is agreed
   before the first hand instead of argued about heads-up. Bounties come **out of** the buy-in rather
   than sitting on top of it — a 20 buy-in with a 5 bounty is still 20 out of each pocket, 15 to the
