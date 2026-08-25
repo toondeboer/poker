@@ -16,7 +16,7 @@ need to. What's left for a human is what unit tests structurally cannot see:
   screen-wake, cold launch.
 - **Real purchases.** Play Billing can't be exercised from a local build at all.
 
-**Why there is no automated e2e.** A Maestro suite existed and was deleted in 1.1.5. It had rotted
+**Why there is no automated e2e.** A Maestro suite existed and was deleted in 1.2.0. It had rotted
 while unwired — a hardcoded LAN address and stale selectors, no npm script and no CI job — and
 wiring it up would have cost a ~20-minute Android job per PR, dominated by a cold Gradle build
 rather than the flows. The judgement was that a fast CI plus an
@@ -228,7 +228,7 @@ expected, not a bug.
 | Settings: Tournament + Presets **side by side**, capped and centred | ⬜ | ⬜ |
 | Blind editor list + sticky footer capped at 900 and centred | ⬜ | ⬜ |
 | Timer card centred, not full-bleed | ⬜ | ⬜ |
-| Generator and Pro sheets capped at 640 and centred, **not** full-bleed (the 1.1.5 fix — was 🟡 accepted in 1.1.4) | ⬜ | ⬜ |
+| Generator and Pro sheets capped at 640 and centred, **not** full-bleed (the 1.2.0 fix — was 🟡 accepted in 1.1.4) | ⬜ | ⬜ |
 | Payouts: cards capped and centred, payout rows readable | ⬜ | ⬜ |
 | Leaderboard: standings and the record sheet capped and centred | ⬜ | ⬜ |
 | iPad **mini** still gets the phone layout | ⬜ | ➖ |

@@ -149,11 +149,30 @@ Mobile releases are batched on a short-lived branch per version, not shipped str
     `npx expo install --fix` set them at SDK-upgrade time. `expo` and `react-native` are already in
     the ignore list for this reason; the rest of the family still gets proposed and still needs the
     check run against it.
+- **Merging a stack of dependent PRs: never `--delete-branch` one that another PR is based on, and
+  rebase the children rather than merging into them.** Both bite, and both did:
+  - `gh pr merge <n> --squash --delete-branch` **closes** any PR whose base was that branch instead
+    of retargeting it, and a closed PR can't have its base changed. Recovery is possible but ugly —
+    push the deleted branch back, `gh pr reopen`, `gh pr edit --base`, delete the branch again. Merge
+    without `--delete-branch` while anything is stacked on it, and clean up at the end.
+  - After a squash merge the parent's content is on the release branch as a **different commit**, so
+    `git merge release/<version>` into a child conflicts the child against its own changes. Replay
+    only the child's own commits instead:
+    `git rebase --onto origin/release/<version> <parent-branch-tip-before-the-merge> <child>`. Note
+    *before the merge*: if you already rebased and force-pushed the parent, the tip you need is the
+    one the child was actually branched from, not the rebased one.
 - Every change still gets a `CHANGELOG.md` entry under `[Unreleased]` in the same commit/PR that
   lands it (Keep a Changelog format) — no exceptions, don't defer this to release time, or the
   changelog stops being a reliable diff of what changed. Entries keep accumulating there across
   however many PRs land before the release ships; don't roll them into a dated heading until the
   release is actually being cut (last step below).
+- **Renaming a release branch closes its standing RC PR — it does not retarget it.** GitHub's
+  branch-rename API (`gh api -X POST repos/{owner}/{repo}/branches/<old>/rename -f new_name=<new>`)
+  moves the branch and retargets pull requests that *point at* it, but the RC PR's **head** is that
+  branch, and that one is **closed**. It cannot be recovered either: a closed PR can't have its head
+  changed, and can't be reopened once its branch is gone. Renaming `release/1.1.5` → `release/1.2.0`
+  cost PR #129 exactly this way; #147 replaces it. If you rename, expect to open a fresh RC PR and
+  leave a comment on the old one pointing at it.
 - **Open the `release/<version>` → `main` PR as soon as the first change lands on the branch, and
   leave it open** (`gh pr create --base main --head release/<version>`). Not *immediately* after
   cutting, as this used to say — GitHub refuses with "No commits between main and

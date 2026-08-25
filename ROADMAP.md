@@ -52,7 +52,7 @@ are removed from this file when a release is cut rather than accumulating as ✅
 ## Cross-device QA
 - 🔍 **Physical-device spot-check (small phone + tablet, both platforms) still outstanding** —
   everything so far has been simulators/emulators plus an iPhone 13 Pro and one real Android phone.
-- ⬜ **Sheets are capped at tablet width as of 1.1.5 — verify it on a real tablet.** This was the
+- ⬜ **Sheets are capped at tablet width as of 1.2.0 — verify it on a real tablet.** This was the
   🟡 accepted gap in 1.1.4 (`Sheet.tsx` had no tablet-cap logic at all); it now caps at 640 and
   centres. Only checked on an iPad Pro simulator so far, and it was never clear whether Android's
   earlier tablet pass was judged at a capped width or the old full-bleed one, so both platforms
@@ -96,31 +96,31 @@ are removed from this file when a release is cut rather than accumulating as ✅
   interop story.
 
 ## Pro feature: Leaderboard
-- ✅ **Shipped in 1.1.5** (unreleased). Local-first, single-device, no accounts — the host's phone
+- ✅ **Shipped in 1.2.0** (unreleased). Local-first, single-device, no accounts — the host's phone
   is the source of truth. Recording is manual but pre-filled from the payout setup; the timer offers
   to record when a game looks finished. Ranked by wins with a deterministic tie-break; shows prize
   money won rather than net profit, because bounty winnings can't be reconstructed after the fact.
   Standings can be shared to a group chat as plain text.
   The design questions this entry used to carry are answered in the changelog entry and the commits.
-  **Delete this section when 1.1.5 is cut** (cutting step 3).
+  **Delete this section when 1.2.0 is cut** (cutting step 3).
 
 ## Pro feature: Buy-in & payout structure
-- ✅ **Shipped in 1.1.5** (unreleased). Flat bounties carved out of the buy-in rather than added on
+- ✅ **Shipped in 1.2.0** (unreleased). Flat bounties carved out of the buy-in rather than added on
   top; rebuys counted as further buy-ins and add-ons as pool-only money; payouts rounded to a chosen
   note size with the largest-remainder method, so the table sums to the pool exactly and no paid
   place ever wins nothing. A chop calculator splits the money left when the table agrees to end
   early, and the table can be shared to a group chat.
   Progressive/knockout bounties were deliberately left out — they need live elimination tracking,
   which is a much larger feature.
-  **Delete this section when 1.1.5 is cut** (cutting step 3).
+  **Delete this section when 1.2.0 is cut** (cutting step 3).
 - ⬜ **ICM as a second chop method.** The shipped chop is chip-count based with a guaranteed floor,
   which is what home games agree to and is explainable in one sentence. ICM is the method serious
   players ask for by name and nobody can call unfair; it needs recursive finish-order equity, which
-  is cheap at six players or fewer. Offered during 1.1.5 scoping and deliberately not taken, so this
+  is cheap at six players or fewer. Offered during 1.2.0 scoping and deliberately not taken, so this
   is a real option rather than an oversight.
 
 ## Docs & website parity
-- ⬜ **The website describes an app without any of 1.1.5's six Pro capabilities** — payouts (with
+- ⬜ **The website describes an app without any of 1.2.0's six Pro capabilities** — payouts (with
   bounties, rebuys and add-ons), the chop calculator, the leaderboard, the record-a-game prompt and
   sharing. The `/guide` page also tells hosts to "agree on the payout structure" and to set a rebuy
   cutoff, both of which the app now does for them, so the copy is not just incomplete but out of
