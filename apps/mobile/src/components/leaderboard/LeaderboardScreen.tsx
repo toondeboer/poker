@@ -95,6 +95,17 @@ export function LeaderboardScreen() {
     Keyboard.dismiss();
   };
 
+  /**
+   * Whether there is anything to share, which is **not** the same as whether
+   * any games are stored. Removing every player deliberately keeps their past
+   * results — the confirm dialog promises exactly that — so `results.length`
+   * can be non-zero while no standing has a game against it, and the message
+   * would read "Leaderboard — 3 games" followed by "No games recorded yet."
+   */
+  const hasStandingsToShare = standings.some(
+    (standing) => standing.gamesPlayed > 0,
+  );
+
   const handleShare = () => {
     Share.share({
       message: formatStandingsSummary({
@@ -181,7 +192,7 @@ export function LeaderboardScreen() {
             label="Share standings"
             icon="share-social-outline"
             onPress={handleShare}
-            disabled={results.length === 0}
+            disabled={!hasStandingsToShare}
           />
         </CardContent>
       </Card>

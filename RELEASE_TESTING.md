@@ -334,7 +334,7 @@ it**.
 | No prompt with an **empty roster**, or when Pro is locked — the sheet would have nothing to offer | ⬜ | ⬜ |
 | Back from a prompt-opened leaderboard returns to the **timer**, and the header says "Back" | ⬜ | ⬜ |
 | Record sheet: header clears the status bar and the footer clears the keypad (the §5 failure mode) | ⬜ | ⬜ |
-| **Share standings** is disabled with no games recorded, and enabled once there is one | ⬜ | ⬜ |
+| **Share standings** is disabled with nothing to report, and enabled once a game is recorded — including after **removing every player**, which keeps the games but leaves nothing to say | ⬜ | ⬜ |
 | Shared standings text lists only players who have played, ranked, with no markdown characters | ⬜ | ⬜ |
 
 ---

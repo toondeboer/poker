@@ -133,8 +133,6 @@ export function PayoutScreen() {
       ? AUTO
       : String(Math.min(Math.max(settings.paidPlaces, 1), maxPlaces));
 
-  // Same reasoning as the leaderboard: editing before the stored settings
-  // arrive would persist the defaults over them.
   // Same swallow-the-rejection shape as the timer's share: a dismissed share
   // sheet rejects on iOS, and that isn't an error worth surfacing.
   const handleShare = () => {
@@ -148,6 +146,8 @@ export function PayoutScreen() {
     }).catch(() => {});
   };
 
+  // Same reasoning as the leaderboard: editing before the stored settings
+  // arrive would persist the defaults over them.
   const content = isLoading ? null : isPremium ? (
     <>
       <Card>
