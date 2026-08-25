@@ -262,6 +262,35 @@ describe("rebuys and add-ons", () => {
     expect(withRebuys.payouts).toHaveLength(defaultPaidPlaces(13));
   });
 
+  it("can afford one more place once rebuy money is in the pool", () => {
+    // The place *rule* keys off players, not entries — but the reduce-until-
+    // funded loop keys off the pool, so more money can restore a place that a
+    // thinner pool was dropping. Pinned because it's the exact thing an
+    // "adding rebuys never changes the paid count" claim gets wrong.
+    const thin = structure({
+      buyIn: 5,
+      entrants: 13,
+      bounty: 1,
+      denomination: 10,
+    });
+    const fatter = structure({
+      buyIn: 5,
+      entrants: 13,
+      bounty: 1,
+      denomination: 10,
+      rebuys: 5,
+    });
+    expect(thin.payouts).toHaveLength(3);
+    expect(fatter.payouts).toHaveLength(4);
+    // Both still pay out the whole pool with nothing winning zero.
+    for (const result of [thin, fatter]) {
+      expect(sum(result.payouts.map((p) => p.amount))).toBe(result.prizePool);
+      for (const payout of result.payouts) {
+        expect(payout.amount).toBeGreaterThan(0);
+      }
+    }
+  });
+
   it("puts add-on money entirely in the prize pool, never the bounties", () => {
     const withAddOns = structure({
       buyIn: 20,

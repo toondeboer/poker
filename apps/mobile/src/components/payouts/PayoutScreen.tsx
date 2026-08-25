@@ -281,12 +281,14 @@ export function PayoutScreen() {
                 {settings.rebuys > 0 && (
                   <ListRow
                     title="Entries"
-                    meta={`${settings.entrants} players + ${settings.rebuys} ${settings.rebuys === 1 ? "rebuy" : "rebuys"} — still ${structure.payouts.length} paid`}
-                    right={
-                      <Text style={styles.amount}>
-                        {structure.totalEntries}
-                      </Text>
-                    }
+                    // Deliberately makes no claim about the place count. Places
+                    // follow the number of *players*, but the extra money a
+                    // rebuy brings can fund a place the pool couldn't afford
+                    // before — so "still N paid" is not always true.
+                    meta={`${settings.entrants} players + ${settings.rebuys} ${settings.rebuys === 1 ? "rebuy" : "rebuys"}`}
+                    // A Badge rather than the mono column the money rows use:
+                    // this is a count, and right-aligned mono reads as currency.
+                    right={<Badge label={`${structure.totalEntries}`} />}
                   />
                 )}
                 {structure.addOnPool > 0 && (
