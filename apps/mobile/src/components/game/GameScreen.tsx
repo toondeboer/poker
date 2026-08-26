@@ -78,7 +78,10 @@ export function GameScreen() {
   const nameFor = (id: string) =>
     players.find((player) => player.id === id)?.name ?? id;
 
-  const setup = game.session === null ? (
+  // Nothing renders until the stored game has been read back. Without this the
+  // setup form is interactive over an evening that is still loading, and
+  // starting a new game in that window writes over it.
+  const setup = game.isLoading ? null : game.session === null ? (
     <>
       <Card>
         <CardHeader
@@ -165,7 +168,7 @@ export function GameScreen() {
     </>
   ) : null;
 
-  const content = !isPremium ? (
+  const content = game.isLoading ? null : !isPremium ? (
     <Card>
       <CardHeader icon="grid" title="Play a hand" />
       <CardContent>

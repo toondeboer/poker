@@ -382,6 +382,9 @@ the table can follow what is happening from across it.
 | Everyone folding to one player ends the hand with **no cards shown** | ⬜ | ⬜ |
 | A knocked-out player is left out of the next deal, and the button skips them | ⬜ | ⬜ |
 | Last player standing ends the game and shows the finishing order | ⬜ | ⬜ |
+| **A game survives a force-stop.** Deal a hand, kill the app from the switcher, reopen → same table, same stacks, same cards, same player to act | ⬜ | ⬜ |
+| A game survives between hands too, and a finished-but-unsaved game still offers Save after a relaunch | ⬜ | ⬜ |
+| Ending a game clears it — reopening the screen offers the setup form, not the last table | ⬜ | ⬜ |
 | **Save to the leaderboard** records the finishing order the game produced, with winnings from the Payouts screen priced for the field that sat down | ⬜ | ⬜ |
 | The saved game appears in the standings immediately, and the winner's count goes up | ⬜ | ⬜ |
 | Saving with **no buy-in set** still records the finishing order, everyone winning nothing — a friendly game still has a winner | ⬜ | ⬜ |

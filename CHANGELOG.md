@@ -16,6 +16,12 @@ platform-tagged heading (e.g. `## [1.1.3] - 2026-07-20 — Android`) when you cu
   the field that actually sat down. It records the top three even when fewer places pay, so a
   friendly game still has a winner and the board's tie-breaks still work — the same rule the
   record-a-game sheet follows by hand.
+- A game in progress now survives the app being closed. Shut the app between hands — or have the
+  phone die mid-evening — and reopening it puts you back at the same table, same stacks, same cards
+  in the middle. A stored game is checked whole before it is trusted, and dropped entirely if
+  anything about it no longer adds up: unlike the leaderboard, where one bad row is dropped and a
+  season of history kept, a half-restored game is a table paying the wrong person from stacks that
+  do not balance. Losing an evening you can deal again is the better of the two.
 - Raising in a dealt hand now takes any amount, not just the minimum or everything. Type it, or tap
   Min, Pot or All in to fill it in — and then confirm, because a raise is the one thing on that
   screen that can end somebody's night by mis-tap. "Pot" is the size players actually name at a
