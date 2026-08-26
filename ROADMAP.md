@@ -79,10 +79,10 @@ are removed from this file when a release is cut rather than accumulating as ✅
 
 ## Play a hand — known gaps
 
-- ⬜ **No bet sizing.** Raising offers the minimum or all-in and nothing between, which is most of
-  poker. The first draft's label advertised a range it could not deliver; it now says "Raise to"
-  and offers the two it has. A field or slider bounded by `minRaiseTo`/`maxRaiseTo` is the fix —
-  the engine already validates every amount in that range.
+- 🟡 **Bet sizing is a field with three shortcuts, not a slider.** Any amount between the minimum
+  raise and all-in can be typed, with Min / Pot / All in filling it in. A slider would be quicker
+  to reach for at a table and is the obvious next step; the field is what makes the sizes reachable
+  at all, which was the gap.
 - ⬜ **A game does not survive the app being killed.** It survives navigation (the state lives in
   `GameContext`, not in the pushed screen), but not a force-stop or a phone running out of battery
   mid-evening. Wants persistence and a schema for `GameSession`, which is a real piece of work

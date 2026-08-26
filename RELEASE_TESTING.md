@@ -371,7 +371,12 @@ the table can follow what is happening from across it.
 | Blinds post to the correct seats, the pot reads their sum, and the seat **after** the big blind acts first | ⬜ | ⬜ |
 | **Cards stay hidden until tapped, and re-hide the moment the turn passes** — pass the phone round a full orbit and confirm nobody sees the next player's hand | ⬜ | ⬜ |
 | Heads-up: the button posts the small blind and acts first pre-flop, then **last** on every street after | ⬜ | ⬜ |
-| Fold / check / call / min-raise / all-in each do what they say, and the stacks move by the right amounts | ⬜ | ⬜ |
+| Fold / check / call each do what they say, and the stacks move by the right amounts | ⬜ | ⬜ |
+| Raise: typing an amount below the minimum or above the stack leaves the confirm button disabled | ⬜ | ⬜ |
+| Min / Pot / All in **fill the amount in without acting**; raising always needs the confirm tap | ⬜ | ⬜ |
+| The Pot button is absent when a pot-sized raise would be the minimum or all-in anyway | ⬜ | ⬜ |
+| The amount resets to the minimum when the turn passes, so nobody inherits the last player's number | ⬜ | ⬜ |
+| Raise: the amount field isn't covered by the keypad — it is the lowest control on a long screen (the §5 failure mode) | ⬜ | ⬜ |
 | A short stack all-in for less builds a side pot, and the big stack can't win chips nobody matched | ⬜ | ⬜ |
 | Showdown reveals only the players still in, names the hand, and the awards add up to the pot | ⬜ | ⬜ |
 | Everyone folding to one player ends the hand with **no cards shown** | ⬜ | ⬜ |

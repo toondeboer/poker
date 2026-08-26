@@ -16,6 +16,12 @@ platform-tagged heading (e.g. `## [1.1.3] - 2026-07-20 — Android`) when you cu
   the field that actually sat down. It records the top three even when fewer places pay, so a
   friendly game still has a winner and the board's tie-breaks still work — the same rule the
   record-a-game sheet follows by hand.
+- Raising in a dealt hand now takes any amount, not just the minimum or everything. Type it, or tap
+  Min, Pot or All in to fill it in — and then confirm, because a raise is the one thing on that
+  screen that can end somebody's night by mis-tap. "Pot" is the size players actually name at a
+  table: call first, then raise by what is in the middle after that. It only appears when it lands
+  somewhere between the two ends, since a Pot button that quietly means "all in" is worse than no
+  Pot button.
 - **Play a hand from the phone (Pro).** For a table that has chips but no cards — on holiday, or
   when the deck is somewhere nobody can remember. The phone deals a real hand of hold'em: everyone
   can see the board, the pot and every stack, and only the player to act can see their own two
