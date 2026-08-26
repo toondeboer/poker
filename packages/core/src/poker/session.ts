@@ -334,6 +334,47 @@ export const knockoutTally = (session: GameSession): Map<string, number> => {
 };
 
 /**
+ * Is every exit accounted for?
+ *
+ * A stored game saved before the app tracked knockouts has busts with no record
+ * of who made them, which is fine for a flat bounty — the ones it does know
+ * about still pay the right amount — and **not** fine for a progressive one,
+ * where an unrecorded bust leaves that head fully loaded and stops the whole
+ * chain after it escalating. The amounts come out materially wrong with nothing
+ * to show for it, so the app has to be able to ask.
+ */
+export const knockoutsFullyRecorded = (session: GameSession): boolean =>
+  session.knockouts.length === session.bustOrder.length;
+
+/**
+ * Bounty money that reached nobody.
+ *
+ * Only ever non-zero in a progressive game: a pot everyone eligible folded out
+ * of leaves the bounty on that player's head with nowhere to go, and in
+ * progressive that head may have grown considerably. It is returned rather than
+ * quietly dropped because somebody at the table is otherwise left counting the
+ * cash and finding it short with no explanation.
+ */
+export const unclaimedBounty = (
+  session: GameSession,
+  bounty: number,
+  mode: BountyMode = "flat",
+): number => {
+  if (mode !== "progressive") {
+    return session.knockouts.filter((knockout) => knockout.by.length === 0)
+      .length * bounty;
+  }
+  return runBounties({
+    playerIds: session.seats.map((seat) => seat.playerId),
+    startingBounty: bounty,
+    knockouts: session.knockouts,
+    winnerId: isSessionComplete(session)
+      ? survivors(session.seats)[0]?.playerId
+      : undefined,
+  }).unclaimed;
+};
+
+/**
  * Knockouts and bounty money per player.
  *
  * **A bounty is one bounty however many people were in on it.** Two players

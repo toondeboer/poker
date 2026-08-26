@@ -258,6 +258,8 @@ export {
   toGameResult,
   knockoutTally,
   knockoutCounts,
+  knockoutsFullyRecorded,
+  unclaimedBounty,
 } from "./poker/session";
 export type { GameSession, SessionSeat, Knockout } from "./poker/session";
 

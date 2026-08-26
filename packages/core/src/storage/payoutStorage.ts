@@ -85,8 +85,7 @@ const coerce = (raw: unknown): PayoutSettings => {
     bounty: numberOr(value.bounty, DEFAULT_PAYOUT_SETTINGS.bounty),
     // Anything unrecognised reads as flat, which is the safe direction: it
     // pays exactly what the screen says it pays.
-    bountyMode:
-      value.bountyMode === "progressive" ? "progressive" : "flat",
+    bountyMode: value.bountyMode === "progressive" ? "progressive" : "flat",
     paidPlaces:
       typeof paidPlaces === "number" && Number.isFinite(paidPlaces)
         ? paidPlaces

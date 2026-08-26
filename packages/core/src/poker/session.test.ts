@@ -10,6 +10,8 @@ import {
   isSessionComplete,
   knockoutCounts,
   knockoutTally,
+  knockoutsFullyRecorded,
+  unclaimedBounty,
   startNextHand,
   toGameResult,
 } from "./session";
@@ -633,5 +635,70 @@ describe("progressive bounties", () => {
     );
     expect(running.get("a")).toBeUndefined();
     expect(running.get("b")).toBe(8);
+  });
+});
+
+describe("what the table has to be told about the bounty money", () => {
+  const base = createSession({
+    players: ["a", "b", "c", "d"],
+    startingStack: 100,
+  });
+
+  it("notices when an exit was never credited to anybody", () => {
+    const withDeadPot = {
+      ...base,
+      bustOrder: ["d"],
+      knockouts: [{ playerId: "d", by: [] }],
+    };
+    // Flat: one bounty, nobody to give it to.
+    expect(unclaimedBounty(withDeadPot, 10)).toBe(10);
+  });
+
+  it("counts a grown head that reached nobody, which is the bigger loss", () => {
+    // Progressive is where this hurts: c had already collected off d, so the
+    // head that goes unclaimed is worth more than the bounty ever was.
+    const game = {
+      ...base,
+      bustOrder: ["d", "c"],
+      knockouts: [
+        { playerId: "d", by: ["c"] },
+        { playerId: "c", by: [] },
+      ],
+    };
+    expect(unclaimedBounty(game, 10, "progressive")).toBe(15);
+    expect(unclaimedBounty(game, 10)).toBe(10);
+  });
+
+  it("says nothing went missing when nothing did", () => {
+    const game = {
+      ...base,
+      bustOrder: ["d"],
+      knockouts: [{ playerId: "d", by: ["a"] }],
+    };
+    expect(unclaimedBounty(game, 10)).toBe(0);
+    expect(unclaimedBounty(game, 10, "progressive")).toBe(0);
+  });
+
+  it("knows when exits are missing from the record altogether", () => {
+    // A game resumed from a build that did not track knockouts. Flat still
+    // pays the ones it knows about; progressive comes out short all the way
+    // down the chain, and has to say so.
+    const resumed = {
+      ...base,
+      bustOrder: ["d", "c"],
+      knockouts: [{ playerId: "c", by: ["a"] }],
+    };
+    expect(knockoutsFullyRecorded(resumed)).toBe(false);
+    expect(
+      knockoutsFullyRecorded({
+        ...base,
+        bustOrder: ["d"],
+        knockouts: [{ playerId: "d", by: ["a"] }],
+      }),
+    ).toBe(true);
+  });
+
+  it("is true of a game where nobody has gone out yet", () => {
+    expect(knockoutsFullyRecorded(base)).toBe(true);
   });
 });

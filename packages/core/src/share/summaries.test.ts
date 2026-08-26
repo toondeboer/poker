@@ -225,3 +225,26 @@ describe("knockouts in a shared board", () => {
     expect(formatStandingsSummary({ standings, gamesRecorded: 3 })).not.toContain("1 KOs");
   });
 });
+
+describe("sharing a bounty tournament", () => {
+  const options: PayoutOptions = { buyIn: 20, entrants: 8, bounty: 5 };
+
+  it("says what a flat bounty pays", () => {
+    const structure = computePayouts(options)!;
+    expect(
+      formatPayoutSummary({ structure, buyIn: 20, entrants: 8 }),
+    ).toContain("Bounty 5 per knockout");
+  });
+
+  it("says what a progressive one does instead", () => {
+    // Somebody reading this in a group chat is deciding what to bring; the two
+    // formats pay differently enough that one line cannot describe both.
+    const structure = computePayouts({
+      ...options,
+      bountyMode: "progressive",
+    })!;
+    const summary = formatPayoutSummary({ structure, buyIn: 20, entrants: 8 });
+    expect(summary).toContain("Progressive bounty");
+    expect(summary).not.toContain("per knockout");
+  });
+});

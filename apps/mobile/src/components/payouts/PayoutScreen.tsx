@@ -197,17 +197,32 @@ export function PayoutScreen() {
             />
           )}
           <NumberField
-            label="Bounty per knockout"
+            // The label has to follow the format: in progressive this is where
+            // every head *starts*, and calling it "per knockout" contradicts
+            // both the summary two cards down and what the game actually pays.
+            label={
+              settings.bountyMode === "progressive"
+                ? "Starting bounty"
+                : "Bounty per knockout"
+            }
             value={settings.bounty}
             onChangeValue={(bounty) => update({ bounty })}
             min={0}
-            helper={`Comes out of the buy-in, not on top of it — set 0 for no bounties. A ${settings.buyIn} buy-in usually carries about ${suggestedBounty(settings.buyIn)}.`}
+            helper={
+              settings.bountyMode === "progressive"
+                ? `What every head starts at — it grows from there. Comes out of the buy-in, not on top of it. A ${settings.buyIn} buy-in usually carries about ${suggestedBounty(settings.buyIn)}.`
+                : `Comes out of the buy-in, not on top of it — set 0 for no bounties. A ${settings.buyIn} buy-in usually carries about ${suggestedBounty(settings.buyIn)}.`
+            }
           />
           {settings.bounty > 0 && (
             <SegmentedControl
               label="Bounty type"
               options={[
-                { value: "flat" as const, label: "Flat", meta: "Same every time" },
+                {
+                  value: "flat" as const,
+                  label: "Flat",
+                  meta: "Same every time",
+                },
                 {
                   value: "progressive" as const,
                   label: "Progressive",
