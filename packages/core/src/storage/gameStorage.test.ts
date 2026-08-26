@@ -23,6 +23,38 @@ const midHand = startNextHand(between, {
   random: createRandom(5),
 });
 
+/**
+ * A hand in progress with somebody already knocked out — so the session holds
+ * a seat the hand does not. Their chips (none) still have to be counted, which
+ * is a path every all-players-in fixture misses.
+ */
+const FOUR = { ...SETUP, players: ["a", "b", "c", "d"] };
+const withBustedPlayer = (() => {
+  const base = createSession({
+    players: FOUR.players,
+    startingStack: FOUR.startingStack,
+  });
+  // "d" is out, and their chips went to "a" — as they must have. The first
+  // draft of this fixture simply zeroed them, and the validator rejected it
+  // for exactly the right reason: 500 chips had left the table.
+  const knockedOut = {
+    ...base,
+    seats: base.seats.map((seat) =>
+      seat.playerId === "d"
+        ? { ...seat, stack: 0 }
+        : seat.playerId === "a"
+          ? { ...seat, stack: seat.stack + FOUR.startingStack }
+          : seat,
+    ),
+    bustOrder: ["d"],
+  };
+  return startNextHand(knockedOut, {
+    smallBlind: FOUR.smallBlind,
+    bigBlind: FOUR.bigBlind,
+    random: createRandom(11),
+  });
+})();
+
 const stored = (session = between, recorded = false): StoredGame => ({
   setup: SETUP,
   session,
@@ -237,6 +269,230 @@ describe("a stored game is kept whole or not at all", () => {
       const raw = JSON.stringify({ setup, session: between, recorded: false });
       expect(await seeded(raw).loadGame()).toBeNull();
     }
+  });
+
+  it("counts a knocked-out player who is sitting the hand out", async () => {
+    // The session holds four seats; the hand only deals to three. The fourth
+    // still has to be counted, or the chip total comes up short and a
+    // perfectly good game is thrown away.
+    const storage = createGameStorage(createMemoryAdapter());
+    await storage.saveGame({
+      setup: FOUR,
+      session: withBustedPlayer,
+      recorded: false,
+    });
+    const loaded = await storage.loadGame();
+    expect(loaded).not.toBeNull();
+    expect(loaded?.session.hand?.seats).toHaveLength(3);
+    expect(loaded?.session.seats).toHaveLength(4);
+  });
+
+  it("still catches a short total when somebody is sitting out", async () => {
+    const raw = JSON.stringify({
+      setup: FOUR,
+      session: {
+        ...withBustedPlayer,
+        seats: withBustedPlayer.seats.map((seat) => ({ ...seat, stack: 1 })),
+      },
+      recorded: false,
+    });
+    expect(await seeded(raw).loadGame()).toBeNull();
+  });
+
+  it("refuses a knocked-out player who still has chips", async () => {
+    // Otherwise they are resurrected: `settle` only overwrites seats that were
+    // in the hand, so the stack survives, `finishingOrder` lists them twice,
+    // and the game can never end.
+    const raw = JSON.stringify({
+      setup: SETUP,
+      session: {
+        ...between,
+        seats: [
+          { playerId: "a", stack: 1000 },
+          { playerId: "b", stack: 500 },
+          { playerId: "c", stack: 0 },
+        ],
+        bustOrder: ["b"],
+      },
+      recorded: false,
+    });
+    expect(await seeded(raw).loadGame()).toBeNull();
+  });
+
+  it("refuses a bust order naming people who never sat down, or naming one twice", async () => {
+    for (const bustOrder of [["stranger"], ["b", "b"], [42]]) {
+      const raw = JSON.stringify({
+        setup: SETUP,
+        session: { ...between, bustOrder },
+        recorded: false,
+      });
+      expect(await seeded(raw).loadGame()).toBeNull();
+    }
+  });
+
+  it("refuses a hand missing the bookkeeping the engine reads without checking", async () => {
+    // roundBaseline missing throws from inside a state updater with no error
+    // boundary — and the same blob reloads every launch, so the screen would
+    // be permanently dead with no way to clear it.
+    const withoutBaseline = { ...midHand.hand } as Record<string, unknown>;
+    delete withoutBaseline.roundBaseline;
+    const raw = JSON.stringify({
+      setup: SETUP,
+      session: { ...midHand, hand: withoutBaseline },
+      recorded: false,
+    });
+    expect(await seeded(raw).loadGame()).toBeNull();
+  });
+
+  it("refuses a hand where two seats share a player id", async () => {
+    // startHand refuses duplicates because awards are paid by id: two seats
+    // sharing one silently merge and lose chips at settle.
+    const seats = midHand.hand!.seats.map((seat, i) =>
+      i === 1 ? { ...seat, playerId: "a" } : seat,
+    );
+    const raw = JSON.stringify({
+      setup: SETUP,
+      session: { ...midHand, hand: { ...midHand.hand, seats } },
+      recorded: false,
+    });
+    expect(await seeded(raw).loadGame()).toBeNull();
+  });
+
+  it("refuses a hand seat with an unusable stack rather than reading it as zero", async () => {
+    const seats = midHand.hand!.seats.map((seat, i) =>
+      i === 0 ? { ...seat, stack: null } : seat,
+    );
+    const raw = JSON.stringify({
+      setup: SETUP,
+      session: { ...midHand, hand: { ...midHand.hand, seats } },
+      recorded: false,
+    });
+    expect(await seeded(raw).loadGame()).toBeNull();
+  });
+
+  it("refuses a hand whose cards do not make one deck", async () => {
+    // The check that catches a slicing mistake anywhere in the deal: every
+    // card accounted for, exactly once, across the board, the deck and every
+    // hole.
+    const dealt = midHand.hand!;
+    for (const broken of [
+      { ...dealt, deck: dealt.deck.slice(1) },
+      { ...dealt, deck: [...dealt.deck, dealt.seats[0].hole[0]] },
+      { ...dealt, board: [{ rank: 99, suit: "h" }] },
+      { ...dealt, deck: "not cards" },
+    ]) {
+      const raw = JSON.stringify({
+        setup: SETUP,
+        session: { ...midHand, hand: broken },
+        recorded: false,
+      });
+      expect(await seeded(raw).loadGame()).toBeNull();
+    }
+  });
+
+  it("refuses a hand seat that is not one of the players who sat down", async () => {
+    const seats = midHand.hand!.seats.map((seat, i) =>
+      i === 1 ? { ...seat, playerId: "stranger" } : seat,
+    );
+    const raw = JSON.stringify({
+      setup: SETUP,
+      session: { ...midHand, hand: { ...midHand.hand, seats } },
+      recorded: false,
+    });
+    expect(await seeded(raw).loadGame()).toBeNull();
+  });
+
+  it("refuses a hand seat with no player id at all", async () => {
+    const seats = midHand.hand!.seats.map((seat, i) =>
+      i === 0 ? { stack: seat.stack, committed: seat.committed } : seat,
+    );
+    const raw = JSON.stringify({
+      setup: SETUP,
+      session: { ...midHand, hand: { ...midHand.hand, seats } },
+      recorded: false,
+    });
+    expect(await seeded(raw).loadGame()).toBeNull();
+  });
+
+  it("refuses a hand seat holding cards that are not cards", async () => {
+    const seats = midHand.hand!.seats.map((seat, i) =>
+      i === 0 ? { ...seat, hole: ["Ace of spades"] } : seat,
+    );
+    const raw = JSON.stringify({
+      setup: SETUP,
+      session: { ...midHand, hand: { ...midHand.hand, seats } },
+      recorded: false,
+    });
+    expect(await seeded(raw).loadGame()).toBeNull();
+  });
+
+  it("refuses a hand dealt to fewer than two seats", async () => {
+    const raw = JSON.stringify({
+      setup: SETUP,
+      session: {
+        ...midHand,
+        hand: { ...midHand.hand, seats: [midHand.hand!.seats[0]] },
+      },
+      recorded: false,
+    });
+    expect(await seeded(raw).loadGame()).toBeNull();
+  });
+
+  it("refuses a roundBaseline that does not line up with the seats", async () => {
+    for (const roundBaseline of [[0, 0], [0, 0, -1], "nope"]) {
+      const raw = JSON.stringify({
+        setup: SETUP,
+        session: { ...midHand, hand: { ...midHand.hand, roundBaseline } },
+        recorded: false,
+      });
+      expect(await seeded(raw).loadGame()).toBeNull();
+    }
+  });
+
+  it("refuses a hand with a street or status it does not understand", async () => {
+    const dealt = midHand.hand!;
+    const broken = [
+      { ...dealt, street: "fifth" },
+      {
+        ...dealt,
+        seats: dealt.seats.map((seat, i) =>
+          i === 0 ? { ...seat, status: "thinking" } : seat,
+        ),
+      },
+      { ...dealt, showdown: "nope" },
+      { ...dealt, pots: "nope" },
+      { ...dealt, buttonIndex: 9 },
+    ];
+    for (const hand of broken) {
+      const raw = JSON.stringify({
+        setup: SETUP,
+        session: { ...midHand, hand },
+        recorded: false,
+      });
+      expect(await seeded(raw).loadGame()).toBeNull();
+    }
+  });
+
+  it("validates the last finished hand as strictly as the live one", async () => {
+    const raw = JSON.stringify({
+      setup: SETUP,
+      session: { ...between, lastHand: { street: "flop" } },
+      recorded: false,
+    });
+    expect(await seeded(raw).loadGame()).toBeNull();
+  });
+
+  it("refuses more players than one deck can deal", async () => {
+    const players = Array.from({ length: 24 }, (_, i) => `p${i}`);
+    const raw = JSON.stringify({
+      setup: { ...SETUP, players },
+      session: {
+        ...between,
+        seats: players.map((playerId) => ({ playerId, stack: 500 })),
+      },
+      recorded: false,
+    });
+    expect(await seeded(raw).loadGame()).toBeNull();
   });
 
   it("refuses anything that is not a stored game at all", async () => {
