@@ -3,8 +3,11 @@ import { useState } from "react";
 import { Alert, ScrollView, StyleSheet, Text, View } from "react-native";
 import { SafeAreaProvider, useSafeAreaInsets } from "react-native-safe-area-context";
 import type { ErrorBoundaryProps } from "expo-router";
+import * as Notifications from "expo-notifications";
 import { clearForRecovery } from "@poker/core";
 import { asyncStorageAdapter } from "@/src/services/storageAdapter";
+import { liveActivityService } from "@/src/services/LiveActivityService";
+import { RECOVERABLE_APP_KEYS } from "@/src/services/stubAuthProvider";
 import { logger } from "@/src/utils/logger";
 import { colors, space, text } from "@/src/theme";
 import { Button } from "@/src/components/ui/Button";
@@ -32,8 +35,10 @@ import { Card, CardContent, CardHeader } from "@/src/components/ui/Card";
  * which is why it says what it will take before it takes it.
  */
 export function AppErrorBoundary({ error, retry }: ErrorBoundaryProps) {
-  // Logged from here rather than left to whatever caught it, so a bug report
-  // has the message in it. There is no crash reporter in this app.
+  // Only reaches a console in development — `logger` no-ops in release builds,
+  // and there is no crash reporter here. **The message on screen is the record
+  // in a shipped app**, which is why it is shown rather than hidden behind a
+  // "details" tap.
   logger.error("Unhandled error, showing the recovery screen:", error);
 
   return (
@@ -51,6 +56,15 @@ function RecoveryScreen({ error, retry }: ErrorBoundaryProps) {
     setBusy(true);
     try {
       await clearForRecovery(asyncStorageAdapter);
+      await asyncStorageAdapter.multiRemove([...RECOVERABLE_APP_KEYS]);
+      // The round does not only live in storage. A Live Activity or Android
+      // foreground service is still counting down on the lock screen, and iOS
+      // still has a "blinds up" notification scheduled — for a round that has
+      // just been deleted. Normally `TimerContext.resetTimer` ends both, and
+      // this path cannot go through it: the boundary replaced the providers.
+      await liveActivityService.endActivity();
+      await Notifications.cancelAllScheduledNotificationsAsync();
+      await Notifications.dismissAllNotificationsAsync();
       await retry();
     } catch (failure) {
       // Nothing better to offer: the screen is already the failure screen, and

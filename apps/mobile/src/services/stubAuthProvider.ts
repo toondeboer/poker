@@ -6,6 +6,15 @@ import { generateId } from "@/src/utils/id";
 const STORAGE_KEY = "stub_account";
 
 /**
+ * App-owned keys a recovery reset clears, beside the ones `@poker/core` names.
+ *
+ * Storage this app writes itself does not appear in core's accounting, and a
+ * key left out of both is a key a recovery cannot recover — so anything added
+ * here goes in this list at the same time.
+ */
+export const RECOVERABLE_APP_KEYS: readonly string[] = [STORAGE_KEY];
+
+/**
  * A stand-in for a real identity provider, for developing the screens against.
  *
  * **This signs nobody up.** It records an email on this device and hands back

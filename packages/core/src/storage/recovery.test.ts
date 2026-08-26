@@ -14,7 +14,15 @@ import { SOUND_PACK_KEY } from "./soundPackStorage";
 import { LEADERBOARD_KEY } from "./leaderboardStorage";
 import { createMemoryAdapter } from "./testAdapters";
 
-/** Every key any store in this package writes. */
+/**
+ * Every key any store in **this package** writes.
+ *
+ * Hand-maintained, and it has to be: core has no filesystem (`types: []`), so
+ * nothing here can enumerate its own modules. What this catches is a key added
+ * to a store and to only one of the two lists. What it cannot catch is a whole
+ * store nobody added here — and it says nothing at all about keys the *apps*
+ * write, which they account for themselves.
+ */
 const EVERY_KEY = [
   ...Object.values(TIMER_KEYS),
   ...Object.values(BLINDS_KEYS),
