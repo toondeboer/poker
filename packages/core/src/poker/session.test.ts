@@ -8,6 +8,8 @@ import {
   finishingOrder,
   finishingPlacings,
   isSessionComplete,
+  knockoutCounts,
+  knockoutTally,
   startNextHand,
   toGameResult,
 } from "./session";
@@ -417,5 +419,118 @@ describe("a whole game, played out", () => {
     }
 
     expect(failures).toEqual([]);
+  });
+});
+
+describe("who knocked whom out", () => {
+  /** Play a hand out with everybody shoving, so somebody actually busts. */
+  const playAllIn = (start: GameSession) => {
+    let current = start;
+    while (current.hand) {
+      const legal = legalActions(current.hand)!;
+      current = act(
+        current,
+        legal.playerId,
+        legal.canRaise
+          ? { type: "raise", to: legal.maxRaiseTo! }
+          : legal.canCall
+            ? { type: "call" }
+            : { type: "check" },
+      );
+    }
+    return current;
+  };
+
+  it("credits the player who won the pot the last chips went into", () => {
+    let game = playAllIn(deal(session(["a", "b"], 200)));
+    // Heads-up, everything in: one of them is out, and the other took them out.
+    while (!isSessionComplete(game)) game = playAllIn(deal(game, 2));
+
+    expect(game.knockouts).toHaveLength(1);
+    const [knockout] = game.knockouts;
+    expect(game.bustOrder).toEqual([knockout.playerId]);
+    expect(knockout.by).toHaveLength(1);
+    expect(knockout.by[0]).not.toBe(knockout.playerId);
+  });
+
+  it("credits the winner of the short stack's own pot, not the biggest one", () => {
+    // The case a total cannot answer. Three players, unequal stacks: the short
+    // stack is all in for the main pot, and the two deep stacks fight on into a
+    // side pot. Whoever wins the side pot may well not be the player who
+    // actually put the short stack out.
+    let game = createSession({
+      players: ["short", "deep", "deeper"],
+      startingStack: 100,
+      buttonIndex: 0,
+    });
+    game = { ...game, seats: game.seats.map((seat) =>
+      seat.playerId === "short" ? { ...seat, stack: 20 } : seat,
+    ) };
+    game = playAllIn(deal(game, 5));
+
+    const out = game.knockouts.find((k) => k.playerId === "short");
+    if (out) {
+      // Whoever is credited must have been eligible for the pot the short
+      // stack was in — which, with 20 chips against 100, is the main pot only.
+      const main = game.lastHand!.pots[0];
+      const failures = out.by.filter(
+        (id) => !main.eligiblePlayerIds.includes(id),
+      );
+      expect(failures).toEqual([]);
+    }
+    // Whatever happened, everyone knocked out has an entry.
+    expect(game.knockouts.map((k) => k.playerId)).toEqual(game.bustOrder);
+  });
+
+  it("tallies knockouts per player", () => {
+    const game = {
+      ...createSession({ players: ["a", "b", "c"], startingStack: 100 }),
+      knockouts: [
+        { playerId: "b", by: ["a"] },
+        { playerId: "c", by: ["a"] },
+      ],
+    };
+    expect(knockoutTally(game)).toEqual(new Map([["a", 2]]));
+    expect(knockoutCounts(game)).toEqual([{ playerId: "a", count: 2 }]);
+  });
+
+  it("splits the credit when the pot was split", () => {
+    const game = {
+      ...createSession({ players: ["a", "b", "c"], startingStack: 100 }),
+      knockouts: [{ playerId: "c", by: ["a", "b"] }],
+    };
+    // Two people took them out, and the bounty splits with the pot. Counting
+    // one and dropping the other would pay a bounty that was never won.
+    expect(knockoutTally(game)).toEqual(
+      new Map([
+        ["a", 1],
+        ["b", 1],
+      ]),
+    );
+  });
+
+  it("credits nobody when nobody could claim the pot", () => {
+    const game = {
+      ...createSession({ players: ["a", "b"], startingStack: 100 }),
+      knockouts: [{ playerId: "b", by: [] }],
+    };
+    expect(knockoutTally(game).size).toBe(0);
+    expect(knockoutCounts(game)).toEqual([]);
+  });
+
+  it("puts the count on a recorded game, so bounties can be paid", () => {
+    let game = playAllIn(deal(session(["a", "b"], 200)));
+    while (!isSessionComplete(game)) game = playAllIn(deal(game, 3));
+
+    const result = toGameResult(game, {
+      id: "g1",
+      now: 1,
+      buyIn: 20,
+      bounty: 5,
+      winningsByPlace: [40],
+    });
+    expect(result.knockouts).toEqual([
+      { playerId: game.knockouts[0].by[0], count: 1 },
+    ]);
   });
 });

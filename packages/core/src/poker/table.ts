@@ -27,7 +27,13 @@ import {
   isRoundComplete,
   legalActions as roundLegalActions,
 } from "./bettingRound";
-import { type Award, type Pot, awardPots, buildPots } from "./pots";
+import {
+  type Award,
+  type Pot,
+  awardPots,
+  buildPots,
+  potWinners,
+} from "./pots";
 import { type EvaluatedHand, evaluateHand } from "./evaluate";
 
 export type Street = "preflop" | "flop" | "turn" | "river" | "complete";
@@ -73,6 +79,16 @@ export type Hand = {
   /** Built when the hand ends; empty while it runs. */
   pots: Pot[];
   awards: Award[];
+  /**
+   * Who won each pot, aligned with `pots`. Empty while the hand runs.
+   *
+   * Kept beside the awards rather than derived from them, because it answers a
+   * question the awards cannot: a knocked-out player's last chips are in one
+   * particular pot, and a player's *total* winnings say nothing about which
+   * pots they came from. Without this there is no way to say who took somebody
+   * out, and a bounty has nowhere to go.
+   */
+  potWinners: string[][];
   /**
    * Who showed what. `null` when the hand ended with everyone folding to one
    * player — nobody has to show a winning hand nobody contested, and revealing
@@ -205,6 +221,7 @@ export const startHand = ({
     round: null,
     pots: [],
     awards: [],
+    potWinners: [],
     showdown: null,
     roundBaseline: handSeats.map(() => 0),
   };
@@ -448,6 +465,7 @@ const settleHand = (hand: Hand, showdown: Showdown[] | null): Hand => {
     round: null,
     pots,
     awards,
+    potWinners: potWinners(pots, ranking, oddChipOrder),
     showdown,
     seats: hand.seats.map((seat) => ({
       ...seat,

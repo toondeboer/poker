@@ -35,6 +35,7 @@ import {
   LeaderboardStanding,
   Placing,
   Player,
+  type KnockoutCount,
 } from "@poker/core";
 import {
   DEFAULT_GROUP_NAME,
@@ -80,6 +81,12 @@ type LeaderboardContextValue = {
     placings: Placing[];
     buyIn: number;
     bounty: number;
+    /**
+     * Who knocked out how many, when that is actually known — which is only
+     * ever a game the app dealt. Left off by the record-a-game sheet, because
+     * nobody can say afterwards.
+     */
+    knockouts?: readonly KnockoutCount[];
   }) => boolean;
   deleteResult: (id: string) => void;
   /** The player this account holds on the active board, if any. */
@@ -223,6 +230,7 @@ export function LeaderboardProvider({
       placings: Placing[];
       buyIn: number;
       bounty: number;
+      knockouts?: readonly KnockoutCount[];
     }) => {
       // Guard the persistence boundary, not just the UI. The sheet already
       // constrains what it can build, but this is the one store whose data
@@ -243,6 +251,7 @@ export function LeaderboardProvider({
         buyIn: params.buyIn,
         bounty: params.bounty,
         now: Date.now(),
+        knockouts: params.knockouts,
       });
       withActiveGroup((entry) => ({
         ...entry,

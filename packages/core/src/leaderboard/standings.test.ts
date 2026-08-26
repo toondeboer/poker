@@ -234,3 +234,101 @@ describe("computeStandings", () => {
     expect(standings).toEqual([]);
   });
 });
+
+describe("bounty money on the board", () => {
+  const roster = [
+    createPlayer({ id: "a", name: "Ann" }),
+    createPlayer({ id: "b", name: "Ben" }),
+    createPlayer({ id: "c", name: "Cal" }),
+  ];
+  const dealt = createGameResult({
+    id: "g1",
+    playerIds: ["a", "b", "c"],
+    placings: [{ playerId: "a", place: 1, winnings: 30 }],
+    buyIn: 15,
+    bounty: 5,
+    now: 1_000,
+    knockouts: [
+      { playerId: "b", count: 2 },
+      { playerId: "a", count: 0 },
+    ],
+  });
+
+  const rowFor = (results: GameResult[], id: string) =>
+    computeStandings(roster, results).find((row) => row.playerId === id)!;
+
+  it("counts knockouts for somebody who never got paid a place", () => {
+    // Knocking two people out and busting third is an ordinary evening, and it
+    // is money — counting it only for placed players would lose it.
+    const ben = rowFor([dealt], "b");
+    expect(ben.knockouts).toBe(2);
+    expect(ben.bountiesWon).toBe(10);
+    expect(ben.totalWon).toBe(10);
+    expect(ben.cashes).toBe(0);
+  });
+
+  it("adds bounty money to the prize money, not beside it", () => {
+    const ann = rowFor([dealt], "a");
+    expect(ann.totalWon).toBe(30);
+    expect(ann.bountiesWon).toBe(0);
+  });
+
+  it("shows nothing for a game recorded by hand", () => {
+    // Not zero-because-nobody-won-any: zero because nobody can say. The number
+    // starts counting from when the app began dealing.
+    const byHand = createGameResult({
+      id: "g2",
+      playerIds: ["a", "b", "c"],
+      placings: [{ playerId: "a", place: 1, winnings: 30 }],
+      buyIn: 15,
+      bounty: 5,
+      now: 2_000,
+    });
+    expect(rowFor([byHand], "b").knockouts).toBe(0);
+    expect(rowFor([byHand], "b").bountiesWon).toBe(0);
+  });
+
+  it("does not double a repeated entry a hand-edited store could carry", () => {
+    // Same reason placings are deduplicated: nothing re-validates on the way
+    // out of storage.
+    const doubled = {
+      ...dealt,
+      knockouts: [
+        { playerId: "b", count: 2 },
+        { playerId: "b", count: 2 },
+      ],
+    };
+    expect(rowFor([doubled], "b").knockouts).toBe(2);
+  });
+
+  it("ignores a knockout credited to somebody off the roster", () => {
+    const stranger = { ...dealt, knockouts: [{ playerId: "z", count: 3 }] };
+    const rows = computeStandings(roster, [stranger]);
+    expect(rows.every((row) => row.knockouts === 0)).toBe(true);
+  });
+
+  it("lets bounty money settle a tie the prize money could not", () => {
+    // Both won a game; one also took people out. The money column decides, and
+    // it now knows about bounties.
+    const annWins = createGameResult({
+      id: "g3",
+      playerIds: ["a", "b"],
+      placings: [{ playerId: "a", place: 1, winnings: 30 }],
+      buyIn: 15,
+      bounty: 5,
+      now: 3_000,
+    });
+    const benWins = createGameResult({
+      id: "g4",
+      playerIds: ["a", "b"],
+      placings: [{ playerId: "b", place: 1, winnings: 30 }],
+      buyIn: 15,
+      bounty: 5,
+      now: 4_000,
+      knockouts: [{ playerId: "b", count: 1 }],
+    });
+    const rows = computeStandings(roster, [annWins, benWins]);
+    expect(rows[0].playerId).toBe("b");
+    expect(rows[0].totalWon).toBe(35);
+  });
+});

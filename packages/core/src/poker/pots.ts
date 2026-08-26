@@ -160,27 +160,67 @@ const samePlayers = (a: readonly string[], b: readonly string[]): boolean =>
  * A winner not present in `oddChipOrder` sorts last, so a caller that forgets a
  * seat loses the tie-break rather than the chip.
  */
-export const awardPots = (
-  pots: readonly Pot[],
-  ranking: readonly { ids: readonly string[] }[],
-  oddChipOrder: readonly string[],
-): Award[] => {
+/**
+ * Order winners by seat, for splitting odd chips.
+ *
+ * Total, deliberately. Two players both missing from `oddChipOrder` compare
+ * equal on seat, and a stable sort would then fall back to the order the caller
+ * happened to list them in — which is precisely the order-dependence this
+ * module claims not to have. Falling through to the id keeps the answer the
+ * same however the inputs arrive.
+ */
+const seatComparator = (oddChipOrder: readonly string[]) => {
   const seatIndex = new Map<string, number>();
   oddChipOrder.forEach((id, index) => seatIndex.set(id, index));
-  /**
-   * Total, deliberately. Two players both missing from `oddChipOrder` compare
-   * equal on seat, and a stable sort would then fall back to the order the
-   * caller happened to list them in — which is precisely the order-dependence
-   * this module claims not to have. Falling through to the id keeps the answer
-   * the same however the inputs arrive.
-   */
-  const bySeat = (a: string, b: string) => {
+  return (a: string, b: string) => {
     const difference =
       (seatIndex.get(a) ?? Number.MAX_SAFE_INTEGER) -
       (seatIndex.get(b) ?? Number.MAX_SAFE_INTEGER);
     if (difference !== 0) return difference;
     return a < b ? -1 : a > b ? 1 : 0;
   };
+};
+
+/** Who takes one pot: the best-ranked tier with somebody eligible in it. */
+const winnersOf = (
+  pot: Pot,
+  ranking: readonly { ids: readonly string[] }[],
+  bySeat: (a: string, b: string) => number,
+): string[] => {
+  const eligible = new Set(pot.eligiblePlayerIds);
+  const tier = ranking.find((t) => t.ids.some((id) => eligible.has(id)));
+  if (!tier) return [];
+  return tier.ids.filter((id) => eligible.has(id)).sort(bySeat);
+};
+
+/**
+ * Who won each pot, in the same order as `pots`.
+ *
+ * {@link awardPots} answers "how much did each player get", which is what
+ * settling a hand needs and is *not* enough to say who knocked somebody out: a
+ * player's last chips are in one particular pot, and a total tells you nothing
+ * about which. Both read the same `winnersOf`, so the money and the credit can
+ * never disagree about who took a pot.
+ *
+ * An empty array in a slot means nobody eligible could be ranked — dead money
+ * nobody can claim, which is a thing this module deliberately leaves alone
+ * rather than inventing a winner for.
+ */
+export const potWinners = (
+  pots: readonly Pot[],
+  ranking: readonly { ids: readonly string[] }[],
+  oddChipOrder: readonly string[],
+): string[][] => {
+  const bySeat = seatComparator(oddChipOrder);
+  return pots.map((pot) => winnersOf(pot, ranking, bySeat));
+};
+
+export const awardPots = (
+  pots: readonly Pot[],
+  ranking: readonly { ids: readonly string[] }[],
+  oddChipOrder: readonly string[],
+): Award[] => {
+  const bySeat = seatComparator(oddChipOrder);
 
   const totals = new Map<string, number>();
   const add = (playerId: string, amount: number) => {
@@ -192,16 +232,14 @@ export const awardPots = (
     // Pots built by `buildPots` are whole by construction, but this is exported
     // and a hand-built pot of 10.5 split two ways would pay out 11.
     assertChipCount(pot.amount, "pot amount");
-    const eligible = new Set(pot.eligiblePlayerIds);
-    const tier = ranking.find((t) => t.ids.some((id) => eligible.has(id)));
-    if (!tier) continue; // nobody eligible can be ranked: leave it untouched
+    const winners = winnersOf(pot, ranking, bySeat);
+    if (winners.length === 0) continue; // nobody eligible can be ranked
 
-    const winners = tier.ids.filter((id) => eligible.has(id)).sort(bySeat);
     const share = Math.floor(pot.amount / winners.length);
     const remainder = pot.amount - share * winners.length;
 
-    winners.forEach((playerId, index) => {
-      add(playerId, share + (index < remainder ? 1 : 0));
+    winners.forEach((playerId, position) => {
+      add(playerId, share + (position < remainder ? 1 : 0));
     });
   }
 

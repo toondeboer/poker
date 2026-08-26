@@ -6,6 +6,7 @@ import {
 } from "./summaries";
 import { computePayouts, PayoutOptions } from "../payouts/payoutStructure";
 import { computeStandings } from "../leaderboard/standings";
+import type { LeaderboardStanding } from "../leaderboard/standings";
 import { createGameResult, createPlayer } from "../leaderboard/gameResult";
 
 const summarise = (options: PayoutOptions) => {
@@ -167,5 +168,60 @@ describe("formatStandingsSummary", () => {
       gamesRecorded: results.length,
     });
     expect(summary).not.toMatch(/[*_`#|]/);
+  });
+});
+
+describe("knockouts in a shared board", () => {
+  it("mentions them when the app dealt the games", () => {
+    const standings: LeaderboardStanding[] = [
+      {
+        playerId: "a",
+        name: "Ann",
+        gamesPlayed: 3,
+        wins: 2,
+        podiums: 2,
+        cashes: 2,
+        totalWon: 120,
+        knockouts: 5,
+        bountiesWon: 25,
+      },
+    ];
+    expect(formatStandingsSummary({ standings, gamesRecorded: 3 })).toContain("5 KOs");
+  });
+
+  it("says nothing about them for a board recorded by hand", () => {
+    // Zero here means "nobody was watching", not "nobody knocked anybody out".
+    const standings: LeaderboardStanding[] = [
+      {
+        playerId: "a",
+        name: "Ann",
+        gamesPlayed: 3,
+        wins: 2,
+        podiums: 2,
+        cashes: 2,
+        totalWon: 120,
+        knockouts: 0,
+        bountiesWon: 0,
+      },
+    ];
+    expect(formatStandingsSummary({ standings, gamesRecorded: 3 })).not.toContain("KO");
+  });
+
+  it("counts one knockout in the singular", () => {
+    const standings: LeaderboardStanding[] = [
+      {
+        playerId: "a",
+        name: "Ann",
+        gamesPlayed: 1,
+        wins: 1,
+        podiums: 1,
+        cashes: 1,
+        totalWon: 40,
+        knockouts: 1,
+        bountiesWon: 5,
+      },
+    ];
+    expect(formatStandingsSummary({ standings, gamesRecorded: 3 })).toContain("1 KO");
+    expect(formatStandingsSummary({ standings, gamesRecorded: 3 })).not.toContain("1 KOs");
   });
 });

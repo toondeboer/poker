@@ -5,6 +5,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import {
   computePayouts,
   finishingPlacings,
+  knockoutCounts,
   MAX_SEATS,
   toPayoutOptions,
 } from "@poker/core";
@@ -267,6 +268,11 @@ function ActiveGame({ nameFor }: { nameFor: (id: string) => string }) {
       placings: finishingPlacings(session, winningsByPlace),
       buyIn: settings.buyIn,
       bounty: settings.bounty,
+      // The thing a game recorded by hand can never carry: the app watched
+      // every hand, so it knows whose chips took whom out. Without it a bounty
+      // game's money column is prize money only, which is most of the point of
+      // playing one missing.
+      knockouts: knockoutCounts(session),
     });
     // Only claim it was saved if it was. A refused result used to leave the
     // message saying otherwise and took the retry away with it.

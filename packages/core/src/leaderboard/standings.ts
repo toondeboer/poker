@@ -20,14 +20,26 @@ export type LeaderboardStanding = {
    */
   cashes: number;
   /**
-   * Prize money won.
+   * Money won: prize money, plus bounties from any game that knew about them.
    *
-   * Deliberately **not** net profit. Buy-ins paid are knowable, but bounty
-   * winnings are not (see {@link GameResult.bounty}), so subtracting stakes
-   * would produce a confidently wrong number for anyone in a bounty game.
-   * "Won" is a figure the app can actually stand behind.
+   * Deliberately **not** net profit. Buy-ins paid are knowable, but a game
+   * recorded by hand cannot say who collected which bounties, so subtracting
+   * stakes would produce a confidently wrong number for anyone in a bounty
+   * game. "Won" is a figure the app can stand behind — and it grew a little
+   * more honest the moment the app started dealing, because a game it dealt
+   * knows exactly whose chips went where.
    */
   totalWon: number;
+  /**
+   * People knocked out, across games that tracked it.
+   *
+   * Only games the app dealt do. A player with a long history of hand-recorded
+   * nights shows a low number here — not a wrong one, just one that starts
+   * counting from when the app began watching.
+   */
+  knockouts: number;
+  /** The part of {@link totalWon} that came from those knockouts. */
+  bountiesWon: number;
 };
 
 /**
@@ -61,6 +73,8 @@ export const computeStandings = (
       podiums: 0,
       cashes: 0,
       totalWon: 0,
+      knockouts: 0,
+      bountiesWon: 0,
     });
   }
 
@@ -92,6 +106,21 @@ export const computeStandings = (
       standing.totalWon += placing.winnings;
       if (placing.place === 1) standing.wins += 1;
       if (placing.place <= 3) standing.podiums += 1;
+    }
+
+    // Bounties are counted over everybody who played, not only the placed:
+    // knocking three people out and busting fifth is a perfectly ordinary
+    // evening, and it is money.
+    const credited = new Set<string>();
+    for (const knockout of result.knockouts ?? []) {
+      const standing = standings.get(knockout.playerId);
+      if (!standing) continue;
+      if (credited.has(knockout.playerId)) continue;
+      credited.add(knockout.playerId);
+      const won = knockout.count * result.bounty;
+      standing.knockouts += knockout.count;
+      standing.bountiesWon += won;
+      standing.totalWon += won;
     }
   }
 

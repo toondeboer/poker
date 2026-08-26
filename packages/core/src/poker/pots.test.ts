@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   type Contribution,
   awardPots,
+  potWinners,
   buildPots,
   totalPotAmount,
 } from "./pots";
@@ -407,5 +408,66 @@ describe("awardPots — invariants", () => {
       }
     }
     expect(failures).toEqual([]);
+  });
+});
+
+describe("who won which pot", () => {
+  const ranking = [{ ids: ["a"] }, { ids: ["b"] }, { ids: ["c"] }];
+
+  it("names a winner per pot, in the same order", () => {
+    const pots = [
+      { amount: 300, eligiblePlayerIds: ["a", "b", "c"] },
+      { amount: 200, eligiblePlayerIds: ["b", "c"] },
+    ];
+    expect(potWinners(pots, ranking, ["a", "b", "c"])).toEqual([["a"], ["b"]]);
+  });
+
+  it("agrees with the money, pot by pot", () => {
+    // The property that matters: whoever is credited with a pot is whoever was
+    // paid for it. Both read the same rule, and this is what holds them there.
+    const pots = [
+      { amount: 90, eligiblePlayerIds: ["a", "b", "c"] },
+      { amount: 40, eligiblePlayerIds: ["b", "c"] },
+    ];
+    const order = ["a", "b", "c"];
+    const credited = potWinners(pots, ranking, order);
+    const paid = new Map(
+      awardPots(pots, ranking, order).map((award) => [
+        award.playerId,
+        award.amount,
+      ]),
+    );
+
+    const failures: string[] = [];
+    credited.forEach((winners, index) => {
+      for (const winner of winners) {
+        if (!paid.has(winner)) failures.push(`${winner} credited, never paid`);
+      }
+      if (winners.length === 0 && pots[index].amount > 0) {
+        failures.push(`pot ${index} credited to nobody`);
+      }
+    });
+    expect(failures).toEqual([]);
+  });
+
+  it("credits everybody in a split", () => {
+    const pots = [{ amount: 100, eligiblePlayerIds: ["a", "b"] }];
+    expect(potWinners(pots, [{ ids: ["a", "b"] }], ["a", "b"])).toEqual([
+      ["a", "b"],
+    ]);
+  });
+
+  it("credits nobody for money nobody can claim", () => {
+    // Dead money: everyone eligible has folded. Inventing a winner here would
+    // invent a knockout too.
+    const pots = [{ amount: 50, eligiblePlayerIds: ["d"] }];
+    expect(potWinners(pots, ranking, ["a", "b", "c"])).toEqual([[]]);
+  });
+
+  it("orders a split by seat, the way the odd chip goes", () => {
+    const pots = [{ amount: 100, eligiblePlayerIds: ["b", "a"] }];
+    expect(potWinners(pots, [{ ids: ["b", "a"] }], ["a", "b"])).toEqual([
+      ["a", "b"],
+    ]);
   });
 });

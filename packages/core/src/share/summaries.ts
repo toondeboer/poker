@@ -83,6 +83,14 @@ export const formatStandingsSummary = (params: {
       parts.unshift(`${standing.wins} ${standing.wins === 1 ? "win" : "wins"}`);
     }
     if (standing.totalWon > 0) parts.push(`won ${standing.totalWon}`);
+    // Absent rather than zero for a board of hand-recorded games: nobody can
+    // say who collected which bounties after the fact, so there is nothing to
+    // share.
+    if (standing.knockouts > 0) {
+      parts.push(
+        `${standing.knockouts} KO${standing.knockouts === 1 ? "" : "s"}`,
+      );
+    }
     lines.push(`${index + 1}. ${standing.name} — ${parts.join(", ")}`);
   });
 

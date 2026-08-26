@@ -55,16 +55,33 @@ export type GameResult = {
   /** What each player paid, carried over from the payout setup. */
   buyIn: number;
   /**
-   * The per-knockout bounty in force, recorded for context only.
+   * The per-knockout bounty in force.
    *
-   * **Bounty winnings are deliberately not tracked per player.** A flat bounty
-   * changes hands in cash the moment someone busts, a dozen times over an
-   * evening, usually while the host isn't watching — by the time a result is
-   * being recorded nobody can say who collected what. A field for it would be
-   * filled in with a guess, and a guess rendered as a total is worse than no
-   * total at all.
+   * **A game recorded by hand does not track who won them, deliberately.** A
+   * flat bounty changes hands in cash the moment someone busts, a dozen times
+   * over an evening, usually while the host isn't watching — by the time a
+   * result is being written down nobody can say who collected what. A field
+   * filled in with a guess, rendered as a total, is worse than no total.
+   *
+   * A game the *app dealt* is the exception, and {@link knockouts} is why: it
+   * watched every hand and knows exactly whose chips went where.
    */
   bounty: number;
+  /**
+   * How many players each person knocked out, when that is actually known.
+   *
+   * Present only for a game the app dealt. Absent — not zero — for one
+   * recorded by hand, and the difference matters: zero would say "nobody
+   * knocked anybody out", which is false of every game ever played, and any
+   * total built on it would be wrong rather than merely missing.
+   */
+  knockouts?: KnockoutCount[];
+};
+
+/** One player, and how many people they put out. */
+export type KnockoutCount = {
+  playerId: string;
+  count: number;
 };
 
 /** Keep storage small and the list scannable. */
@@ -156,6 +173,7 @@ export const createGameResult = (params: {
   buyIn: number;
   bounty: number;
   now: number;
+  knockouts?: readonly KnockoutCount[];
 }): GameResult => ({
   id: params.id,
   playedAt: params.now,
@@ -165,7 +183,27 @@ export const createGameResult = (params: {
   placings: [...params.placings].sort((a, b) => a.place - b.place),
   buyIn: params.buyIn,
   bounty: params.bounty,
+  // Left off entirely when unknown rather than stored as an empty list: an
+  // empty list is a claim that nobody knocked anybody out.
+  ...(params.knockouts
+    ? {
+        knockouts: [...params.knockouts]
+          .filter((entry) => entry.count > 0)
+          // Ordered, so a stored result reads the same way twice.
+          .sort(
+            (a, b) =>
+              b.count - a.count ||
+              (a.playerId < b.playerId ? -1 : a.playerId > b.playerId ? 1 : 0),
+          ),
+      }
+    : {}),
 });
+
+/** What one player collected in bounties, or 0 when the game never tracked them. */
+export const bountiesWon = (result: GameResult, playerId: string): number => {
+  const entry = result.knockouts?.find((k) => k.playerId === playerId);
+  return entry ? entry.count * result.bounty : 0;
+};
 
 /** Add a result (newest first), enforcing {@link MAX_GAME_RESULTS}. */
 export const addGameResult = (

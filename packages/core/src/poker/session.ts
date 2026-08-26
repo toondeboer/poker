@@ -21,7 +21,30 @@ import {
   isHandComplete,
   startHand,
 } from "./table";
-import { createGameResult, type GameResult, type Placing } from "../leaderboard/gameResult";
+import {
+  createGameResult,
+  type GameResult,
+  type KnockoutCount,
+  type Placing,
+} from "../leaderboard/gameResult";
+
+/**
+ * One player leaving, and who is owed the bounty for it.
+ *
+ * `by` is the winner of the pot the busted player's last chips went into —
+ * their *last* eligible pot, since a player only ever pays into pots up to
+ * their own all-in level. That is the table rule and the only one that
+ * survives side pots: a big stack can win the side pot while somebody else
+ * takes the main, and only one of them actually took the player out.
+ *
+ * Usually one player. Two when the pot was split — the bounty splits with it —
+ * and **none** when the pot was dead money nobody could claim, which is rare
+ * but real and must not become a bounty paid to nobody in particular.
+ */
+export type Knockout = {
+  playerId: string;
+  by: string[];
+};
 
 export type SessionSeat = {
   playerId: string;
@@ -62,6 +85,14 @@ export type GameSession = {
    * they went out first or fifth.
    */
   bustOrder: string[];
+  /**
+   * Who took whom out, in the order it happened.
+   *
+   * The thing a bounty needs and a hand-recorded game can never have: by the
+   * time somebody writes down the result, nobody remembers who busted whom a
+   * dozen knockouts ago. The app dealt every hand, so it knows.
+   */
+  knockouts: Knockout[];
 };
 
 /**
@@ -123,6 +154,7 @@ export const createSession = ({
     lastHand: null,
     handsPlayed: 0,
     bustOrder: [],
+    knockouts: [],
   };
 };
 
@@ -252,7 +284,57 @@ const settle = (session: GameSession): GameSession => {
     hand: null,
     lastHand: hand,
     bustOrder: [...session.bustOrder, ...bustedThisHand],
+    knockouts: [
+      ...session.knockouts,
+      ...bustedThisHand.map((playerId) => ({
+        playerId,
+        by: creditFor(playerId, hand),
+      })),
+    ],
   };
+};
+
+/**
+ * Who gets the credit for knocking `playerId` out of this hand.
+ *
+ * Their last chips are in the last pot they were eligible for: a player pays
+ * into every pot up to their own all-in level and none above it, and
+ * `buildPots` builds them in that order. Whoever won *that* pot took them out —
+ * not whoever won the most, which with side pots is frequently somebody else
+ * entirely.
+ */
+const creditFor = (playerId: string, hand: Hand): string[] => {
+  for (let index = hand.pots.length - 1; index >= 0; index -= 1) {
+    if (!hand.pots[index].eligiblePlayerIds.includes(playerId)) continue;
+    // Not themselves: a player who wins a pot they are in did not bust in it,
+    // and a split they were part of leaves them with chips.
+    return (hand.potWinners[index] ?? []).filter((id) => id !== playerId);
+  }
+  // Eligible for nothing — they folded away their last chips, which no rule
+  // credits to anybody, or the hand was hand-built without pots.
+  return [];
+};
+
+/**
+ * How many players each person knocked out.
+ *
+ * What a bounty is paid on, and the reason the app dealing the game is worth
+ * something beyond convenience: this cannot be reconstructed afterwards.
+ */
+export const knockoutCounts = (session: GameSession): KnockoutCount[] =>
+  Array.from(knockoutTally(session).entries()).map(([playerId, count]) => ({
+    playerId,
+    count,
+  }));
+
+export const knockoutTally = (session: GameSession): Map<string, number> => {
+  const tally = new Map<string, number>();
+  for (const knockout of session.knockouts) {
+    for (const playerId of knockout.by) {
+      tally.set(playerId, (tally.get(playerId) ?? 0) + 1);
+    }
+  }
+  return tally;
 };
 
 /**
@@ -309,6 +391,7 @@ export const toGameResult = (
     buyIn: params.buyIn,
     bounty: params.bounty,
     now: params.now,
+    knockouts: knockoutCounts(session),
   });
 };
 

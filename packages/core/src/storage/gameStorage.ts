@@ -91,6 +91,20 @@ const validHand = (raw: unknown, setup: StoredGameSetup): number | null => {
   const deck = cardsOf(raw.deck);
   if (!board || !deck) return null;
 
+  // Aligned with the pots by index — a mismatch would credit a knockout to
+  // whoever won some *other* pot, which is a bounty paid to the wrong person.
+  if (!Array.isArray(raw.potWinners)) return null;
+  if (raw.potWinners.length !== raw.pots.length) return null;
+  if (
+    !raw.potWinners.every(
+      (winners: unknown) =>
+        Array.isArray(winners) &&
+        winners.every((id) => typeof id === "string" && setup.players.includes(id)),
+    )
+  ) {
+    return null;
+  }
+
   // `roundBaseline` is bookkeeping the engine reads without checking; missing
   // it throws from inside a state updater rather than failing here.
   if (!Array.isArray(raw.roundBaseline)) return null;
@@ -180,6 +194,28 @@ const chipsAccountedFor = (
     // never end.
     if (out && !broke) return null;
   }
+
+  // Every knockout is somebody who actually went out, credited to people who
+  // actually sat down. A stray entry is a bounty paid for a knockout that never
+  // happened, and money is the one thing this file exists to protect.
+  if (!Array.isArray(session.knockouts)) return null;
+  for (const knockout of session.knockouts) {
+    if (!isObject(knockout)) return null;
+    if (typeof knockout.playerId !== "string") return null;
+    if (!busted.has(knockout.playerId)) return null;
+    if (!Array.isArray(knockout.by)) return null;
+    if (
+      !knockout.by.every(
+        (id) => typeof id === "string" && setup.players.includes(id),
+      )
+    ) {
+      return null;
+    }
+    // Nobody knocks themselves out — a player who wins the pot their chips
+    // were in still has chips.
+    if (knockout.by.includes(knockout.playerId)) return null;
+  }
+  if (session.knockouts.length !== busted.size) return null;
 
   if (session.lastHand !== null && validHand(session.lastHand, setup) === null) {
     return null;

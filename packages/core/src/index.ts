@@ -209,7 +209,12 @@ export {
 export type { HandCategory, HandValue } from "./poker/handValue";
 export { evaluateHand, rankHands } from "./poker/evaluate";
 export type { EvaluatedHand } from "./poker/evaluate";
-export { buildPots, awardPots, totalPotAmount } from "./poker/pots";
+export {
+  buildPots,
+  awardPots,
+  potWinners,
+  totalPotAmount,
+} from "./poker/pots";
 export type { Contribution, Pot, Award } from "./poker/pots";
 export {
   createBettingRound,
@@ -242,8 +247,10 @@ export {
   finishingOrder,
   finishingPlacings,
   toGameResult,
+  knockoutTally,
+  knockoutCounts,
 } from "./poker/session";
-export type { GameSession, SessionSeat } from "./poker/session";
+export type { GameSession, SessionSeat, Knockout } from "./poker/session";
 
 // Leaderboard
 export {
@@ -257,11 +264,13 @@ export {
   removeGameResult,
   MAX_GAME_RESULTS,
   MAX_PLAYERS,
+  bountiesWon,
 } from "./leaderboard/gameResult";
 export type {
   Player,
   Placing,
   GameResult,
+  KnockoutCount,
   GameResultValidationError,
 } from "./leaderboard/gameResult";
 export { computeStandings } from "./leaderboard/standings";

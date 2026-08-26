@@ -47,6 +47,9 @@ const withBustedPlayer = (() => {
           : seat,
     ),
     bustOrder: ["d"],
+    // Whoever took their chips took them out — the same fact from the other
+    // side, and the validator now insists the two agree.
+    knockouts: [{ playerId: "d", by: ["a"] }],
   };
   return startNextHand(knockedOut, {
     smallBlind: FOUR.smallBlind,
@@ -499,5 +502,95 @@ describe("a stored game is kept whole or not at all", () => {
     for (const raw of ["{not json", "null", "42", "[]", "{}", '{"setup":null}']) {
       expect(await seeded(raw).loadGame()).toBeNull();
     }
+  });
+});
+
+describe("knockouts on a stored game", () => {
+  const withKnockout = (over: Record<string, unknown>) =>
+    JSON.stringify({
+      setup: FOUR,
+      session: { ...withBustedPlayer, ...over },
+      recorded: false,
+    });
+
+  it("drops a game claiming a knockout nobody suffered", async () => {
+    // A bounty is money. An entry for somebody still sitting at the table pays
+    // it for a knockout that never happened.
+    expect(
+      await seeded(withKnockout({ knockouts: [{ playerId: "b", by: ["a"] }] }))
+        .loadGame(),
+    ).toBeNull();
+  });
+
+  it("drops a game crediting somebody who never sat down", async () => {
+    expect(
+      await seeded(withKnockout({ knockouts: [{ playerId: "d", by: ["z"] }] }))
+        .loadGame(),
+    ).toBeNull();
+  });
+
+  it("drops a game where somebody knocked themselves out", async () => {
+    // Winning the pot your chips were in leaves you with chips.
+    expect(
+      await seeded(withKnockout({ knockouts: [{ playerId: "d", by: ["d"] }] }))
+        .loadGame(),
+    ).toBeNull();
+  });
+
+  it("drops a game that lost the record of who did it", async () => {
+    // Somebody went out and nothing says by whom. Keeping it would silently
+    // drop a bounty that was actually won.
+    expect(await seeded(withKnockout({ knockouts: [] })).loadGame()).toBeNull();
+    expect(
+      await seeded(withKnockout({ knockouts: undefined })).loadGame(),
+    ).toBeNull();
+  });
+
+  it("keeps a knockout nobody could be credited for", async () => {
+    // Dead money: the pot went unclaimed, so no bounty is owed. That is a real
+    // state, not a corrupt one.
+    const loaded = await seeded(
+      withKnockout({ knockouts: [{ playerId: "d", by: [] }] }),
+    ).loadGame();
+    expect(loaded?.session.knockouts).toEqual([{ playerId: "d", by: [] }]);
+  });
+
+  it("drops a knockout that is not a knockout at all", async () => {
+    // Whatever a half-written or hand-edited store produced, it is not a record
+    // of who took whom out, and a bounty must not be paid off it.
+    const failures: string[] = [];
+    for (const entry of [null, "d", { playerId: 7, by: ["a"] }, { playerId: "d" }, { playerId: "d", by: "a" }]) {
+      const loaded = await seeded(withKnockout({ knockouts: [entry] })).loadGame();
+      if (loaded !== null) failures.push(JSON.stringify(entry));
+    }
+    expect(failures).toEqual([]);
+  });
+
+  it("drops a hand whose pot winners are not lists of players", async () => {
+    const failures: string[] = [];
+    for (const winners of [["a"], [null], ["z"], [["a"]], "a"]) {
+      const stored = JSON.parse(withKnockout({})) as {
+        session: { hand: { potWinners: unknown; pots: unknown[] } };
+      };
+      // One pot, so a single well-formed entry is the only thing that passes.
+      stored.session.hand.pots = [
+        { amount: 0, eligiblePlayerIds: ["a", "b", "c"] },
+      ];
+      stored.session.hand.potWinners = [winners];
+      const loaded = await seeded(JSON.stringify(stored)).loadGame();
+      const shouldLoad = JSON.stringify(winners) === JSON.stringify(["a"]);
+      if ((loaded !== null) !== shouldLoad) {
+        failures.push(JSON.stringify(winners));
+      }
+    }
+    expect(failures).toEqual([]);
+  });
+
+  it("drops a hand whose pot winners do not line up with its pots", async () => {
+    const stored = JSON.parse(withKnockout({})) as {
+      session: { hand: { potWinners: unknown } };
+    };
+    stored.session.hand.potWinners = [["a"]];
+    expect(await seeded(JSON.stringify(stored)).loadGame()).toBeNull();
   });
 });

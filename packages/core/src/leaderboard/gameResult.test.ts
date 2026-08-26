@@ -2,6 +2,7 @@ import { describe, it, expect } from "vitest";
 import {
   addGameResult,
   addPlayer,
+  bountiesWon,
   createGameResult,
   createPlayer,
   isValidPlayerName,
@@ -240,5 +241,107 @@ describe("addGameResult / removeGameResult", () => {
     const list = addGameResult([result("1")], result("2"));
     expect(removeGameResult(list, "1").map((r) => r.id)).toEqual(["2"]);
     expect(removeGameResult(list, "zz")).toHaveLength(2);
+  });
+});
+
+describe("knockouts on a recorded game", () => {
+  const base = {
+    id: "g1",
+    playerIds: ["a", "b", "c"],
+    placings: [{ playerId: "a", place: 1, winnings: 60 }],
+    buyIn: 20,
+    bounty: 5,
+    now: 1_000,
+  };
+
+  it("is absent, not empty, for a game recorded by hand", () => {
+    // The difference matters: an empty list claims nobody knocked anybody out,
+    // which is false of every game ever played, and a bounty total built on it
+    // would be wrong rather than merely missing.
+    const result = createGameResult(base);
+    expect(result.knockouts).toBeUndefined();
+    expect("knockouts" in result).toBe(false);
+  });
+
+  it("is recorded for a game the app dealt", () => {
+    const result = createGameResult({
+      ...base,
+      knockouts: [{ playerId: "a", count: 2 }],
+    });
+    expect(result.knockouts).toEqual([{ playerId: "a", count: 2 }]);
+  });
+
+  it("reads the same way twice, whatever order it arrives in", () => {
+    const one = createGameResult({
+      ...base,
+      knockouts: [
+        { playerId: "b", count: 1 },
+        { playerId: "a", count: 3 },
+      ],
+    });
+    const other = createGameResult({
+      ...base,
+      knockouts: [
+        { playerId: "a", count: 3 },
+        { playerId: "b", count: 1 },
+      ],
+    });
+    expect(one.knockouts).toEqual(other.knockouts);
+    expect(one.knockouts?.[0].playerId).toBe("a");
+  });
+
+  it("breaks a tie on count by player, rather than by arrival order", () => {
+    const result = createGameResult({
+      ...base,
+      knockouts: [
+        { playerId: "c", count: 1 },
+        { playerId: "b", count: 1 },
+      ],
+    });
+    expect(result.knockouts?.map((k) => k.playerId)).toEqual(["b", "c"]);
+  });
+
+  it("leaves out anybody who knocked nobody out", () => {
+    const result = createGameResult({
+      ...base,
+      knockouts: [
+        { playerId: "a", count: 1 },
+        { playerId: "b", count: 0 },
+      ],
+    });
+    expect(result.knockouts).toEqual([{ playerId: "a", count: 1 }]);
+  });
+});
+
+describe("bounty money", () => {
+  const dealt = createGameResult({
+    id: "g1",
+    playerIds: ["a", "b", "c"],
+    placings: [{ playerId: "a", place: 1, winnings: 60 }],
+    buyIn: 20,
+    bounty: 5,
+    now: 1_000,
+    knockouts: [{ playerId: "a", count: 2 }],
+  });
+
+  it("is the count times the bounty in force", () => {
+    expect(bountiesWon(dealt, "a")).toBe(10);
+  });
+
+  it("is nothing for somebody who knocked nobody out", () => {
+    expect(bountiesWon(dealt, "b")).toBe(0);
+  });
+
+  it("is nothing at all for a game that never tracked them", () => {
+    // Not a guess, and not a claim that they won none — just nothing to show.
+    const byHand = createGameResult({
+      id: "g2",
+      playerIds: ["a", "b"],
+      placings: [],
+      buyIn: 20,
+      bounty: 5,
+      now: 1_000,
+    });
+    expect(bountiesWon(byHand, "a")).toBe(0);
   });
 });
