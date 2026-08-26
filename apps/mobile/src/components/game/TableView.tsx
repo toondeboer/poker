@@ -244,7 +244,10 @@ export function TableView({
                 </View>
                 <Button
                   label={
-                    raiseTo >= legal.maxRaiseTo
+                    // Only *exactly* the stack is an all-in. Above it the
+                    // button is disabled, and calling that "all in" would
+                    // describe an action it is refusing to take.
+                    raiseTo === legal.maxRaiseTo
                       ? `All in for ${legal.maxRaiseTo}`
                       : `Raise to ${raiseTo}`
                   }
@@ -252,6 +255,11 @@ export function TableView({
                   onPress={() =>
                     onAct(legal.playerId, { type: "raise", to: raiseTo })
                   }
+                  // The lower bound is belt-and-braces: NumberField floors to
+                  // `min` on every keystroke, so the field cannot currently
+                  // produce a number below it. That is its behaviour rather
+                  // than this component's, and the engine would throw on a
+                  // short raise, so it is checked here too.
                   disabled={
                     raiseTo < legal.minRaiseTo || raiseTo > legal.maxRaiseTo
                   }
