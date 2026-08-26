@@ -75,6 +75,13 @@ export default function RootLayout() {
                           }}
                         />
                         <Stack.Screen
+                          name="game"
+                          options={{
+                            title: "Play a hand",
+                            headerBackTitle: "Settings",
+                          }}
+                        />
+                        <Stack.Screen
                           name="leaderboard"
                           options={{
                             title: "Leaderboard",

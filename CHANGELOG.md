@@ -10,6 +10,13 @@ platform-tagged heading (e.g. `## [1.1.3] - 2026-07-20 — Android`) when you cu
 ## [Unreleased]
 
 ### Added
+- **Play a hand from the phone (Pro).** For a table that has chips but no cards — on holiday, or
+  when the deck is somewhere nobody can remember. The phone deals a real hand of hold'em: everyone
+  can see the board, the pot and every stack, and only the player to act can see their own two
+  cards, after tapping to reveal them. That last part is why the reveal is a tap rather than
+  automatic: one phone goes round the table, and cards that appear by themselves are cards the
+  previous player has already seen. Blinds, betting, side pots when somebody is all-in for less,
+  and who wins at the showdown are all decided by the same rules the rest of the app is built on.
 - Repo docs and store copy brought up to what 1.2.0 actually contains — the `README`, the
   architecture notes, and both stores' long descriptions and Pro feature lists, which all still
   described a timer whose only paid extras were presets and alarm sounds.

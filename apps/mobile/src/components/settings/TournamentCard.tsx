@@ -69,6 +69,17 @@ export function TournamentCard({ style }: { style?: StyleProp<ViewStyle> }) {
           badgeLabel={isPremium ? undefined : "Pro"}
           onPress={() => router.navigate("/leaderboard")}
         />
+        <NavRow
+          title="Play a hand"
+          summary={
+            players.length > 0
+              ? `Deal from the phone · ${players.length} on the roster`
+              : "Deal from the phone when you have chips but no cards"
+          }
+          badge={isPremium ? undefined : <ProPill />}
+          badgeLabel={isPremium ? undefined : "Pro"}
+          onPress={() => router.navigate("/game")}
+        />
       </CardContent>
     </Card>
   );
