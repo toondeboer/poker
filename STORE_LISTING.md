@@ -59,7 +59,8 @@ No more arguments about when blinds should go up or when the next break starts �
 
 **Drafted replacement** — mirrors the Play long description's structure (glanceable timer, custom
 blinds, background alerts, Pro bullets, CTA), swapping in Live Activities for the iOS-specific
-Lock Screen bullet already promised in the promotional text above. `1279` chars:
+Lock Screen bullet already promised in the promotional text above. **`2064` chars** as of 1.2.0,
+against a 4,000 limit:
 ```
 The simple poker timer & tournament clock for home poker night. A big, easy-to-read blinds timer and a loud buzzer mean nobody has to squint at their phone mid-hand to know when it's time to raise.
 
@@ -70,12 +71,16 @@ Built for real Texas Hold'em tournament nights, not a casino app full of setting
 • Loud buzzer & notification when a level ends, even if your phone is locked or the app is in the background
 • Live Activities on the Lock Screen — check the current blind level without unlocking your phone
 • Clean, distraction-free interface — no account, no sign-up, no clutter
+• Work out the payouts (Pro) — enter the buy-in and the app splits the pool across the places that pay, with bounties, rebuys and add-ons counted. Every place below the winner is a round number you can count straight out of the pot
+• Chop the last pot (Pro) — ending early? Everyone left keeps the lowest prize still live and the rest splits by chip stack, so nobody drops below the place they'd locked up
+• Keep a leaderboard (Pro) — who's won most across the season, with a separate board for each group you play with. Recording a night is two taps per player and no typing
+• Share to the group chat (Pro) — send the table the payouts before you start, or the standings after
 • Save tournament presets (Pro) — store your blind structure & round length, load them in one tap
 • Choose your alarm sound (Pro) — pick from a few bundled alarm packs beyond the default
 
-Whether it's a casual poker night with friends or a bigger home tournament, Poker Blinds Buzzer keeps the blinds clock visible and on schedule so everyone can focus on the cards, not the clock.
+Whether it's a casual poker night with friends or a bigger home tournament, Poker Blinds Buzzer keeps the blinds clock visible and on schedule so everyone can focus on the cards, not the clock — and settles the money before it turns into an argument.
 
-Go Pro to remove ads, save tournament presets, and pick your alarm sound — or just support an indie developer. Everything else stays free.
+Go Pro to remove ads, work out the payouts, chop the last pot, keep a leaderboard, save presets and pick your alarm sound — or just support an indie developer. The timer itself stays free.
 ```
 
 ## Android — Google Play (reuse at launch — P1 item 4)
@@ -107,42 +112,57 @@ Go Pro to remove ads, save tournament presets, and pick your alarm sound — or 
   • Loud buzzer & notification when a level ends, even if your phone is locked or the app is in the background
   • Keeps timing in the background — the clock won't drop out mid-tournament
   • Clean, distraction-free interface — no account, no sign-up, no clutter
+  • Work out the payouts (Pro) — enter the buy-in and the app splits the pool across the places that pay, with bounties, rebuys and add-ons counted. Every place below the winner is a round number you can count straight out of the pot
+  • Chop the last pot (Pro) — ending early? Everyone left keeps the lowest prize still live and the rest splits by chip stack, so nobody drops below the place they'd locked up
+  • Keep a leaderboard (Pro) — who's won most across the season, with a separate board for each group you play with. Recording a night is two taps per player and no typing
+  • Share to the group chat (Pro) — send the table the payouts before you start, or the standings after
   • Save tournament presets (Pro) — store your blind structure & round length, load them in one tap
   • Choose your alarm sound (Pro) — pick from a few bundled alarm packs beyond the default
 
-  Whether it's a casual poker night with friends or a bigger home tournament, Poker Blinds Timer & Buzzer keeps the blinds clock visible and on schedule so everyone can focus on the cards, not the clock.
+  Whether it's a casual poker night with friends or a bigger home tournament, Poker Blinds Timer & Buzzer keeps the blinds clock visible and on schedule so everyone can focus on the cards, not the clock — and settles the money before it turns into an argument.
 
-  Go Pro to remove ads, save tournament presets, and pick your alarm sound — or just support an indie developer. Everything else stays free.
+  Go Pro to remove ads, work out the payouts, chop the last pot, keep a leaderboard, save presets and pick your alarm sound — or just support an indie developer. The timer itself stays free.
   ```
-  `1264` chars. Updated for v1.1.3: previously deliberately omitted tournament
-  presets since that feature was iOS-only as of v1.1.2 (Android was still on
-  1.1.1) — now that presets **and** Sound Packs both ship to Android in
-  **v1.1.3**, both are called out as Pro bullets above.
+  Updated for **v1.2.0**: the four capabilities that release adds behind the
+  paywall — payouts, the chop, the leaderboard and sharing — are now called out
+  as bullets. They are also the reason the closing line changed from
+  "everything else stays free" to "the timer itself stays free": Pro is no
+  longer a cosmetic tier, and describing it as if it were sets up a refund
+  request.
+
+  `2077` chars, against a 4,000 limit — up from ~1,264, and still less than
+  two-thirds of the way there. Play mines keywords from the first two
+  sentences (the part visible before "Read more"), which are deliberately
+  unchanged.
 
 ## In-app purchase — `pro_lifetime` description (keep in sync with the paywall)
 
 The paywall (`PRO_FEATURES` in `apps/mobile/src/components/paywall/Paywall.tsx`)
-now promises **four** things — **remove ads · save & load tournament presets ·
+promises **six** things as of 1.2.0 — **remove ads · buy-ins, payouts and
+bounties · a leaderboard across game nights · save & load tournament presets ·
 choose your alarm sound · support the dev**. Update the store IAP copy in all
-three consoles to match (this is the P4 sync item). Presets shipped in v1.1.2
-(iOS)/v1.1.3 (Android); Sound Packs are new in v1.1.3 on both platforms — the
-copy below adds the sound-pack mention that was still missing.
+three consoles to match.
+
+This has now drifted twice: the paywall was found still selling the 1.1.4
+feature set during the 1.2.0 cycle, and the store copy one level out had the
+same problem. **The paywall is the source of truth** — read `PRO_FEATURES` and
+work outwards, rather than editing these fields from memory.
 
 ### App Store Connect — In-App Purchase → `pro_lifetime`
-- **Display Name (≤30 chars):** `Pro — Ads, Presets & Sounds` (`27`)
+- **Display Name (≤30 chars):** `Pro — Payouts, Board & More` (`27`)
 - **Description** (short field — **verify the limit in the console**, it's tight):
   ```
-  No ads, presets & custom sounds.
+  No ads, payouts, leaderboard.
   ```
-  `32` chars.
+  `29` chars.
 
 ### Google Play — Monetize → Products → `pro_lifetime`
-- **Name (≤55 chars):** `Pro — Remove Ads, Presets & Sound Packs` (`39`)
+- **Name (≤55 chars):** `Pro — Payouts, Leaderboard & No Ads` (`35`)
 - **Description (≤200 chars):**
   ```
-  Unlock Pro: remove all ads for a clean full-screen timer, save & load tournament presets, choose your alarm sound from bundled packs, and support an indie developer. One-time purchase.
+  Unlock Pro: work out payouts and bounties, chop the last pot, keep a leaderboard per group, save presets, pick your alarm sound, and remove all ads. One-time purchase.
   ```
-  `184` chars.
+  `166` chars.
 
 ### RevenueCat
 - The `pro_lifetime` product description mirrors the store; if you keep an
