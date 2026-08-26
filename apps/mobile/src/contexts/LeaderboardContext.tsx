@@ -69,12 +69,14 @@ type LeaderboardContextValue = {
   isLoading: boolean;
   addNewPlayer: (name: string) => void;
   deletePlayer: (id: string) => void;
+  /** Returns false when the result was refused, so a caller can say so
+   * instead of reporting a save that never happened. */
   recordResult: (params: {
     playerIds: string[];
     placings: Placing[];
     buyIn: number;
     bounty: number;
-  }) => void;
+  }) => boolean;
   deleteResult: (id: string) => void;
 };
 
@@ -202,7 +204,7 @@ export function LeaderboardProvider({
       });
       if (invalid) {
         logger.error("Refusing to record an invalid game result:", invalid);
-        return;
+        return false;
       }
       const result = createGameResult({
         id: generateId(),
@@ -216,6 +218,7 @@ export function LeaderboardProvider({
         ...entry,
         results: addGameResult(entry.results, result),
       }));
+      return true;
     },
     [withActiveGroup],
   );

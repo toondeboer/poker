@@ -380,7 +380,9 @@ the table can follow what is happening from across it.
 | **Save to the leaderboard** records the finishing order the game produced, with winnings from the Payouts screen priced for the field that sat down | ⬜ | ⬜ |
 | The saved game appears in the standings immediately, and the winner's count goes up | ⬜ | ⬜ |
 | Saving with **no buy-in set** still records the finishing order, everyone winning nothing — a friendly game still has a winner | ⬜ | ⬜ |
-| The Save button doesn't offer itself twice; a second tap can't record the same night again | ⬜ | ⬜ |
+| The Save button doesn't offer itself twice — **save, go back, reopen the screen**, and it still says saved rather than offering to record the same night again | ⬜ | ⬜ |
+| Switching leaderboard group mid-game and then saving is **refused**, with a message saying which board to switch back to | ⬜ | ⬜ |
+| Rebuys or add-ons left set on the Payouts screen don't inflate what a dealt game records — this game has no way to buy back in | ⬜ | ⬜ |
 | Readable across a table — card faces, stacks and whose turn it is, at arm's length | ⬜ | ⬜ |
 | Tablet: the table is capped and centred rather than running the full width | ⬜ | ⬜ |
 
