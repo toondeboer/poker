@@ -71,12 +71,6 @@ are removed from this file when a release is cut rather than accumulating as ✅
   `adb shell input tap` had no such issue (real HID-level injection). A real device or Xcode's own
   UI-testing driver would sidestep this for iOS.
 
-## Website landing page
-- 🔍 **Confirm contact email is correct** — currently `poker.blinds.buzzer@gmail.com`, hardcoded in
-  `apps/web/src/app/privacy-policy/page.tsx`. The landing page itself (`LandingPage.tsx`) doesn't
-  surface an email at all currently — decide whether it should, and confirm the gmail address above
-  is still the one actively monitored.
-
 ## Play a hand — known gaps
 
 - 🟡 **Bet sizing is a field with three shortcuts, not a slider.** Any amount between the minimum
@@ -160,19 +154,16 @@ are removed from this file when a release is cut rather than accumulating as ✅
   is cheap at six players or fewer. Offered during 1.2.0 scoping and deliberately not taken, so this
   is a real option rather than an oversight.
 
-## Docs & website parity
-- 🚧 **Website copy is written and waiting on the release** (PR #155, against `main`). It must
-  **not** merge until 1.2.0 is live in both stores: pushing to `main` deploys the site, and the page
-  now advertises features that are not downloadable yet. The original problem, for the record:
-- ⬜ **The website describes an app without any of 1.2.0's six Pro capabilities** — payouts (with
-  bounties, rebuys and add-ons), the chop calculator, the leaderboard, the record-a-game prompt and
-  sharing. The `/guide` page also tells hosts to "agree on the payout structure" and to set a rebuy
-  cutoff, both of which the app now does for them, so the copy is not just incomplete but out of
-  date. Targets `main`, so it ships independently of the mobile release — but
-  `STORE_LISTING.md` asks for it before or alongside submission, so store and site describe the
-  same app.
-- ⬜ Update the website with all current app features (check `apps/web/src/app/components/LandingPage.tsx`
-  and the `/guide` page against what's actually in the app).
+## Website and store copy — written, waiting on the release
+
+- 🚧 **PR #155 must not merge until 1.2.0 is live in both stores.** Pushing to `main` deploys the
+  site, and the page now advertises payouts, the chop, the leaderboard, groups and sharing — none of
+  which is downloadable yet. This is a deliberate exception to the "web goes to `main` so it isn't
+  held hostage to App Store review" rule: that rule exists so *fixes* ship freely, not so the site
+  can describe an app that does not exist. Merge it alongside the submission.
+  - The landing page also gains a **Contact** link, which closes the old question about the contact
+    address: `poker.blinds.buzzer@gmail.com` is right, and it lived in exactly one place
+    (`privacy-policy/page.tsx`). Both pages now read one shared constant.
 - ⬜ **Console work: paste the updated store copy in.** Both long descriptions and the
   `pro_lifetime` name/description are rewritten in [STORE_LISTING.md](./STORE_LISTING.md); what's
   left is entering them in App Store Connect and Play Console, and counting the fields there rather
