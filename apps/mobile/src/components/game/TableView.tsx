@@ -12,6 +12,7 @@ import { colors, radius, space, text } from "@/src/theme";
 import { Badge } from "@/src/components/ui/Badge";
 import { Button } from "@/src/components/ui/Button";
 import { Card, CardContent, CardHeader } from "@/src/components/ui/Card";
+import { NumberField } from "@/src/components/ui/NumberField";
 import { PlayingCard } from "./PlayingCard";
 
 const STREET_LABEL: Record<string, string> = {
@@ -44,6 +45,7 @@ export function TableView({
 }) {
   const hand = session.hand ?? session.lastHand;
   const [revealed, setRevealed] = useState(false);
+  const [raiseTo, setRaiseTo] = useState(legal?.minRaiseTo ?? 0);
 
   // A new player to act means the phone has changed hands: hide the cards
   // again, and drop any half-built raise. Tracked during render against the
@@ -53,6 +55,9 @@ export function TableView({
   if (lastToAct !== (legal?.playerId ?? null)) {
     setLastToAct(legal?.playerId ?? null);
     setRevealed(false);
+    // Seed the amount at the minimum legal raise: the commonest choice, and
+    // the one that cannot be out of range.
+    setRaiseTo(legal?.minRaiseTo ?? 0);
   }
 
   if (!hand) return null;
@@ -68,6 +73,21 @@ export function TableView({
   const acting = legal
     ? hand.seats.find((seat) => seat.playerId === legal.playerId)
     : undefined;
+
+  /**
+   * A pot-sized raise: call first, then raise by what is in the middle after
+   * that — the reference size players actually name at a table.
+   *
+   * `null` when it lands on or outside the two ends, because a "Pot" button
+   * that quietly means "min" or "all in" lies about what it does, and both of
+   * those already have their own.
+   */
+  const potRaiseTo = (() => {
+    if (!legal?.canRaise || !hand.round) return null;
+    const target = hand.round.currentBet + pot + legal.callAmount;
+    if (target <= legal.minRaiseTo || target >= legal.maxRaiseTo) return null;
+    return target;
+  })();
 
   return (
     <>
@@ -189,34 +209,53 @@ export function TableView({
 
             {legal.canRaise ? (
               <View style={styles.raise}>
-                {/* Two sizes, not a range. Saying "between 20 and 1000" while
-                    offering only the ends of it is worse than saying nothing;
-                    free-form sizing is a real gap, written up in ROADMAP.md. */}
-                <Text style={styles.raiseLabel}>Raise to</Text>
-                <View style={styles.actions}>
+                <NumberField
+                  label="Raise to"
+                  value={raiseTo}
+                  onChangeValue={setRaiseTo}
+                  min={legal.minRaiseTo}
+                  helper={`Between ${legal.minRaiseTo} and ${legal.maxRaiseTo}`}
+                />
+                {/* Quick sizes **set the amount**; they do not act. Raising is
+                    always a second, deliberate tap — an all-in reached by a
+                    mis-tap is not something a table forgives, and this is the
+                    one control here that can end somebody's night. */}
+                <View style={styles.quickSizes}>
                   <Button
-                    label={`Min ${legal.minRaiseTo}`}
+                    label="Min"
                     variant="secondary"
                     size="sm"
-                    onPress={() =>
-                      onAct(legal.playerId, {
-                        type: "raise",
-                        to: legal.minRaiseTo,
-                      })
-                    }
+                    onPress={() => setRaiseTo(legal.minRaiseTo)}
                   />
+                  {potRaiseTo !== null ? (
+                    <Button
+                      label="Pot"
+                      variant="secondary"
+                      size="sm"
+                      onPress={() => setRaiseTo(potRaiseTo)}
+                    />
+                  ) : null}
                   <Button
-                    label={`All in ${legal.maxRaiseTo}`}
-                    variant="pro"
+                    label="All in"
+                    variant="secondary"
                     size="sm"
-                    onPress={() =>
-                      onAct(legal.playerId, {
-                        type: "raise",
-                        to: legal.maxRaiseTo,
-                      })
-                    }
+                    onPress={() => setRaiseTo(legal.maxRaiseTo)}
                   />
                 </View>
+                <Button
+                  label={
+                    raiseTo >= legal.maxRaiseTo
+                      ? `All in for ${legal.maxRaiseTo}`
+                      : `Raise to ${raiseTo}`
+                  }
+                  variant="pro"
+                  onPress={() =>
+                    onAct(legal.playerId, { type: "raise", to: raiseTo })
+                  }
+                  disabled={
+                    raiseTo < legal.minRaiseTo || raiseTo > legal.maxRaiseTo
+                  }
+                />
               </View>
             ) : null}
           </CardContent>
@@ -281,8 +320,8 @@ const styles = StyleSheet.create({
   peek: { alignItems: "center", gap: space.sm },
   peekLabel: { ...text.meta, textAlign: "center" },
   actions: { flexDirection: "row", gap: space.sm, marginTop: space.md },
-  raise: { marginTop: space.sm },
-  raiseLabel: { ...text.meta },
+  raise: { marginTop: space.sm, gap: space.sm },
+  quickSizes: { flexDirection: "row", gap: space.sm },
   awards: { marginTop: space.md, gap: space.xs },
   award: { ...text.rowTitle, color: colors.accent },
 });
