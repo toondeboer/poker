@@ -4,9 +4,11 @@ import {
   HEARTBEAT_MS,
   STALE_AFTER_MS,
   sessionHealth,
+  matchesSession,
   applySyncMessage,
   nextVersion,
   receiveSyncMessage,
+  recordSentMessage,
   shouldApply,
   toSyncMessage,
   type TimerSyncMessage,
@@ -248,5 +250,137 @@ describe("knowing whether we are still in touch", () => {
     // A phone on a busy hotspot drops the odd message; saying "lost touch"
     // every time one goes missing is noise nobody would keep looking at.
     expect(STALE_AFTER_MS).toBeGreaterThanOrEqual(HEARTBEAT_MS * 3);
+  });
+});
+
+describe("having something to say", () => {
+  const paused = { timerDuration: 600, timeLeft: 300, paused: true };
+  const check = (over: {
+    message?: Partial<TimerSyncMessage>;
+    state?: Partial<typeof paused>;
+    blindIndex?: number;
+    levelCount?: number;
+    now?: number;
+  }) =>
+    matchesSession({
+      message: message({ paused: true, remaining: 300, ...over.message }),
+      receivedAt: 1_000,
+      state: { ...paused, ...over.state },
+      blindIndex: over.blindIndex ?? 0,
+      levelCount: over.levelCount ?? 5,
+      now: over.now ?? 1_000,
+    });
+
+  it("has nothing to say when the clock is what the table was told", () => {
+    expect(check({})).toBe(true);
+  });
+
+  it("speaks up for a pause, a resume, a level or a round length", () => {
+    const failures: string[] = [];
+    if (check({ state: { paused: false } })) failures.push("resumed");
+    if (check({ blindIndex: 1 })) failures.push("level");
+    if (check({ state: { timerDuration: 900 } })) failures.push("duration");
+    expect(failures).toEqual([]);
+  });
+
+  it("speaks up for a reset, which changes only the time on a paused clock", () => {
+    // The case a remembered-snapshot comparison gets wrong: same level, same
+    // duration, still paused — and a completely different round.
+    expect(check({ state: { timeLeft: 600 } })).toBe(false);
+  });
+
+  it("says the same pause twice when it really is a new press", () => {
+    // Pausing, resuming, and pausing again at the same level produces a state
+    // identical to the first pause. Compared against a snapshot of ourselves
+    // that would look like something already sent and never leave the phone;
+    // compared against the last message — a resume — it is plainly new.
+    const afterResume = message({
+      paused: false,
+      remaining: 300,
+      version: 2,
+    });
+    expect(
+      matchesSession({
+        message: afterResume,
+        receivedAt: 1_000,
+        state: paused,
+        blindIndex: 0,
+        levelCount: 5,
+        now: 1_000,
+      }),
+    ).toBe(false);
+  });
+
+  it("lets a running clock run without anybody announcing it", () => {
+    // The message said 300 left; a minute later 240 left is the same round, and
+    // a phone that reported it as a change would flood a silent table.
+    expect(
+      check({
+        message: { paused: false },
+        state: { paused: false, timeLeft: 240 },
+        now: 61_000,
+      }),
+    ).toBe(true);
+  });
+
+  it("notices a running clock that is genuinely somewhere else", () => {
+    expect(
+      check({
+        message: { paused: false },
+        state: { paused: false, timeLeft: 120 },
+        now: 61_000,
+      }),
+    ).toBe(false);
+  });
+
+  it("does not fight over a level a shorter schedule cannot reach", () => {
+    // Schedules are not synced. A phone with four levels following a table on
+    // level 9 sits on its last one — and must not report that as a change,
+    // which would drag everybody else back to it.
+    expect(check({ message: { blindIndex: 9 }, blindIndex: 4, levelCount: 5 })).toBe(
+      true,
+    );
+  });
+
+  it("survives a schedule with nothing in it", () => {
+    expect(check({ message: { blindIndex: 3 }, blindIndex: 0, levelCount: 0 })).toBe(
+      true,
+    );
+  });
+});
+
+describe("what this phone said itself", () => {
+  it("goes into the ordering, or the tie-break has nothing to compare", () => {
+    // Without this, a device that pressed pause holds no record of it, and the
+    // other phone's simultaneous press is applied unconditionally — so the two
+    // swap states instead of agreeing on one.
+    const mine = message({ version: 4, sender: "phone-a" });
+    const sent = recordSentMessage(EMPTY_SHARED_SESSION, mine, 100);
+    expect(sent.applied).toBe(mine);
+    expect(sent.appliedAt).toBe(100);
+    expect(shouldApply(sent, message({ version: 4, sender: "phone-b" }))).toBe(true);
+    expect(shouldApply(sent, message({ version: 4, sender: "phone-A" }))).toBe(false);
+  });
+
+  it("is not evidence that anybody is listening", () => {
+    // A phone hosting a session nobody has joined would otherwise report itself
+    // as being in step with the table.
+    const sent = recordSentMessage(EMPTY_SHARED_SESSION, message(), 100);
+    expect(sent.lastMessageAt).toBeNull();
+    expect(sessionHealth(sent, 100)).toBe("waiting");
+  });
+
+  it("leaves a session alone when the table has already moved past it", () => {
+    const ahead = receiveSyncMessage(EMPTY_SHARED_SESSION, message({ version: 9 }), 0);
+    expect(recordSentMessage(ahead, message({ version: 8 }), 100)).toBe(ahead);
+  });
+
+  it("anchors a projection where the applied message landed, not the last one", () => {
+    // A message too old to apply still proves the connection is alive, but must
+    // not move the point a running countdown is measured from.
+    const applied = receiveSyncMessage(EMPTY_SHARED_SESSION, message({ version: 5 }), 1_000);
+    const stale = receiveSyncMessage(applied, message({ version: 4 }), 9_000);
+    expect(stale.appliedAt).toBe(1_000);
+    expect(stale.lastMessageAt).toBe(9_000);
   });
 });

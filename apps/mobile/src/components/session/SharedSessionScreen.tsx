@@ -122,7 +122,7 @@ export function SharedSessionScreen() {
           <Button
             label="Start a shared clock"
             icon="share-outline"
-            onPress={() => void startHosting()}
+            onPress={() => void startHosting().then(setError)}
             disabled={busy}
           />
         </CardContent>
@@ -141,7 +141,11 @@ export function SharedSessionScreen() {
             }}
             autoCapitalize="characters"
             autoCorrect={false}
-            maxLength={JOIN_CODE_LENGTH}
+            // Room for the spaces and dashes people put in a code they were
+            // read out — the limit applies to what was typed, before those are
+            // taken out, and a code pasted with a space in it would otherwise
+            // lose its last character.
+            maxLength={JOIN_CODE_LENGTH * 2}
             placeholder="4F7K2P"
             helper={`${JOIN_CODE_LENGTH} characters, from whoever started it.`}
           />
@@ -150,7 +154,7 @@ export function SharedSessionScreen() {
             label="Join"
             icon="enter-outline"
             onPress={() => void runJoin()}
-            disabled={busy || typed.length !== JOIN_CODE_LENGTH}
+            disabled={busy || normaliseJoinCode(typed).length !== JOIN_CODE_LENGTH}
           />
         </CardContent>
       </Card>

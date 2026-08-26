@@ -4,6 +4,7 @@ import React, {
   createContext,
   ReactNode,
   useEffect,
+  useMemo,
   useRef,
   useState,
 } from "react";
@@ -173,6 +174,7 @@ export function TimerProvider({ children }: Readonly<{ children: ReactNode }>) {
     isLoading,
     loadTimerState,
     applyRemoteState,
+    hydrationCount,
   } = useTimerEngine(currentBlindIndex, blindLevels, effectiveSoundPackId, {
     onTimerComplete: handleTimerComplete,
   });
@@ -180,12 +182,28 @@ export function TimerProvider({ children }: Readonly<{ children: ReactNode }>) {
   // One clock across several phones, when a session is running. Off by default
   // and inert without one — see `useSessionSync`, which owns the whole of the
   // send/receive loop and the echo suppression that keeps it from becoming one.
+  // Memoised because the sync hook compares against it every tick; a fresh
+  // object each render would re-run that comparison on every unrelated render
+  // too.
+  const timerState = useMemo(
+    () => ({ timerDuration, endTime, timeLeft, paused }),
+    [timerDuration, endTime, timeLeft, paused],
+  );
   useSessionSync({
-    state: { timerDuration, endTime, timeLeft, paused },
+    state: timerState,
     blindIndex: currentBlindIndex,
+    levelCount: blindLevels.length,
     isLoading,
+    hydrationCount,
     applyRemoteState,
     selectBlind,
+    // A round that changed because somebody else pressed something has to do
+    // everything a local press does. On iOS that means the "blinds up"
+    // notification: without this a remote pause leaves one armed, and the phone
+    // announces the next level in the middle of a break.
+    onRemoteApplied: (remote) => {
+      void handleNotificationScheduling(remote.paused, remote.timeLeft);
+    },
   });
 
   // Keep the screen on for as long as a round is actually counting down, so a

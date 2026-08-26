@@ -15,6 +15,7 @@ import {
   normaliseJoinCode,
   nextVersion,
   receiveSyncMessage,
+  recordSentMessage,
   sessionHealth,
   type SessionHealth,
   type SharedSession,
@@ -48,8 +49,13 @@ type SharedSessionContextValue = {
   code: string | null;
   health: SessionHealth;
   busy: boolean;
-  /** The newest message from the table, or `null` if nothing has arrived. */
+  /**
+   * The newest message anybody sent, **including this phone's own**. `null`
+   * before there is one.
+   */
   latest: TimerSyncMessage | null;
+  /** When {@link latest} was sent or received, on the local clock. */
+  latestAt: number | null;
   startHosting: () => Promise<JoinError | null>;
   join: (code: string) => Promise<JoinError | null>;
   leave: () => void;
@@ -86,6 +92,9 @@ export function SharedSessionProvider({
   const [status, setStatus] = useState<SharedSessionStatus>("off");
   const [code, setCode] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  // Ordering runs over everything *anybody* sent, this phone included: two
+  // people pressing at once produce the same version, and the sender tie-break
+  // that settles it can only work if a device's own press is in the ordering.
   const [session, setSession] = useState<SharedSession>(EMPTY_SHARED_SESSION);
   // Re-derived on a timer so "stale" appears on its own rather than waiting for
   // the next message — which, when the connection is dead, never comes.
@@ -130,9 +139,10 @@ export function SharedSessionProvider({
         // not, so it is dropped here rather than downstream: applying it would
         // re-anchor a running countdown to now for no reason, and counting it
         // as contact would report a table nobody else has joined as being in
-        // step with itself.
+        // step with itself. What we sent is recorded when we send it, below.
         if (message.sender === DEVICE_ID) return;
-        setSession((current) => receiveSyncMessage(current, message, Date.now()));
+        const at = Date.now();
+        setSession((current) => receiveSyncMessage(current, message, at));
       },
     );
   }, []);
@@ -195,8 +205,13 @@ export function SharedSessionProvider({
       const highest = Math.max(nextVersion(session) - 1, sentVersionRef.current);
       const version = repeat ? Math.max(1, highest) : highest + 1;
       sentVersionRef.current = Math.max(sentVersionRef.current, version);
+      const message = build(version);
+      // Recorded before it is sent, not after: what this phone last said is
+      // what everything else compares against, and a publish that fails still
+      // reflects a press the user made.
+      setSession((current) => recordSentMessage(current, message, Date.now()));
       try {
-        await sessionTransport.publish(sessionId, build(version));
+        await sessionTransport.publish(sessionId, message);
       } catch (error) {
         // Deliberately not surfaced: a dropped publish is what the heartbeat is
         // for, and a failed pause on a bad connection is not worth a dialog
@@ -216,12 +231,23 @@ export function SharedSessionProvider({
       health: sessionHealth(session, now),
       busy,
       latest: session.applied,
+      latestAt: session.appliedAt,
       startHosting,
       join,
       leave: disconnect,
       publish,
     }),
-    [status, code, session, now, busy, startHosting, join, disconnect, publish],
+    [
+      status,
+      code,
+      session,
+      now,
+      busy,
+      startHosting,
+      join,
+      disconnect,
+      publish,
+    ],
   );
 
   return (

@@ -45,6 +45,13 @@ export function useTimerEngine(
 ) {
   const [state, setState] = useState<TimerMachineState>(createTimerState);
   const [isLoading, setIsLoading] = useState(true);
+  /**
+   * Bumped every time the state below came from storage rather than from a
+   * press. Only the shared clock cares: a rehydrated round is not news, and a
+   * phone that announced one on returning from the background would impose its
+   * own stale state on everybody still at the table.
+   */
+  const [hydrationCount, setHydrationCount] = useState(0);
   const { timerDuration, endTime, timeLeft, paused } = state;
 
   // Side effects: persistence I/O + native (Live Activity) sync.
@@ -75,6 +82,8 @@ export function useTimerEngine(
         expired,
         missedRounds,
       } = hydrateTimerState(savedState);
+
+      setHydrationCount((count) => count + 1);
 
       if (expired && !hasHandledTimerCompleteRef.current) {
         // Timer expired while app was closed. hydrate already produced reset
@@ -229,5 +238,6 @@ export function useTimerEngine(
     isLoading,
     loadTimerState,
     applyRemoteState,
+    hydrationCount,
   };
 }
