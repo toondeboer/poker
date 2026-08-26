@@ -78,10 +78,26 @@ export type GameResult = {
   knockouts?: KnockoutCount[];
 };
 
-/** One player, and how many people they put out. */
+/** One player, how many people they helped put out, and what it paid. */
 export type KnockoutCount = {
   playerId: string;
+  /**
+   * Eliminations this player had a hand in.
+   *
+   * Not divided when a chopped pot busts somebody: both players took a hand in
+   * it, and "half a knockout" is not a thing anybody says at a table. The money
+   * is what divides — see {@link bounty}.
+   */
   count: number;
+  /**
+   * Bounty money actually collected, already split where a pot was.
+   *
+   * Carried rather than derived from `count × bounty`, because that
+   * multiplication is wrong exactly when it matters: a chopped pot pays one
+   * bounty between two people, and multiplying would hand out money nobody put
+   * in.
+   */
+  bounty: number;
 };
 
 /** Keep storage small and the list scannable. */
@@ -127,16 +143,20 @@ export type GameResultValidationError =
   | "duplicate-placing"
   | "duplicate-place"
   | "place-out-of-range"
-  | "negative-winnings";
+  | "negative-winnings"
+  | "knockout-not-in-field"
+  | "duplicate-knockout"
+  | "impossible-knockout";
 
 /**
  * Check a result before recording it. Each failure is a distinct value so the
  * UI can say which one it hit rather than just refusing.
  */
 export const validateGameResult = (
-  result: Pick<GameResult, "playerIds" | "placings">,
+  result: Pick<GameResult, "playerIds" | "placings"> &
+    Partial<Pick<GameResult, "knockouts">>,
 ): GameResultValidationError | null => {
-  const { playerIds, placings } = result;
+  const { playerIds, placings, knockouts } = result;
 
   if (playerIds.length === 0) return "no-players";
   if (new Set(playerIds).size !== playerIds.length) return "duplicate-players";
@@ -161,6 +181,24 @@ export const validateGameResult = (
     }
     seenPlayers.add(placing.playerId);
     seenPlaces.add(placing.place);
+  }
+
+  // Checked here as well as everywhere else, because this is money that lands
+  // in a total and stays there: a knockout crediting somebody who was not even
+  // in the field would quietly add bounty winnings to their name forever.
+  const seenKnockouts = new Set<string>();
+  for (const knockout of knockouts ?? []) {
+    if (!field.has(knockout.playerId)) return "knockout-not-in-field";
+    if (seenKnockouts.has(knockout.playerId)) return "duplicate-knockout";
+    seenKnockouts.add(knockout.playerId);
+    if (!Number.isFinite(knockout.count) || knockout.count < 0) {
+      return "impossible-knockout";
+    }
+    if (!Number.isFinite(knockout.bounty) || knockout.bounty < 0) {
+      return "impossible-knockout";
+    }
+    // More eliminations than there were people to eliminate.
+    if (knockout.count > playerIds.length - 1) return "impossible-knockout";
   }
 
   return null;
@@ -200,10 +238,8 @@ export const createGameResult = (params: {
 });
 
 /** What one player collected in bounties, or 0 when the game never tracked them. */
-export const bountiesWon = (result: GameResult, playerId: string): number => {
-  const entry = result.knockouts?.find((k) => k.playerId === playerId);
-  return entry ? entry.count * result.bounty : 0;
-};
+export const bountiesWon = (result: GameResult, playerId: string): number =>
+  result.knockouts?.find((k) => k.playerId === playerId)?.bounty ?? 0;
 
 /** Add a result (newest first), enforcing {@link MAX_GAME_RESULTS}. */
 export const addGameResult = (

@@ -537,12 +537,37 @@ describe("knockouts on a stored game", () => {
     ).toBeNull();
   });
 
-  it("drops a game that lost the record of who did it", async () => {
-    // Somebody went out and nothing says by whom. Keeping it would silently
-    // drop a bounty that was actually won.
-    expect(await seeded(withKnockout({ knockouts: [] })).loadGame()).toBeNull();
+  it("keeps a game saved before knockouts were tracked", async () => {
+    // Somebody went out and nothing says by whom, because the build that saved
+    // it did not know to. That is an evening in progress, and dropping it to
+    // avoid losing the bounty attribution for it would be the wrong trade by a
+    // distance — the game is worth more than the footnote.
+    const loaded = await seeded(
+      withKnockout({ knockouts: undefined }),
+    ).loadGame();
+    expect(loaded).not.toBeNull();
+    expect(await seeded(withKnockout({ knockouts: [] })).loadGame()).not.toBeNull();
+  });
+
+  it("drops a game whose knockouts are not a list at all", async () => {
     expect(
-      await seeded(withKnockout({ knockouts: undefined })).loadGame(),
+      await seeded(withKnockout({ knockouts: "d was knocked out by a" }))
+        .loadGame(),
+    ).toBeNull();
+  });
+
+  it("drops a game claiming the same exit twice", async () => {
+    // The other direction is not forgivable: every entry is money, and one
+    // person only ever goes out once.
+    expect(
+      await seeded(
+        withKnockout({
+          knockouts: [
+            { playerId: "d", by: ["a"] },
+            { playerId: "d", by: ["b"] },
+          ],
+        }),
+      ).loadGame(),
     ).toBeNull();
   });
 

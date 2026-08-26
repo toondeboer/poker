@@ -266,24 +266,26 @@ describe("knockouts on a recorded game", () => {
   it("is recorded for a game the app dealt", () => {
     const result = createGameResult({
       ...base,
-      knockouts: [{ playerId: "a", count: 2 }],
+      knockouts: [{ playerId: "a", count: 2, bounty: 10 }],
     });
-    expect(result.knockouts).toEqual([{ playerId: "a", count: 2 }]);
+    expect(result.knockouts).toEqual([
+      { playerId: "a", count: 2, bounty: 10 },
+    ]);
   });
 
   it("reads the same way twice, whatever order it arrives in", () => {
     const one = createGameResult({
       ...base,
       knockouts: [
-        { playerId: "b", count: 1 },
-        { playerId: "a", count: 3 },
+        { playerId: "b", count: 1, bounty: 5 },
+        { playerId: "a", count: 3, bounty: 15 },
       ],
     });
     const other = createGameResult({
       ...base,
       knockouts: [
-        { playerId: "a", count: 3 },
-        { playerId: "b", count: 1 },
+        { playerId: "a", count: 3, bounty: 15 },
+        { playerId: "b", count: 1, bounty: 5 },
       ],
     });
     expect(one.knockouts).toEqual(other.knockouts);
@@ -294,8 +296,8 @@ describe("knockouts on a recorded game", () => {
     const result = createGameResult({
       ...base,
       knockouts: [
-        { playerId: "c", count: 1 },
-        { playerId: "b", count: 1 },
+        { playerId: "c", count: 1, bounty: 5 },
+        { playerId: "b", count: 1, bounty: 5 },
       ],
     });
     expect(result.knockouts?.map((k) => k.playerId)).toEqual(["b", "c"]);
@@ -305,11 +307,13 @@ describe("knockouts on a recorded game", () => {
     const result = createGameResult({
       ...base,
       knockouts: [
-        { playerId: "a", count: 1 },
-        { playerId: "b", count: 0 },
+        { playerId: "a", count: 1, bounty: 5 },
+        { playerId: "b", count: 0, bounty: 0 },
       ],
     });
-    expect(result.knockouts).toEqual([{ playerId: "a", count: 1 }]);
+    expect(result.knockouts).toEqual([
+      { playerId: "a", count: 1, bounty: 5 },
+    ]);
   });
 });
 
@@ -321,7 +325,7 @@ describe("bounty money", () => {
     buyIn: 20,
     bounty: 5,
     now: 1_000,
-    knockouts: [{ playerId: "a", count: 2 }],
+    knockouts: [{ playerId: "a", count: 2, bounty: 10 }],
   });
 
   it("is the count times the bounty in force", () => {
@@ -343,5 +347,72 @@ describe("bounty money", () => {
       now: 1_000,
     });
     expect(bountiesWon(byHand, "a")).toBe(0);
+  });
+});
+
+describe("validating the knockouts on a result", () => {
+  const field = { playerIds: ["a", "b", "c"], placings: [] };
+
+  it("accepts a result that never tracked them", () => {
+    expect(validateGameResult(field)).toBeNull();
+  });
+
+  it("accepts a plausible one", () => {
+    expect(
+      validateGameResult({
+        ...field,
+        knockouts: [{ playerId: "a", count: 2, bounty: 10 }],
+      }),
+    ).toBeNull();
+  });
+
+  it("refuses credit to somebody who was not even there", () => {
+    // This is money that lands in a total and stays there.
+    expect(
+      validateGameResult({
+        ...field,
+        knockouts: [{ playerId: "z", count: 1, bounty: 5 }],
+      }),
+    ).toBe("knockout-not-in-field");
+  });
+
+  it("refuses the same player twice", () => {
+    expect(
+      validateGameResult({
+        ...field,
+        knockouts: [
+          { playerId: "a", count: 1, bounty: 5 },
+          { playerId: "a", count: 1, bounty: 5 },
+        ],
+      }),
+    ).toBe("duplicate-knockout");
+  });
+
+  it("refuses more eliminations than there were people to eliminate", () => {
+    expect(
+      validateGameResult({
+        ...field,
+        knockouts: [{ playerId: "a", count: 3, bounty: 15 }],
+      }),
+    ).toBe("impossible-knockout");
+  });
+
+  it("refuses negative or nonsensical money", () => {
+    const failures: string[] = [];
+    const cases = [
+      { playerId: "a", count: -1, bounty: 0 },
+      { playerId: "a", count: 1, bounty: -5 },
+      { playerId: "a", count: Number.NaN, bounty: 0 },
+      { playerId: "a", count: 1, bounty: Number.POSITIVE_INFINITY },
+    ];
+    for (const knockout of cases) {
+      if (
+        validateGameResult({ ...field, knockouts: [knockout] }) !==
+        "impossible-knockout"
+      ) {
+        failures.push(JSON.stringify(knockout));
+      }
+    }
+    expect(failures).toEqual([]);
   });
 });

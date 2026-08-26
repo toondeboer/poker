@@ -249,8 +249,8 @@ describe("bounty money on the board", () => {
     bounty: 5,
     now: 1_000,
     knockouts: [
-      { playerId: "b", count: 2 },
-      { playerId: "a", count: 0 },
+      { playerId: "b", count: 2, bounty: 10 },
+      { playerId: "a", count: 0, bounty: 0 },
     ],
   });
 
@@ -294,15 +294,18 @@ describe("bounty money on the board", () => {
     const doubled = {
       ...dealt,
       knockouts: [
-        { playerId: "b", count: 2 },
-        { playerId: "b", count: 2 },
+        { playerId: "b", count: 2, bounty: 10 },
+        { playerId: "b", count: 2, bounty: 10 },
       ],
     };
     expect(rowFor([doubled], "b").knockouts).toBe(2);
   });
 
   it("ignores a knockout credited to somebody off the roster", () => {
-    const stranger = { ...dealt, knockouts: [{ playerId: "z", count: 3 }] };
+    const stranger = {
+      ...dealt,
+      knockouts: [{ playerId: "z", count: 3, bounty: 15 }],
+    };
     const rows = computeStandings(roster, [stranger]);
     expect(rows.every((row) => row.knockouts === 0)).toBe(true);
   });
@@ -325,7 +328,7 @@ describe("bounty money on the board", () => {
       buyIn: 15,
       bounty: 5,
       now: 4_000,
-      knockouts: [{ playerId: "b", count: 1 }],
+      knockouts: [{ playerId: "b", count: 1, bounty: 5 }],
     });
     const rows = computeStandings(roster, [annWins, benWins]);
     expect(rows[0].playerId).toBe("b");

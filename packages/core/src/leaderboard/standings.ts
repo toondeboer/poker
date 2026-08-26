@@ -117,7 +117,10 @@ export const computeStandings = (
       if (!standing) continue;
       if (credited.has(knockout.playerId)) continue;
       credited.add(knockout.playerId);
-      const won = knockout.count * result.bounty;
+      // The money the game recorded, not the count times the bounty: a chopped
+      // pot pays one bounty between two people, and multiplying would credit
+      // each of them the whole thing.
+      const won = knockout.bounty;
       standing.knockouts += knockout.count;
       standing.bountiesWon += won;
       standing.totalWon += won;

@@ -26,7 +26,9 @@ platform-tagged heading (e.g. `## [1.1.3] - 2026-07-20 — Android`) when you cu
   knows exactly whose chips took whom out, and the board now counts knockouts and pays the bounty
   into the total. The credit goes to whoever won the pot the busted player's last chips were in,
   which with side pots is frequently *not* whoever won the most money that hand. A split pot splits
-  the bounty. A pot nobody could claim pays no bounty to anybody, rather than picking a winner.
+  the bounty — one bounty between the two of them, since only one was ever collected, divided the
+  same way the pot itself was. A pot nobody could claim pays no bounty to anybody, rather than
+  picking a winner.
   Games recorded by hand show nothing here rather than zeros — nobody can say, and a guess rendered
   as a total is worse than no total.
 - **A way back when the app breaks.** Instead of a blank screen or the app closing on itself, there

@@ -491,7 +491,9 @@ describe("who knocked whom out", () => {
       ],
     };
     expect(knockoutTally(game)).toEqual(new Map([["a", 2]]));
-    expect(knockoutCounts(game)).toEqual([{ playerId: "a", count: 2 }]);
+    expect(knockoutCounts(game, 5)).toEqual([
+      { playerId: "a", count: 2, bounty: 10 },
+    ]);
   });
 
   it("splits the credit when the pot was split", () => {
@@ -499,14 +501,23 @@ describe("who knocked whom out", () => {
       ...createSession({ players: ["a", "b", "c"], startingStack: 100 }),
       knockouts: [{ playerId: "c", by: ["a", "b"] }],
     };
-    // Two people took them out, and the bounty splits with the pot. Counting
-    // one and dropping the other would pay a bounty that was never won.
+    // Two people took them out. Both had a hand in it — the count does not
+    // halve — but there was only ever one bounty, and paying each of them the
+    // whole thing hands out money nobody put in.
     expect(knockoutTally(game)).toEqual(
       new Map([
         ["a", 1],
         ["b", 1],
       ]),
     );
+    expect(knockoutCounts(game, 5)).toEqual([
+      { playerId: "a", count: 1, bounty: 3 },
+      { playerId: "b", count: 1, bounty: 2 },
+    ]);
+    // Whatever the split, it sums to the one bounty that was collected.
+    expect(
+      knockoutCounts(game, 5).reduce((sum, entry) => sum + entry.bounty, 0),
+    ).toBe(5);
   });
 
   it("credits nobody when nobody could claim the pot", () => {
@@ -515,7 +526,7 @@ describe("who knocked whom out", () => {
       knockouts: [{ playerId: "b", by: [] }],
     };
     expect(knockoutTally(game).size).toBe(0);
-    expect(knockoutCounts(game)).toEqual([]);
+    expect(knockoutCounts(game, 5)).toEqual([]);
   });
 
   it("puts the count on a recorded game, so bounties can be paid", () => {
@@ -530,7 +541,7 @@ describe("who knocked whom out", () => {
       winningsByPlace: [40],
     });
     expect(result.knockouts).toEqual([
-      { playerId: game.knockouts[0].by[0], count: 1 },
+      { playerId: game.knockouts[0].by[0], count: 1, bounty: 5 },
     ]);
   });
 });

@@ -239,6 +239,7 @@ export function LeaderboardProvider({
       const invalid = validateGameResult({
         playerIds: params.playerIds,
         placings: params.placings,
+        knockouts: params.knockouts ? [...params.knockouts] : undefined,
       });
       if (invalid) {
         logger.error("Refusing to record an invalid game result:", invalid);

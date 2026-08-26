@@ -321,12 +321,6 @@ const creditFor = (playerId: string, hand: Hand): string[] => {
  * What a bounty is paid on, and the reason the app dealing the game is worth
  * something beyond convenience: this cannot be reconstructed afterwards.
  */
-export const knockoutCounts = (session: GameSession): KnockoutCount[] =>
-  Array.from(knockoutTally(session).entries()).map(([playerId, count]) => ({
-    playerId,
-    count,
-  }));
-
 export const knockoutTally = (session: GameSession): Map<string, number> => {
   const tally = new Map<string, number>();
   for (const knockout of session.knockouts) {
@@ -335,6 +329,48 @@ export const knockoutTally = (session: GameSession): Map<string, number> => {
     }
   }
   return tally;
+};
+
+/**
+ * Knockouts and bounty money per player.
+ *
+ * **A bounty is one bounty however many people were in on it.** Two players
+ * chopping the pot that busts somebody get half each — paying both of them the
+ * full amount hands out money that was never collected, which over an evening
+ * is a real hole in somebody's pocket. It splits exactly the way the pot it
+ * came from splits: floor the share, and the odd unit goes to the earlier seat,
+ * because `by` arrives in the seat order `potWinners` produced. So the money
+ * paid out always sums to the bounties actually collected.
+ *
+ * The **count** does not split. Both players took a hand in that elimination
+ * and "half a knockout" is not a thing anybody says at a table — the count is
+ * how many people you helped put out, and the money is the money.
+ */
+export const knockoutCounts = (
+  session: GameSession,
+  bounty: number,
+): KnockoutCount[] => {
+  const counts = new Map<string, number>();
+  const money = new Map<string, number>();
+
+  for (const knockout of session.knockouts) {
+    if (knockout.by.length === 0) continue;
+    const share = Math.floor(bounty / knockout.by.length);
+    const remainder = bounty - share * knockout.by.length;
+    knockout.by.forEach((playerId, index) => {
+      counts.set(playerId, (counts.get(playerId) ?? 0) + 1);
+      money.set(
+        playerId,
+        (money.get(playerId) ?? 0) + share + (index < remainder ? 1 : 0),
+      );
+    });
+  }
+
+  return Array.from(counts.entries()).map(([playerId, count]) => ({
+    playerId,
+    count,
+    bounty: money.get(playerId) ?? 0,
+  }));
 };
 
 /**
@@ -391,7 +427,7 @@ export const toGameResult = (
     buyIn: params.buyIn,
     bounty: params.bounty,
     now: params.now,
-    knockouts: knockoutCounts(session),
+    knockouts: knockoutCounts(session, params.bounty),
   });
 };
 

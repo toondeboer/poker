@@ -272,7 +272,7 @@ function ActiveGame({ nameFor }: { nameFor: (id: string) => string }) {
       // every hand, so it knows whose chips took whom out. Without it a bounty
       // game's money column is prize money only, which is most of the point of
       // playing one missing.
-      knockouts: knockoutCounts(session),
+      knockouts: knockoutCounts(session, settings.bounty),
     });
     // Only claim it was saved if it was. A refused result used to leave the
     // message saying otherwise and took the retry away with it.
