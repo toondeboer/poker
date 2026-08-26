@@ -53,3 +53,18 @@ export const playerFromChannel = (channel: string): string | null => {
   if (playerId.length === 0 || tableId.length === 0) return null;
   return playerId;
 };
+
+/** A shared timer everyone at the table is watching. */
+export const SESSION_NAMESPACE = "session";
+
+/**
+ * `/session/{sessionId}` — the tournament clock, shared.
+ *
+ * Its own namespace rather than a path under `table` for the same reason the
+ * private channels have one: namespaces are where subscribe rules attach, and
+ * a shared clock is readable by anyone holding the join code, which is a
+ * *different* rule from a table's. A session has no hole cards in it — the
+ * worst a stranger who guessed a code can do is watch a countdown.
+ */
+export const sessionChannel = (sessionId: string): string =>
+  `/${SESSION_NAMESPACE}/${sessionId}`;

@@ -292,7 +292,33 @@ export {
   tableChannel,
   playerChannel,
   playerFromChannel,
+  SESSION_NAMESPACE,
+  sessionChannel,
 } from "./realtime/channels";
+export type {
+  TimerSyncMessage,
+  SharedSession,
+  SessionHealth,
+  SessionTransport,
+} from "./realtime/timerSync";
+export {
+  EMPTY_SHARED_SESSION,
+  toSyncMessage,
+  applySyncMessage,
+  receiveSyncMessage,
+  shouldApply,
+  nextVersion,
+  sessionHealth,
+  HEARTBEAT_MS,
+  STALE_AFTER_MS,
+} from "./realtime/timerSync";
+export {
+  JOIN_CODE_ALPHABET,
+  JOIN_CODE_LENGTH,
+  createJoinCode,
+  normaliseJoinCode,
+  isValidJoinCode,
+} from "./realtime/joinCode";
 
 // Share
 export { SITE_URL, SHARE_MESSAGE } from "./share/links";
