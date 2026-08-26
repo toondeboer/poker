@@ -10,6 +10,12 @@ platform-tagged heading (e.g. `## [1.1.3] - 2026-07-20 — Android`) when you cu
 ## [Unreleased]
 
 ### Added
+- Groundwork for accounts: the sign-in, sign-out and delete-account screens exist and work, and the
+  seam an identity provider plugs into is defined in `@poker/core`. **Nothing links to them and no
+  account is real yet** — they run against a development stub with no server behind it, so the way
+  in stays closed until there is. Account deletion is built in from the start rather than added
+  later, since an app that lets people create an account has to let them delete it from inside the
+  app.
 - **A game the app dealt puts itself on the leaderboard (Pro).** When the last chip changes hands,
   one button saves the night: everybody's finishing position is already known, because the app dealt
   every hand and watched them go out. Winnings come from the payout structure you set, priced for

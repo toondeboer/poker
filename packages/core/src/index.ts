@@ -104,6 +104,14 @@ export {
 } from "./timer/timerMachine";
 export type { TimerMachineState } from "./timer/timerMachine";
 
+// Accounts
+export {
+  MIN_PASSWORD_LENGTH,
+  isValidEmail,
+  validateCredentials,
+} from "./auth/account";
+export type { Account, AuthProvider, CredentialError } from "./auth/account";
+
 // Monetization
 export type {
   Entitlements,

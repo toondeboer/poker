@@ -320,6 +320,12 @@ Mobile releases are batched on a short-lived branch per version, not shipped str
     `node_modules` regardless — a declaration was never what made it resolvable. If you hit a
     resolution error, check `require.resolve('next/package.json', { paths: ['apps/web'] })` before
     adding anything to the root.
+- **`expo lint` caches module resolution, so a file created after a failed run stays "unresolvable".**
+  Symptom: `import/no-unresolved` on a path that exists, typechecks, and lints clean when eslint is
+  run directly on that one file. The cache is **not** `.eslintcache` — `expo lint` passes
+  `--cache-location=apps/mobile/.expo/cache/eslint/`, so `rm -rf apps/mobile/.expo/cache/eslint`
+  is the fix. Reached by creating `src/app/account.tsx` before the component it imports; the
+  component appeared a minute later and lint kept insisting it did not exist.
 - **`@types/node` leaks to mobile via hoisting** — use `ReturnType<typeof setInterval>` for interval
   refs, not `number`.
 - **`expo-router` does not hoist to the root `node_modules`, and the expo CLI can't find it without

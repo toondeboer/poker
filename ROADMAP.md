@@ -88,6 +88,21 @@ are removed from this file when a release is cut rather than accumulating as ✅
   about — but it is still not a cryptographic source. Accepted for a table passing one phone
   around; online play deals on the server, which is where a CSPRNG belongs.
 
+## Accounts — screens built, entry point deliberately absent
+
+- 🚧 **Nothing links to `/account`.** The screens are written and work, against a **development
+  stub that signs nobody up**: it records an email on the device and hands back an id, with no
+  server, no verification, no password checked. Shipping a route to that would be shipping a login
+  that logs nobody in, so the Settings row goes in when the backend does — the screen is reachable
+  by URL for development only. Deleting the stub and pointing `AuthContext` at Cognito is a
+  one-import change; that is what the `AuthProvider` seam is for.
+- ⬜ **Claiming a guest player from the account screen.** The model is done and tested
+  (`claimPlayer` in `leaderboard/groups.ts`, with both races guarded); what is missing is the UI to
+  say "that Dave on the board is me".
+- ✅ In-app account deletion is built from the start rather than bolted on, because App Store
+  guideline 5.1.1(v) requires it of any app offering account creation. **Delete this line when
+  1.2.0 is cut.**
+
 ## Backend: before anything connects to it
 
 - 🔍 **The shared `table` channel is authenticated but not authorized.** A subscriber has to be

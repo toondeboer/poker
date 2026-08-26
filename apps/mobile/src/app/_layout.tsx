@@ -11,6 +11,7 @@ import { SoundPackProvider } from "@/src/contexts/SoundPackContext";
 import { PayoutProvider } from "@/src/contexts/PayoutContext";
 import { LeaderboardProvider } from "@/src/contexts/LeaderboardContext";
 import { GameProvider } from "@/src/contexts/GameContext";
+import { AuthProviderContext } from "@/src/contexts/AuthContext";
 import AppReadyGate from "@/src/components/AppReadyGate";
 import { initializeAds } from "@/src/services/ads";
 import { configurePurchases } from "@/src/services/revenueCatProvider";
@@ -35,6 +36,7 @@ export default function RootLayout() {
             <SoundPackProvider>
               <PayoutProvider>
                 <LeaderboardProvider>
+                  <AuthProviderContext>
                   <GameProvider>
                   <TimerProvider>
                     <AppReadyGate>
@@ -76,6 +78,17 @@ export default function RootLayout() {
                             headerBackTitle: "Settings",
                           }}
                         />
+                        {/* Deliberately reachable only by URL for now: the
+                            account screens run against a development stub that
+                            signs nobody up, so nothing links to them until the
+                            backend is deployed. See ROADMAP.md. */}
+                        <Stack.Screen
+                          name="account"
+                          options={{
+                            title: "Account",
+                            headerBackTitle: "Settings",
+                          }}
+                        />
                         <Stack.Screen
                           name="game"
                           options={{
@@ -96,6 +109,7 @@ export default function RootLayout() {
                     </AppReadyGate>
                   </TimerProvider>
                   </GameProvider>
+                  </AuthProviderContext>
                 </LeaderboardProvider>
               </PayoutProvider>
             </SoundPackProvider>
