@@ -221,6 +221,7 @@ export {
   act as actOnSession,
   isSessionComplete,
   finishingOrder,
+  finishingPlacings,
   toGameResult,
 } from "./poker/session";
 export type { GameSession, SessionSeat } from "./poker/session";

@@ -18,6 +18,15 @@ export type GameSetup = {
   startingStack: number;
   smallBlind: number;
   bigBlind: number;
+  /**
+   * The leaderboard group these seats came from.
+   *
+   * Captured when the game starts, not read when it is saved: switching group
+   * mid-game would otherwise file the night on a board whose members are
+   * different people, with ids nobody there recognises and nothing to notice
+   * it.
+   */
+  groupId: string | null;
 };
 
 type GameContextValue = {
@@ -30,6 +39,16 @@ type GameContextValue = {
   /** Winner first. During a game, the players still in ranked by stack. */
   order: string[];
   handInProgress: boolean;
+  /**
+   * Whether this game has already been put on the leaderboard.
+   *
+   * Lives here rather than in the screen because the screen is pushed and the
+   * game deliberately outlives it — a flag held there would reset on a
+   * back-press and let the same night be recorded twice, once per tap, with no
+   * deduplication anywhere downstream.
+   */
+  recorded: boolean;
+  markRecorded: () => void;
   startGame: (setup: GameSetup) => void;
   deal: () => void;
   act: (playerId: string, action: BettingAction) => void;
@@ -69,9 +88,11 @@ export function GameProvider({
 }: Readonly<{ children: React.ReactNode }>) {
   const [session, setSession] = useState<GameSession | null>(null);
   const [setup, setSetup] = useState<GameSetup | null>(null);
+  const [recorded, setRecorded] = useState(false);
 
   const startGame = useCallback((next: GameSetup) => {
     setSetup(next);
+    setRecorded(false);
     setSession(
       createSession({
         players: next.players,
@@ -83,7 +104,10 @@ export function GameProvider({
   const endGame = useCallback(() => {
     setSession(null);
     setSetup(null);
+    setRecorded(false);
   }, []);
+
+  const markRecorded = useCallback(() => setRecorded(true), []);
 
   const deal = useCallback(() => {
     setSession((current) => {
@@ -119,12 +143,14 @@ export function GameProvider({
       complete: session ? isSessionComplete(session) : false,
       order: session ? finishingOrder(session) : [],
       handInProgress: session?.hand != null,
+      recorded,
+      markRecorded,
       startGame,
       deal,
       act,
       endGame,
     }),
-    [session, setup, startGame, deal, act, endGame],
+    [session, setup, recorded, markRecorded, startGame, deal, act, endGame],
   );
 
   return <GameContext.Provider value={value}>{children}</GameContext.Provider>;

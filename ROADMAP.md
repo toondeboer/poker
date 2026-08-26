@@ -87,9 +87,10 @@ are removed from this file when a release is cut rather than accumulating as ✅
   `GameContext`, not in the pushed screen), but not a force-stop or a phone running out of battery
   mid-evening. Wants persistence and a schema for `GameSession`, which is a real piece of work
   rather than something to bolt on.
-- ⬜ **A finished game is not offered to the leaderboard.** `toGameResult` exists and is tested,
-  and the seats are keyed by player id specifically so it will line up — what is missing is the
-  prompt and the payout structure to price the finishing positions from.
+- 🟡 **Saving a finished game is a button, not a prompt.** The timer's end-of-game flow *asks*;
+  this one waits to be pressed, and a table that shuts the app after the last hand loses the night.
+  A prompt wants somewhere to live that survives the screen, which is the same problem as
+  persistence above — worth doing together.
 - 🟡 **The deal is not cryptographic.** `Math.random` is passed straight to the engine rather than
   a seeded PRNG, which avoids the brute-forceable 32-bit seed space that `createRandom` warns
   about — but it is still not a cryptographic source. Accepted for a table passing one phone

@@ -1,10 +1,16 @@
 // src/components/game/GameScreen.tsx
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { ScrollView, StyleSheet, Text, useWindowDimensions, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { MAX_SEATS } from "@poker/core";
+import {
+  computePayouts,
+  finishingPlacings,
+  MAX_SEATS,
+  toPayoutOptions,
+} from "@poker/core";
 import { usePremium } from "@/src/contexts/PremiumContext";
 import { useLeaderboard } from "@/src/contexts/LeaderboardContext";
+import { usePayouts } from "@/src/contexts/PayoutContext";
 import {
   colors,
   isTabletWidth,
@@ -39,7 +45,7 @@ export function GameScreen() {
   const { width } = useWindowDimensions();
   const isTablet = isTabletWidth(width);
   const { isPremium } = usePremium();
-  const { players } = useLeaderboard();
+  const { players, activeGroupId } = useLeaderboard();
   const game = useGame();
 
   const [showPaywall, setShowPaywall] = useState(false);
@@ -143,6 +149,7 @@ export function GameScreen() {
                 startingStack,
                 smallBlind,
                 bigBlind,
+                groupId: activeGroupId,
               })
             }
             disabled={!canStart}
@@ -199,10 +206,70 @@ export function GameScreen() {
 
 /** A game in progress. All of its state lives in {@link GameProvider}. */
 function ActiveGame({ nameFor }: { nameFor: (id: string) => string }) {
-  const { session, legal, complete, order, handInProgress, deal, act, endGame } =
-    useGame();
+  const { session, setup, legal, complete, order, handInProgress, recorded,
+    markRecorded, deal, act, endGame } = useGame();
+  const { settings } = usePayouts();
+  const { recordResult, activeGroupId } = useLeaderboard();
+  const [refused, setRefused] = useState<string | null>(null);
+
+  /**
+   * What each finishing position pays, from the payout setup the host already
+   * made — priced for the field that actually sat down rather than the one on
+   * the Payouts screen, exactly as the record-a-game sheet does it.
+   *
+   * A game with no buy-in set produces nothing, and the finishes are recorded
+   * winning zero. That is deliberate: who finished where is a different
+   * question from who got paid, and a friendly game still has a winner.
+   */
+  const winningsByPlace = useMemo(() => {
+    if (!session) return [];
+    // The field is who sat down, and there are **no rebuys or add-ons**: this
+    // game is dealt by the app with fixed starting stacks and no way to buy
+    // back in. Carrying the Payouts screen's saved rebuy count over would
+    // price a pool that nobody paid into — settings left at four rebuys turn a
+    // real 80 into a recorded 200 for the winner.
+    const structure = computePayouts({
+      ...toPayoutOptions(settings),
+      entrants: session.seats.length,
+      rebuys: 0,
+      addOns: 0,
+    });
+    if (!structure) return [];
+    const byPlace: number[] = [];
+    for (const payout of structure.payouts) byPlace[payout.place - 1] = payout.amount;
+    return byPlace.map((amount) => amount ?? 0);
+  }, [session, settings]);
 
   if (!session) return null;
+
+  /**
+   * Put the finished game on the leaderboard.
+   *
+   * This is the whole reason the engine exists rather than a chip counter: the
+   * app dealt every hand, so it already knows who went out fourth. Recording by
+   * hand is two taps per player and a memory test at the end of a long evening.
+   */
+  const record = () => {
+    // The board this game's players came from. Recording into whichever group
+    // happens to be selected now would file the night with people who were
+    // never at the table, and nothing downstream would notice.
+    if (setup && setup.groupId !== activeGroupId) {
+      setRefused(
+        "These players came from a different group. Switch back to it on the Leaderboard screen to save this game.",
+      );
+      return;
+    }
+    const saved = recordResult({
+      playerIds: session.seats.map((seat) => seat.playerId),
+      placings: finishingPlacings(session, winningsByPlace),
+      buyIn: settings.buyIn,
+      bounty: settings.bounty,
+    });
+    // Only claim it was saved if it was. A refused result used to leave the
+    // message saying otherwise and took the retry away with it.
+    if (saved) markRecorded();
+    else setRefused("That result couldn't be saved. Nothing has been recorded.");
+  };
 
   return (
     <>
@@ -220,6 +287,20 @@ function ActiveGame({ nameFor }: { nameFor: (id: string) => string }) {
           <CardHeader icon="trophy" title="Game over" />
           <CardContent>
             <FinishingOrder order={order} nameFor={nameFor} />
+            {recorded ? (
+              <Text style={styles.empty}>
+                Saved to the leaderboard. The standings have it already.
+              </Text>
+            ) : (
+              <>
+                {refused ? <Text style={styles.empty}>{refused}</Text> : null}
+                <Button
+                  label="Save to the leaderboard"
+                  icon="trophy"
+                  onPress={record}
+                />
+              </>
+            )}
             <Button label="New game" icon="refresh" onPress={endGame} />
           </CardContent>
         </Card>

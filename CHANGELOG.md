@@ -10,6 +10,12 @@ platform-tagged heading (e.g. `## [1.1.3] - 2026-07-20 — Android`) when you cu
 ## [Unreleased]
 
 ### Added
+- **A game the app dealt puts itself on the leaderboard (Pro).** When the last chip changes hands,
+  one button saves the night: everybody's finishing position is already known, because the app dealt
+  every hand and watched them go out. Winnings come from the payout structure you set, priced for
+  the field that actually sat down. It records the top three even when fewer places pay, so a
+  friendly game still has a winner and the board's tie-breaks still work — the same rule the
+  record-a-game sheet follows by hand.
 - **Play a hand from the phone (Pro).** For a table that has chips but no cards — on holiday, or
   when the deck is somewhere nobody can remember. The phone deals a real hand of hold'em: everyone
   can see the board, the pot and every stack, and only the player to act can see their own two

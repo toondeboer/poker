@@ -6,6 +6,7 @@ import {
   act,
   createSession,
   finishingOrder,
+  finishingPlacings,
   isSessionComplete,
   startNextHand,
   toGameResult,
@@ -313,6 +314,27 @@ describe("toGameResult", () => {
       winningsByPlace: [],
     });
     expect(result.placings.map((p) => p.place)).toEqual([1, 2]);
+  });
+
+  it("shares its placings rule with finishingPlacings", () => {
+    // The app records games itself and mints its own ids, so it uses the
+    // smaller function. The two must not disagree about what a finish is.
+    const winningsByPlace = [50, 30];
+    expect(
+      toGameResult(finished, {
+        id: "g",
+        now: 1,
+        buyIn: 20,
+        bounty: 0,
+        winningsByPlace,
+      }).placings,
+    ).toEqual(finishingPlacings(finished, winningsByPlace));
+  });
+
+  it("refuses placings for a game that is still going", () => {
+    expect(() => finishingPlacings(session(["a", "b"]), [40])).toThrow(
+      /not over yet/,
+    );
   });
 
   it("refuses a game that is still going", () => {
