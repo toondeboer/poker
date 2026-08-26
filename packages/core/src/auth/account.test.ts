@@ -65,6 +65,26 @@ describe("validateCredentials", () => {
     expect(validateCredentials("nobody", "x")).toBe("email-malformed");
   });
 
+  it("does not apply the sign-up length rule to a sign-in", () => {
+    // Somebody whose existing password is eight characters would otherwise be
+    // refused locally, told it is too short, and never have a request made —
+    // locked out of their own account by a policy that governs new passwords.
+    expect(
+      validateCredentials("a@b.co", "8charact", {
+        requireStrongPassword: false,
+      }),
+    ).toBeNull();
+    expect(validateCredentials("a@b.co", "8charact")).toBe(
+      "password-too-short",
+    );
+  });
+
+  it("still needs some password, even signing in", () => {
+    expect(
+      validateCredentials("a@b.co", "", { requireStrongPassword: false }),
+    ).toBe("password-too-short");
+  });
+
   it("accepts a password of exactly the minimum", () => {
     expect(
       validateCredentials("a@b.co", "x".repeat(MIN_PASSWORD_LENGTH)),

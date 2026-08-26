@@ -21,8 +21,9 @@ type AuthContextValue = {
   busy: boolean;
   signUp: (email: string, password: string) => Promise<AuthError | null>;
   signIn: (email: string, password: string) => Promise<AuthError | null>;
-  signOut: () => Promise<void>;
-  deleteAccount: () => Promise<void>;
+  /** Resolves to an error when it failed, so the screen can say so. */
+  signOut: () => Promise<AuthError | null>;
+  deleteAccount: () => Promise<AuthError | null>;
 };
 
 const AuthContext = createContext<AuthContextValue | null>(null);
@@ -66,12 +67,16 @@ export function AuthProviderContext({
       email: string,
       password: string,
       run: (email: string, password: string) => Promise<Account>,
+      options?: { requireStrongPassword?: boolean },
     ): Promise<AuthError | null> => {
-      const invalid = validateCredentials(email, password);
+      const invalid = validateCredentials(email, password, options);
       if (invalid) return invalid;
       setBusy(true);
       try {
-        setAccount(await run(email, password));
+        // Trim once, here, so the address that is validated is the address
+        // that is sent. The stub trims internally and hides this; a real
+        // provider will treat " a@b.co " as a different string.
+        setAccount(await run(email.trim(), password));
         return null;
       } catch (error) {
         logger.error("Account request failed:", error);
@@ -83,41 +88,61 @@ export function AuthProviderContext({
     [],
   );
 
+  // Wrapped rather than passed as `stubAuthProvider.signUp`: an unbound method
+  // only works because the stub happens to reference itself by name, and the
+  // whole point of the seam is that a class-based provider drops in without
+  // anything above it changing. That one would throw on its first call.
   const signUp = useCallback(
     (email: string, password: string) =>
-      attempt(email, password, stubAuthProvider.signUp),
+      attempt(email, password, (e, p) => stubAuthProvider.signUp(e, p)),
     [attempt],
   );
 
   const signIn = useCallback(
     (email: string, password: string) =>
-      attempt(email, password, stubAuthProvider.signIn),
+      attempt(email, password, (e, p) => stubAuthProvider.signIn(e, p), {
+        // A length rule governs the password being *created*, not the one
+        // being presented. Enforcing it here locks out anyone whose existing
+        // password is shorter than today's minimum.
+        requireStrongPassword: false,
+      }),
     [attempt],
   );
 
-  const signOut = useCallback(async () => {
-    setBusy(true);
-    try {
-      await stubAuthProvider.signOut();
-      setAccount(null);
-    } catch (error) {
-      logger.error("Failed to sign out:", error);
-    } finally {
-      setBusy(false);
-    }
-  }, []);
+  /**
+   * Run something that ends the session, reporting whether it worked.
+   *
+   * Both of these used to swallow their failure and log to a dev-only logger,
+   * leaving `account` set and the screen identical to success — so a user
+   * could confirm an irreversible dialog and be told nothing had gone wrong.
+   * That is the exact flow App Store guideline 5.1.1(v) is reviewed against.
+   */
+  const end = useCallback(
+    async (run: () => Promise<void>, what: string): Promise<AuthError | null> => {
+      setBusy(true);
+      try {
+        await run();
+        setAccount(null);
+        return null;
+      } catch (error) {
+        logger.error(`Failed to ${what}:`, error);
+        return "failed";
+      } finally {
+        setBusy(false);
+      }
+    },
+    [],
+  );
 
-  const deleteAccount = useCallback(async () => {
-    setBusy(true);
-    try {
-      await stubAuthProvider.deleteAccount();
-      setAccount(null);
-    } catch (error) {
-      logger.error("Failed to delete the account:", error);
-    } finally {
-      setBusy(false);
-    }
-  }, []);
+  const signOut = useCallback(
+    () => end(() => stubAuthProvider.signOut(), "sign out"),
+    [end],
+  );
+
+  const deleteAccount = useCallback(
+    () => end(() => stubAuthProvider.deleteAccount(), "delete the account"),
+    [end],
+  );
 
   const value = useMemo<AuthContextValue>(
     () => ({ account, isLoading, busy, signUp, signIn, signOut, deleteAccount }),

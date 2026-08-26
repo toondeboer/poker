@@ -1,5 +1,5 @@
 // src/components/account/AccountScreen.tsx
-import { useState } from "react";
+import { useRef, useState } from "react";
 import {
   Alert,
   ScrollView,
@@ -11,6 +11,7 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { MIN_PASSWORD_LENGTH } from "@poker/core";
 import { useAuth, type AuthError } from "@/src/contexts/AuthContext";
+import { useKeyboardFocusScroll } from "@/src/hooks/useKeyboardFocusScroll";
 import {
   colors,
   isTabletWidth,
@@ -54,9 +55,41 @@ export function AccountScreen() {
   const [password, setPassword] = useState("");
   const [error, setError] = useState<AuthError | null>(null);
 
+  // Never leave the previous user's address and a filled password field on
+  // screen after they sign out — that is one tap from restoring their session
+  // on a phone that has just been handed to somebody else.
+  const [lastAccountId, setLastAccountId] = useState(account?.id ?? null);
+  if (lastAccountId !== (account?.id ?? null)) {
+    setLastAccountId(account?.id ?? null);
+    setEmail("");
+    setPassword("");
+    setError(null);
+  }
+
+  const scrollViewRef = useRef<ScrollView>(null);
+  const scrollOffsetRef = useRef(0);
+  const containerRef = useRef<View>(null);
+
+  // Two text fields and two buttons is the whole screen, so a keypad covering
+  // the lower half covers most of it. Android needs the hook specifically:
+  // under edge-to-edge, `adjustResize` is a no-op and nothing scrolls on its
+  // own — every other input screen in the app sets both of these.
+  const { keyboardInset } = useKeyboardFocusScroll({
+    scrollBy: (delta) =>
+      scrollViewRef.current?.scrollTo({
+        y: scrollOffsetRef.current + delta,
+        animated: true,
+      }),
+    containerRef,
+    bottomInset: insets.bottom,
+    topInset: insets.top,
+  });
+
   const run = async (action: typeof signUp) => {
     setError(await action(email, password));
   };
+
+
 
   const confirmDelete = () => {
     Alert.alert(
@@ -68,7 +101,7 @@ export function AccountScreen() {
           text: "Delete",
           style: "destructive",
           onPress: () => {
-            void deleteAccount();
+            void deleteAccount().then(setError);
           },
         },
       ],
@@ -84,11 +117,12 @@ export function AccountScreen() {
           Signed in on this device. Your groups and leaderboards stay on the
           phone until sync is switched on.
         </Text>
+        {error ? <Text style={styles.error}>{MESSAGE[error]}</Text> : null}
         <Button
           label="Sign out"
           variant="secondary"
           icon="log-out-outline"
-          onPress={() => void signOut()}
+          onPress={() => void signOut().then(setError)}
           disabled={busy}
         />
         <Button
@@ -153,15 +187,21 @@ export function AccountScreen() {
   );
 
   return (
-    <View style={styles.container}>
+    <View style={styles.container} ref={containerRef}>
       <ScrollView
+        ref={scrollViewRef}
         style={styles.scrollView}
         contentContainerStyle={[
           styles.content,
           isTablet && styles.contentTablet,
-          { paddingBottom: insets.bottom + space.xl },
+          { paddingBottom: insets.bottom + space.xl + keyboardInset },
         ]}
         keyboardShouldPersistTaps="handled"
+        onScroll={(e) => {
+          scrollOffsetRef.current = e.nativeEvent.contentOffset.y;
+        }}
+        scrollEventThrottle={16}
+        automaticallyAdjustKeyboardInsets={true}
       >
         {content}
       </ScrollView>

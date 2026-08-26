@@ -57,14 +57,27 @@ export const isValidEmail = (email: string): boolean => {
   return dot > 0 && dot < domain.length - 1;
 };
 
-/** Check credentials before they leave the device. */
+/**
+ * Check credentials before they leave the device.
+ *
+ * `requireStrongPassword` is for **sign-up only**. Applying the length rule to
+ * sign-in locks out anybody whose existing password is shorter than whatever
+ * the minimum happens to be today — refused locally, with a message about
+ * length, and no request ever made. A password policy governs the password
+ * being *created*; the one being *presented* is only checked by the server
+ * that holds it.
+ */
 export const validateCredentials = (
   email: string,
   password: string,
+  { requireStrongPassword = true }: { requireStrongPassword?: boolean } = {},
 ): CredentialError | null => {
   if (email.trim().length === 0) return "email-empty";
   if (!isValidEmail(email)) return "email-malformed";
-  if (password.length < MIN_PASSWORD_LENGTH) return "password-too-short";
+  if (password.length === 0) return "password-too-short";
+  if (requireStrongPassword && password.length < MIN_PASSWORD_LENGTH) {
+    return "password-too-short";
+  }
   return null;
 };
 
