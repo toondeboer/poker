@@ -302,30 +302,41 @@ export const toGameResult = (
     winningsByPlace: readonly number[];
   },
 ): GameResult => {
+  return createGameResult({
+    id: params.id,
+    playerIds: session.seats.map((seat) => seat.playerId),
+    placings: finishingPlacings(session, params.winningsByPlace),
+    buyIn: params.buyIn,
+    bounty: params.bounty,
+    now: params.now,
+  });
+};
+
+/**
+ * The finishing positions of a completed game, priced by `winningsByPlace`.
+ *
+ * Exported separately from {@link toGameResult} because the app already mints
+ * its own ids and timestamps when it records a game — so it wants exactly this
+ * and nothing else, and calling `toGameResult` only to throw two of its fields
+ * away would be the kind of waste that later reads as a mistake.
+ */
+export const finishingPlacings = (
+  session: GameSession,
+  winningsByPlace: readonly number[],
+): Placing[] => {
   if (!isSessionComplete(session)) {
     throw new Error("the game is not over yet");
   }
 
   const order = finishingOrder(session);
   const rankablePlaces = Math.max(
-    params.winningsByPlace.length,
+    winningsByPlace.length,
     Math.min(order.length, PODIUM_PLACES),
   );
 
-  const placings: Placing[] = order
-    .slice(0, rankablePlaces)
-    .map((playerId, index) => ({
-      playerId,
-      place: index + 1,
-      winnings: params.winningsByPlace[index] ?? 0,
-    }));
-
-  return createGameResult({
-    id: params.id,
-    playerIds: session.seats.map((seat) => seat.playerId),
-    placings,
-    buyIn: params.buyIn,
-    bounty: params.bounty,
-    now: params.now,
-  });
+  return order.slice(0, rankablePlaces).map((playerId, index) => ({
+    playerId,
+    place: index + 1,
+    winnings: winningsByPlace[index] ?? 0,
+  }));
 };

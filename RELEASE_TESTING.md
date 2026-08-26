@@ -377,6 +377,10 @@ the table can follow what is happening from across it.
 | Everyone folding to one player ends the hand with **no cards shown** | ⬜ | ⬜ |
 | A knocked-out player is left out of the next deal, and the button skips them | ⬜ | ⬜ |
 | Last player standing ends the game and shows the finishing order | ⬜ | ⬜ |
+| **Save to the leaderboard** records the finishing order the game produced, with winnings from the Payouts screen priced for the field that sat down | ⬜ | ⬜ |
+| The saved game appears in the standings immediately, and the winner's count goes up | ⬜ | ⬜ |
+| Saving with **no buy-in set** still records the finishing order, everyone winning nothing — a friendly game still has a winner | ⬜ | ⬜ |
+| The Save button doesn't offer itself twice; a second tap can't record the same night again | ⬜ | ⬜ |
 | Readable across a table — card faces, stacks and whose turn it is, at arm's length | ⬜ | ⬜ |
 | Tablet: the table is capped and centred rather than running the full width | ⬜ | ⬜ |
 
