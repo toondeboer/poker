@@ -1,0 +1,192 @@
+import { describe, expect, it } from "vitest";
+import { App } from "aws-cdk-lib";
+import { Match, Template } from "aws-cdk-lib/assertions";
+import { PokerStack } from "../lib/pokerStack";
+import cdkJson from "../cdk.json";
+
+/**
+ * The stack, synthesised.
+ *
+ * `Template.fromStack` runs the whole synth, so a stack that cannot be built at
+ * all fails here rather than in front of somebody with credentials — which is
+ * most of what CI can honestly check about infrastructure it will never deploy.
+ * The assertions below cover the handful of properties where getting it wrong
+ * is expensive and silent: data that cannot be recreated, and secrets that must
+ * not be broadcast.
+ */
+let synthesised: Template | null = null;
+
+/**
+ * The synthesised template, built once.
+ *
+ * Synthesising runs esbuild over the Lambda, so doing it per assertion costs a
+ * few seconds for no extra confidence — the template is read-only, and every
+ * test here is asking a different question about the same one.
+ */
+const template = (): Template => {
+  synthesised ??= Template.fromStack(new PokerStack(new App(), "TestStack"));
+  return synthesised;
+};
+
+describe("the stack synthesises", () => {
+  it("builds without an account, a region, or a credential", () => {
+    // Most of what CI can honestly check about infrastructure it will never
+    // deploy: that the thing can be built at all.
+    expect(() =>
+      Template.fromStack(new PokerStack(new App(), "Synth")),
+    ).not.toThrow();
+  });
+
+  it("builds with the context cdk.json actually declares", () => {
+    // `new App()` does NOT read cdk.json, so every other test here runs with
+    // empty context — which is how a pair of CDK **v1** feature flags sat in
+    // that file passing every test and failing the first real `cdk synth`.
+    // This is the only assertion that touches the file the CLI reads.
+    const context = (cdkJson as { context?: Record<string, unknown> }).context;
+    expect(() =>
+      Template.fromStack(new PokerStack(new App({ context }), "WithContext")),
+    ).not.toThrow();
+  });
+});
+
+describe("accounts", () => {
+  it("signs people in by email, case-insensitively", () => {
+    template().hasResourceProperties("AWS::Cognito::UserPool", {
+      UsernameAttributes: ["email"],
+      UsernameConfiguration: { CaseSensitive: false },
+    });
+  });
+
+  it("is never deleted by a stack update", () => {
+    // Losing the user pool loses every account and every link between an
+    // account and a player on somebody's leaderboard.
+    template().hasResource("AWS::Cognito::UserPool", {
+      DeletionPolicy: "Retain",
+      UpdateReplacePolicy: "Retain",
+    });
+  });
+
+  it("gives the phone a client with no secret", () => {
+    // A phone cannot keep one, so handing it one is worse than not having it.
+    const clients = template().findResources("AWS::Cognito::UserPoolClient");
+    const client = Object.values(clients)[0];
+    expect(client.Properties.GenerateSecret).not.toBe(true);
+  });
+
+  it("does not leak whether an email is registered", () => {
+    template().hasResourceProperties("AWS::Cognito::UserPoolClient", {
+      PreventUserExistenceErrors: "ENABLED",
+    });
+  });
+});
+
+describe("stored data", () => {
+  it("keeps the table through a stack update, and can be rewound", () => {
+    // A season of game nights cannot be retyped.
+    // TableV2 hangs point-in-time recovery off each replica rather than off
+    // the table, which is easy to assert in the wrong place and then believe.
+    template().hasResource("AWS::DynamoDB::GlobalTable", {
+      DeletionPolicy: "Retain",
+      UpdateReplacePolicy: "Retain",
+      Properties: Match.objectLike({
+        Replicas: Match.arrayWith([
+          Match.objectLike({
+            PointInTimeRecoverySpecification: {
+              PointInTimeRecoveryEnabled: true,
+            },
+          }),
+        ]),
+      }),
+    });
+  });
+
+  it("costs nothing while nobody is playing", () => {
+    // Poker nights are a few hours a week; provisioned capacity would be paid
+    // for the other 165.
+    template().hasResourceProperties("AWS::DynamoDB::GlobalTable", {
+      BillingMode: "PAY_PER_REQUEST",
+    });
+  });
+});
+
+describe("the realtime bus", () => {
+  it("lets players connect and subscribe with their own token", () => {
+    template().hasResourceProperties("AWS::AppSync::Api", {
+      EventConfig: Match.objectLike({
+        ConnectionAuthModes: [{ AuthType: "AMAZON_COGNITO_USER_POOLS" }],
+        DefaultSubscribeAuthModes: [{ AuthType: "AMAZON_COGNITO_USER_POOLS" }],
+      }),
+    });
+  });
+
+  it("allows only the server to publish", () => {
+    // This is what makes the server authoritative rather than merely
+    // well-behaved: nothing reaches a table except through the rules.
+    template().hasResourceProperties("AWS::AppSync::Api", {
+      EventConfig: Match.objectLike({
+        DefaultPublishAuthModes: [{ AuthType: "AWS_IAM" }],
+      }),
+    });
+  });
+
+  it("has a shared channel and a private one", () => {
+    template().resourceCountIs("AWS::AppSync::ChannelNamespace", 2);
+    template().hasResourceProperties("AWS::AppSync::ChannelNamespace", {
+      Name: "table",
+    });
+  });
+
+  it("guards the private channel with a handler, not with client-side filtering", () => {
+    // Hole cards are secret because of where they are published, not because
+    // of what a phone chooses to draw.
+    const namespaces = template().findResources(
+      "AWS::AppSync::ChannelNamespace",
+      { Properties: { Name: "player" } },
+    );
+    const player = Object.values(namespaces)[0];
+    expect(player.Properties.CodeHandlers).toContain("util.unauthorized()");
+    expect(player.Properties.CodeHandlers).toContain("ctx.identity.sub");
+  });
+});
+
+describe("the action handler", () => {
+  it("is the only function in the stack", () => {
+    // One Lambda, deliberately. `logRetention` used to add a second whose only
+    // job was to set a retention policy on the first one's log group; an
+    // explicit log group does it with no function at all.
+    template().resourceCountIs("AWS::Lambda::Function", 1);
+  });
+
+  it("is the only thing that can publish an event", () => {
+    template().hasResourceProperties(
+      "AWS::IAM::Policy",
+      Match.objectLike({
+        PolicyDocument: Match.objectLike({
+          Statement: Match.arrayWith([
+            Match.objectLike({ Action: "appsync:EventPublish" }),
+          ]),
+        }),
+      }),
+    );
+  });
+
+  it("knows where to write and where to publish", () => {
+    template().hasResourceProperties("AWS::Lambda::Function", {
+      Environment: Match.objectLike({
+        Variables: Match.objectLike({
+          TABLE_NAME: Match.anyValue(),
+          EVENT_API_HTTP: Match.anyValue(),
+        }),
+      }),
+    });
+  });
+
+  it("gives up rather than hanging on to a turn", () => {
+    // A hand cannot proceed while an action is in flight, so a slow one has to
+    // fail fast enough that the table notices rather than waiting.
+    template().hasResourceProperties("AWS::Lambda::Function", {
+      Timeout: 10,
+      Runtime: "nodejs22.x",
+    });
+  });
+});
