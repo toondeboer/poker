@@ -1,5 +1,13 @@
 // src/contexts/GameContext.tsx
-import { createContext, useCallback, useContext, useMemo, useState } from "react";
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import {
   actOnSession,
   createSession,
@@ -11,6 +19,8 @@ import {
   type GameSession,
   type LegalActions,
 } from "@poker/core";
+import { GameStorage } from "@/src/services/GameStorage";
+import { logger } from "@/src/utils/logger";
 
 export type GameSetup = {
   /** Player **ids**, in seat order. Ids travel; names are for reading. */
@@ -36,6 +46,8 @@ type GameContextValue = {
   /** Whose turn, and what they may do. `null` between hands. */
   legal: LegalActions | null;
   complete: boolean;
+  /** False until the stored game has been read back. */
+  isLoading: boolean;
   /** Winner first. During a game, the players still in ranked by stack. */
   order: string[];
   handInProgress: boolean;
@@ -66,8 +78,12 @@ const GameContext = createContext<GameContextValue | null>(null);
  * back-press, with no warning and nothing to restore. Held here it survives
  * navigation, for the same reason the payout and leaderboard state is.
  *
- * It does **not** survive the app being killed. That wants persistence and a
- * schema, and is written up in ROADMAP.md rather than half-done here.
+ * It also survives the app being killed: the game is written to storage on
+ * every change and read back at launch. A stored game is validated **whole**
+ * and kept or dropped — no partial recovery — which is the opposite of the
+ * leaderboard's per-row tolerance and deliberately so. A season of results is
+ * irreplaceable; a game is one evening, and a half-valid one is a table paying
+ * the wrong person from stacks that no longer add up.
  *
  * Every rule is `@poker/core`'s. Nothing in this file decides who acts, what is
  * legal, or where the chips go — which is what lets the same functions become
@@ -89,6 +105,46 @@ export function GameProvider({
   const [session, setSession] = useState<GameSession | null>(null);
   const [setup, setSetup] = useState<GameSetup | null>(null);
   const [recorded, setRecorded] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+
+  // Nothing may be written before the stored game has been read, or an empty
+  // initial state persists straight over an evening in progress — the same
+  // trap the leaderboard screen guards with its own loading check.
+  const hydrated = useRef(false);
+
+  useEffect(() => {
+    let active = true;
+    GameStorage.loadGame()
+      .then((saved) => {
+        if (!active || !saved) return;
+        setSetup(saved.setup);
+        setSession(saved.session);
+        setRecorded(saved.recorded);
+      })
+      .catch((error) => logger.error("Failed to load the game:", error))
+      .finally(() => {
+        if (!active) return;
+        hydrated.current = true;
+        setIsLoading(false);
+      });
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  // Persist on every change, once the stored game has been read.
+  useEffect(() => {
+    if (!hydrated.current) return;
+    if (!session || !setup) {
+      GameStorage.clearGame().catch((error) =>
+        logger.error("Failed to clear the game:", error),
+      );
+      return;
+    }
+    GameStorage.saveGame({ setup, session, recorded }).catch((error) =>
+      logger.error("Failed to save the game:", error),
+    );
+  }, [session, setup, recorded]);
 
   const startGame = useCallback((next: GameSetup) => {
     setSetup(next);
@@ -141,6 +197,7 @@ export function GameProvider({
       setup,
       legal: session?.hand ? legalActions(session.hand) : null,
       complete: session ? isSessionComplete(session) : false,
+      isLoading,
       order: session ? finishingOrder(session) : [],
       handInProgress: session?.hand != null,
       recorded,
@@ -150,7 +207,7 @@ export function GameProvider({
       act,
       endGame,
     }),
-    [session, setup, recorded, markRecorded, startGame, deal, act, endGame],
+    [session, setup, recorded, isLoading, markRecorded, startGame, deal, act, endGame],
   );
 
   return <GameContext.Provider value={value}>{children}</GameContext.Provider>;

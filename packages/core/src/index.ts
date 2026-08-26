@@ -77,6 +77,12 @@ export {
   DEFAULT_PAYOUT_SETTINGS,
 } from "./storage/payoutStorage";
 export type { PayoutStorage, PayoutSettings } from "./storage/payoutStorage";
+export { createGameStorage } from "./storage/gameStorage";
+export type {
+  GameStorage,
+  StoredGame,
+  StoredGameSetup,
+} from "./storage/gameStorage";
 export { createLeaderboardStorage } from "./storage/leaderboardStorage";
 export type {
   LeaderboardStorage,

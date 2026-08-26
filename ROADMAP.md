@@ -77,14 +77,12 @@ are removed from this file when a release is cut rather than accumulating as ✅
   raise and all-in can be typed, with Min / Pot / All in filling it in. A slider would be quicker
   to reach for at a table and is the obvious next step; the field is what makes the sizes reachable
   at all, which was the gap.
-- ⬜ **A game does not survive the app being killed.** It survives navigation (the state lives in
-  `GameContext`, not in the pushed screen), but not a force-stop or a phone running out of battery
-  mid-evening. Wants persistence and a schema for `GameSession`, which is a real piece of work
-  rather than something to bolt on.
+- ✅ A game now survives the app being killed as well as navigation, and is validated whole on
+  load rather than partially recovered. **Delete this line when 1.2.0 is cut.**
 - 🟡 **Saving a finished game is a button, not a prompt.** The timer's end-of-game flow *asks*;
-  this one waits to be pressed, and a table that shuts the app after the last hand loses the night.
-  A prompt wants somewhere to live that survives the screen, which is the same problem as
-  persistence above — worth doing together.
+  this one waits to be pressed. Much less pressing now that games persist: a table that shuts the
+  app after the last hand finds the finished game and its Save button still there next launch, so
+  the night is no longer lost — only deferred. A prompt would still be the better ending.
 - 🟡 **The deal is not cryptographic.** `Math.random` is passed straight to the engine rather than
   a seeded PRNG, which avoids the brute-forceable 32-bit seed space that `createRandom` warns
   about — but it is still not a cryptographic source. Accepted for a table passing one phone
