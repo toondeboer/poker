@@ -215,6 +215,15 @@ export {
   isHandComplete,
 } from "./poker/table";
 export type { Hand, HandSeat, Street, Showdown } from "./poker/table";
+export {
+  createSession,
+  startNextHand,
+  act as actOnSession,
+  isSessionComplete,
+  finishingOrder,
+  toGameResult,
+} from "./poker/session";
+export type { GameSession, SessionSeat } from "./poker/session";
 
 // Leaderboard
 export {
