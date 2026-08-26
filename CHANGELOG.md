@@ -10,6 +10,12 @@ platform-tagged heading (e.g. `## [1.1.3] - 2026-07-20 — Android`) when you cu
 ## [Unreleased]
 
 ### Added
+- **Claim yourself on a leaderboard.** Signed in, a player on the board can be linked to your
+  account — and because every game ever recorded refers to the person rather than to an account,
+  the whole season becomes yours with nothing rewritten. It can be undone, so a mis-tap costs
+  nothing. Two things are refused rather than guessed at: a person somebody else has already
+  claimed, and holding a second seat on the same board, since one person is one seat and holding
+  two would double-count their nights. **Only visible while signed in**, which nobody can be yet.
 - Groundwork for accounts: the sign-in, sign-out and delete-account screens exist and work, and the
   seam an identity provider plugs into is defined in `@poker/core`. **Nothing links to them and no
   account is real yet** — they run against a development stub with no server behind it, so the way

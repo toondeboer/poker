@@ -10,6 +10,7 @@ import {
 import {
   addGameResult,
   addGroup,
+  claimPlayer,
   addPlayer,
   computeStandings,
   createGameResult,
@@ -19,12 +20,15 @@ import {
   isValidGroupName,
   MAX_GROUPS,
   removeGameResult,
+  playerForAccount,
   removeGroup,
   removePlayer,
   renameGroup,
   setActiveGroup,
+  unclaimPlayer,
   updateGroup,
   validateGameResult,
+  ClaimError,
   GameResult,
   GroupedLeaderboard,
   GroupState,
@@ -78,6 +82,18 @@ type LeaderboardContextValue = {
     bounty: number;
   }) => boolean;
   deleteResult: (id: string) => void;
+  /** The player this account holds on the active board, if any. */
+  claimedPlayer: (accountId: string) => Player | null;
+  /**
+   * Say that a player on the board is you.
+   *
+   * Returns why not, if not. The account id is passed in rather than read from
+   * a context here, because the auth provider is mounted *inside* this one —
+   * and reordering the tree to read it would put every leaderboard consumer
+   * behind an account it does not need.
+   */
+  claimPlayerAs: (playerId: string, accountId: string) => ClaimError | null;
+  releasePlayer: (playerId: string) => void;
 };
 
 const LeaderboardContext = createContext<LeaderboardContextValue | null>(null);
@@ -232,6 +248,39 @@ export function LeaderboardProvider({
     [withActiveGroup],
   );
 
+  const claimedPlayer = useCallback(
+    (accountId: string) =>
+      state.activeGroupId
+        ? playerForAccount(state, state.activeGroupId, accountId)
+        : null,
+    [state],
+  );
+
+  const claimPlayerAs = useCallback(
+    (playerId: string, accountId: string): ClaimError | null => {
+      if (!state.activeGroupId) return "no-such-group";
+      const result = claimPlayer(state, {
+        groupId: state.activeGroupId,
+        playerId,
+        accountId,
+      });
+      if (!result.ok) return result.error;
+      persist(result.state);
+      return null;
+    },
+    [state, persist],
+  );
+
+  const releasePlayer = useCallback(
+    (playerId: string) => {
+      if (!state.activeGroupId) return;
+      persist(
+        unclaimPlayer(state, { groupId: state.activeGroupId, playerId }),
+      );
+    },
+    [state, persist],
+  );
+
   const standings = useMemo(
     () => computeStandings(board.players, board.results),
     [board.players, board.results],
@@ -302,6 +351,9 @@ export function LeaderboardProvider({
         deletePlayer,
         recordResult,
         deleteResult,
+        claimedPlayer,
+        claimPlayerAs,
+        releasePlayer,
       }}
     >
       {children}
