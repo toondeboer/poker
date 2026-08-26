@@ -270,6 +270,15 @@ export type {
 } from "./leaderboard/groups";
 export type { LeaderboardStanding } from "./leaderboard/standings";
 
+// Realtime channels (shared with the backend, deliberately)
+export {
+  TABLE_NAMESPACE,
+  PLAYER_NAMESPACE,
+  tableChannel,
+  playerChannel,
+  playerFromChannel,
+} from "./realtime/channels";
+
 // Share
 export { SITE_URL, SHARE_MESSAGE } from "./share/links";
 export {

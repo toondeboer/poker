@@ -9,6 +9,17 @@ platform-tagged heading (e.g. `## [1.1.3] - 2026-07-20 — Android`) when you cu
 
 ## [Unreleased]
 
+### Added
+- Groundwork for accounts and online play: the backend is now defined as code in a new `apps/infra`
+  workspace — accounts, one small database, and a realtime channel for a shared poker table.
+  **Nothing is deployed and nothing in the app talks to it yet.** Two decisions are worth recording
+  because they are hard to change later: hole cards are kept private by *where they are published*
+  rather than by the app choosing not to draw them, so a card you should not see never reaches your
+  phone at all; and only the server may publish, so every change to a table goes through the poker
+  rules once — the same rules the phone runs, which is what stops the two disagreeing. The channel
+  names both sides use are defined once and shared, because the app and the server disagreeing
+  about them is the kind of mistake that is silent rather than obvious.
+
 ### Removed
 - The Maestro end-to-end suite (26 flows) is gone. It had rotted while nothing referenced it: a
   hardcoded LAN address and stale selectors, no npm script, and no CI job — running it would have

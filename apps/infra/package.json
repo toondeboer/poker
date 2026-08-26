@@ -1,0 +1,30 @@
+{
+  "name": "@poker/infra",
+  "version": "0.0.0",
+  "private": true,
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint bin lib test",
+    "test": "vitest run",
+    "synth": "cdk synth",
+    "diff": "cdk diff",
+    "deploy": "cdk deploy"
+  },
+  "dependencies": {
+    "@poker/core": "*",
+    "aws-cdk-lib": "^2.219.0",
+    "constructs": "^10.4.2"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.39.4",
+    "@types/aws-lambda": "^8.10.152",
+    "@types/node": "^22",
+    "aws-cdk": "^2.1030.0",
+    "esbuild": "^0.25.10",
+    "eslint": "^9.39.4",
+    "tsx": "^4.20.6",
+    "typescript": "~5.8.3",
+    "typescript-eslint": "^8.67.0",
+    "vitest": "^4.1.11"
+  }
+}
