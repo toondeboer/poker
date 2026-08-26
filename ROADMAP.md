@@ -175,8 +175,11 @@ are removed from this file when a release is cut rather than accumulating as ✅
   note size with the largest-remainder method, so the table sums to the pool exactly and no paid
   place ever wins nothing. A chop calculator splits the money left when the table agrees to end
   early, and the table can be shared to a group chat.
-  Progressive/knockout bounties were deliberately left out — they need live elimination tracking,
-  which is a much larger feature.
+  Flat bounties are now *paid* as well as priced, for a game the app dealt: it tracks who knocked
+  whom out, so the leaderboard can count knockouts and put the money in the total.
+  **Progressive bounties are still out** — those grow as a player collects them, so they need a
+  running bounty *per player* carried across hands and priced into the payout structure, which the
+  elimination tracking makes possible but does not itself provide.
   **Delete this section when 1.2.0 is cut** (cutting step 3).
 - ⬜ **ICM as a second chop method.** The shipped chop is chip-count based with a guaranteed floor,
   which is what home games agree to and is explainable in one sentence. ICM is the method serious

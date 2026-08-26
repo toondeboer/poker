@@ -19,6 +19,18 @@ platform-tagged heading (e.g. `## [1.1.3] - 2026-07-20 — Android`) when you cu
   Signing out or deleting an account lets go of the players it had claimed, so nobody is left linked
   to an account that no longer exists — and if one ever is, it can still be unlinked rather than
   being stuck for good.
+- **A game the app dealt now knows who knocked whom out (Pro).** A bounty is money that changes
+  hands the moment somebody busts, a dozen times over an evening, usually while the host isn't
+  watching — which is why a game written down afterwards has never tracked it, and why the
+  leaderboard's money column was prize money only. A game the app deals watched every hand, so it
+  knows exactly whose chips took whom out, and the board now counts knockouts and pays the bounty
+  into the total. The credit goes to whoever won the pot the busted player's last chips were in,
+  which with side pots is frequently *not* whoever won the most money that hand. A split pot splits
+  the bounty — one bounty between the two of them, since only one was ever collected, divided the
+  same way the pot itself was. A pot nobody could claim pays no bounty to anybody, rather than
+  picking a winner.
+  Games recorded by hand show nothing here rather than zeros — nobody can say, and a guess rendered
+  as a total is worse than no total.
 - **A way back when the app breaks.** Instead of a blank screen or the app closing on itself, there
   is now a page saying what went wrong, with the message on it — the only place that message exists,
   and what makes a bug report useful. Trying again is the first offer. The second is for the case

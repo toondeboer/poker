@@ -91,6 +91,28 @@ const validHand = (raw: unknown, setup: StoredGameSetup): number | null => {
   const deck = cardsOf(raw.deck);
   if (!board || !deck) return null;
 
+  // Aligned with the pots by index — a mismatch would credit a knockout to
+  // whoever won some *other* pot, which is a bounty paid to the wrong person.
+  //
+  // Absent is allowed and means "not recorded": a game saved before the app
+  // started tracking knockouts is still a perfectly good game, and dropping an
+  // evening mid-tournament to avoid losing the bounty attribution for it would
+  // be the wrong trade by a distance. Present and wrong is still refused.
+  const potWinners = raw.potWinners === undefined ? [] : raw.potWinners;
+  if (!Array.isArray(potWinners)) return null;
+  if (potWinners.length !== 0 && potWinners.length !== raw.pots.length) {
+    return null;
+  }
+  if (
+    !potWinners.every(
+      (winners: unknown) =>
+        Array.isArray(winners) &&
+        winners.every((id) => typeof id === "string" && setup.players.includes(id)),
+    )
+  ) {
+    return null;
+  }
+
   // `roundBaseline` is bookkeeping the engine reads without checking; missing
   // it throws from inside a state updater rather than failing here.
   if (!Array.isArray(raw.roundBaseline)) return null;
@@ -180,6 +202,38 @@ const chipsAccountedFor = (
     // never end.
     if (out && !broke) return null;
   }
+
+  // Every knockout is somebody who actually went out, credited to people who
+  // actually sat down. A stray entry is a bounty paid for a knockout that never
+  // happened, and money is the one thing this file exists to protect.
+  // Absent means "not recorded", for the same reason as `potWinners` above.
+  const knockouts =
+    session.knockouts === undefined ? [] : session.knockouts;
+  if (!Array.isArray(knockouts)) return null;
+  const credited = new Set<string>();
+  for (const knockout of knockouts) {
+    if (!isObject(knockout)) return null;
+    if (typeof knockout.playerId !== "string") return null;
+    if (!busted.has(knockout.playerId)) return null;
+    // One entry each. Two would pay the bounty for the same exit twice.
+    if (credited.has(knockout.playerId)) return null;
+    credited.add(knockout.playerId);
+    if (!Array.isArray(knockout.by)) return null;
+    if (
+      !knockout.by.every(
+        (id) => typeof id === "string" && setup.players.includes(id),
+      )
+    ) {
+      return null;
+    }
+    // Nobody knocks themselves out — a player who wins the pot their chips
+    // were in still has chips.
+    if (knockout.by.includes(knockout.playerId)) return null;
+  }
+  // No count check is needed beyond the two above: every entry names somebody
+  // who actually went out and does so once, so there can never be more of them
+  // than there were exits. Deliberately no *lower* bound either — fewer is a
+  // game saved before the app tracked this, which is fine.
 
   if (session.lastHand !== null && validHand(session.lastHand, setup) === null) {
     return null;
