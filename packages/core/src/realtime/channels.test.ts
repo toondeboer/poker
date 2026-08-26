@@ -1,9 +1,11 @@
 import { describe, expect, it } from "vitest";
 import {
   PLAYER_NAMESPACE,
+  SESSION_NAMESPACE,
   TABLE_NAMESPACE,
   playerChannel,
   playerFromChannel,
+  sessionChannel,
   tableChannel,
 } from "./channels";
 
@@ -63,5 +65,20 @@ describe("channel paths", () => {
       (channel) => playerFromChannel(channel) !== null,
     );
     expect(leaked).toEqual([]);
+  });
+});
+
+describe("the shared-clock channel", () => {
+  it("has its own namespace, because its rule is its own", () => {
+    // Anyone holding the join code may watch a clock; a table's channels are
+    // not open on those terms, and namespaces are where rules attach.
+    expect(sessionChannel("s1")).toBe("/session/s1");
+    expect(sessionChannel("s1").split("/")[1]).toBe(SESSION_NAMESPACE);
+    expect(SESSION_NAMESPACE).not.toBe(TABLE_NAMESPACE);
+    expect(SESSION_NAMESPACE).not.toBe(PLAYER_NAMESPACE);
+  });
+
+  it("is not mistakable for a private channel", () => {
+    expect(playerFromChannel(sessionChannel("s1"))).toBeNull();
   });
 });
