@@ -3,6 +3,7 @@ import { App } from "aws-cdk-lib";
 import { Match, Template } from "aws-cdk-lib/assertions";
 import { PokerStack } from "../lib/pokerStack";
 import cdkJson from "../cdk.json";
+import { playerChannel } from "@poker/core";
 
 /**
  * The stack, synthesised.
@@ -112,6 +113,14 @@ describe("stored data", () => {
   });
 });
 
+/** The namespace carrying one player's own cards. */
+const privateNamespace = () => {
+  const found = template().findResources("AWS::AppSync::ChannelNamespace", {
+    Properties: { Name: "player" },
+  });
+  return Object.values(found)[0].Properties;
+};
+
 describe("the realtime bus", () => {
   it("lets players connect and subscribe with their own token", () => {
     template().hasResourceProperties("AWS::AppSync::Api", {
@@ -142,13 +151,35 @@ describe("the realtime bus", () => {
   it("guards the private channel with a handler, not with client-side filtering", () => {
     // Hole cards are secret because of where they are published, not because
     // of what a phone chooses to draw.
-    const namespaces = template().findResources(
-      "AWS::AppSync::ChannelNamespace",
-      { Properties: { Name: "player" } },
-    );
-    const player = Object.values(namespaces)[0];
-    expect(player.Properties.CodeHandlers).toContain("util.unauthorized()");
-    expect(player.Properties.CodeHandlers).toContain("ctx.identity.sub");
+    expect(privateNamespace().CodeHandlers).toContain("util.unauthorized()");
+    expect(privateNamespace().CodeHandlers).toContain("ctx.identity.sub");
+  });
+
+  it("guards the namespace the private channels are actually in", () => {
+    // The bug this replaced: the guard sat on a namespace those channels never
+    // touch. AppSync takes the FIRST path segment as the namespace, so
+    // `/table/{id}/player/{sub}` is governed by `table` — which had no handler
+    // — and any signed-in account could have read anyone's cards.
+    const channel = playerChannel("u9", "t1");
+    expect(channel.split("/")[1]).toBe("player");
+    const guarded = template().findResources("AWS::AppSync::ChannelNamespace", {
+      Properties: { CodeHandlers: Match.anyValue() },
+    });
+    const names = Object.values(guarded).map((ns) => ns.Properties.Name);
+    expect(names).toEqual([channel.split("/")[1]]);
+  });
+
+  it("reads the player id from where the shared path builder puts it", () => {
+    // The handler and `playerChannel` must agree on the position, or the guard
+    // compares the wrong segment and fails open or closed at random.
+    expect(privateNamespace().CodeHandlers).toContain("segments[2]");
+    expect(playerChannel("u9", "t1").split("/")[2]).toBe("u9");
+  });
+
+  it("lets the server's own publish through the private namespace", () => {
+    // Namespace handlers run for every publish whatever the auth mode, so an
+    // unconditional reject here would block the only publish there is.
+    expect(privateNamespace().CodeHandlers).toContain("return ctx.events");
   });
 });
 

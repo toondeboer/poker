@@ -9,6 +9,19 @@
  * `@poker/core` and run in a Lambda, which is the point: the phone and the
  * server run the same function, so optimistic prediction on the client is
  * provably the same code as the authority on the server.
+ *
+ * ## Known gap, before anything connects to this
+ *
+ * The shared `table` namespace is **authenticated but not authorized**: a
+ * subscriber must be signed in, but nothing ties them to the table they are
+ * subscribing to, so any account holding a table id could stream a stranger's
+ * game. It is not exploitable today — nothing publishes and no app code
+ * connects — but it must be closed before either changes.
+ *
+ * The fix is a Lambda authorizer on subscribe: membership lives in DynamoDB, so
+ * it needs a read, which an AppSync JS handler cannot do. Deliberately not
+ * written blind here, since it cannot be exercised without a deployment.
+ * Tracked in ROADMAP.md.
  */
 
 import {
@@ -23,7 +36,6 @@ import { AttributeType, Billing, TableV2 } from "aws-cdk-lib/aws-dynamodb";
 import { CfnApi, CfnChannelNamespace } from "aws-cdk-lib/aws-appsync";
 import {
   AccountRecovery,
-  OAuthScope,
   UserPool,
   UserPoolClient,
   UserPoolEmail,
@@ -32,41 +44,52 @@ import { PolicyStatement } from "aws-cdk-lib/aws-iam";
 import { Runtime } from "aws-cdk-lib/aws-lambda";
 import { NodejsFunction } from "aws-cdk-lib/aws-lambda-nodejs";
 import { LogGroup, RetentionDays } from "aws-cdk-lib/aws-logs";
+import { PLAYER_NAMESPACE, TABLE_NAMESPACE } from "@poker/core";
 import { Construct } from "constructs";
 import * as path from "node:path";
 
 /**
- * Rejects a subscription to somebody else's private channel.
+ * Rejects a subscription to somebody else's cards.
  *
  * Hole cards are never broadcast. Each player subscribes to the table's shared
- * channel *and* to `/table/{tableId}/player/{their own sub}`, and the private
- * cards are published only to the second. That means secrecy is a property of
- * the channel topology rather than of client-side filtering — there is no code
- * on a phone deciding what not to show you, which is the kind of code that
- * eventually shows you the wrong thing.
+ * channel *and* to `/player/{their own sub}/table/{tableId}`, and the private
+ * cards are published only to the second. Secrecy is then a property of where
+ * a thing is published rather than of client-side filtering — there is no code
+ * on a phone deciding what not to show you, which is the code that eventually
+ * shows you the wrong thing.
+ *
+ * **The path shape is load-bearing.** AppSync takes the *first* segment as the
+ * namespace, and a namespace is the only place a subscribe guard can be
+ * attached — so the player id has to lead. An earlier version of this used
+ * `/table/{id}/player/{sub}`, which reads better and is unguardable: its
+ * namespace is `table`, so it landed under the shared rules and this handler
+ * never ran at all. Any signed-in account could read anyone's cards. The path
+ * is now built by `playerChannel` in `@poker/core`, shared with the app, so the
+ * two sides cannot disagree about it again.
  *
  * Written as an AppSync JS handler rather than a Lambda authorizer because it
- * is one comparison and runs on the subscribe path of every player, every hand.
+ * is one comparison, on the subscribe path of every player, every hand.
  */
 const PRIVATE_CHANNEL_HANDLER = `
 import { util } from '@aws-appsync/utils';
 
 export function onSubscribe(ctx) {
+  // /player/{playerId}/table/{tableId}
   const segments = ctx.info.channel.path.split('/');
-  // /table/{tableId}/player/{userId}
-  const owner = segments[4];
-  if (!owner) {
+  if (segments.length !== 5 || segments[3] !== 'table') {
     util.unauthorized();
   }
-  if (owner !== ctx.identity.sub) {
+  const owner = segments[2];
+  if (!owner || owner !== ctx.identity.sub) {
     util.unauthorized();
   }
 }
 
 export function onPublish(ctx) {
-  // Only the server publishes here; clients reach the table through the action
-  // handler so that every change goes through the rules once.
-  util.unauthorized();
+  // Namespace handlers run for every publish whatever the auth mode, so this
+  // has to pass the events through — rejecting here would block the server's
+  // own IAM publish, which is the only publish there is.
+  return ctx.events;
 }
 `;
 
@@ -111,10 +134,10 @@ export class PokerStack extends Stack {
       // A phone cannot keep a secret, so it does not get one.
       generateSecret: false,
       authFlows: { userSrp: true },
-      oAuth: {
-        flows: { authorizationCodeGrant: true },
-        scopes: [OAuthScope.EMAIL, OAuthScope.OPENID, OAuthScope.PROFILE],
-      },
+      // No `oAuth` block: the app signs in through SRP, not a hosted UI. CDK
+      // fills an omitted `callbackUrls` with `https://example.com`, which is
+      // inert without a hosted-UI domain and a perfectly valid redirect target
+      // the moment one exists.
       // Long enough that a monthly player is not signed out between game
       // nights; the access token stays short.
       refreshTokenValidity: Duration.days(90),
@@ -174,15 +197,19 @@ export class PokerStack extends Stack {
     });
 
     // What everyone at a table sees: the board, the bets, whose turn it is.
+    //
+    // **This namespace is authenticated but not yet authorized** — see the
+    // note at the top of this file. Nothing connects to it yet, and nothing
+    // should until a membership check exists.
     new CfnChannelNamespace(this, "TableNamespace", {
       apiId: eventApi.attrApiId,
-      name: "table",
+      name: TABLE_NAMESPACE,
     });
 
     // What only one player sees. The handler is the entire secrecy mechanism.
     new CfnChannelNamespace(this, "PlayerNamespace", {
       apiId: eventApi.attrApiId,
-      name: "player",
+      name: PLAYER_NAMESPACE,
       codeHandlers: PRIVATE_CHANNEL_HANDLER,
     });
 

@@ -77,6 +77,28 @@ are removed from this file when a release is cut rather than accumulating as ✅
   surface an email at all currently — decide whether it should, and confirm the gmail address above
   is still the one actively monitored.
 
+## Backend: before anything connects to it
+
+- 🔍 **The shared `table` channel is authenticated but not authorized.** A subscriber has to be
+  signed in, but nothing ties them to the table they are subscribing to — so an account holding a
+  table id could stream a stranger's game. Not exploitable today: nothing publishes and no app code
+  connects. **It has to be closed before either changes.** The fix is a Lambda authorizer on
+  subscribe, because membership lives in DynamoDB and an AppSync JS handler cannot read it. Left
+  unwritten deliberately rather than written blind, since it cannot be exercised without a
+  deployment.
+- ⬜ **The action handler has no storage or publishing.** `applyAction` and the view functions are
+  written and tested; the DynamoDB read/conditional-write loop and the AppSync publish are not,
+  for the same reason. The exported `handler` throws a message saying so, so a deploy fails
+  legibly instead of with `Runtime.HandlerNotFound`.
+- ⬜ **Sign in with Apple and Google.** Both need real client ids and secrets, and App Store
+  guideline 4.8 requires Sign in with Apple alongside any other third-party provider — so they are
+  a credential-bearing decision rather than something to scaffold with placeholders.
+- 🔍 **Cognito's federated-MAU pricing is unresolved.** Users arriving via a SAML/OIDC provider bill
+  on a separate free tier of 50 MAU and then $0.015/MAU, against 10,000 free on Essentials. Whether
+  Apple and Google land in the normal tier or that one is the difference between $0 and ~$14/month
+  at 1,000 users, and the pricing page names neither. Confirm against the docs or a throwaway pool
+  before committing to the design.
+
 ## Apple Watch companion app
 - ⬜ **Confirmed: no watch code exists in this repo currently** — no watchOS target under
   `apps/mobile/ios`, no `WatchConnectivity`/`WCSession`/`WKExtension` references anywhere in app

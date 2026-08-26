@@ -89,26 +89,31 @@ export const applyAction = (
 };
 
 /**
- * What each player is allowed to see of a hand.
+ * What everyone at the table is allowed to see of a hand.
  *
- * Everyone gets the table; each player gets their own two cards and nobody
- * else's. Built here rather than filtered on the phone: a hand that never
- * leaves the server with someone else's cards in it cannot leak them, however
- * the client is written.
+ * Built here rather than filtered on the phone: a hand that never leaves the
+ * server carrying somebody else's cards cannot leak them, however the client is
+ * written.
  *
- * Once the hand is complete the cards that were shown down are public — that is
- * what a showdown *is* — so the shared view carries them and there is nothing
- * left to keep private.
+ * Cards are revealed **only at a showdown**, and only for the players in it.
+ * Gating on "the hand is over" instead looks equivalent and is not: a hand
+ * everyone folds out of ends with no showdown at all, and the uncontested
+ * winner never has to show. An earlier version made exactly that mistake and
+ * broadcast their cards — which is worse than a display bug, because it teaches
+ * the table how somebody plays the hands they steal.
  */
-export const publicView = (hand: Hand): Hand => ({
-  ...hand,
-  seats: hand.seats.map((seat) => ({
-    ...seat,
-    hole: isHandComplete(hand) && seat.status !== "folded" ? seat.hole : [],
-  })),
-  // The deck is the rest of the game. It never goes anywhere.
-  deck: [],
-});
+export const publicView = (hand: Hand): Hand => {
+  const shown = new Set((hand.showdown ?? []).map((entry) => entry.playerId));
+  return {
+    ...hand,
+    seats: hand.seats.map((seat) => ({
+      ...seat,
+      hole: shown.has(seat.playerId) ? seat.hole : [],
+    })),
+    // The deck is the rest of the game. It never goes anywhere.
+    deck: [],
+  };
+};
 
 export const privateView = (
   hand: Hand,
@@ -116,4 +121,25 @@ export const privateView = (
 ): { playerId: string; hole: Hand["seats"][number]["hole"] } | null => {
   const seat = hand.seats.find((candidate) => candidate.playerId === playerId);
   return seat ? { playerId, hole: seat.hole } : null;
+};
+
+/**
+ * The Lambda entry point.
+ *
+ * **Deliberately not wired to DynamoDB or to publishing yet.** Both need a
+ * deployment to exercise, and writing them blind would mean shipping the most
+ * security-sensitive code in the stack with no way to run it. What exists is
+ * the decision-making — {@link applyAction} and the two view functions — which
+ * is testable, and is where the rules actually live.
+ *
+ * It exists at all because the function synthesises with `Handler:
+ * index.handler`: without an export, a deploy produces a Lambda that fails
+ * every invocation with `Runtime.HandlerNotFound`, which is a far more
+ * confusing way to discover this is unfinished than being told so.
+ */
+export const handler = async (): Promise<never> => {
+  throw new Error(
+    "The table action handler has no storage or publishing wired up yet. " +
+      "See apps/infra/lib/lambda/tableAction.ts.",
+  );
 };

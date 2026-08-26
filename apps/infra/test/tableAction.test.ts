@@ -144,6 +144,28 @@ describe("what leaves the server", () => {
     expect(view.seats.every((seat) => seat.hole.length === 0)).toBe(true);
   });
 
+  it("does NOT show the winner's cards when everyone folded to them", () => {
+    // A hand folded out has no showdown, and the winner never has to show.
+    // Gating on "the hand is over" instead of "there was a showdown" leaks
+    // exactly this — and it teaches the table how somebody plays the hands
+    // they steal, which is worse than a display bug.
+    let table = stored(dealHand());
+    for (let i = 0; i < 2; i++) {
+      const result = applyAction(table, {
+        tableId: "t1",
+        playerId: whoseTurn(table.hand),
+        action: { type: "fold" },
+        expectedVersion: table.version,
+      });
+      expect(result.status).toBe("applied");
+      if (result.status !== "applied") return;
+      table = result.table;
+    }
+    expect(table.hand.showdown).toBeNull();
+    const view = publicView(table.hand);
+    expect(view.seats.every((seat) => seat.hole.length === 0)).toBe(true);
+  });
+
   it("shows down the cards of everyone still in once the hand is over", () => {
     // At a showdown the cards are public — that is what a showdown is.
     let hand = dealHand();
