@@ -12,6 +12,7 @@ import { DEFAULT_SOUND_PACK_ID } from "@poker/core";
 import { useBlinds } from "@/src/contexts/BlindsContext";
 import { useTimerNotification } from "@/src/hooks/useTimerNotification";
 import { useTimerEngine } from "@/src/hooks/useTimerEngine";
+import { useSessionSync } from "@/src/hooks/useSessionSync";
 import { useTimerAlert } from "@/src/hooks/useTimerAlert";
 import { useKeepScreenAwake } from "@/src/hooks/useKeepScreenAwake";
 import { useSoundPack } from "@/src/contexts/SoundPackContext";
@@ -54,6 +55,7 @@ const TimerContext = createContext<TimerContextType | null>(null);
 export function TimerProvider({ children }: Readonly<{ children: ReactNode }>) {
   const {
     increaseBlinds,
+    selectBlind,
     currentBlindIndex,
     blindLevels,
     isLoading: isBlindsLoading,
@@ -170,8 +172,20 @@ export function TimerProvider({ children }: Readonly<{ children: ReactNode }>) {
     resetTimer: engineResetTimer,
     isLoading,
     loadTimerState,
+    applyRemoteState,
   } = useTimerEngine(currentBlindIndex, blindLevels, effectiveSoundPackId, {
     onTimerComplete: handleTimerComplete,
+  });
+
+  // One clock across several phones, when a session is running. Off by default
+  // and inert without one — see `useSessionSync`, which owns the whole of the
+  // send/receive loop and the echo suppression that keeps it from becoming one.
+  useSessionSync({
+    state: { timerDuration, endTime, timeLeft, paused },
+    blindIndex: currentBlindIndex,
+    isLoading,
+    applyRemoteState,
+    selectBlind,
   });
 
   // Keep the screen on for as long as a round is actually counting down, so a

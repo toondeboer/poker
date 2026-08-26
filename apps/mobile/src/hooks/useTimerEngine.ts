@@ -141,6 +141,23 @@ export function useTimerEngine(
     });
   };
 
+  /**
+   * Take timer state from somewhere other than this device.
+   *
+   * Used only by the shared-clock sync, and deliberately the whole state rather
+   * than a set of transitions: what arrives from the table is a snapshot, and
+   * replaying it as pause/resume/set-duration calls would go through this
+   * machine's own transitions and produce something subtly different from what
+   * the other phones are showing.
+   *
+   * The completion flag is cleared because the incoming round is not the one
+   * this device may already have decided had ended.
+   */
+  const applyRemoteState = (remote: TimerMachineState): void => {
+    setState(remote);
+    hasHandledTimerCompleteRef.current = false;
+  };
+
   // Set timer duration
   const handleSetTimerDuration = async (duration: number): Promise<void> => {
     logger.log("Setting timer duration:", duration);
@@ -211,5 +228,6 @@ export function useTimerEngine(
     resetTimer,
     isLoading,
     loadTimerState,
+    applyRemoteState,
   };
 }

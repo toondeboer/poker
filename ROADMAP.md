@@ -103,6 +103,23 @@ are removed from this file when a release is cut rather than accumulating as ✅
   guideline 5.1.1(v) requires it of any app offering account creation. **Delete this line when
   1.2.0 is cut.**
 
+## Shared clock — built, transport absent
+
+- 🚧 **Nothing links to `/session`, because `sessionTransport` is `null`.** The protocol, the join
+  code, the screen and the whole send/receive loop are written and were looked at on a simulator
+  against an in-process loopback transport. What is missing is a transport that reaches another
+  phone: the AppSync Events API is defined in `apps/infra` and has never been deployed. A join code
+  nobody else can join is worse than no join code, so the Settings row goes in with the transport —
+  one constant in `loopbackSessionTransport.ts` decides it.
+- ⬜ **The `session` namespace has no subscribe rule.** Anyone holding a code may watch a clock,
+  which is the intended rule, but it still has to be written — and the code is six characters, so
+  guessing one is not out of the question. A session carries no cards, so the worst case is a
+  stranger watching a countdown; that is why this is not in the gate list below.
+- ⬜ **Nothing has been verified between two devices.** Latency, a phone reconnecting mid-round,
+  two people pausing at the same moment, and what a locked screen does to a subscription are all
+  unexercised — the loopback transport has one clock and no network, so it can prove the wiring and
+  nothing about the behaviour. Budget the ~10–12 manual rows scoped for this when a transport lands.
+
 ## Backend: before anything connects to it
 
 - 🔍 **The shared `table` channel is authenticated but not authorized.** A subscriber has to be

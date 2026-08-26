@@ -23,12 +23,26 @@ import type { TimerMachineState } from "../timer/timerMachine";
 
 export type TimerSyncMessage = {
   /**
-   * Monotonic per-session counter. Higher wins; equal is ignored.
+   * Monotonic per-session counter. Higher wins.
    *
    * A counter rather than a wall-clock time because clocks between devices are
    * not comparable — the whole point of this module.
    */
   version: number;
+  /**
+   * Which phone sent it.
+   *
+   * Two people can reach for the phone at once, and both presses then carry the
+   * same version — a genuine tie that "higher version wins" cannot break. Left
+   * unbroken, each device keeps whichever arrived first and the table quietly
+   * splits in two. Comparing senders breaks it the same way on every device, so
+   * they converge on one answer; *which* answer is arbitrary, and it has to be,
+   * because there is no fact about which press came first.
+   *
+   * It also lets a device recognise its own message coming back, which some
+   * transports deliver and some do not.
+   */
+  sender: string;
   /** Seconds left in the current round when this was sent. */
   remaining: number;
   /** Round length in seconds. */
@@ -94,12 +108,15 @@ export const toSyncMessage = ({
   state,
   version,
   blindIndex,
+  sender,
 }: {
   state: TimerMachineState;
   version: number;
   blindIndex: number;
+  sender: string;
 }): TimerSyncMessage => ({
   version,
+  sender,
   remaining: Math.max(0, Math.round(state.timeLeft)),
   duration: state.timerDuration,
   paused: state.paused,
@@ -109,16 +126,25 @@ export const toSyncMessage = ({
 /**
  * Should this message be applied, given what has already been?
  *
- * Strictly newer only. Equal versions are ignored rather than reapplied: a
- * message can arrive twice — a reconnect replaying the last state is the
- * ordinary case — and reapplying one re-anchors the countdown to *now*, which
- * on a phone at the table looks like the clock jumping backwards by however
- * long the round has been running.
+ * Newer wins; a tie is broken by the sender, so every device breaks it the same
+ * way and they converge rather than each keeping whichever press reached it
+ * first. A message identical to the one already applied is *ignored* rather
+ * than reapplied: it arrives twice as a matter of course — reconnects and
+ * heartbeats both repeat the current state — and reapplying re-anchors the
+ * countdown to *now*, which on a phone at the table looks like the clock
+ * jumping backwards by however long the round has been running.
  */
 export const shouldApply = (
   session: SharedSession,
   message: TimerSyncMessage,
-): boolean => session.applied === null || message.version > session.applied.version;
+): boolean => {
+  const applied = session.applied;
+  if (applied === null) return true;
+  if (message.version !== applied.version) {
+    return message.version > applied.version;
+  }
+  return message.sender > applied.sender;
+};
 
 /**
  * Turn a received message into local timer state, anchored on the local clock.
