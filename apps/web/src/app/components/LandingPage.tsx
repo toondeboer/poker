@@ -12,12 +12,14 @@ import {
   Sparkles,
   Coins,
   Handshake,
+  ListOrdered,
   Share2,
   LucideIcon,
 } from "lucide-react";
 import Image, { StaticImageData } from "next/image";
 import AdSlot from "@/components/ads/AdSlot";
 import { ADSENSE_SLOT_LANDING } from "@/lib/monetization";
+import { CONTACT_EMAIL } from "@/lib/contact";
 import icon from "../../assets/icon.png";
 import screenshot_1 from "../../assets/screenshots/screenshot_1.jpeg";
 import screenshot_2 from "../../assets/screenshots/screenshot_2.jpeg";
@@ -34,8 +36,6 @@ const PLAY_STORE_LINK: string =
 
 const PRIVACY_POLICY_LINK = "/privacy-policy";
 const TIMER_LINK = "/timer";
-/** Same address as the privacy policy's, deliberately: one inbox to watch. */
-const CONTACT_EMAIL = "poker.blinds.buzzer@gmail.com";
 
 type Store = "ios" | "android";
 
@@ -345,7 +345,7 @@ const LandingPage: React.FC = () => {
                   icon: Coins,
                   title: "Payouts, Worked Out",
                   description:
-                    "Set a buy-in and see what every place wins, so the split is agreed before the first hand instead of argued about heads-up. Bounties, rebuys and add-ons all count, and every prize is rounded to a note you can actually hand over — while the table still adds up to exactly the prize pool.",
+                    "Set a buy-in and see what every place wins, so the split is agreed before the first hand instead of argued about heads-up. Bounties, rebuys and add-ons all count. Pick the smallest note you want to hand over and every place below the winner comes out a round number you can count straight out of the pot — the winner takes what's left, so the table still adds up to exactly the prize pool.",
                 },
                 {
                   icon: Handshake,
@@ -354,7 +354,7 @@ const LandingPage: React.FC = () => {
                     "When everyone left agrees to end it there, the app works out the deal: each player keeps the lowest prize still live, and what's above that is split by chip stack. Nobody ends up with less than the place they'd already locked up.",
                 },
                 {
-                  icon: Trophy,
+                  icon: ListOrdered,
                   title: "Keep Score Across Nights",
                   description:
                     "A leaderboard for your group — who's won most, who turns up, and what everyone has taken home. Keep a separate board for each set of people you play with. Recording a game is two taps per player and no typing: the winnings come from your payout structure.",

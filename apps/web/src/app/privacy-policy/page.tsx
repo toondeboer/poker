@@ -8,11 +8,12 @@ import {
   Calendar,
   AlertCircle,
 } from "lucide-react";
+import { CONTACT_EMAIL } from "@/lib/contact";
 
 const PrivacyPolicy: React.FC = () => {
   const appName = "Poker Blinds Buzzer";
   const companyName = "Poker Blinds Buzzer";
-  const contactEmail = "poker.blinds.buzzer@gmail.com";
+  const contactEmail = CONTACT_EMAIL;
   const lastUpdated = "June 2026";
   const sections = [
     {

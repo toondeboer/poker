@@ -11,7 +11,7 @@ const STEPS = [
   },
   {
     name: "Agree on the payout structure before cards are dealt",
-    text: "Settle this before the first hand, not when it's down to the final two. Poker Blinds Buzzer will work it out for you (Pro): enter the buy-in and how many are playing and it splits the pool across the places that should pay — roughly the top fifth, which is the home-game convention rather than a casino's tenth. Every prize is rounded to a note you can actually hand over, and the table still adds up to exactly what was collected, so nothing is lost to rounding and no paid place ends up winning nothing.",
+    text: "Settle this before the first hand, not when it's down to the final two. Poker Blinds Buzzer will work it out for you (Pro): enter the buy-in and how many are playing and it splits the pool across the places that should pay — about a third of the field at home-game sizes, which is more generous than a casino's tenth because a table of eight wants more than one person leaving happy. Pick the smallest note you want to hand over and every place below the winner is a round number you can count straight out of the pot, with the winner taking what's left — so the table adds up to exactly the prize pool and no paid place ends up winning nothing.",
   },
   {
     name: "Start the timer and keep it visible",
@@ -27,7 +27,7 @@ const STEPS = [
   },
   {
     name: "Keep score if you play regularly",
-    text: "If the same people play most months, a leaderboard turns one night into a season — who has won most, who turns up, and what everyone has taken home. Poker Blinds Buzzer keeps one per group (Pro), so the regular Thursday game and the friends you only play with on holiday don't share a list. Recording a night is two taps per player: tap who bought in, then tap them in the order they went out. The winnings come from the payout structure you already set.",
+    text: "If the same people play most months, a leaderboard turns one night into a season — who has won most, who turns up, and what everyone has taken home. Poker Blinds Buzzer keeps one per group (Pro), so the regular Thursday game and the friends you only play with on holiday don't share a list. Recording a night is two taps per player: tap who bought in, then tap them in the order they finished — winner first. The winnings come from the payout structure you already set.",
   },
 ];
 
@@ -55,7 +55,7 @@ const FAQ = [
   {
     question: "How should we split the prize money?",
     answer:
-      "For a very small field, winner-take-all or a top-two split (e.g. 70/30) is fine. Beyond about six players it's worth paying roughly the top fifth, so more than one person leaves happy. Poker Blinds Buzzer works the split out from the buy-in and the number of players (Pro), rounding every prize to a note you can hand over while still adding up to exactly the pool.",
+      "For a very small field, winner-take-all or a top-two split (e.g. 70/30) is fine. Beyond about six players it's worth paying around the top third, so more than one person leaves happy — a home game isn't a casino, where a tenth of a huge field is still a lot of people. Poker Blinds Buzzer works the split out from the buy-in and the number of players (Pro), keeping every place below the winner to a note you can hand over while the table still adds up to exactly the prize pool.",
   },
   {
     question: "Should bounties be added on top of the buy-in?",
@@ -113,9 +113,9 @@ export function GuideContent() {
           How to Run a Home Poker Tournament
         </h1>
         <p className="mb-10">
-          Five things to settle before the first hand so the game runs
-          itself from there: buy-in, blind structure, payouts, and a timer
-          everyone can see.
+          Settle these before the first hand and the game runs itself from
+          there: buy-in, blind structure, what each place pays, how you&apos;d
+          end it early, and a timer everyone can see.
         </p>
 
         <h2 className="mb-6 text-2xl font-bold text-white">
