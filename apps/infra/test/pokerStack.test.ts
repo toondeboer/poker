@@ -13,6 +13,9 @@ import cdkJson from "../cdk.json";
  * The assertions below cover the handful of properties where getting it wrong
  * is expensive and silent: data that cannot be recreated, and secrets that must
  * not be broadcast.
+ *
+ * Synthesising is slow enough to need a raised `testTimeout` — see
+ * `vitest.config.mts` for why the default is wrong for this workspace.
  */
 let synthesised: Template | null = null;
 
