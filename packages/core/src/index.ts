@@ -84,6 +84,11 @@ export type {
   StoredGameSetup,
 } from "./storage/gameStorage";
 export { createLeaderboardStorage } from "./storage/leaderboardStorage";
+export {
+  RECOVERY_CLEARS,
+  RECOVERY_KEEPS,
+  clearForRecovery,
+} from "./storage/recovery";
 export type {
   LeaderboardStorage,
   LeaderboardState,

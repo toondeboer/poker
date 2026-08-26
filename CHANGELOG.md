@@ -19,6 +19,14 @@ platform-tagged heading (e.g. `## [1.1.3] - 2026-07-20 — Android`) when you cu
   Signing out or deleting an account lets go of the players it had claimed, so nobody is left linked
   to an account that no longer exists — and if one ever is, it can still be unlinked rather than
   being stuck for good.
+- **A way back when the app breaks.** Instead of a blank screen or the app closing on itself, there
+  is now a page saying what went wrong, with the message on it — the only place that message exists,
+  and what makes a bug report useful. Trying again is the first offer. The second is for the case
+  that trying again cannot fix: something the app saved that it can no longer read, which is loaded
+  again on every launch and so fails the same way forever. Starting fresh clears the round in
+  progress, the blind structure, the payout setup, presets and the sound choice — and **keeps the
+  leaderboard**, because deleting the app is what somebody stuck does otherwise, and that takes
+  seasons of game nights with it. It says exactly what it will take before it takes it.
 - Groundwork for one clock on several phones: a screen that starts a shared clock or joins one with
   a code, and the whole loop behind it — a local pause, resume, reset or level change goes out to
   the table, and anybody else's comes back and moves this phone. There is no host: whoever is
