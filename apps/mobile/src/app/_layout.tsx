@@ -10,6 +10,7 @@ import { PremiumProvider } from "@/src/contexts/PremiumContext";
 import { SoundPackProvider } from "@/src/contexts/SoundPackContext";
 import { PayoutProvider } from "@/src/contexts/PayoutContext";
 import { LeaderboardProvider } from "@/src/contexts/LeaderboardContext";
+import { GameProvider } from "@/src/contexts/GameContext";
 import AppReadyGate from "@/src/components/AppReadyGate";
 import { initializeAds } from "@/src/services/ads";
 import { configurePurchases } from "@/src/services/revenueCatProvider";
@@ -34,6 +35,7 @@ export default function RootLayout() {
             <SoundPackProvider>
               <PayoutProvider>
                 <LeaderboardProvider>
+                  <GameProvider>
                   <TimerProvider>
                     <AppReadyGate>
                       <Stack
@@ -75,6 +77,13 @@ export default function RootLayout() {
                           }}
                         />
                         <Stack.Screen
+                          name="game"
+                          options={{
+                            title: "Play a hand",
+                            headerBackTitle: "Settings",
+                          }}
+                        />
+                        <Stack.Screen
                           name="leaderboard"
                           options={{
                             title: "Leaderboard",
@@ -86,6 +95,7 @@ export default function RootLayout() {
                       </Stack>
                     </AppReadyGate>
                   </TimerProvider>
+                  </GameProvider>
                 </LeaderboardProvider>
               </PayoutProvider>
             </SoundPackProvider>

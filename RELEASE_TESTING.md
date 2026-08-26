@@ -356,6 +356,32 @@ it**.
 
 ---
 
+## 13. Play a hand (Pro)
+
+The rules are unit-tested to death in `@poker/core` — whole games are played out by the thousand,
+chips conserved, every card dealt once. **What is left for a human is the passing-the-phone part**,
+which no test can see: whether the next player's cards are ever visible to the last one, and whether
+the table can follow what is happening from across it.
+
+| | iOS | Android |
+|---|---|---|
+| Locked state: Pro pill on the Settings row, the screen still opens and offers the unlock | ⬜ | ⬜ |
+| Seating: tapping a player seats them, tapping again unseats; Deal stays disabled below two | ⬜ | ⬜ |
+| Deal is refused when the big blind isn't above the small one, or a stack isn't above the big blind | ⬜ | ⬜ |
+| Blinds post to the correct seats, the pot reads their sum, and the seat **after** the big blind acts first | ⬜ | ⬜ |
+| **Cards stay hidden until tapped, and re-hide the moment the turn passes** — pass the phone round a full orbit and confirm nobody sees the next player's hand | ⬜ | ⬜ |
+| Heads-up: the button posts the small blind and acts first pre-flop, then **last** on every street after | ⬜ | ⬜ |
+| Fold / check / call / min-raise / all-in each do what they say, and the stacks move by the right amounts | ⬜ | ⬜ |
+| A short stack all-in for less builds a side pot, and the big stack can't win chips nobody matched | ⬜ | ⬜ |
+| Showdown reveals only the players still in, names the hand, and the awards add up to the pot | ⬜ | ⬜ |
+| Everyone folding to one player ends the hand with **no cards shown** | ⬜ | ⬜ |
+| A knocked-out player is left out of the next deal, and the button skips them | ⬜ | ⬜ |
+| Last player standing ends the game and shows the finishing order | ⬜ | ⬜ |
+| Readable across a table — card faces, stacks and whose turn it is, at arm's length | ⬜ | ⬜ |
+| Tablet: the table is capped and centred rather than running the full width | ⬜ | ⬜ |
+
+---
+
 ## Open defects
 
 One entry per defect found this cycle, numbered in the order they were found (D1, D2, …), with an
