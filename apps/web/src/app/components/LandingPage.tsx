@@ -10,6 +10,9 @@ import {
   Smartphone,
   Monitor,
   Sparkles,
+  Coins,
+  Handshake,
+  Share2,
   LucideIcon,
 } from "lucide-react";
 import Image, { StaticImageData } from "next/image";
@@ -31,6 +34,8 @@ const PLAY_STORE_LINK: string =
 
 const PRIVACY_POLICY_LINK = "/privacy-policy";
 const TIMER_LINK = "/timer";
+/** Same address as the privacy policy's, deliberately: one inbox to watch. */
+const CONTACT_EMAIL = "poker.blinds.buzzer@gmail.com";
 
 type Store = "ios" | "android";
 
@@ -303,8 +308,9 @@ const LandingPage: React.FC = () => {
               Everything You Need for Perfect Poker Tournaments
             </h2>
             <p className="text-xl text-gray-300 max-w-3xl mx-auto">
-              Professional-grade features designed for poker enthusiasts,
-              tournament organizers, and casual players alike.
+              A clock that keeps the blinds honest, and the rest of the
+              arguments a home game has — what each place pays, how to end it
+              early, and who&apos;s actually winning — settled before they start.
             </p>
           </div>
 
@@ -334,6 +340,30 @@ const LandingPage: React.FC = () => {
                   title: "Tournament Structures",
                   description:
                     "Edit every level on its own screen, insert or duplicate levels anywhere, and jump straight to any level mid-game. Save what you build as a preset and reuse it. From cash games to deep stack tournaments.",
+                },
+                {
+                  icon: Coins,
+                  title: "Payouts, Worked Out",
+                  description:
+                    "Set a buy-in and see what every place wins, so the split is agreed before the first hand instead of argued about heads-up. Bounties, rebuys and add-ons all count, and every prize is rounded to a note you can actually hand over — while the table still adds up to exactly the prize pool.",
+                },
+                {
+                  icon: Handshake,
+                  title: "Chop the Last Pot",
+                  description:
+                    "When everyone left agrees to end it there, the app works out the deal: each player keeps the lowest prize still live, and what's above that is split by chip stack. Nobody ends up with less than the place they'd already locked up.",
+                },
+                {
+                  icon: Trophy,
+                  title: "Keep Score Across Nights",
+                  description:
+                    "A leaderboard for your group — who's won most, who turns up, and what everyone has taken home. Keep a separate board for each set of people you play with. Recording a game is two taps per player and no typing: the winnings come from your payout structure.",
+                },
+                {
+                  icon: Share2,
+                  title: "Straight to the Group Chat",
+                  description:
+                    "Send the table the payouts before you start, or the standings after. Plain text that reads properly wherever you paste it, with no app link tacked on the end.",
                 },
                 {
                   icon: Shield,
@@ -512,6 +542,12 @@ const LandingPage: React.FC = () => {
                 className="hover:text-white transition-colors"
               >
                 Web Timer
+              </a>
+              <a
+                href={`mailto:${CONTACT_EMAIL}`}
+                className="hover:text-white transition-colors"
+              >
+                Contact
               </a>
               <span className="text-sm">
                 © 2025 Poker Blinds Buzzer. All rights reserved.
