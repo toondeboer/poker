@@ -532,3 +532,36 @@ describe("formatPlace", () => {
     expect(formatPlace(2.9)).toBe("2nd");
   });
 });
+
+describe("the bounty mode on a structure", () => {
+  const base = { buyIn: 20, entrants: 8, bounty: 5 };
+
+  it("is flat unless asked otherwise", () => {
+    expect(computePayouts(base)?.bountyMode).toBe("flat");
+  });
+
+  it("is progressive when asked", () => {
+    expect(
+      computePayouts({ ...base, bountyMode: "progressive" })?.bountyMode,
+    ).toBe("progressive");
+  });
+
+  it("changes nothing about the money in the pools", () => {
+    // Progressive is a claim about how the bounty money *moves*, not how much
+    // of it there is: the same amount is carved out of the same buy-ins.
+    const flat = computePayouts(base);
+    const progressive = computePayouts({ ...base, bountyMode: "progressive" });
+    expect(progressive?.prizePool).toBe(flat?.prizePool);
+    expect(progressive?.bountyPool).toBe(flat?.bountyPool);
+    expect(progressive?.payouts).toEqual(flat?.payouts);
+  });
+
+  it("refuses to call a tournament progressive when there is no bounty", () => {
+    // Otherwise the screen promises an escalating bounty that the game has no
+    // money to escalate.
+    expect(
+      computePayouts({ ...base, bounty: 0, bountyMode: "progressive" })
+        ?.bountyMode,
+    ).toBe("flat");
+  });
+});

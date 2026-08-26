@@ -13,6 +13,8 @@
  */
 
 import type { RandomSource } from "./cards";
+import { runBounties } from "../payouts/progressiveBounties";
+import type { BountyMode } from "../payouts/payoutStructure";
 import type { BettingAction } from "./bettingRound";
 import {
   type Hand,
@@ -349,21 +351,46 @@ export const knockoutTally = (session: GameSession): Map<string, number> => {
 export const knockoutCounts = (
   session: GameSession,
   bounty: number,
+  mode: BountyMode = "flat",
 ): KnockoutCount[] => {
   const counts = new Map<string, number>();
   const money = new Map<string, number>();
 
   for (const knockout of session.knockouts) {
     if (knockout.by.length === 0) continue;
+    for (const playerId of knockout.by) {
+      counts.set(playerId, (counts.get(playerId) ?? 0) + 1);
+    }
+    if (mode === "progressive") continue;
     const share = Math.floor(bounty / knockout.by.length);
     const remainder = bounty - share * knockout.by.length;
     knockout.by.forEach((playerId, index) => {
-      counts.set(playerId, (counts.get(playerId) ?? 0) + 1);
       money.set(
         playerId,
         (money.get(playerId) ?? 0) + share + (index < remainder ? 1 : 0),
       );
     });
+  }
+
+  if (mode === "progressive") {
+    // Progressive money cannot be counted per elimination, because what an
+    // elimination is worth depends on everything that happened before it. The
+    // ledger replays the evening in order, which is the only way to get it
+    // right — and the reason this needs a game the app dealt.
+    const ledger = runBounties({
+      playerIds: session.seats.map((seat) => seat.playerId),
+      startingBounty: bounty,
+      knockouts: session.knockouts,
+      winnerId: isSessionComplete(session)
+        ? survivors(session.seats)[0]?.playerId
+        : undefined,
+    });
+    for (const [playerId, amount] of Object.entries(ledger.cash)) {
+      money.set(playerId, amount);
+      // The winner collects the bounty on their own head without knocking
+      // anybody out with it, so they can have money and no count.
+      if (!counts.has(playerId)) counts.set(playerId, 0);
+    }
   }
 
   return Array.from(counts.entries()).map(([playerId, count]) => ({
@@ -417,6 +444,8 @@ export const toGameResult = (
     now: number;
     buyIn: number;
     bounty: number;
+    /** Flat unless the table agreed otherwise. */
+    bountyMode?: BountyMode;
     winningsByPlace: readonly number[];
   },
 ): GameResult => {
@@ -427,7 +456,7 @@ export const toGameResult = (
     buyIn: params.buyIn,
     bounty: params.bounty,
     now: params.now,
-    knockouts: knockoutCounts(session, params.bounty),
+    knockouts: knockoutCounts(session, params.bounty, params.bountyMode),
   });
 };
 
