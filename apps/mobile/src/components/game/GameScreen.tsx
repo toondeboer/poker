@@ -18,8 +18,8 @@ import { Button } from "@/src/components/ui/Button";
 import { Card, CardContent, CardHeader } from "@/src/components/ui/Card";
 import { ListRow } from "@/src/components/ui/ListRow";
 import { NumberField } from "@/src/components/ui/NumberField";
+import { useGame } from "@/src/contexts/GameContext";
 import { FinishingOrder, TableView } from "./TableView";
-import { useGameSession } from "./useGameSession";
 
 const MIN_PLAYERS = 2;
 
@@ -40,13 +40,13 @@ export function GameScreen() {
   const isTablet = isTabletWidth(width);
   const { isPremium } = usePremium();
   const { players } = useLeaderboard();
+  const game = useGame();
 
   const [showPaywall, setShowPaywall] = useState(false);
   const [seated, setSeated] = useState<string[]>([]);
   const [startingStack, setStartingStack] = useState(1000);
   const [smallBlind, setSmallBlind] = useState(5);
   const [bigBlind, setBigBlind] = useState(10);
-  const [started, setStarted] = useState(false);
 
   const canStart =
     seated.length >= MIN_PLAYERS &&
@@ -54,16 +54,25 @@ export function GameScreen() {
     bigBlind > smallBlind &&
     smallBlind > 0;
 
-  const toggleSeat = (name: string) =>
-    setSeated((current) =>
-      current.includes(name)
-        ? current.filter((id) => id !== name)
-        : current.length >= MAX_SEATS
-          ? current
-          : [...current, name],
-    );
+  /**
+   * Seats hold player **ids**, not names.
+   *
+   * The engine only ever echoes back what it was given, and the leaderboard is
+   * keyed by id — so seating by name would produce a result that matches no
+   * player on the board, quietly breaking the very integration the copy above
+   * promises. Names are for reading; ids are what travel.
+   */
+  const toggleSeat = (id: string) =>
+    setSeated((current) => {
+      if (current.includes(id)) return current.filter((seat) => seat !== id);
+      if (current.length >= MAX_SEATS) return current;
+      return [...current, id];
+    });
 
-  const setup = !started ? (
+  const nameFor = (id: string) =>
+    players.find((player) => player.id === id)?.name ?? id;
+
+  const setup = game.session === null ? (
     <>
       <Card>
         <CardHeader
@@ -88,12 +97,14 @@ export function GameScreen() {
                 <ListRow
                   key={player.id}
                   title={player.name}
-                  selected={seated.includes(player.name)}
-                  onPress={() => toggleSeat(player.name)}
+                  selected={seated.includes(player.id)}
+                  onPress={() => toggleSeat(player.id)}
                   meta={
-                    seated.includes(player.name)
-                      ? `Seat ${seated.indexOf(player.name) + 1}`
-                      : "Tap to seat"
+                    seated.includes(player.id)
+                      ? `Seat ${seated.indexOf(player.id) + 1}`
+                      : seated.length >= MAX_SEATS
+                        ? `Table full — ${MAX_SEATS} is all one deck can deal`
+                        : "Tap to seat"
                   }
                 />
               ))}
@@ -126,7 +137,14 @@ export function GameScreen() {
           <Button
             label="Deal the first hand"
             icon="play"
-            onPress={() => setStarted(true)}
+            onPress={() =>
+              game.startGame({
+                players: seated,
+                startingStack,
+                smallBlind,
+                bigBlind,
+              })
+            }
             disabled={!canStart}
           />
           {!canStart && seated.length >= MIN_PLAYERS ? (
@@ -158,16 +176,7 @@ export function GameScreen() {
       </CardContent>
     </Card>
   ) : (
-    setup ?? <ActiveGame
-      players={seated}
-      startingStack={startingStack}
-      smallBlind={smallBlind}
-      bigBlind={bigBlind}
-      onQuit={() => {
-        setStarted(false);
-        setSeated([]);
-      }}
-    />
+    (setup ?? <ActiveGame nameFor={nameFor} />)
   );
 
   return (
@@ -188,45 +197,33 @@ export function GameScreen() {
   );
 }
 
-/**
- * A game in progress.
- *
- * Split out so the session hook mounts with the seats already chosen — the
- * engine takes them at creation, and remounting it on every setup keystroke
- * would throw the game away.
- */
-function ActiveGame({
-  players,
-  startingStack,
-  smallBlind,
-  bigBlind,
-  onQuit,
-}: {
-  players: string[];
-  startingStack: number;
-  smallBlind: number;
-  bigBlind: number;
-  onQuit: () => void;
-}) {
-  const { session, legal, complete, order, handInProgress, deal, act } =
-    useGameSession({ players, startingStack, smallBlind, bigBlind });
+/** A game in progress. All of its state lives in {@link GameProvider}. */
+function ActiveGame({ nameFor }: { nameFor: (id: string) => string }) {
+  const { session, legal, complete, order, handInProgress, deal, act, endGame } =
+    useGame();
 
-  if (complete) {
-    return (
-      <Card>
-        <CardHeader icon="trophy" title="Game over" />
-        <CardContent>
-          <FinishingOrder order={order} />
-          <Button label="New game" icon="refresh" onPress={onQuit} />
-        </CardContent>
-      </Card>
-    );
-  }
+  if (!session) return null;
 
   return (
     <>
-      <TableView session={session} legal={legal} onAct={act} />
-      {!handInProgress ? (
+      {/* The table is drawn even once the game is over. Returning early here
+          hid the hand that decided it — the board, the showdown and who won
+          what — which is the one hand everybody wants to look at. */}
+      <TableView
+        session={session}
+        legal={legal}
+        onAct={act}
+        nameFor={nameFor}
+      />
+      {complete ? (
+        <Card>
+          <CardHeader icon="trophy" title="Game over" />
+          <CardContent>
+            <FinishingOrder order={order} nameFor={nameFor} />
+            <Button label="New game" icon="refresh" onPress={endGame} />
+          </CardContent>
+        </Card>
+      ) : !handInProgress ? (
         <Card>
           <CardContent>
             <Button
@@ -234,7 +231,7 @@ function ActiveGame({
               icon="play"
               onPress={deal}
             />
-            <Button label="End the game" variant="ghost" onPress={onQuit} />
+            <Button label="End the game" variant="ghost" onPress={endGame} />
           </CardContent>
         </Card>
       ) : null}

@@ -34,14 +34,16 @@ export function TableView({
   session,
   legal,
   onAct,
+  nameFor,
 }: {
   session: GameSession;
   legal: LegalActions | null;
   onAct: (playerId: string, action: BettingAction) => void;
+  /** Player ids travel; names are for reading. */
+  nameFor: (id: string) => string;
 }) {
   const hand = session.hand ?? session.lastHand;
   const [revealed, setRevealed] = useState(false);
-  const [raiseTo, setRaiseTo] = useState<number | null>(null);
 
   // A new player to act means the phone has changed hands: hide the cards
   // again, and drop any half-built raise. Tracked during render against the
@@ -51,12 +53,18 @@ export function TableView({
   if (lastToAct !== (legal?.playerId ?? null)) {
     setLastToAct(legal?.playerId ?? null);
     setRevealed(false);
-    setRaiseTo(null);
   }
 
   if (!hand) return null;
 
-  const pot = hand.seats.reduce((sum, seat) => sum + seat.committed, 0);
+  // While a hand runs, the pot is what is in front of people. Once it is over
+  // the chips have already been pushed back into the stacks, so adding the
+  // committed totals again would show a pot that no longer exists — and each
+  // seat's "N in" alongside a stack that already includes their winnings.
+  const settled = hand.street === "complete";
+  const pot = settled
+    ? hand.pots.reduce((sum, entry) => sum + entry.amount, 0)
+    : hand.seats.reduce((sum, seat) => sum + seat.committed, 0);
   const acting = legal
     ? hand.seats.find((seat) => seat.playerId === legal.playerId)
     : undefined;
@@ -67,7 +75,7 @@ export function TableView({
         <CardHeader
           icon="grid"
           title={STREET_LABEL[hand.street] ?? hand.street}
-          right={<Badge label={`Pot ${pot}`} />}
+          right={<Badge label={settled ? `Pot was ${pot}` : `Pot ${pot}`} />}
         />
         <CardContent>
           <View style={styles.board}>
@@ -92,13 +100,15 @@ export function TableView({
                 >
                   <View style={styles.seatInfo}>
                     <Text style={styles.seatName} numberOfLines={1}>
-                      {seat.playerId}
+                      {nameFor(seat.playerId)}
                       {seat.status === "folded" ? " · folded" : ""}
                       {seat.status === "all-in" ? " · all in" : ""}
                     </Text>
                     <Text style={styles.seatMeta}>
                       {seat.stack} behind
-                      {seat.committed > 0 ? ` · ${seat.committed} in` : ""}
+                      {!settled && seat.committed > 0
+                        ? ` · ${seat.committed} in`
+                        : ""}
                       {shown ? ` · ${handCategory(shown.hand.value).replace(/-/g, " ")}` : ""}
                     </Text>
                   </View>
@@ -118,7 +128,7 @@ export function TableView({
             <View style={styles.awards}>
               {hand.awards.map((award) => (
                 <Text key={award.playerId} style={styles.award}>
-                  {award.playerId} wins {award.amount}
+                  {nameFor(award.playerId)} wins {award.amount}
                 </Text>
               ))}
             </View>
@@ -128,7 +138,7 @@ export function TableView({
 
       {legal && acting ? (
         <Card>
-          <CardHeader icon="person" title={`${legal.playerId} to act`} />
+          <CardHeader icon="person" title={`${nameFor(legal.playerId)} to act`} />
           <CardContent>
             {revealed ? (
               <View style={styles.hole}>
@@ -141,7 +151,7 @@ export function TableView({
                 style={styles.peek}
                 onPress={() => setRevealed(true)}
                 accessibilityRole="button"
-                accessibilityLabel={`Show ${legal.playerId}'s cards`}
+                accessibilityLabel={`Show ${nameFor(legal.playerId)}'s cards`}
               >
                 <View style={styles.hole}>
                   <PlayingCard faceDown />
@@ -179,11 +189,10 @@ export function TableView({
 
             {legal.canRaise ? (
               <View style={styles.raise}>
-                <Text style={styles.raiseLabel}>
-                  {raiseTo === null
-                    ? `Raise between ${legal.minRaiseTo} and ${legal.maxRaiseTo}`
-                    : `Raise to ${raiseTo}`}
-                </Text>
+                {/* Two sizes, not a range. Saying "between 20 and 1000" while
+                    offering only the ends of it is worse than saying nothing;
+                    free-form sizing is a real gap, written up in ROADMAP.md. */}
+                <Text style={styles.raiseLabel}>Raise to</Text>
                 <View style={styles.actions}>
                   <Button
                     label={`Min ${legal.minRaiseTo}`}
@@ -218,13 +227,19 @@ export function TableView({
 }
 
 /** Standings for a finished game, winner first. */
-export function FinishingOrder({ order }: { order: string[] }) {
+export function FinishingOrder({
+  order,
+  nameFor,
+}: {
+  order: string[];
+  nameFor: (id: string) => string;
+}) {
   return (
     <View style={styles.seats}>
       {order.map((playerId, index) => (
         <View key={playerId} style={styles.seat}>
           <Text style={styles.seatName}>
-            {formatPlace(index + 1)}  {playerId}
+            {formatPlace(index + 1)}  {nameFor(playerId)}
           </Text>
         </View>
       ))}

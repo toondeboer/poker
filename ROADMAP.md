@@ -77,6 +77,24 @@ are removed from this file when a release is cut rather than accumulating as ✅
   surface an email at all currently — decide whether it should, and confirm the gmail address above
   is still the one actively monitored.
 
+## Play a hand — known gaps
+
+- ⬜ **No bet sizing.** Raising offers the minimum or all-in and nothing between, which is most of
+  poker. The first draft's label advertised a range it could not deliver; it now says "Raise to"
+  and offers the two it has. A field or slider bounded by `minRaiseTo`/`maxRaiseTo` is the fix —
+  the engine already validates every amount in that range.
+- ⬜ **A game does not survive the app being killed.** It survives navigation (the state lives in
+  `GameContext`, not in the pushed screen), but not a force-stop or a phone running out of battery
+  mid-evening. Wants persistence and a schema for `GameSession`, which is a real piece of work
+  rather than something to bolt on.
+- ⬜ **A finished game is not offered to the leaderboard.** `toGameResult` exists and is tested,
+  and the seats are keyed by player id specifically so it will line up — what is missing is the
+  prompt and the payout structure to price the finishing positions from.
+- 🟡 **The deal is not cryptographic.** `Math.random` is passed straight to the engine rather than
+  a seeded PRNG, which avoids the brute-forceable 32-bit seed space that `createRandom` warns
+  about — but it is still not a cryptographic source. Accepted for a table passing one phone
+  around; online play deals on the server, which is where a CSPRNG belongs.
+
 ## Backend: before anything connects to it
 
 - 🔍 **The shared `table` channel is authenticated but not authorized.** A subscriber has to be

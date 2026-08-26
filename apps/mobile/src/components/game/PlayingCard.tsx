@@ -80,7 +80,7 @@ const styles = StyleSheet.create({
     width: 46,
     height: 64,
     borderRadius: radius.md,
-    backgroundColor: "#f8fafc",
+    backgroundColor: colors.cardFace,
     alignItems: "center",
     justifyContent: "center",
     paddingVertical: space.xs,
@@ -92,6 +92,6 @@ const styles = StyleSheet.create({
   rankSmall: { fontSize: 15, fontWeight: "700", lineHeight: 17 },
   suit: { fontSize: 18, lineHeight: 20 },
   suitSmall: { fontSize: 13, lineHeight: 15 },
-  red: { color: "#dc2626" },
-  black: { color: "#0f172a" },
+  red: { color: colors.cardRed },
+  black: { color: colors.cardBlack },
 });
