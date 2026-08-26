@@ -17,6 +17,7 @@ import {
   formatStandingsSummary,
   isValidPlayerName,
   MAX_PLAYERS,
+  type ClaimError,
 } from "@poker/core";
 import { usePremium } from "@/src/contexts/PremiumContext";
 import { useLeaderboard } from "@/src/contexts/LeaderboardContext";
@@ -63,6 +64,7 @@ export function LeaderboardScreen() {
     recordResult,
     isLoading,
     groups,
+    activeGroupId,
     activeGroupName,
     claimedPlayer,
     claimPlayerAs,
@@ -126,6 +128,16 @@ export function LeaderboardScreen() {
     }).catch(() => {});
   };
 
+  // A refusal is about one board and one account, so it stops being true the
+  // moment either changes — and a message pinned across a board switch reads
+  // as a false statement about the new one.
+  const claimContext = `${activeGroupId ?? ""}:${account?.id ?? ""}`;
+  const [lastClaimContext, setLastClaimContext] = useState(claimContext);
+  if (lastClaimContext !== claimContext) {
+    setLastClaimContext(claimContext);
+    setClaimError(null);
+  }
+
   /**
    * Which player on this board is the signed-in account, if any.
    *
@@ -135,7 +147,10 @@ export function LeaderboardScreen() {
    */
   const mine = account ? claimedPlayer(account.id) : null;
 
-  const CLAIM_REFUSAL: Record<string, string> = {
+  // Keyed by the error type rather than by `string`, so adding a ClaimError
+  // fails the build here instead of rendering nothing — a tap that does
+  // nothing and says nothing is the worst of both.
+  const CLAIM_REFUSAL: Record<ClaimError, string> = {
     "player-already-claimed":
       "Somebody else has already said that player is them.",
     "account-already-in-group":
@@ -311,14 +326,24 @@ export function LeaderboardScreen() {
                             accessibilityLabel={`${player.name} is me`}
                           />
                         ) : null}
-                        {isMine ? (
+                        {/* Releasing is offered for any claimed player, not
+                            just your own. A board is device-local and account
+                            ids are not, so a claim can outlive the account
+                            that made it — and without a way to let go, that
+                            player is stuck: unclaimable because it is claimed,
+                            unreleasable because it is not yours. */}
+                        {player.accountId ? (
                           <IconButton
                             icon="person-remove-outline"
                             onPress={() => {
                               releasePlayer(player.id);
                               setClaimError(null);
                             }}
-                            accessibilityLabel={`${player.name} is not me`}
+                            accessibilityLabel={
+                              isMine
+                                ? `${player.name} is not me`
+                                : `Unlink ${player.name} from an account`
+                            }
                           />
                         ) : null}
                         <IconButton

@@ -353,7 +353,8 @@ it**.
 | **Upgrading keeps an existing leaderboard.** Record a game on the *previous* build, update, reopen → the same players, games and standings, unchanged | ⬜ | ⬜ |
 | **Share standings** is disabled with nothing to report, and enabled once a game is recorded — including after **removing every player**, which keeps the games but leaves nothing to say | ⬜ | ⬜ |
 | Shared standings text lists only players who have played, ranked, with no markdown characters | ⬜ | ⬜ |
-| **Signed out, no claim affordance appears at all** on any player row — this is the state every user is in until accounts ship | ⬜ | ⬜ |
+| **Signed out, no "that's me" affordance appears** on any player row — this is the state every user is in until accounts ship | ⬜ | ⬜ |
+| A player left linked to an account that no longer exists can still be **unlinked**, so they aren't stuck | ⬜ | ⬜ |
 
 ---
 

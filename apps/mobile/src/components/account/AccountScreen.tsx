@@ -11,6 +11,7 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { MIN_PASSWORD_LENGTH } from "@poker/core";
 import { useAuth, type AuthError } from "@/src/contexts/AuthContext";
+import { useLeaderboard } from "@/src/contexts/LeaderboardContext";
 import { useKeyboardFocusScroll } from "@/src/hooks/useKeyboardFocusScroll";
 import {
   colors,
@@ -50,6 +51,20 @@ export function AccountScreen() {
   const isTablet = isTabletWidth(width);
   const { account, isLoading, busy, signUp, signIn, signOut, deleteAccount } =
     useAuth();
+  const { releaseAllFor } = useLeaderboard();
+
+  /**
+   * Let go of any players this account claimed before the session ends.
+   *
+   * Boards live on the device and account ids do not, so a claim left behind
+   * points at nothing: the player can't be claimed (something holds it) and
+   * can't be released (it isn't yours). Done before signing out rather than
+   * after, so the account id is still known.
+   */
+  const endSession = async (run: () => Promise<AuthError | null>) => {
+    if (account) releaseAllFor(account.id);
+    setError(await run());
+  };
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -101,7 +116,7 @@ export function AccountScreen() {
           text: "Delete",
           style: "destructive",
           onPress: () => {
-            void deleteAccount().then(setError);
+            void endSession(deleteAccount);
           },
         },
       ],
@@ -122,7 +137,7 @@ export function AccountScreen() {
           label="Sign out"
           variant="secondary"
           icon="log-out-outline"
-          onPress={() => void signOut().then(setError)}
+          onPress={() => void endSession(signOut)}
           disabled={busy}
         />
         <Button
