@@ -142,6 +142,9 @@ are removed from this file when a release is cut rather than accumulating as ✅
   is a real option rather than an oversight.
 
 ## Docs & website parity
+- 🚧 **Website copy is written and waiting on the release** (PR #155, against `main`). It must
+  **not** merge until 1.2.0 is live in both stores: pushing to `main` deploys the site, and the page
+  now advertises features that are not downloadable yet. The original problem, for the record:
 - ⬜ **The website describes an app without any of 1.2.0's six Pro capabilities** — payouts (with
   bounties, rebuys and add-ons), the chop calculator, the leaderboard, the record-a-game prompt and
   sharing. The `/guide` page also tells hosts to "agree on the payout structure" and to set a rebuy
@@ -151,8 +154,10 @@ are removed from this file when a release is cut rather than accumulating as ✅
   same app.
 - ⬜ Update the website with all current app features (check `apps/web/src/app/components/LandingPage.tsx`
   and the `/guide` page against what's actually in the app).
-- ⬜ Update repo docs (`README.md`, `ARCHITECTURE.md`, `STORE_LISTING.md`) to match whatever
-  actually shipped, once the rest of this list is done.
+- ⬜ **Console work: paste the updated store copy in.** Both long descriptions and the
+  `pro_lifetime` name/description are rewritten in [STORE_LISTING.md](./STORE_LISTING.md); what's
+  left is entering them in App Store Connect and Play Console, and counting the fields there rather
+  than trusting the counts in the file.
 
 ## Minor cleanups
 - ⬜ **No `target` is set in `tsconfig.base.json`, so TypeScript compiles as ES5.** That makes

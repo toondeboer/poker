@@ -10,6 +10,9 @@ platform-tagged heading (e.g. `## [1.1.3] - 2026-07-20 — Android`) when you cu
 ## [Unreleased]
 
 ### Added
+- Repo docs and store copy brought up to what 1.2.0 actually contains — the `README`, the
+  architecture notes, and both stores' long descriptions and Pro feature lists, which all still
+  described a timer whose only paid extras were presets and alarm sounds.
 - Groundwork for accounts and online play: the backend is now defined as code in a new `apps/infra`
   workspace — accounts, one small database, and a realtime channel for a shared poker table.
   **Nothing is deployed and nothing in the app talks to it yet.** Two decisions are worth recording

@@ -1,17 +1,23 @@
 # Poker Blinds Buzzer
 
 A poker tournament timer for the table — manage blind levels, time each round, and get
-audible/visual alerts when the blinds go up.
+audible/visual alerts when the blinds go up. Plus the rest of what a home game argues about:
+what each place pays, how to end it early, and who is actually winning across the season.
 
 This monorepo holds the whole product:
 
 - **Website** — a marketing landing page plus a full-screen **web timer**, live at
   [poker-timer.toondeboer.com](https://poker-timer.toondeboer.com).
 - **Mobile app** — the iOS & Android app (Poker Blinds Buzzer), with background timing,
-  iOS Live Activities, and an Android foreground service.
+  iOS Live Activities, and an Android foreground service. Pro adds buy-in and payout maths
+  (bounties, rebuys, add-ons), a chop calculator, and a leaderboard with a separate board per
+  group of friends.
+- **Backend** — an AWS CDK stack for accounts and online play. **Defined and tested, not
+  deployed**; nothing in the app talks to it yet.
 
-Both are driven by the same shared logic in `@poker/core`, so the blind schedules and timer
-behaviour stay identical across platforms. See [ARCHITECTURE.md](./ARCHITECTURE.md) for the
+All of it is driven by the same shared logic in `@poker/core`, so blind schedules, payout maths
+and the poker rules themselves stay identical wherever they run — including on the server, where
+the same functions are the authority the app predicts against. See [ARCHITECTURE.md](./ARCHITECTURE.md) for the
 design and [CLAUDE.md](./CLAUDE.md) for conventions when working in this repo.
 
 ## Repository structure
@@ -20,8 +26,9 @@ design and [CLAUDE.md](./CLAUDE.md) for conventions when working in this repo.
 apps/
   web/      @poker/web      Next.js site + web timer  (Vercel)
   mobile/   @poker/mobile   Expo iOS/Android app      (EAS)
+  infra/    @poker/infra    AWS CDK backend           (not deployed)
 packages/
-  core/     @poker/core     shared, framework-agnostic timer logic
+  core/     @poker/core     shared, framework-agnostic poker logic
 ```
 
 ## Prerequisites
@@ -95,9 +102,23 @@ it back to `false` to test the free/paywall experience again.
 ```bash
 npm run typecheck  # tsc across all workspaces (via Turborepo)
 npm run lint       # eslint across all workspaces
-npm run test       # unit tests (@poker/core, via Vitest)
+npm run test       # unit tests (@poker/core and @poker/infra, via Vitest)
 npm run build      # production build of every buildable workspace
 ```
+
+## Backend (not deployed)
+
+`apps/infra` holds the CDK stack. It is **environment-agnostic on purpose** — no account or region
+lookups — so it synthesises and tests with no AWS credentials at all:
+
+```bash
+npm run test -w @poker/infra   # synthesises the stack and asserts on the template
+npm run synth -w @poker/infra  # writes CloudFormation to apps/infra/cdk.out
+```
+
+`npm run deploy -w @poker/infra` needs real credentials and creates billable resources. Read
+[ROADMAP.md](./ROADMAP.md) first: the shared realtime channel is authenticated but **not yet
+authorized**, and the action handler has no storage or publishing wired up.
 
 ## Regenerating native projects (mobile)
 

@@ -9,7 +9,8 @@ full-featured web timer, an iOS/Android app, and the shared logic both build on.
 |---|---|---|---|
 | `apps/web` | `@poker/web` | Next.js 16 (App Router), React 19, Tailwind CSS 4 | Marketing landing page (`/`) + the full-screen web timer (`/timer`) + privacy policy |
 | `apps/mobile` | `@poker/mobile` | Expo SDK 56 (bare), React Native 0.85, expo-router | The iOS/Android app (App Store / Play Store) |
-| `packages/core` | `@poker/core` | Plain TypeScript | Framework-agnostic poker-timer logic shared by both apps |
+| `packages/core` | `@poker/core` | Plain TypeScript | Framework-agnostic poker logic shared by the apps **and by the backend** |
+| `apps/infra` | `@poker/infra` | AWS CDK | The backend for accounts, groups and online play. Defined, not deployed |
 
 The web and mobile UIs are **deliberately separate** — desktop and phone have different
 needs (the phone manages sleep, background timers, Live Activities and push notifications;
@@ -18,15 +19,42 @@ math, payout and standings maths, serialization, and types all live in `@poker/c
 Running the React Native UI on the web (`react-native-web`) was evaluated and rejected as
 high-effort/fragile for no real desktop benefit.
 
+**`@poker/core` is shared with the server too, and that is the point.** The poker rules run
+unchanged in the app and in a Lambda, so a client predicting its own action optimistically is
+running literally the same function as the authority that decides it. The two cannot drift, and
+there is no second implementation of the rules to keep in step.
+
 ## Repository layout
 
 ```
 apps/
   web/      @poker/web      Next.js site + web timer
   mobile/   @poker/mobile   Expo iOS/Android app (bare workflow: ios/, android/ committed)
+  infra/    @poker/infra    AWS CDK stack for accounts and online play (not deployed)
 packages/
-  core/     @poker/core     shared, framework-agnostic timer logic
+  core/     @poker/core     shared, framework-agnostic poker logic
 ```
+
+Inside `packages/core/src`:
+
+```
+blinds/       schedule generation, mutation, diffing, formatting
+time/         durations, formatting, timer maths
+timer/        the timer state machine
+storage/      StorageAdapter and one store per feature
+payouts/      buy-in and payout structure, and the chop calculator
+leaderboard/  players, results, standings, groups and account claiming
+poker/        the game engine: cards, hand evaluation, betting, side pots,
+              a whole hand, and a whole game
+realtime/     the channel names the app and the backend both build from
+presets/  reviews/  sounds/  monetization/  share/
+```
+
+**The poker engine is a stack of pure reducers.** `cards` deals from an injected random source;
+`handValue`/`evaluate` score a hand; `bettingRound` runs one street; `pots` builds and pays side
+pots; `table` plays a whole hand; `session` plays hand after hand until somebody has all the chips
+and hands the result to the leaderboard. Nothing in it touches a clock, a network or a screen,
+which is why it can run on a phone and in a Lambda without changing.
 
 Inside `apps/mobile/src`:
 
@@ -37,7 +65,7 @@ components/
   settings/     the Settings screen, one file per card
   blinds/       the blind-structure editor
   payouts/      the buy-in / payout calculator (Pro)
-  leaderboard/  standings, roster and the record-a-game sheet (Pro)
+  leaderboard/  standings, roster, the record-a-game sheet and the group picker (Pro)
   PokerTimer    the timer screen (self-measuring, deliberately bespoke)
 theme/          colour / spacing / typography tokens, tablet breakpoint
 contexts/       Blinds, Timer, Premium, SoundPack, Payout, Leaderboard, AppState,
@@ -78,6 +106,27 @@ survive a reload) using the exact same serialization the app uses.
 The Pro stores are **mobile-only in practice** — nothing on the web reads payouts or the
 leaderboard yet — but they are built on the same seam and gated in the app rather than in
 `@poker/core`, so the web timer could adopt them without the maths moving.
+
+## The backend, and what it is not
+
+`apps/infra` is an AWS CDK stack: Cognito for identity, one DynamoDB table, AppSync Events for
+realtime, and a single Lambda that is the only thing allowed to change a table. **It is defined
+and tested, and it has never been deployed** — nothing in the app talks to it.
+
+Two decisions in it are structural rather than incidental:
+
+- **Hole cards are private because of where they are published**, not because the app declines to
+  draw them. Each player subscribes to `/table/{tableId}` and to
+  `/player/{their own id}/table/{tableId}`, and a subscribe handler rejects a private channel whose
+  player segment is not the caller's own. Both sides build those paths from `playerChannel` in
+  `@poker/core`, because the app and the backend disagreeing about a path is a *silent* security
+  bug — and was one, until a review caught the guard sitting on a namespace those channels never
+  touched.
+- **Only the server publishes.** Clients connect and subscribe with their token; publishing is
+  IAM-only, so every change to a table goes through the rules once.
+
+`ROADMAP.md` carries what must be closed before anything connects to it — the shared channel is
+authenticated but not yet authorized, and the action handler has no storage or publishing wired up.
 
 ## Platform-coupling map
 
