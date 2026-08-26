@@ -96,9 +96,9 @@ are removed from this file when a release is cut rather than accumulating as ✅
   that logs nobody in, so the Settings row goes in when the backend does — the screen is reachable
   by URL for development only. Deleting the stub and pointing `AuthContext` at Cognito is a
   one-import change; that is what the `AuthProvider` seam is for.
-- ⬜ **Claiming a guest player from the account screen.** The model is done and tested
-  (`claimPlayer` in `leaderboard/groups.ts`, with both races guarded); what is missing is the UI to
-  say "that Dave on the board is me".
+- ✅ Claiming is built, on the leaderboard's player rows rather than the account screen — that is
+  where the names are. Invisible while signed out, so it degrades to nothing rather than to
+  something broken. **Delete this line when 1.2.0 is cut.**
 - ✅ In-app account deletion is built from the start rather than bolted on, because App Store
   guideline 5.1.1(v) requires it of any app offering account creation. **Delete this line when
   1.2.0 is cut.**

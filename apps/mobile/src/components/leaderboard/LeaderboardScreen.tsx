@@ -17,9 +17,11 @@ import {
   formatStandingsSummary,
   isValidPlayerName,
   MAX_PLAYERS,
+  type ClaimError,
 } from "@poker/core";
 import { usePremium } from "@/src/contexts/PremiumContext";
 import { useLeaderboard } from "@/src/contexts/LeaderboardContext";
+import { useAuth } from "@/src/contexts/AuthContext";
 import { useKeyboardFocusScroll } from "@/src/hooks/useKeyboardFocusScroll";
 import {
   colors,
@@ -62,8 +64,13 @@ export function LeaderboardScreen() {
     recordResult,
     isLoading,
     groups,
+    activeGroupId,
     activeGroupName,
+    claimedPlayer,
+    claimPlayerAs,
+    releasePlayer,
   } = useLeaderboard();
+  const { account } = useAuth();
 
   // Arriving from the timer's end-of-game prompt opens the sheet straight away.
   // Read once as the initial state rather than in an effect: the sheet should
@@ -74,6 +81,7 @@ export function LeaderboardScreen() {
   const [showPaywall, setShowPaywall] = useState(false);
   const [showRecord, setShowRecord] = useState(record === "1");
   const [showGroups, setShowGroups] = useState(false);
+  const [claimError, setClaimError] = useState<string | null>(null);
   const [name, setName] = useState("");
 
   const scrollViewRef = useRef<ScrollView>(null);
@@ -118,6 +126,55 @@ export function LeaderboardScreen() {
         gamesRecorded: results.length,
       }),
     }).catch(() => {});
+  };
+
+  // A refusal is about one board and one account, so it stops being true the
+  // moment either changes — and a message pinned across a board switch reads
+  // as a false statement about the new one.
+  const claimContext = `${activeGroupId ?? ""}:${account?.id ?? ""}`;
+  const [lastClaimContext, setLastClaimContext] = useState(claimContext);
+  if (lastClaimContext !== claimContext) {
+    setLastClaimContext(claimContext);
+    setClaimError(null);
+  }
+
+  /**
+   * Which player on this board is the signed-in account, if any.
+   *
+   * `null` whenever nobody is signed in — which is everybody today, since
+   * nothing links to the account screens yet. The whole claim affordance stays
+   * invisible rather than appearing and doing nothing.
+   */
+  const mine = account ? claimedPlayer(account.id) : null;
+
+  // Keyed by the error type rather than by `string`, so adding a ClaimError
+  // fails the build here instead of rendering nothing — a tap that does
+  // nothing and says nothing is the worst of both.
+  const CLAIM_REFUSAL: Record<ClaimError, string> = {
+    "player-already-claimed":
+      "Somebody else has already said that player is them.",
+    "account-already-in-group":
+      "You're already one of the players on this board. Release that one first.",
+    "no-such-group": "That board isn't open any more.",
+    "no-such-player": "That player isn't on this board any more.",
+  };
+
+  const claim = (playerId: string, playerName: string) => {
+    if (!account) return;
+    Alert.alert(
+      "Is this you?",
+      `Link "${playerName}" to your account. Every game they've played becomes yours — nothing is rewritten, and you can undo it.`,
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "That's me",
+          onPress: () => {
+            const refused = claimPlayerAs(playerId, account.id);
+            setClaimError(refused ? CLAIM_REFUSAL[refused] : null);
+          },
+        },
+      ],
+    );
   };
 
   const confirmDeletePlayer = (id: string, playerName: string) => {
@@ -246,22 +303,62 @@ export function LeaderboardScreen() {
             onPress={handleAdd}
             disabled={!canAdd}
           />
+          {claimError ? <Text style={styles.error}>{claimError}</Text> : null}
           {players.length > 0 && (
             <View style={styles.list}>
-              {players.map((player) => (
-                <ListRow
-                  key={player.id}
-                  title={player.name}
-                  right={
-                    <IconButton
-                      icon="trash"
-                      tone="danger"
-                      onPress={() => confirmDeletePlayer(player.id, player.name)}
-                      accessibilityLabel={`Remove player ${player.name}`}
-                    />
-                  }
-                />
-              ))}
+              {players.map((player) => {
+                const isMine = mine?.id === player.id;
+                return (
+                  <ListRow
+                    key={player.id}
+                    title={player.name}
+                    meta={isMine ? "You" : undefined}
+                    selected={isMine}
+                    right={
+                      <View style={styles.playerActions}>
+                        {/* Only offered while signed in, and only for a player
+                            nobody has claimed — including you, since one
+                            person is one seat at a table. */}
+                        {account && !mine && !player.accountId ? (
+                          <IconButton
+                            icon="person-add-outline"
+                            onPress={() => claim(player.id, player.name)}
+                            accessibilityLabel={`${player.name} is me`}
+                          />
+                        ) : null}
+                        {/* Releasing is offered for any claimed player, not
+                            just your own. A board is device-local and account
+                            ids are not, so a claim can outlive the account
+                            that made it — and without a way to let go, that
+                            player is stuck: unclaimable because it is claimed,
+                            unreleasable because it is not yours. */}
+                        {player.accountId ? (
+                          <IconButton
+                            icon="person-remove-outline"
+                            onPress={() => {
+                              releasePlayer(player.id);
+                              setClaimError(null);
+                            }}
+                            accessibilityLabel={
+                              isMine
+                                ? `${player.name} is not me`
+                                : `Unlink ${player.name} from an account`
+                            }
+                          />
+                        ) : null}
+                        <IconButton
+                          icon="trash"
+                          tone="danger"
+                          onPress={() =>
+                            confirmDeletePlayer(player.id, player.name)
+                          }
+                          accessibilityLabel={`Remove player ${player.name}`}
+                        />
+                      </View>
+                    }
+                  />
+                );
+              })}
             </View>
           )}
         </CardContent>
@@ -379,6 +476,8 @@ const styles = StyleSheet.create({
     width: "100%",
   },
   description: text.body,
+  playerActions: { flexDirection: "row", gap: space.xs },
+  error: { ...text.body, color: colors.danger },
   empty: { ...text.meta, lineHeight: 18 },
   list: { gap: space.md },
 });
