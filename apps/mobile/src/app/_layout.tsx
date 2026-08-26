@@ -14,8 +14,16 @@ import { GameProvider } from "@/src/contexts/GameContext";
 import { AuthProviderContext } from "@/src/contexts/AuthContext";
 import { SharedSessionProvider } from "@/src/contexts/SharedSessionContext";
 import AppReadyGate from "@/src/components/AppReadyGate";
+import { AppErrorBoundary } from "@/src/components/AppErrorBoundary";
 import { initializeAds } from "@/src/services/ads";
 import { configurePurchases } from "@/src/services/revenueCatProvider";
+
+/**
+ * expo-router renders this instead of the layout when anything below it throws
+ * — which, from the root layout, means anywhere in the app. Exported rather
+ * than rendered: that is the hook expo-router looks for.
+ */
+export { AppErrorBoundary as ErrorBoundary };
 
 // Runs at import time, before the first render, so the native splash
 // screen stays up while contexts load and PokerTimer's initial

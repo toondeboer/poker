@@ -1,7 +1,7 @@
 import { StorageAdapter } from "./StorageAdapter";
 import { PayoutOptions } from "../payouts/payoutStructure";
 
-const STORAGE_KEY = "payout_settings";
+export const PAYOUT_KEY = "payout_settings";
 
 /**
  * The host's last-used payout setup, remembered so a regular game night isn't
@@ -98,7 +98,7 @@ export function createPayoutStorage(storage: StorageAdapter): PayoutStorage {
   return {
     async loadPayoutSettings(): Promise<PayoutSettings> {
       try {
-        const raw = await storage.getItem(STORAGE_KEY);
+        const raw = await storage.getItem(PAYOUT_KEY);
         if (!raw) return { ...DEFAULT_PAYOUT_SETTINGS };
         return coerce(JSON.parse(raw));
       } catch {
@@ -107,11 +107,11 @@ export function createPayoutStorage(storage: StorageAdapter): PayoutStorage {
     },
 
     async savePayoutSettings(settings: PayoutSettings): Promise<void> {
-      await storage.setItem(STORAGE_KEY, JSON.stringify(settings));
+      await storage.setItem(PAYOUT_KEY, JSON.stringify(settings));
     },
 
     async clearPayoutSettings(): Promise<void> {
-      await storage.multiRemove([STORAGE_KEY]);
+      await storage.multiRemove([PAYOUT_KEY]);
     },
   };
 }

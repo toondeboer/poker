@@ -2,7 +2,7 @@ import { StorageAdapter } from "./StorageAdapter";
 import type { GameSession } from "../poker/session";
 import { MAX_SEATS } from "../poker/table";
 
-const STORAGE_KEY = "game_session";
+export const GAME_KEY = "game_session";
 
 /**
  * What was agreed before the first hand: who is in, what they started with,
@@ -240,7 +240,7 @@ export function createGameStorage(storage: StorageAdapter): GameStorage {
   return {
     async loadGame(): Promise<StoredGame | null> {
       try {
-        const raw = await storage.getItem(STORAGE_KEY);
+        const raw = await storage.getItem(GAME_KEY);
         if (!raw) return null;
         const parsed: unknown = JSON.parse(raw);
         if (!isObject(parsed)) return null;
@@ -262,11 +262,11 @@ export function createGameStorage(storage: StorageAdapter): GameStorage {
     },
 
     async saveGame(game: StoredGame): Promise<void> {
-      await storage.setItem(STORAGE_KEY, JSON.stringify(game));
+      await storage.setItem(GAME_KEY, JSON.stringify(game));
     },
 
     async clearGame(): Promise<void> {
-      await storage.multiRemove([STORAGE_KEY]);
+      await storage.multiRemove([GAME_KEY]);
     },
   };
 }

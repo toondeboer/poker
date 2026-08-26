@@ -8,7 +8,7 @@ import {
   migrateToGroups,
 } from "../leaderboard/groups";
 
-const STORAGE_KEY = "leaderboard";
+export const LEADERBOARD_KEY = "leaderboard";
 
 /**
  * The shape that shipped first: one board, no groups.
@@ -195,7 +195,7 @@ export function createLeaderboardStorage(
   return {
     async loadLeaderboard(): Promise<GroupedLeaderboard> {
       try {
-        const raw = await storage.getItem(STORAGE_KEY);
+        const raw = await storage.getItem(LEADERBOARD_KEY);
         if (!raw) return EMPTY_LEADERBOARD;
         const parsed: unknown = JSON.parse(raw);
         if (!isObject(parsed)) return EMPTY_LEADERBOARD;
@@ -240,7 +240,7 @@ export function createLeaderboardStorage(
         // the alternative is a user with a full season of history seeing an
         // empty board because the disk was full.
         try {
-          await storage.setItem(STORAGE_KEY, JSON.stringify(toStored(migrated)));
+          await storage.setItem(LEADERBOARD_KEY, JSON.stringify(toStored(migrated)));
         } catch {
           // Nothing to do but try again next launch.
         }
@@ -252,11 +252,11 @@ export function createLeaderboardStorage(
     },
 
     async saveLeaderboard(state: GroupedLeaderboard): Promise<void> {
-      await storage.setItem(STORAGE_KEY, JSON.stringify(toStored(state)));
+      await storage.setItem(LEADERBOARD_KEY, JSON.stringify(toStored(state)));
     },
 
     async clearLeaderboard(): Promise<void> {
-      await storage.multiRemove([STORAGE_KEY]);
+      await storage.multiRemove([LEADERBOARD_KEY]);
     },
   };
 }
