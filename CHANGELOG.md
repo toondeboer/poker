@@ -19,6 +19,14 @@ platform-tagged heading (e.g. `## [1.1.3] - 2026-07-20 — Android`) when you cu
   Signing out or deleting an account lets go of the players it had claimed, so nobody is left linked
   to an account that no longer exists — and if one ever is, it can still be unlinked rather than
   being stuck for good.
+- Groundwork for one clock on several phones: a screen that starts a shared clock or joins one with
+  a code, and the whole loop behind it — a local pause, resume, reset or level change goes out to
+  the table, and anybody else's comes back and moves this phone. There is no host: whoever is
+  nearest the phone presses it, and two people pressing at once settle on the same answer rather
+  than the table quietly splitting in two. It says plainly when it has lost touch, and keeps
+  counting down while it has, because the phone still knows how much of the round is left — it just
+  no longer knows whether somebody paused it. **Nothing links to it yet**: there is no server behind
+  it, and a join code nobody else can join is worse than no join code.
 - Groundwork for one clock on several phones: the protocol a shared session runs on, and the join
   code that gets read out across the table. The code leaves out every character that can be misread
   — no `O`/`0`, no `I`/`1`, no `S`/`5` — and refuses a typo rather than guessing, because guessing

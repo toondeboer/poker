@@ -306,9 +306,11 @@ export {
   toSyncMessage,
   applySyncMessage,
   receiveSyncMessage,
+  recordSentMessage,
   shouldApply,
   nextVersion,
   sessionHealth,
+  matchesSession,
   HEARTBEAT_MS,
   STALE_AFTER_MS,
 } from "./realtime/timerSync";

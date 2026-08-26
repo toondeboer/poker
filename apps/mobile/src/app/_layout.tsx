@@ -12,6 +12,7 @@ import { PayoutProvider } from "@/src/contexts/PayoutContext";
 import { LeaderboardProvider } from "@/src/contexts/LeaderboardContext";
 import { GameProvider } from "@/src/contexts/GameContext";
 import { AuthProviderContext } from "@/src/contexts/AuthContext";
+import { SharedSessionProvider } from "@/src/contexts/SharedSessionContext";
 import AppReadyGate from "@/src/components/AppReadyGate";
 import { initializeAds } from "@/src/services/ads";
 import { configurePurchases } from "@/src/services/revenueCatProvider";
@@ -38,6 +39,7 @@ export default function RootLayout() {
                 <LeaderboardProvider>
                   <AuthProviderContext>
                   <GameProvider>
+                  <SharedSessionProvider>
                   <TimerProvider>
                     <AppReadyGate>
                       <Stack
@@ -89,6 +91,16 @@ export default function RootLayout() {
                             headerBackTitle: "Settings",
                           }}
                         />
+                        {/* Same again: there is no transport behind shared
+                            sessions yet, and a join code nobody else can join
+                            is worse than none. See ROADMAP.md. */}
+                        <Stack.Screen
+                          name="session"
+                          options={{
+                            title: "Shared clock",
+                            headerBackTitle: "Settings",
+                          }}
+                        />
                         <Stack.Screen
                           name="game"
                           options={{
@@ -108,6 +120,7 @@ export default function RootLayout() {
                       </Stack>
                     </AppReadyGate>
                   </TimerProvider>
+                  </SharedSessionProvider>
                   </GameProvider>
                   </AuthProviderContext>
                 </LeaderboardProvider>

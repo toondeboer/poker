@@ -23,12 +23,26 @@ import type { TimerMachineState } from "../timer/timerMachine";
 
 export type TimerSyncMessage = {
   /**
-   * Monotonic per-session counter. Higher wins; equal is ignored.
+   * Monotonic per-session counter. Higher wins.
    *
    * A counter rather than a wall-clock time because clocks between devices are
    * not comparable — the whole point of this module.
    */
   version: number;
+  /**
+   * Which phone sent it.
+   *
+   * Two people can reach for the phone at once, and both presses then carry the
+   * same version — a genuine tie that "higher version wins" cannot break. Left
+   * unbroken, each device keeps whichever arrived first and the table quietly
+   * splits in two. Comparing senders breaks it the same way on every device, so
+   * they converge on one answer; *which* answer is arbitrary, and it has to be,
+   * because there is no fact about which press came first.
+   *
+   * It also lets a device recognise its own message coming back, which some
+   * transports deliver and some do not.
+   */
+  sender: string;
   /** Seconds left in the current round when this was sent. */
   remaining: number;
   /** Round length in seconds. */
@@ -40,14 +54,27 @@ export type TimerSyncMessage = {
 
 /** A local view of a shared session. */
 export type SharedSession = {
-  /** The last message applied, or `null` before anything has arrived. */
+  /** The last message applied, or `null` before there is one. */
   applied: TimerSyncMessage | null;
-  /** When anything last arrived, on the **local** clock. `null` before it does. */
+  /**
+   * When {@link applied} was sent or received, on the **local** clock.
+   *
+   * The anchor a running clock is projected from, which is why it tracks the
+   * applied message specifically rather than the last thing to arrive.
+   */
+  appliedAt: number | null;
+  /**
+   * When anything last arrived from *somebody else*, on the local clock.
+   *
+   * Liveness, not ordering — and deliberately not moved by this device's own
+   * messages, because hearing yourself is no evidence anybody is listening.
+   */
   lastMessageAt: number | null;
 };
 
 export const EMPTY_SHARED_SESSION: SharedSession = Object.freeze({
   applied: null,
+  appliedAt: null,
   lastMessageAt: null,
 });
 
@@ -94,12 +121,15 @@ export const toSyncMessage = ({
   state,
   version,
   blindIndex,
+  sender,
 }: {
   state: TimerMachineState;
   version: number;
   blindIndex: number;
+  sender: string;
 }): TimerSyncMessage => ({
   version,
+  sender,
   remaining: Math.max(0, Math.round(state.timeLeft)),
   duration: state.timerDuration,
   paused: state.paused,
@@ -109,16 +139,25 @@ export const toSyncMessage = ({
 /**
  * Should this message be applied, given what has already been?
  *
- * Strictly newer only. Equal versions are ignored rather than reapplied: a
- * message can arrive twice — a reconnect replaying the last state is the
- * ordinary case — and reapplying one re-anchors the countdown to *now*, which
- * on a phone at the table looks like the clock jumping backwards by however
- * long the round has been running.
+ * Newer wins; a tie is broken by the sender, so every device breaks it the same
+ * way and they converge rather than each keeping whichever press reached it
+ * first. A message identical to the one already applied is *ignored* rather
+ * than reapplied: it arrives twice as a matter of course — reconnects and
+ * heartbeats both repeat the current state — and reapplying re-anchors the
+ * countdown to *now*, which on a phone at the table looks like the clock
+ * jumping backwards by however long the round has been running.
  */
 export const shouldApply = (
   session: SharedSession,
   message: TimerSyncMessage,
-): boolean => session.applied === null || message.version > session.applied.version;
+): boolean => {
+  const applied = session.applied;
+  if (applied === null) return true;
+  if (message.version !== applied.version) {
+    return message.version > applied.version;
+  }
+  return message.sender > applied.sender;
+};
 
 /**
  * Turn a received message into local timer state, anchored on the local clock.
@@ -155,10 +194,83 @@ export const receiveSyncMessage = (
   session: SharedSession,
   message: TimerSyncMessage,
   receivedAt: number,
-): SharedSession => ({
-  applied: shouldApply(session, message) ? message : session.applied,
-  lastMessageAt: receivedAt,
-});
+): SharedSession =>
+  shouldApply(session, message)
+    ? { applied: message, appliedAt: receivedAt, lastMessageAt: receivedAt }
+    : { ...session, lastMessageAt: receivedAt };
+
+/**
+ * Record what this device sent.
+ *
+ * Its own messages belong in the ordering — two people pressing at once produce
+ * the same version, and the sender tie-break that settles it cannot work if a
+ * device's own press is missing from what it compares against. They do **not**
+ * count as contact: a phone hosting a session nobody has joined would otherwise
+ * report itself as in step with the table.
+ */
+export const recordSentMessage = (
+  session: SharedSession,
+  message: TimerSyncMessage,
+  sentAt: number,
+): SharedSession =>
+  shouldApply(session, message)
+    ? { ...session, applied: message, appliedAt: sentAt }
+    : session;
+
+/**
+ * Does the local timer still match what the table was last told?
+ *
+ * This is what decides whether a device has anything to say, and it replaces
+ * the obvious approach — comparing the local state against a remembered
+ * snapshot of itself — which is wrong in a way that only shows up later: a
+ * pause looks identical to an earlier pause at the same level and duration, so
+ * "we already sent this" wrongly matches and a real press is never announced.
+ * Comparing against the last message anybody sent has no such collision,
+ * because that message moves whenever anything happens.
+ *
+ * A running clock is compared by *projection*: the message said how much was
+ * left when it was sent, so how much should be left now follows from the local
+ * clock alone. Without that, a running countdown drifts away from the message
+ * it came from and every phone starts announcing a round nobody changed.
+ *
+ * `levelCount` clamps the message's level into the local schedule. Schedules
+ * are not synced, so a phone with a shorter one cannot follow the table to
+ * level 9 — and must not then report level 6 as a change, which would drag
+ * everybody else back to it.
+ */
+export const matchesSession = ({
+  message,
+  receivedAt,
+  state,
+  blindIndex,
+  levelCount,
+  now,
+  toleranceMs = 2_000,
+}: {
+  message: TimerSyncMessage;
+  /** When the message was sent or received, on the **local** clock. */
+  receivedAt: number;
+  state: TimerMachineState;
+  blindIndex: number;
+  /** How many levels this device's schedule has. */
+  levelCount: number;
+  now: number;
+  toleranceMs?: number;
+}): boolean => {
+  if (state.paused !== message.paused) return false;
+  if (state.timerDuration !== message.duration) return false;
+  const expectedLevel = Math.min(
+    message.blindIndex,
+    Math.max(0, levelCount - 1),
+  );
+  if (blindIndex !== expectedLevel) return false;
+  // A paused clock is a frozen number on both sides, so it compares exactly —
+  // which is what makes a reset while paused (same level, same duration, more
+  // time on the clock) count as something worth saying.
+  if (message.paused) return Math.round(state.timeLeft) === message.remaining;
+  const projected = message.remaining - (now - receivedAt) / 1000;
+  return Math.abs(state.timeLeft - projected) * 1000 <= toleranceMs;
+};
 
 /**
  * The next version to send from this device.
