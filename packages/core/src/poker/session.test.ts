@@ -43,8 +43,27 @@ describe("createSession", () => {
     expect(s.handsPlayed).toBe(0);
   });
 
+  it("keeps the last finished hand, so the end of it can be shown", () => {
+    // `hand` is cleared the moment it completes, and the showdown, the awards
+    // and the final board all live on the hand — so without this the action
+    // that calls the river returns nothing but stack totals.
+    let s = deal(session(["a", "b", "c"]));
+    expect(s.lastHand).toBeNull();
+    s = playToShowdown(s);
+    expect(s.hand).toBeNull();
+    expect(s.lastHand).not.toBeNull();
+    expect(s.lastHand!.board).toHaveLength(5);
+    expect(s.lastHand!.awards.length).toBeGreaterThan(0);
+  });
+
   it("refuses a table that cannot play", () => {
     expect(() => session(["a"])).toThrow(/at least 2 players/);
+    expect(() =>
+      createSession({
+        players: Array.from({ length: 24 }, (_, i) => `p${i}`),
+        startingStack: 100,
+      }),
+    ).toThrow(/seats at most 23 players/);
     expect(() => session(["a", "a"])).toThrow(/own id/);
     expect(() =>
       createSession({ players: ["a", "b"], startingStack: 0 }),
@@ -63,11 +82,16 @@ describe("dealing hands", () => {
     expect(s.hand!.seats).toHaveLength(3);
   });
 
-  it("moves the button on between hands", () => {
-    let s = deal(session(["a", "b", "c"]));
-    expect(s.buttonIndex).toBe(1);
+  it("deals the first hand from the seat it was given, then moves on", () => {
+    // The button moves *between* hands, not before the first — otherwise
+    // "this seat deals first" is inexpressible except as the seat before it.
+    let s = deal(session(["a", "b", "c"], 200, 0));
+    expect(s.buttonIndex).toBe(0);
     s = playToShowdown(s);
     s = deal(s, 2);
+    expect(s.buttonIndex).toBe(1);
+    s = playToShowdown(s);
+    s = deal(s, 3);
     expect(s.buttonIndex).toBe(2);
   });
 
@@ -90,7 +114,7 @@ describe("dealing hands", () => {
 });
 
 describe("knocking players out", () => {
-  it("skips a busted seat when dealing, and moves the button past them", () => {
+  it("leaves a busted seat out of the deal", () => {
     const s: GameSession = {
       ...session(["a", "b", "c"]),
       seats: [
@@ -102,7 +126,36 @@ describe("knocking players out", () => {
     };
     const dealt = deal(s);
     expect(dealt.hand!.seats.map((seat) => seat.playerId)).toEqual(["a", "c"]);
-    // The button was on "a"; the next player still in is "c", not "b".
+  });
+
+  it("moves the button past a busted seat", () => {
+    const s: GameSession = {
+      ...session(["a", "b", "c"]),
+      // A hand has been played, so the button advances from "a" — and "b" is
+      // out, so it must land on "c" rather than on a seat with no chips.
+      handsPlayed: 1,
+      seats: [
+        { playerId: "a", stack: 200 },
+        { playerId: "b", stack: 0 },
+        { playerId: "c", stack: 200 },
+      ],
+      bustOrder: ["b"],
+    };
+    const dealt = deal(s);
+    expect(dealt.seats[dealt.buttonIndex].playerId).toBe("c");
+  });
+
+  it("skips a busted starting seat even on the first hand", () => {
+    const s: GameSession = {
+      ...session(["a", "b", "c"], 200, 1),
+      seats: [
+        { playerId: "a", stack: 200 },
+        { playerId: "b", stack: 0 },
+        { playerId: "c", stack: 200 },
+      ],
+      bustOrder: ["b"],
+    };
+    const dealt = deal(s);
     expect(dealt.seats[dealt.buttonIndex].playerId).toBe("c");
   });
 
@@ -192,8 +245,10 @@ describe("toGameResult", () => {
     bustOrder: ["d", "c", "b"],
   };
 
-  it("records everyone who played and only the places that pay", () => {
-    // A nine-handed game should not list six finishes worth nothing.
+  it("records everyone who played, and the podium even past the paid places", () => {
+    // Who got paid and who finished where are different questions. A game
+    // paying two places still has a third-place finisher, and the
+    // leaderboard's podium tie-break needs it.
     const result = toGameResult(finished, {
       id: "game-1",
       now: 1000,
@@ -205,12 +260,15 @@ describe("toGameResult", () => {
     expect(result.placings).toEqual([
       { playerId: "a", place: 1, winnings: 50 },
       { playerId: "b", place: 2, winnings: 30 },
+      { playerId: "c", place: 3, winnings: 0 },
     ]);
     expect(result.buyIn).toBe(20);
     expect(result.playedAt).toBe(1000);
   });
 
-  it("records nobody as paid when nothing is on offer", () => {
+  it("still records a winner when there is no prize money at all", () => {
+    // Wins are counted from finishing first, not from being paid — so
+    // recording nothing here would mean a friendly game had no winner.
     const result = toGameResult(finished, {
       id: "g",
       now: 1,
@@ -218,8 +276,43 @@ describe("toGameResult", () => {
       bounty: 0,
       winningsByPlace: [],
     });
-    expect(result.placings).toEqual([]);
+    expect(result.placings).toEqual([
+      { playerId: "a", place: 1, winnings: 0 },
+      { playerId: "b", place: 2, winnings: 0 },
+      { playerId: "c", place: 3, winnings: 0 },
+    ]);
     expect(result.playerIds).toHaveLength(4);
+  });
+
+  it("records every paid place when more than three are paid", () => {
+    const result = toGameResult(finished, {
+      id: "g",
+      now: 1,
+      buyIn: 20,
+      bounty: 0,
+      winningsByPlace: [40, 25, 10, 5],
+    });
+    expect(result.placings.map((p) => p.place)).toEqual([1, 2, 3, 4]);
+    expect(result.placings[3]).toEqual({ playerId: "d", place: 4, winnings: 5 });
+  });
+
+  it("never records more finishes than there were players", () => {
+    const heads: GameSession = {
+      ...session(["a", "b"]),
+      seats: [
+        { playerId: "a", stack: 400 },
+        { playerId: "b", stack: 0 },
+      ],
+      bustOrder: ["b"],
+    };
+    const result = toGameResult(heads, {
+      id: "g",
+      now: 1,
+      buyIn: 20,
+      bounty: 0,
+      winningsByPlace: [],
+    });
+    expect(result.placings.map((p) => p.place)).toEqual([1, 2]);
   });
 
   it("refuses a game that is still going", () => {

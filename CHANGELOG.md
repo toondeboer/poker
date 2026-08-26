@@ -75,7 +75,10 @@ platform-tagged heading (e.g. `## [1.1.3] - 2026-07-20 — Android`) when you cu
   first. Two players busting in the same hand are separated by the stack they started it with, the
   bigger one finishing higher, which is what a table does. The point of all this is the last step:
   a finished game turns straight into a leaderboard entry, with everyone's finishing position and
-  winnings already known, instead of the host tapping them in afterwards from memory.
+  winnings already known, instead of the host tapping them in afterwards from memory. It records the
+  top three finishers even when the game paid fewer places or no money at all, so a friendly game
+  still has a winner and the board's tie-breaks still have something to work from — the same rule
+  the record-a-game sheet already follows by hand.
 - A whole hand of Texas hold'em in `@poker/core` — the piece that joins the others up. Nothing
   user-facing yet, but this is the first time the cards, the betting and the pots play a hand from
   the shuffle to the chips being pushed. It deals, posts the blinds, runs each street, deals the

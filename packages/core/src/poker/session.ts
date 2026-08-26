@@ -14,7 +14,13 @@
 
 import type { RandomSource } from "./cards";
 import type { BettingAction } from "./bettingRound";
-import { type Hand, act as actOnHand, isHandComplete, startHand } from "./table";
+import {
+  type Hand,
+  MAX_SEATS,
+  act as actOnHand,
+  isHandComplete,
+  startHand,
+} from "./table";
 import { createGameResult, type GameResult, type Placing } from "../leaderboard/gameResult";
 
 export type SessionSeat = {
@@ -25,10 +31,26 @@ export type SessionSeat = {
 
 export type GameSession = {
   seats: SessionSeat[];
-  /** Index into `seats`. Moves to the next player still in before each hand. */
+  /**
+   * Index into `seats` of the button **for the next hand dealt**.
+   *
+   * It moves on between hands, not before the first one — so the seat handed to
+   * {@link createSession} is the seat that actually deals first, rather than
+   * the one before it.
+   */
   buttonIndex: number;
   /** The hand in progress, or `null` between hands and once the game is over. */
   hand: Hand | null;
+  /**
+   * The last hand that finished, kept so the end of it can be shown.
+   *
+   * `hand` is cleared the moment it completes, and everything worth looking at
+   * — the showdown, who won which pot, the final board — lives on the hand
+   * rather than on the seats. Without this the river-calling action returns a
+   * state with nothing left but stack totals, and the table never sees the hand
+   * it just played.
+   */
+  lastHand: Hand | null;
   /** How many hands have been dealt, for display. */
   handsPlayed: number;
   /**
@@ -41,6 +63,14 @@ export type GameSession = {
    */
   bustOrder: string[];
 };
+
+/**
+ * How many finishes are worth recording even when they win nothing.
+ *
+ * Three, so the leaderboard's podium tie-break has something to work from in a
+ * small field. Matches the record-a-game sheet.
+ */
+const PODIUM_PLACES = 3;
 
 /** Everyone who can still be dealt in. */
 const survivors = (seats: readonly SessionSeat[]): SessionSeat[] =>
@@ -60,6 +90,13 @@ export const createSession = ({
 }): GameSession => {
   if (players.length < 2) {
     throw new Error(`a game needs at least 2 players, got ${players.length}`);
+  }
+  if (players.length > MAX_SEATS) {
+    // Checked here rather than only at the first deal, so a table too big to
+    // deal fails where it was set up instead of one hand later.
+    throw new Error(
+      `a game seats at most ${MAX_SEATS} players, got ${players.length}`,
+    );
   }
   if (new Set(players).size !== players.length) {
     throw new Error("every player needs their own id");
@@ -83,6 +120,7 @@ export const createSession = ({
     seats: players.map((playerId) => ({ playerId, stack: startingStack })),
     buttonIndex,
     hand: null,
+    lastHand: null,
     handsPlayed: 0,
     bustOrder: [],
   };
@@ -129,7 +167,13 @@ export const startNextHand = (
     throw new Error("the game is over");
   }
 
-  const buttonIndex = nextLiveIndex(session.seats, session.buttonIndex);
+  // The button only moves *between* hands. On the very first deal it stays
+  // where the session was set up, so "this seat deals first" is expressible.
+  // It still has to skip a seat that is already out.
+  const buttonIndex =
+    session.handsPlayed === 0 && session.seats[session.buttonIndex].stack > 0
+      ? session.buttonIndex
+      : nextLiveIndex(session.seats, session.buttonIndex);
   const live = survivors(session.seats);
 
   // The hand deals its own seats, so the button has to be re-expressed as an
@@ -206,6 +250,7 @@ const settle = (session: GameSession): GameSession => {
     ...session,
     seats,
     hand: null,
+    lastHand: hand,
     bustOrder: [...session.bustOrder, ...bustedThisHand],
   };
 };
@@ -236,6 +281,16 @@ export const finishingOrder = (session: GameSession): string[] => {
  * `winningsByPlace` is indexed from first place, and comes from the payout
  * structure the table agreed before the game — passed in rather than computed
  * here, so this stays independent of buy-ins, rebuys and bounties.
+ *
+ * **Places past the paid ones are still recorded**, down to the podium. Who got
+ * paid and who finished where are different questions: a four-player game pays
+ * one place, and recording only that would leave the leaderboard with no
+ * runner-up, no third, and nothing for its podium tie-break to work from — in
+ * exactly the field sizes a home game runs. Worse, a game with no prize money
+ * at all would record no winner, because wins are counted from finishing
+ * first rather than from being paid. This is the same rule the record-a-game
+ * sheet applies by hand; the two must not disagree about what a game looks
+ * like.
  */
 export const toGameResult = (
   session: GameSession,
@@ -252,15 +307,18 @@ export const toGameResult = (
   }
 
   const order = finishingOrder(session);
-  const placings: Placing[] = [];
-  order.forEach((playerId, index) => {
-    const winnings = params.winningsByPlace[index] ?? 0;
-    // Only paid places are recorded, which is what the leaderboard expects —
-    // and what keeps a nine-handed game from listing six zero-value finishes.
-    if (winnings > 0) {
-      placings.push({ playerId, place: index + 1, winnings });
-    }
-  });
+  const rankablePlaces = Math.max(
+    params.winningsByPlace.length,
+    Math.min(order.length, PODIUM_PLACES),
+  );
+
+  const placings: Placing[] = order
+    .slice(0, rankablePlaces)
+    .map((playerId, index) => ({
+      playerId,
+      place: index + 1,
+      winnings: params.winningsByPlace[index] ?? 0,
+    }));
 
   return createGameResult({
     id: params.id,
