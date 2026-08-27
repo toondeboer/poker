@@ -152,14 +152,22 @@ describe("telemetry reaching Grafana", () => {
     });
   });
 
-  it("instruments both functions without a line of code in either", () => {
+  it("instruments every function without a line of code in any of them", () => {
+    // All of them, asserted as "none left out" rather than as a count — a
+    // function added later is instrumented or the test says which one is not.
     const functions = Object.values(
       template().findResources("AWS::Lambda::Function"),
     );
-    const withLayer = functions.filter(
-      (fn) => ((fn.Properties as { Layers?: unknown[] }).Layers ?? []).length > 0,
-    );
-    expect(withLayer).toHaveLength(2);
+    const uninstrumented = Object.entries(
+      template().findResources("AWS::Lambda::Function"),
+    )
+      .filter(
+        ([, fn]) =>
+          ((fn.Properties as { Layers?: unknown[] }).Layers ?? []).length === 0,
+      )
+      .map(([id]) => id);
+    expect(functions.length).toBeGreaterThan(0);
+    expect(uninstrumented).toEqual([]);
   });
 
   it("points the collector at the config that names Grafana", () => {

@@ -41,10 +41,27 @@ describe("the item that gets written", () => {
 
 describe("reading one back", () => {
   it("accepts what we wrote", () => {
-    expect(tableFrom(itemFor("t-1", { hand, version: 2 }, 0))).toEqual({
-      hand,
-      version: 2,
-    });
+    expect(
+      tableFrom(itemFor("t-1", { hand, version: 2, members: ["u-1"] }, 0)),
+    ).toEqual({ hand, version: 2, members: ["u-1"] });
+  });
+
+  it("reads a table written before members existed as having none", () => {
+    // The direction that matters: the subscribe guard treats "no members" as
+    // "nobody may watch", so a missing field fails closed rather than open.
+    expect(tableFrom({ hand, version: 2 })?.members).toEqual([]);
+    expect(tableFrom({ hand, version: 2, members: "u-1" })?.members).toEqual([]);
+    expect(
+      tableFrom({ hand, version: 2, members: ["u-1", 7, null] })?.members,
+    ).toEqual(["u-1"]);
+  });
+
+  it("keeps the membership list an action does not change", () => {
+    // Acting does not change who is at the table, and rebuilding the item
+    // field by field is how the list quietly stops being written.
+    expect(
+      itemFor("t-1", { hand, version: 3, members: ["u-1", "u-2"] }, 0).members,
+    ).toEqual(["u-1", "u-2"]);
   });
 
   it("refuses an item with no version", () => {

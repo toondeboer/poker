@@ -41,6 +41,14 @@ export type ActionRequest = {
 export type StoredTable = {
   hand: Hand;
   version: number;
+  /**
+   * Everybody allowed to watch this table.
+   *
+   * Carried through an action unchanged — acting does not change who is at the
+   * table — and read by the subscribe guard. Optional only so that a hand
+   * built in a test does not have to name one.
+   */
+  members?: string[];
 };
 
 export type ActionOutcome =
@@ -89,7 +97,10 @@ export const applyAction = (
     const hand = act(stored.hand, request.playerId, request.action);
     return {
       status: "applied",
-      table: { hand, version: stored.version + 1 },
+      // Spread, so anything the store holds beyond the hand — the membership
+      // list the subscribe guard reads — survives an action. Rebuilding the
+      // object field by field is how that quietly stops being written.
+      table: { ...stored, hand, version: stored.version + 1 },
       handComplete: isHandComplete(hand),
     };
   } catch (error) {

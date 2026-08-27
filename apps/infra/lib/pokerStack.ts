@@ -10,18 +10,17 @@
  * server run the same function, so optimistic prediction on the client is
  * provably the same code as the authority on the server.
  *
- * ## Known gap, before anything connects to this
+ * ## Both channels are guarded, and differently on purpose
  *
- * The shared `table` namespace is **authenticated but not authorized**: a
- * subscriber must be signed in, but nothing ties them to the table they are
- * subscribing to, so any account holding a table id could stream a stranger's
- * game. It is not exploitable today — nothing publishes and no app code
- * connects — but it must be closed before either changes.
+ * A **private** channel is guarded by an APPSYNC_JS handler comparing a path
+ * segment to the caller's own subject: no I/O, nothing to fail, nothing to be
+ * down. A **shared table** cannot be guarded that way, because membership is a
+ * fact about the game rather than about the path — so it is a Lambda that
+ * reads the table and refuses anybody not at it.
  *
- * The fix is a Lambda authorizer on subscribe: membership lives in DynamoDB, so
- * it needs a read, which an AppSync JS handler cannot do. Deliberately not
- * written blind here, since it cannot be exercised without a deployment.
- * Tracked in ROADMAP.md.
+ * Until that Lambda existed, this namespace was authenticated but not
+ * authorized: a subscriber had to be signed in, sign-up is open, and so an
+ * account holding a table id could stream a stranger's game.
  */
 
 import {
@@ -38,14 +37,22 @@ import {
   Operation,
   TableV2,
 } from "aws-cdk-lib/aws-dynamodb";
-import { CfnApi, CfnChannelNamespace } from "aws-cdk-lib/aws-appsync";
+import {
+  CfnApi,
+  CfnChannelNamespace,
+  CfnDataSource,
+} from "aws-cdk-lib/aws-appsync";
 import {
   AccountRecovery,
   UserPool,
   UserPoolClient,
   UserPoolEmail,
 } from "aws-cdk-lib/aws-cognito";
-import { PolicyStatement } from "aws-cdk-lib/aws-iam";
+import {
+  PolicyStatement,
+  Role,
+  ServicePrincipal,
+} from "aws-cdk-lib/aws-iam";
 import {
   AdotLambdaExecWrapper,
   AdotLambdaLayerJavaScriptSdkVersion,
@@ -355,14 +362,72 @@ export class PokerStack extends Stack {
       },
     });
 
-    // What everyone at a table sees: the board, the bets, whose turn it is.
-    //
-    // **This namespace is authenticated but not yet authorized** — see the
-    // note at the top of this file. Nothing connects to it yet, and nothing
-    // should until a membership check exists.
+    /**
+     * Who may watch a table, checked on subscribe.
+     *
+     * A Lambda rather than an APPSYNC_JS handler because **membership is a
+     * fact about the game, not about the path**: the private `/player/…`
+     * channels can be guarded by comparing a path segment to the caller's own
+     * subject, and a shared table needs a lookup that an APPSYNC_JS handler
+     * cannot do.
+     *
+     * `REQUEST_RESPONSE`, not `EVENT`: an asynchronous invocation cannot
+     * refuse anything — AppSync does not wait for it — so an authorizer in
+     * event mode is a log line, not a guard.
+     */
+    const subscribeAuthorizer = new NodejsFunction(this, "SubscribeAuthorizer", {
+      entry: path.join(__dirname, "lambda", "subscribeAuthorizer.ts"),
+      runtime: Runtime.NODEJS_22_X,
+      memorySize: 256,
+      // Short on purpose: this runs before somebody sees a table, so its
+      // latency is felt. A read that has not answered in three seconds is not
+      // going to.
+      timeout: Duration.seconds(3),
+      environment: { ...telemetryEnvironment, TABLE_NAME: table.tableName },
+      adotInstrumentation,
+      logGroup: new LogGroup(this, "SubscribeAuthorizerLogs", {
+        retention: settings.logRetention,
+        removalPolicy: RemovalPolicy.DESTROY,
+      }),
+      bundling: {
+        minify: true,
+        sourceMap: true,
+        target: "node22",
+        commandHooks: bundleCollectorConfig,
+      },
+    });
+    // Read only. An authorizer has no business writing to the thing it is
+    // deciding about.
+    table.grantReadData(subscribeAuthorizer);
+
+    const authorizerRole = new Role(this, "SubscribeAuthorizerRole", {
+      assumedBy: new ServicePrincipal("appsync.amazonaws.com"),
+      description: "Lets AppSync invoke the subscribe authorizer",
+    });
+    subscribeAuthorizer.grantInvoke(authorizerRole);
+
+    const authorizerSource = new CfnDataSource(this, "SubscribeAuthorizerDs", {
+      apiId: eventApi.attrApiId,
+      name: "SubscribeAuthorizer",
+      type: "AWS_LAMBDA",
+      lambdaConfig: { lambdaFunctionArn: subscribeAuthorizer.functionArn },
+      serviceRoleArn: authorizerRole.roleArn,
+    });
+
+    // What everyone at a table sees: the board, the bets, whose turn it is —
+    // and now only if they are at it.
     new CfnChannelNamespace(this, "TableNamespace", {
       apiId: eventApi.attrApiId,
       name: TABLE_NAMESPACE,
+      handlerConfigs: {
+        onSubscribe: {
+          behavior: "DIRECT",
+          integration: {
+            dataSourceName: authorizerSource.name,
+            lambdaConfig: { invokeType: "REQUEST_RESPONSE" },
+          },
+        },
+      },
     });
 
     // What only one player sees. The handler is the entire secrecy mechanism.

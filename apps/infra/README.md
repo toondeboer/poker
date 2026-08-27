@@ -22,7 +22,7 @@ blind.
 | **Environments**   | `PokerBackend-dev` and `PokerBackend-prod`, plus `PokerDeployment` for the GitHub OIDC roles                                                                                                                                                           |
 | **Telemetry**      | ADOT layer on both functions, exporting OTLP to Grafana Cloud through a bundled collector config; credential from Secrets Manager by dynamic reference                                                                                                 |
 | **Alarms**         | Seven, into an SNS topic, each carrying what it means; a forecast budget alarm alongside                                                                                                                                                               |
-| **Tests**          | 100, covering the synthesised template and the handlers' decision-making                                                                                                                                                                               |
+| **Tests**          | 166, covering the synthesised template and the handlers' decision-making                                                                                                                                                                               |
 
 **Hole cards are private because of where they are published**, not because a client declines to
 draw them. Both sides build channel paths from `playerChannel` in `@poker/core`, because the two
@@ -40,18 +40,15 @@ sitting on a namespace those channels never touch.
    so one account hammering a route returns 429 to every player at every table. HTTP APIs have no
    per-caller quota — usage plans are a REST API feature — so the fix, when somebody is actually
    connected, is a WAF rate rule at roughly $5 a month for a web ACL.
-4. The shared `table` namespace is **authenticated but not authorized**. A signed-in account holding
-   a table id could stream a stranger's game. Not exploitable — nothing connects — and it must be
-   closed before anything does.
-5. **No dashboards.** Alarms are code and the export is wired, but a Grafana dashboard is console
+4. **No dashboards.** Alarms are code and the export is wired, but a Grafana dashboard is console
    work against a live stack — and there is nothing to point one at yet. The CloudWatch metrics
    scrape that fills in what OTel cannot see (API Gateway 5xx, DynamoDB throttles, cold starts) is
    also console work, and is the half of the picture worth doing first.
-6. **No custom domain.** The API answers on its generated `execute-api` hostname, which is fine
+5. **No custom domain.** The API answers on its generated `execute-api` hostname, which is fine
    until the day the stack is replaced and the hostname changes with it.
-7. **No federated sign-in.** Apple and Google need real client ids and secrets, and App Store
+6. **No federated sign-in.** Apple and Google need real client ids and secrets, and App Store
    guideline 4.8 requires Sign in with Apple alongside any other third-party provider.
-8. Nothing in the app points at any of it.
+7. Nothing in the app points at any of it.
 
 ---
 
