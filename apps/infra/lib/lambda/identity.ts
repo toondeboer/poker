@@ -16,6 +16,8 @@
  * that check, and the duplicate is the one that eventually gets it wrong.
  */
 
+import { log } from "./logging";
+
 export type Claims = Record<string, string | number | boolean | string[]>;
 
 export type Identity = {
@@ -60,7 +62,10 @@ export const tokenUse = (claims: Claims | undefined): string | null =>
   typeof claims?.token_use === "string" ? claims.token_use : null;
 
 type Event = {
-  requestContext?: { authorizer?: { jwt?: { claims?: Claims } } };
+  requestContext?: {
+    requestId?: string;
+    authorizer?: { jwt?: { claims?: Claims } };
+  };
 };
 
 type Response = {
@@ -77,18 +82,31 @@ const json = (statusCode: number, body: unknown): Response => ({
 
 export const handler = async (event: Event): Promise<Response> => {
   const claims = event.requestContext?.authorizer?.jwt?.claims;
+  const requestId = event.requestContext?.requestId;
 
   // Refused, not absorbed. An access token here would answer 200 with no email
   // and look like a person who has none.
   if (tokenUse(claims) === "access") {
+    log("warn", "wrong token type", { requestId, tokenUse: "access" });
     return json(400, {
       error: "send the id token, not the access token",
     });
   }
 
   const identity = identityFrom(claims);
-  // 401 rather than 500: the authorizer should have made this unreachable, and
-  // if it somehow did not, the honest answer is that we do not know who this
-  // is — not that something broke.
-  return identity ? json(200, identity) : json(401, { error: "unauthenticated" });
+  if (!identity) {
+    log("error", "authorized request with no subject", { requestId });
+    // 401 rather than 500: the authorizer should have made this unreachable,
+    // and if it somehow did not, the honest answer is that we do not know who
+    // this is — not that something broke.
+    return json(401, { error: "unauthenticated" });
+  }
+  // The line the alarm descriptions tell you to search by. Without one, "the
+  // action handler is erroring — check the logs for the account in the line"
+  // is an instruction pointing at nothing.
+  log("info", "identified", {
+    requestId,
+    accountId: identity.accountId,
+  });
+  return json(200, identity);
 };
