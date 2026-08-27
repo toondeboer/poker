@@ -134,6 +134,15 @@ Mobile releases are batched on a short-lived branch per version, not shipped str
     dependency bumps. Docs and Dependabot may be **pushed straight to `main` without a PR** — they
     can't change a binary, and a PR for a typo fix is ceremony. (Everything touching `apps/mobile`
     or `packages/core` still goes through review.)
+  - **The one exception: web copy that describes an unreleased app targets the release branch.**
+    The rule above exists so web *fixes* aren't held hostage to App Store review. It does not
+    follow that a landing page advertising features nobody can download yet should go to `main`,
+    where Vercel deploys it immediately. Point that PR at `release/<version>` instead and it goes
+    live exactly when the release does — the RC merge at cutting step 8 is the deploy — instead of
+    sitting open on a promise to remember. 1.2.0's website PR (#155) was held open this way for
+    weeks before being retargeted. The cost is web files in the mobile RC diff, which is noise and
+    nothing more: `apps/web` cannot change a binary. **A web fix still goes straight to `main`** —
+    this is only for copy that would be lying until the store catches up.
   - **Dependabot targets `main`, and that's correct** — don't set `target-branch` in
     `.github/dependabot.yml` to redirect it. Two reasons: a per-version branch is deleted at ship
     time, so the pin goes stale every cycle and errors in between; and `target-branch` only
