@@ -127,6 +127,8 @@ Two decisions in it are structural rather than incidental:
 
 `ROADMAP.md` carries what must be closed before anything connects to it — the shared channel is
 authenticated but not yet authorized, and the action handler has no storage or publishing wired up.
+[`apps/infra/README.md`](./apps/infra/README.md) is the plan for the rest: how the app will call it,
+what observability is built on, how environments and deploys work, and the order it gets built in.
 
 ## Platform-coupling map
 

@@ -120,6 +120,14 @@ are removed from this file when a release is cut rather than accumulating as ✅
   unexercised — the loopback transport has one clock and no network, so it can prove the wiring and
   nothing about the behaviour. Budget the ~10–12 manual rows scoped for this when a transport lands.
 
+## Backend: the plan
+
+The architecture, the observability design, environments and deploys, the cost model and the build
+order are in [`apps/infra/README.md`](./apps/infra/README.md). Decided: an **HTTP API + Lambda** for
+requests with AppSync Events for push, **OpenTelemetry to Grafana Cloud** with CloudWatch scraped
+for what OTel cannot see from inside a function, **two stacks in one account** deployed by GitHub
+Actions over OIDC, and **accounts end-to-end as the first deployable slice**.
+
 ## Backend: before anything connects to it
 
 - 🔍 **The shared `table` channel is authenticated but not authorized.** A subscriber has to be
