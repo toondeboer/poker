@@ -184,11 +184,15 @@ describe("the realtime bus", () => {
 });
 
 describe("the action handler", () => {
-  it("is the only function in the stack", () => {
-    // One Lambda, deliberately. `logRetention` used to add a second whose only
-    // job was to set a retention policy on the first one's log group; an
-    // explicit log group does it with no function at all.
-    template().resourceCountIs("AWS::Lambda::Function", 1);
+  it("shares the stack only with functions somebody wrote", () => {
+    // The thing this is guarding is not the count — it is that no Lambda got
+    // here by accident. `logRetention` used to add one whose entire job was to
+    // call PutRetentionPolicy on another function's log group; an explicit log
+    // group does that with no function at all.
+    template().resourceCountIs("Custom::LogRetention", 0);
+    // Two: the action handler, and the identity route that proves the API
+    // chain works. Update this deliberately when a third is written.
+    template().resourceCountIs("AWS::Lambda::Function", 2);
   });
 
   it("is the only thing that can publish an event", () => {
