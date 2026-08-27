@@ -19,6 +19,10 @@ platform-tagged heading (e.g. `## [1.1.3] - 2026-07-20 — Android`) when you cu
   Signing out or deleting an account lets go of the players it had claimed, so nobody is left linked
   to an account that no longer exists — and if one ever is, it can still be unlinked rather than
   being stuck for good.
+- The Pro sheet lists what Pro actually buys now. It was still selling the previous version's
+  feature set — the screen where somebody decides to pay was describing an app with fewer things in
+  it than the one they had just been using, and dealing a hand, the headline of this release, was
+  missing from it entirely.
 - **Progressive bounties (Pro).** Knock somebody out and half their bounty is yours in cash — the
   other half goes onto your own head, so whoever is winning becomes the one worth beating. It is the
   format nobody can run on paper: the bounty on every head changes a dozen times an evening, and
@@ -220,9 +224,10 @@ platform-tagged heading (e.g. `## [1.1.3] - 2026-07-20 — Android`) when you cu
   stretch to the usual number of places at your chosen note size, it pays fewer places rather than
   announcing one that wins nothing. Paid places
   follow the field size by default — roughly the top fifth, the home-game convention rather than a
-  casino's tenth — and can be pinned instead. Bounties are flat and untracked: the app states the
-  per-knockout figure and players settle it between themselves at the table, since progressive
-  bounties would mean tracking eliminations live. The maths is in `@poker/core`, with the
+  casino's tenth — and can be pinned instead. Bounties are flat by default: the app states the
+  per-knockout figure and players settle it between themselves at the table. A game the app deals
+  can do better than that — see the knockout and progressive-bounty entries above. The maths is in
+  `@poker/core`, with the
   sums-to-the-pool invariant asserted across the whole realistic range of buy-ins, field sizes,
   bounties and denominations rather than at a handful of points.
   - **Rebuys and add-ons** are counted too. A rebuy is another buy-in — it grows the prize pool and
@@ -254,10 +259,11 @@ platform-tagged heading (e.g. `## [1.1.3] - 2026-07-20 — Android`) when you cu
   Winnings are never entered by hand — they come from the payout structure above, recomputed for the
   field that actually turned up rather than the one you planned for. Games played counts everyone
   who bought in, not just who cashed, so a player on a bad run still appears on the board. The board
-  ranks by wins and breaks ties predictably (podiums, then money, then fewer games). It shows prize
-  money **won**, deliberately not net profit: flat bounties change hands in cash during play and
-  can't be reconstructed at the end of the night, so a profit figure would be confidently wrong for
-  anyone in a bounty game.
+  ranks by wins and breaks ties predictably (podiums, then money, then fewer games). It shows money
+  **won**, deliberately not net profit: a bounty settled by hand changes hands in cash during play
+  and can't be reconstructed at the end of the night, so a profit figure would be confidently wrong
+  for anyone in a bounty game. Bounties from a game the app dealt *are* counted, because it watched
+  them happen.
 - `@poker/core` coverage is now measured across **every** source file and enforced by a threshold in
   CI, so a module with no test at all fails the build instead of being invisible. Coverage read 97%
   before this and was really 86% — v8 only reports files a test imports. It is now 99% statements /
