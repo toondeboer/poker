@@ -17,6 +17,11 @@ import type { BettingAction, Hand } from "@poker/core";
 import { act, isHandComplete, legalActions } from "@poker/core";
 import { log } from "./logging";
 import { createTableStore, type TableStore } from "./tableStore";
+import {
+  createPublisher,
+  eventsFor,
+  type Publisher,
+} from "./tablePublisher";
 
 export type ActionRequest = {
   tableId: string;
@@ -209,10 +214,13 @@ export const isRefusal = (value: unknown): value is Refusal =>
  * acted — one code path for state instead of two that can disagree, and the
  * thing that makes optimistic prediction on a phone safe.
  *
- * **Publishing is the one piece still missing.** The write lands and nothing
- * announces it, so today this is a table that changes in a database and on
- * nobody's screen. Said out loud in the response rather than hidden, because a
- * 200 that means "half of this worked" is worse than an error.
+ * **The write happens before the publish, and the response says whether the
+ * publish worked.** That order is the only safe one: publishing first would
+ * announce a hand that might not be stored, and every phone would then be
+ * ahead of the authority with no way to find out. The other way round, a
+ * failed publish leaves the table correct and the screens stale — which the
+ * next action or a reconnect fixes, and which the response admits to rather
+ * than reporting as a clean success.
  */
 export const handler = async (request: VerifiedRequest): Promise<Response> => {
   const started = Date.now();
@@ -267,22 +275,29 @@ export const handler = async (request: VerifiedRequest): Promise<Response> => {
     return answer(409, { status: "stale" });
   }
 
+  // Hole cards go only to the channel their owner subscribes to, and the
+  // shared view has every one of them stripped — see `eventsFor`, which is the
+  // security boundary of the whole feature.
+  const published = await publisher().send(
+    eventsFor(table.tableId, outcome.table),
+  );
+
   log("info", "action applied", {
     requestId: request.requestContext?.requestId,
     accountId: actor.playerId,
     tableId: table.tableId,
     version: outcome.table.version,
     handComplete: outcome.handComplete,
+    published,
     durationMs: Date.now() - started,
   });
 
   return answer(202, {
     status: "applied",
     version: outcome.table.version,
-    // Until the publish is wired, nothing will arrive on the channel. A client
-    // that waits for it would wait forever, and one that is told so can say
-    // something useful instead.
-    published: false,
+    // Reported rather than assumed. A client told the publish failed can ask
+    // for the table again instead of waiting for an event that is not coming.
+    published,
   });
 };
 
@@ -333,6 +348,24 @@ const tableStore = (): TableStore => {
 /** For tests, which need each case to start from a known store. */
 export const useTableStore = (replacement: TableStore | null): void => {
   store = replacement;
+};
+
+let events: Publisher | null = null;
+const publisher = (): Publisher => {
+  if (events) return events;
+  const endpoint = process.env.EVENT_API_HTTP;
+  if (!endpoint) throw new Error("EVENT_API_HTTP is not set");
+  events = createPublisher(
+    // The stack passes the bare DNS name; a scheme is what `fetch` needs.
+    endpoint.startsWith("http") ? endpoint : `https://${endpoint}`,
+    process.env.AWS_REGION ?? "",
+  );
+  return events;
+};
+
+/** For tests, so nothing here ever tries to reach AppSync. */
+export const usePublisher = (replacement: Publisher | null): void => {
+  events = replacement;
 };
 
 /**

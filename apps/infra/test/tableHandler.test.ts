@@ -1,9 +1,11 @@
 import { afterEach, describe, expect, it } from "vitest";
 import {
   handler,
+  usePublisher,
   useTableStore,
   type StoredTable,
 } from "../lib/lambda/tableAction";
+import type { Publication } from "../lib/lambda/tablePublisher";
 import {
   createSession,
   startNextHand,
@@ -28,6 +30,18 @@ type Written = {
   tableId: string;
   table: StoredTable;
   expectedVersion: number;
+};
+
+/** Captures what would have been published, and never reaches a network. */
+const publisherThatWorks = (ok = true) => {
+  const sent: Publication[][] = [];
+  usePublisher({
+    async send(publications) {
+      sent.push([...publications]);
+      return ok;
+    },
+  });
+  return sent;
 };
 
 const storeThatWorks = (initial: StoredTable | null) => {
@@ -61,7 +75,10 @@ const request = (over: {
 const parsed = (response: { body: string }) =>
   JSON.parse(response.body) as Record<string, unknown>;
 
-afterEach(() => useTableStore(null));
+afterEach(() => {
+  useTableStore(null);
+  usePublisher(null);
+});
 
 describe("who is allowed to act", () => {
   it("refuses a caller with no verified subject", async () => {
@@ -142,6 +159,7 @@ describe("acting", () => {
   it("applies it and writes it back one version on", async () => {
     const table = dealtTable();
     const writes = storeThatWorks(table);
+    publisherThatWorks();
     const response = await handler(
       request({
         sub: toAct(table),
@@ -161,6 +179,7 @@ describe("acting", () => {
     // who acted. Two paths for the same state is two things that can disagree.
     const table = dealtTable();
     storeThatWorks(table);
+    publisherThatWorks();
     const response = await handler(
       request({
         sub: toAct(table),
@@ -171,17 +190,73 @@ describe("acting", () => {
     expect(response.body).not.toContain("deck");
   });
 
-  it("admits that nothing was published, rather than implying it was", async () => {
-    // A 200 that means "half of this worked" is worse than an error.
+  it("says whether the publish worked, rather than assuming it did", async () => {
+    // A 202 that means "half of this worked" is worse than an error. A client
+    // told the publish failed can ask for the table again instead of waiting
+    // for an event that is not coming.
     const table = dealtTable();
     storeThatWorks(table);
+    publisherThatWorks(false);
     const response = await handler(
       request({
         sub: toAct(table),
         body: { action: { type: "fold" }, expectedVersion: 3 },
       }),
     );
+    expect(response.statusCode).toBe(202);
     expect(parsed(response).published).toBe(false);
+  });
+
+  it("writes before it publishes", async () => {
+    // The only safe order. Publishing first announces a hand that might not be
+    // stored, and every phone is then ahead of the authority with no way to
+    // find out.
+    const table = dealtTable();
+    const order: string[] = [];
+    useTableStore({
+      async read() {
+        return table;
+      },
+      async write() {
+        order.push("write");
+        return true;
+      },
+    });
+    usePublisher({
+      async send() {
+        order.push("publish");
+        return true;
+      },
+    });
+
+    await handler(
+      request({
+        sub: toAct(table),
+        body: { action: { type: "fold" }, expectedVersion: 3 },
+      }),
+    );
+    expect(order).toEqual(["write", "publish"]);
+  });
+
+  it("publishes nothing when the write did not land", async () => {
+    // Otherwise a stale action is announced to every phone at the table.
+    const table = dealtTable();
+    useTableStore({
+      async read() {
+        return table;
+      },
+      async write() {
+        return false;
+      },
+    });
+    const sent = publisherThatWorks();
+    await handler(
+      request({
+        sub: toAct(table),
+        body: { action: { type: "fold" }, expectedVersion: 3 },
+      }),
+    );
+    expect(sent).toEqual([]);
   });
 
   it("rejects an action from somebody whose turn it is not", async () => {
@@ -244,6 +319,7 @@ describe("a hand that plays out", () => {
     // Not a mock of the rules: the engine deals, the handler applies, and the
     // stored version walks forward one at a time.
     let table = dealtTable();
+    publisherThatWorks();
     useTableStore({
       async read() {
         return table;
