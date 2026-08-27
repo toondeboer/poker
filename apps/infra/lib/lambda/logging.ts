@@ -39,35 +39,68 @@ export const logLine = (
   level: LogLevel,
   message: string,
   fields: LogFields = {},
-): LogLine => ({ level, message, ...redact(fields) });
+): LogLine => ({
+  // Fields first, so `level` and `message` win. The other order lets a caller
+  // passing `{ level: "info" }` demote an error line out of every `level =
+  // "error"` query, which is a lie told by accident.
+  ...(redact(fields) as LogFields),
+  level,
+  message,
+});
 
 /**
- * Field names that must never reach a log, whatever anybody passes.
+ * Fragments of a field name that mean "do not log this".
  *
  * A blocklist is the weaker kind of defence and it is the right one here: the
  * fields are open-ended by design, so the alternative is a fixed schema that
- * somebody works around the first time they need to log something new. This
- * catches the names a mistake actually uses.
+ * somebody works around the first time they need to log something new.
+ *
+ * **Matched as substrings, not as whole names.** An exact list catches
+ * `token` and misses `sessionToken`, `apiKey` and `bearerToken` — which are
+ * exactly the names a mistake reaches for, because nobody writing a field
+ * called `token` needed a blocklist to know better.
  */
 const FORBIDDEN = [
-  "authorization",
+  "auth",
   "token",
-  "accesstoken",
-  "idtoken",
-  "refreshtoken",
   "password",
   "secret",
+  "credential",
   "cookie",
+  "apikey",
+  "sessionid",
   "body",
 ];
 
-const redact = (fields: LogFields): LogFields => {
-  const safe: LogFields = {};
-  for (const [key, value] of Object.entries(fields)) {
-    if (value === undefined) continue;
-    safe[key] = FORBIDDEN.includes(key.toLowerCase().replace(/[-_]/g, ""))
-      ? "[redacted]"
-      : value;
+/** How far down to look. Deep enough for anything real, bounded for anything not. */
+const MAX_DEPTH = 4;
+
+const isSensitive = (key: string): boolean => {
+  const normalised = key.toLowerCase().replace(/[-_\s]/g, "");
+  return FORBIDDEN.some((fragment) => normalised.includes(fragment));
+};
+
+/**
+ * Redact, all the way down.
+ *
+ * Top-level-only redaction is the version that reads as safe and is not: the
+ * moment somebody logs `{ request: { authorization } }` — which is the natural
+ * shape of a thing you would log while debugging — the guarantee at the top of
+ * this file stops being true.
+ */
+const redact = (value: unknown, depth = 0): unknown => {
+  if (Array.isArray(value)) {
+    return depth >= MAX_DEPTH
+      ? "[too deep]"
+      : value.map((entry) => redact(entry, depth + 1));
+  }
+  if (typeof value !== "object" || value === null) return value;
+  if (depth >= MAX_DEPTH) return "[too deep]";
+
+  const safe: Record<string, unknown> = {};
+  for (const [key, entry] of Object.entries(value)) {
+    if (entry === undefined) continue;
+    safe[key] = isSensitive(key) ? "[redacted]" : redact(entry, depth + 1);
   }
   return safe;
 };
@@ -78,8 +111,11 @@ export const log = (
   message: string,
   fields?: LogFields,
 ): void => {
-  // `console` is the only transport a Lambda has to CloudWatch, and the
-  // collector picks the same line up for Grafana.
+  // `console` is the only transport a Lambda has to CloudWatch. Grafana gets
+  // these through the CloudWatch integration rather than through the collector
+  // — the ADOT layer's collector receives OTLP, and a `console.log` is not
+  // OTLP. Two paths for two signals, which is worth knowing before wondering
+  // why a log line is in one place and a span in the other.
   // eslint-disable-next-line no-console
   console.log(JSON.stringify(logLine(level, message, fields)));
 };

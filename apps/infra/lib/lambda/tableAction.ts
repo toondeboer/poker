@@ -15,6 +15,7 @@
 
 import type { BettingAction, Hand } from "@poker/core";
 import { act, isHandComplete, legalActions } from "@poker/core";
+import { log } from "./logging";
 
 export type ActionRequest = {
   tableId: string;
@@ -218,8 +219,18 @@ export const handler = async (request: VerifiedRequest): Promise<never> => {
   const body = parseBody(request.body);
   const actor = actingPlayer(request, body.playerId);
   const table = targetTable(request, body.tableId);
-  void actor;
-  void table;
+
+  // Logged before the throw, so the first thing anybody sees after a deploy
+  // names the caller and the table rather than being an anonymous stack trace.
+  log("warn", "action received, but storage is not wired", {
+    accountId: isRefusal(actor) ? undefined : actor.playerId,
+    tableId: isRefusal(table) ? undefined : table.tableId,
+    refusal: isRefusal(actor)
+      ? actor.error
+      : isRefusal(table)
+        ? table.error
+        : undefined,
+  });
 
   throw new Error(
     "The table action handler has no storage or publishing wired up yet. " +

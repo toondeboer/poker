@@ -40,10 +40,37 @@ const env = (() => {
   return account && region ? { account, region } : undefined;
 })();
 
+/**
+ * Operational settings, from context so they are not in the repository.
+ *
+ * All optional, and every one of them **degrades to something safe and
+ * useless** rather than to something wrong: no email means alarms that fire
+ * into a topic nobody reads, no budget means no budget, and no telemetry means
+ * the collector is not attached at all. Without this block the stacks
+ * synthesised seven alarms, zero subscriptions and zero budgets — everything
+ * built and nothing switched on.
+ *
+ *     npx cdk deploy PokerBackend-dev -c alertEmail=you@example.com \
+ *       -c monthlyBudgetUsd=25 -c telemetry=true
+ */
+const alertEmail = app.node.tryGetContext("alertEmail") as string | undefined;
+const budget = app.node.tryGetContext("monthlyBudgetUsd") as
+  | string
+  | number
+  | undefined;
+const telemetry = app.node.tryGetContext("telemetry") === "true";
+const grafanaSecretName = app.node.tryGetContext("grafanaSecretName") as
+  | string
+  | undefined;
+
 for (const stage of STAGES) {
   new PokerStack(app, stackNameFor(stage), {
     env,
     settings: settingsFor(stage),
+    alertEmail,
+    monthlyBudgetUsd: budget === undefined ? undefined : Number(budget),
+    telemetry,
+    grafanaSecretName,
     description: `Accounts, groups and the multiplayer table for Poker Blinds Buzzer (${stage})`,
   });
 }

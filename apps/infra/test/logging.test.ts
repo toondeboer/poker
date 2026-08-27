@@ -45,6 +45,48 @@ describe("what must never reach a log", () => {
     expect(failures).toEqual([]);
   });
 
+  it("catches names an exact list would have missed", () => {
+    // The whole reason for matching fragments. Nobody who writes a field
+    // called `token` needed a blocklist to know better; the names that actually
+    // leak are the ones that look innocent.
+    const failures = [
+      "sessionToken",
+      "apiKey",
+      "bearerToken",
+      "clientSecret",
+      "sessionId",
+      "authHeader",
+    ].filter((key) => logLine("info", "x", { [key]: "s" })[key] !== "[redacted]");
+    expect(failures).toEqual([]);
+  });
+
+  it("redacts a credential hidden inside an object", () => {
+    // `{ request: { authorization } }` is the natural shape of something you
+    // would log while debugging, and top-level-only redaction reads as safe
+    // while letting it straight through.
+    const line = logLine("error", "failed", {
+      request: { headers: { authorization: "Bearer abc" } },
+    });
+    expect(JSON.stringify(line)).not.toContain("Bearer abc");
+  });
+
+  it("gives up rather than following something pathological all the way down", () => {
+    let nested: Record<string, unknown> = { deepest: "value" };
+    for (let level = 0; level < 20; level += 1) nested = { nested };
+    expect(JSON.stringify(logLine("info", "x", nested))).toContain("[too deep]");
+  });
+
+  it("cannot be talked out of its own level or message", () => {
+    // A caller passing `{ level: "info" }` on an error line would otherwise
+    // demote it out of every `level = "error"` query — a lie told by accident.
+    const line = logLine("error", "the real message", {
+      level: "info",
+      message: "not this",
+    } as never);
+    expect(line.level).toBe("error");
+    expect(line.message).toBe("the real message");
+  });
+
   it("refuses to log a request body at all", () => {
     // Not because a body is always sensitive, but because deciding which ones
     // are is a judgement made under time pressure by whoever adds the field.

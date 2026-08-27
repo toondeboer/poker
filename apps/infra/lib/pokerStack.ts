@@ -60,6 +60,7 @@ import { HttpLambdaIntegration } from "aws-cdk-lib/aws-apigatewayv2-integrations
 import { PLAYER_NAMESPACE, TABLE_NAMESPACE } from "@poker/core";
 import { settingsFor, type StageSettings } from "./stage";
 import { Observability, serviceMetric } from "./observability";
+import { MathExpression } from "aws-cdk-lib/aws-cloudwatch";
 import { Construct } from "constructs";
 import * as path from "node:path";
 
@@ -111,8 +112,18 @@ export function onPublish(ctx) {
 export type PokerStackProps = StackProps & {
   /** Where alarms are sent. Without it they fire into a topic nobody reads. */
   alertEmail?: string;
-  /** Dollars a month before somebody is warned. */
+  /** Dollars a month before somebody is warned. Needs an `alertEmail`. */
   monthlyBudgetUsd?: number;
+  /**
+   * Export telemetry to Grafana. **Off by default.**
+   *
+   * The collector will not start without an endpoint, so turning this on before
+   * the credential exists takes every route down with it. Deploy, create the
+   * secret, then redeploy with this on.
+   */
+  telemetry?: boolean;
+  /** Where the Grafana OTLP credential lives. Created by hand; never by CDK. */
+  grafanaSecretName?: string;
   /**
    * Which backend this is.
    *
@@ -123,6 +134,25 @@ export type PokerStackProps = StackProps & {
    */
   settings?: StageSettings;
 };
+
+/**
+ * One DynamoDB metric, for one table and one operation.
+ *
+ * **Both dimensions, always.** Without `TableName` this reads every table in
+ * the account; without `Operation` it reads none at all, because DynamoDB
+ * publishes these per-operation and CloudWatch does not aggregate across a
+ * dimension you simply left out.
+ */
+const dynamoMetric = (
+  tableName: string,
+  metricName: string,
+  operation: Operation,
+) =>
+  serviceMetric({
+    namespace: "AWS/DynamoDB",
+    metricName,
+    dimensions: { TableName: tableName, Operation: operation },
+  });
 
 export class PokerStack extends Stack {
   constructor(scope: Construct, id: string, props?: PokerStackProps) {
@@ -137,6 +167,7 @@ export class PokerStack extends Stack {
       settings,
       alertEmail: props?.alertEmail,
       monthlyBudgetUsd: props?.monthlyBudgetUsd,
+      grafanaSecretName: props?.grafanaSecretName,
     });
 
     /**
@@ -148,33 +179,52 @@ export class PokerStack extends Stack {
      * dynamic reference: resolved at deploy, so the token is in neither the
      * repository nor the synthesised template.
      */
+    const telemetryEnabled = props?.telemetry ?? false;
     const telemetryEnvironment = {
       NODE_OPTIONS: "--enable-source-maps",
-      OPENTELEMETRY_COLLECTOR_CONFIG_URI: "/var/task/collector.yaml",
-      GRAFANA_OTLP_ENDPOINT:
-        observability.grafanaCredential.secretValueFromJson("otlpEndpoint").unsafeUnwrap(),
-      GRAFANA_OTLP_AUTH:
-        observability.grafanaCredential.secretValueFromJson("otlpAuth").unsafeUnwrap(),
-      OTEL_RESOURCE_ATTRIBUTES: `deployment.environment=${settings.stage},service.namespace=poker`,
+      ...(telemetryEnabled
+        ? {
+            OPENTELEMETRY_COLLECTOR_CONFIG_URI: "/var/task/collector.yaml",
+            GRAFANA_OTLP_ENDPOINT: observability.grafanaCredential
+              .secretValueFromJson("otlpEndpoint")
+              .unsafeUnwrap(),
+            GRAFANA_OTLP_AUTH: observability.grafanaCredential
+              .secretValueFromJson("otlpAuth")
+              .unsafeUnwrap(),
+            OTEL_RESOURCE_ATTRIBUTES: `deployment.environment=${settings.stage},service.namespace=poker`,
+          }
+        : {}),
     };
 
     /**
-     * The layer, and the wrapper that starts it.
+     * The layer, the wrapper that starts it, and the switch that keeps a
+     * missing credential from taking the API down with it.
      *
-     * `INSTRUMENT_HANDLER` puts the SDK in front of the handler so HTTP and AWS
-     * SDK calls are traced without a line of code in either function. It costs
-     * roughly 50-200 ms on a cold start — which matters here more than it would
+     * **`REGULAR_HANDLER`, not `INSTRUMENT_HANDLER`.** The names invite the
+     * wrong one: `INSTRUMENT_HANDLER` is `/opt/otel-instrument`, which is the
+     * *Python* layer's wrapper. Node wants `/opt/otel-handler`, and the wrong
+     * one fails at init on every single invocation.
+     *
+     * **Off unless asked for**, because the collector refuses to start when its
+     * exporter has no endpoint — which is the state of a fresh account, and
+     * would mean the first deploy of the API returns 502 to everything until
+     * somebody notices the telemetry credential was the cause. Deploy once
+     * without, create the secret, then redeploy with `-c telemetry=true`.
+     *
+     * It costs roughly 50-200 ms on a cold start — which matters here more than
      * under steady traffic, because a table plays one evening a week and most
      * invocations *are* cold starts. **Measure it after the first deploy and
      * write the number down**; if it is bad, the fallback is dropping the layer
      * and exporting metrics and logs only.
      */
-    const adotInstrumentation = {
-      layerVersion: AdotLayerVersion.fromJavaScriptSdkLayerVersion(
-        AdotLambdaLayerJavaScriptSdkVersion.LATEST,
-      ),
-      execWrapper: AdotLambdaExecWrapper.INSTRUMENT_HANDLER,
-    };
+    const adotInstrumentation = telemetryEnabled
+      ? {
+          layerVersion: AdotLayerVersion.fromJavaScriptSdkLayerVersion(
+            AdotLambdaLayerJavaScriptSdkVersion.LATEST,
+          ),
+          execWrapper: AdotLambdaExecWrapper.REGULAR_HANDLER,
+        }
+      : undefined;
 
     /** Copies the collector's configuration in beside the bundled handler. */
     const bundleCollectorConfig = {
@@ -487,6 +537,9 @@ export class PokerStack extends Stack {
     observability.watch("ActionErrors", {
       metric: actionHandler.metricErrors({ period: Duration.minutes(5) }),
       threshold: 0,
+      // Until storage is wired this handler throws on every invocation, so any
+      // call at all alarms. That is correct rather than noisy: nothing should
+      // be calling it, and if something is, somebody should hear about it.
       meaning:
         "The action handler is throwing. Either the rules are rejecting real actions, or something broke: check the logs for the account and table in the line.",
     });
@@ -516,7 +569,11 @@ export class PokerStack extends Stack {
       meaning:
         "The API is failing before a handler runs — an authorizer, an integration, or a throttle at the gateway.",
     });
-    observability.watch("ApiThrottled", {
+    observability.watch("ApiClientErrors", {
+      // Every 4xx, not just 429: HTTP APIs publish no throttle-specific metric.
+      // So this catches a retry loop hitting the shared throttle *and* expired
+      // tokens *and* a scanner poking the public `execute-api` hostname, and
+      // says so rather than claiming to mean one of them.
       metric: serviceMetric({
         namespace: "AWS/ApiGateway",
         metricName: "4xx",
@@ -526,22 +583,37 @@ export class PokerStack extends Stack {
       threshold: 100,
       evaluationPeriods: 2,
       meaning:
-        "Sustained rejections. The throttle is shared across everybody, so one client in a retry loop can be returning 429 to every table.",
+        "Sustained 4xx. Could be a client in a retry loop hitting the shared throttle and 429ing every table, expired tokens after a client change, or somebody scanning the endpoint. The access log says which.",
     });
-    observability.watch("TableThrottled", {
-      metric: table.metricThrottledRequestsForOperations({
-        operations: [Operation.PUT_ITEM, Operation.GET_ITEM, Operation.QUERY],
+    /**
+     * Summed across operations, with the gaps filled in.
+     *
+     * CDK's `…ForOperations` helpers build metric math that **drops any
+     * timestamp missing from an operand** — and a throttle almost always hits
+     * one operation, so the sum has a hole exactly where the number was. `FILL`
+     * makes an absent operand a zero, which is what "no throttles on GetItem"
+     * actually means.
+     */
+    const acrossOperations = (metricName: string, label: string) =>
+      new MathExpression({
+        expression: "FILL(put,0) + FILL(get,0) + FILL(query,0)",
+        usingMetrics: {
+          put: dynamoMetric(table.tableName, metricName, Operation.PUT_ITEM),
+          get: dynamoMetric(table.tableName, metricName, Operation.GET_ITEM),
+          query: dynamoMetric(table.tableName, metricName, Operation.QUERY),
+        },
+        label,
         period: Duration.minutes(5),
-      }),
+      });
+
+    observability.watch("TableThrottled", {
+      metric: acrossOperations("ThrottledRequests", "Throttled"),
       threshold: 0,
       meaning:
         "On-demand DynamoDB should not throttle. If it is, something is writing far more than a poker game ever would.",
     });
     observability.watch("TableSystemErrors", {
-      metric: table.metricSystemErrorsForOperations({
-        operations: [Operation.PUT_ITEM, Operation.GET_ITEM, Operation.QUERY],
-        period: Duration.minutes(5),
-      }),
+      metric: acrossOperations("SystemErrors", "System errors"),
       threshold: 0,
       meaning:
         "DynamoDB itself is erroring. Nothing to fix here; worth knowing before a player reports it.",

@@ -180,28 +180,38 @@ npx cdk deploy PokerDeployment -c account=<account> -c region=<region>
 #    -c existingProviderArn=arn:aws:iam::<account>:oidc-provider/token.actions.githubusercontent.com
 
 # 3. Deploy dev once by hand, to see it work before CI does it.
-npx cdk deploy PokerBackend-dev -c account=<account> -c region=<region>
+npx cdk deploy PokerBackend-dev -c account=<account> -c region=<region> \
+  -c alertEmail=you@example.com -c monthlyBudgetUsd=25
 ```
+
+**Every one of those context values is optional and every one of them degrades to something safe
+and useless rather than to something wrong**: no email means alarms fire into a topic nobody reads,
+no budget means no budget, no `-c telemetry=true` means nothing is exported. Which is fine for a
+first deploy and worth turning on straight afterwards.
 
 **4. Then in Grafana Cloud** — free tier, no card:
 
 - Create a stack, open the **OpenTelemetry** tile, and generate a token. It gives you an OTLP
   endpoint (`https://otlp-gateway-prod-<zone>.grafana.net/otlp`) and an `Authorization: Basic …`
   header built from the instance id and the token.
-- Put both into the secret the stack created — its ARN is in the `GrafanaSecretArn` output:
+- Create the secret **yourself** — CDK imports it by name and never writes to it, so a deploy can
+  never overwrite the value:
 
   ```bash
-  aws secretsmanager put-secret-value --secret-id <arn> --secret-string \
+  aws secretsmanager create-secret --name poker/grafana-otlp --secret-string \
     '{"otlpEndpoint":"https://otlp-gateway-prod-<zone>.grafana.net/otlp","otlpAuth":"Basic <base64 of instanceId:token>"}'
   ```
 
-  Then redeploy, because the functions read it through a CloudFormation dynamic reference resolved
-  at deploy time. That is the trade for keeping the token out of the repository and out of the
-  synthesised template — rotating it means a deploy, not a restart.
+- **Then** redeploy with telemetry on: `npx cdk deploy PokerBackend-dev -c telemetry=true …`.
+
+  Telemetry is off until asked for, and the order matters: the collector refuses to start without
+  an endpoint, so turning it on before the secret exists would take every route down with it and
+  the cause would look like anything but a missing telemetry credential.
 
 - Add the **CloudWatch metrics scrape** for this account. OTel cannot see API Gateway 5xx, DynamoDB
   throttles, AppSync connection errors or cold starts, because all of those happen outside the
   function it lives in. Without the scrape, half the dashboard is empty for reasons nobody can see.
+  Log lines come this way too — a `console.log` is not OTLP, so the collector never sees one.
 
 **5. Then in GitHub**, under Settings:
 

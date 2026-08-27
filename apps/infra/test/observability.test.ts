@@ -11,10 +11,20 @@ const template = (): Template => {
       settings: settingsFor("prod"),
       alertEmail: "someone@example.com",
       monthlyBudgetUsd: 50,
+      telemetry: true,
     }),
   );
   return synthesised;
 };
+
+/** The same stack as it deploys the *first* time: no credential, no exporter. */
+const beforeTelemetry = (): Template =>
+  Template.fromStack(
+    new PokerStack(new App(), "PreTelemetry", {
+      settings: settingsFor("prod"),
+      alertEmail: "someone@example.com",
+    }),
+  );
 
 const alarms = () =>
   Object.values(template().findResources("AWS::CloudWatch::Alarm")).map(
@@ -104,7 +114,44 @@ describe("a stack nobody gave an address", () => {
   });
 });
 
+describe("a first deploy, before the credential exists", () => {
+  it("attaches no collector, because one without an endpoint refuses to start", () => {
+    // The failure this avoids is the worst kind: the API returns 502 to
+    // everything, and the cause is a telemetry credential nobody was thinking
+    // about. Deploy, create the secret, redeploy with telemetry on.
+    const functions = Object.values(
+      beforeTelemetry().findResources("AWS::Lambda::Function"),
+    );
+    const instrumented = functions.filter(
+      (fn) => ((fn.Properties as { Layers?: unknown[] }).Layers ?? []).length > 0,
+    );
+    expect(instrumented).toEqual([]);
+  });
+
+  it("still alarms on everything, so the switch is only about export", () => {
+    beforeTelemetry().resourceCountIs("AWS::CloudWatch::Alarm", 7);
+  });
+
+  it("asks for no secret it has not been told exists", () => {
+    const rendered = JSON.stringify(beforeTelemetry().toJSON());
+    expect(rendered).not.toContain("{{resolve:secretsmanager:");
+  });
+});
+
 describe("telemetry reaching Grafana", () => {
+  it("uses the Node wrapper, not the Python one", () => {
+    // The names invite the wrong choice: `INSTRUMENT_HANDLER` is
+    // `/opt/otel-instrument`, which is Python's. Node wants `/opt/otel-handler`,
+    // and the wrong one fails at init on every single invocation.
+    template().hasResourceProperties("AWS::Lambda::Function", {
+      Environment: Match.objectLike({
+        Variables: Match.objectLike({
+          AWS_LAMBDA_EXEC_WRAPPER: "/opt/otel-handler",
+        }),
+      }),
+    });
+  });
+
   it("instruments both functions without a line of code in either", () => {
     const functions = Object.values(
       template().findResources("AWS::Lambda::Function"),
