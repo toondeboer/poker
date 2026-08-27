@@ -16,6 +16,7 @@
 import type { BettingAction, Hand } from "@poker/core";
 import { act, isHandComplete, legalActions } from "@poker/core";
 import { log } from "./logging";
+import { createTableStore, type TableStore } from "./tableStore";
 
 export type ActionRequest = {
   tableId: string;
@@ -136,6 +137,7 @@ export type VerifiedRequest = {
   pathParameters?: Record<string, string | undefined> | null;
   body?: string | null;
   requestContext?: {
+    requestId?: string;
     authorizer?: { jwt?: { claims?: Record<string, unknown> } };
   };
 };
@@ -201,47 +203,155 @@ export const isRefusal = (value: unknown): value is Refusal =>
 /**
  * The Lambda entry point.
  *
- * **Deliberately not wired to DynamoDB or to publishing yet.** Both need a
- * deployment to exercise, and writing them blind would mean shipping the most
- * security-sensitive code in the stack with no way to run it. What exists is
- * the decision-making — {@link applyAction} and the two view functions — which
- * is testable, and is where the rules actually live.
+ * Read, decide, write under a condition, answer. **The answer is deliberately
+ * thin**: accepted or rejected, and nothing about the table. Every player
+ * learns what happened from the event on the channel, including the one who
+ * acted — one code path for state instead of two that can disagree, and the
+ * thing that makes optimistic prediction on a phone safe.
  *
- * It exists at all because the function synthesises with `Handler:
- * index.handler`: without an export, a deploy produces a Lambda that fails
- * every invocation with `Runtime.HandlerNotFound`, which is a far more
- * confusing way to discover this is unfinished than being told so.
+ * **Publishing is the one piece still missing.** The write lands and nothing
+ * announces it, so today this is a table that changes in a database and on
+ * nobody's screen. Said out loud in the response rather than hidden, because a
+ * 200 that means "half of this worked" is worse than an error.
  */
-export const handler = async (request: VerifiedRequest): Promise<never> => {
-  // Run before the throw, deliberately. These are the two checks a first
-  // deployment must not be able to skip, and putting them behind an unfinished
-  // storage call is how they end up written in a hurry the day storage lands.
+export const handler = async (request: VerifiedRequest): Promise<Response> => {
+  const started = Date.now();
   const body = parseBody(request.body);
-  const actor = actingPlayer(request, body.playerId);
-  const table = targetTable(request, body.tableId);
 
-  // Logged before the throw, so the first thing anybody sees after a deploy
-  // names the caller and the table rather than being an anonymous stack trace.
-  log("warn", "action received, but storage is not wired", {
-    accountId: isRefusal(actor) ? undefined : actor.playerId,
-    tableId: isRefusal(table) ? undefined : table.tableId,
-    refusal: isRefusal(actor)
-      ? actor.error
-      : isRefusal(table)
-        ? table.error
-        : undefined,
+  // Identity first, before anything is read or written. A token that passes
+  // the authorizer proves only that somebody is signed in — sign-up is open,
+  // so that is anybody at all.
+  const actor = actingPlayer(request, body.playerId);
+  if (isRefusal(actor)) return refuse(403, actor.error, request);
+
+  const table = targetTable(request, body.tableId);
+  if (isRefusal(table)) return refuse(400, table.error, request);
+
+  const action = body.action;
+  if (!action) return refuse(400, "no action", request);
+  const expectedVersion = body.expectedVersion;
+  if (expectedVersion === undefined) {
+    return refuse(400, "no expected version", request);
+  }
+
+  const store = tableStore();
+  const stored = await store.read(table.tableId);
+  if (!stored) return refuse(404, "no such table", request);
+
+  const outcome = applyAction(stored, {
+    tableId: table.tableId,
+    playerId: actor.playerId,
+    action,
+    expectedVersion,
   });
 
-  throw new Error(
-    "The table action handler has no storage or publishing wired up yet. " +
-      "See apps/infra/lib/lambda/tableAction.ts.",
+  if (outcome.status === "stale") {
+    // Not an error. Somebody else acted, or this is a retry of a request that
+    // already landed, and either way the client should look again.
+    return answer(409, { status: "stale", version: outcome.currentVersion });
+  }
+  if (outcome.status === "rejected") {
+    return answer(422, { status: "rejected", reason: outcome.reason });
+  }
+
+  const written = await store.write(
+    table.tableId,
+    outcome.table,
+    stored.version,
+    Date.now(),
   );
+  if (!written) {
+    // The state moved between the read and the write. The decision was made
+    // against cards that are no longer on the table, so it is not retried —
+    // see `tableStore`.
+    return answer(409, { status: "stale" });
+  }
+
+  log("info", "action applied", {
+    requestId: request.requestContext?.requestId,
+    accountId: actor.playerId,
+    tableId: table.tableId,
+    version: outcome.table.version,
+    handComplete: outcome.handComplete,
+    durationMs: Date.now() - started,
+  });
+
+  return answer(202, {
+    status: "applied",
+    version: outcome.table.version,
+    // Until the publish is wired, nothing will arrive on the channel. A client
+    // that waits for it would wait forever, and one that is told so can say
+    // something useful instead.
+    published: false,
+  });
 };
 
-/** Whatever the caller sent, treated as untrusted and never trusted for identity. */
+export type Response = {
+  statusCode: number;
+  headers: Record<string, string>;
+  body: string;
+};
+
+const answer = (statusCode: number, body: unknown): Response => ({
+  statusCode,
+  headers: { "content-type": "application/json" },
+  body: JSON.stringify(body),
+});
+
+/** Refuse, and say so in the log as well as in the response. */
+const refuse = (
+  statusCode: number,
+  reason: string,
+  request: VerifiedRequest,
+): Response => {
+  log("warn", "action refused", {
+    requestId: request.requestContext?.requestId,
+    reason,
+    statusCode,
+  });
+  return answer(statusCode, { status: "refused", reason });
+};
+
+/**
+ * The store, built once per container rather than per invocation.
+ *
+ * A DynamoDB client sets up a connection pool and resolves credentials on
+ * construction, and doing that per request adds tens of milliseconds to every
+ * one — on a warm container, for nothing.
+ */
+let store: TableStore | null = null;
+const tableStore = (): TableStore => {
+  if (store) return store;
+  const tableName = process.env.TABLE_NAME;
+  // Thrown rather than defaulted: a table name guessed from a convention is a
+  // Lambda writing hands into whatever happens to be there.
+  if (!tableName) throw new Error("TABLE_NAME is not set");
+  store = createTableStore(tableName);
+  return store;
+};
+
+/** For tests, which need each case to start from a known store. */
+export const useTableStore = (replacement: TableStore | null): void => {
+  store = replacement;
+};
+
+/**
+ * Whatever the caller sent, treated as untrusted and never trusted for
+ * identity.
+ *
+ * The action is checked only far enough to be an object with a type. The
+ * engine refuses anything it does not understand, and duplicating its rules
+ * here is how the two versions of them drift apart — the wrong kind of
+ * defence in depth, where the second layer is a worse copy of the first.
+ */
 export const parseBody = (
   body?: string | null,
-): { playerId?: string; tableId?: string } => {
+): {
+  playerId?: string;
+  tableId?: string;
+  action?: BettingAction;
+  expectedVersion?: number;
+} => {
   if (!body) return {};
   try {
     const parsed: unknown = JSON.parse(body);
@@ -254,10 +364,21 @@ export const parseBody = (
       playerId:
         typeof record.playerId === "string" ? record.playerId : undefined,
       tableId: typeof record.tableId === "string" ? record.tableId : undefined,
+      action: isAction(record.action) ? record.action : undefined,
+      expectedVersion:
+        typeof record.expectedVersion === "number" &&
+        Number.isInteger(record.expectedVersion)
+          ? record.expectedVersion
+          : undefined,
     };
   } catch {
-    // Unparseable is the same as absent for these two fields; the request will
-    // be refused further down for want of an action, not for want of JSON.
+    // Unparseable is the same as absent for these fields; the request is
+    // refused below for want of an action, not for want of JSON.
     return {};
   }
 };
+
+const isAction = (value: unknown): value is BettingAction =>
+  typeof value === "object" &&
+  value !== null &&
+  typeof (value as { type?: unknown }).type === "string";
