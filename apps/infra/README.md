@@ -16,8 +16,10 @@ blind.
 | **Cognito**        | User pool + client, email recovery, `RETAIN`                                                                                                                                                                   |
 | **DynamoDB**       | `TableV2`, single-table `pk`/`sk`, on-demand billing, PITR on, `RETAIN`, `expiresAt` TTL for live hands                                                                                                        |
 | **AppSync Events** | Cognito to connect and subscribe, **IAM to publish**. Namespaces `table` (shared) and `player` (private); the private one carries an APPSYNC_JS subscribe handler enforcing `segments[2] === ctx.identity.sub` |
-| **Action Lambda**  | `NodejsFunction`, Node 22, esbuild inlines the workspace-private `@poker/core` — the same rules run on the phone and here. Explicit `LogGroup`, one-month retention                                            |
-| **Tests**          | 32, covering the synthesised template and the handler's decision-making                                                                                                                                        |
+| **Action Lambda**  | `NodejsFunction`, Node 22, esbuild inlines the workspace-private `@poker/core` — the same rules run on the phone and here. Explicit `LogGroup`                                                                 |
+| **HTTP API**       | `GET /me` and `POST /tables/{tableId}/actions`, both behind a Cognito JWT authorizer that is the API's **default** — a route added later is authenticated because nobody did anything. Access logs, throttled  |
+| **Environments**   | `PokerBackend-dev` and `PokerBackend-prod`, plus `PokerDeployment` for the GitHub OIDC roles                                                                                                                   |
+| **Tests**          | 67, covering the synthesised template and the handlers' decision-making                                                                                                                                        |
 
 **Hole cards are private because of where they are published**, not because a client declines to
 draw them. Both sides build channel paths from `playerChannel` in `@poker/core`, because the two
@@ -26,15 +28,22 @@ sitting on a namespace those channels never touch.
 
 ## What does not exist
 
-1. **Nothing can invoke the action Lambda.** No HTTP API, no function URL, no mutation. This is the
-   largest hole and the first thing the plan below closes.
-2. The handler **throws on purpose** — no DynamoDB read/write, no publish.
-3. The shared `table` namespace is **authenticated but not authorized**. A signed-in account holding
+1. **Nothing has been deployed.** Every item below follows from that, and the four steps under
+   "Standing it up" are what changes it.
+2. The action handler **throws on purpose** — no DynamoDB read/write, no publish. `POST
+/tables/{id}/actions` therefore reaches a function that fails, which is a deliberate step up
+   from a route that did not exist.
+3. **The throttle protects the bill, not availability.** It is per route and shared by everybody,
+   so one account hammering a route returns 429 to every player at every table. HTTP APIs have no
+   per-caller quota — usage plans are a REST API feature — so the fix, when somebody is actually
+   connected, is a WAF rate rule at roughly $5 a month for a web ACL.
+4. The shared `table` namespace is **authenticated but not authorized**. A signed-in account holding
    a table id could stream a stranger's game. Not exploitable — nothing connects — and it must be
    closed before anything does.
-4. **No observability at all**: no alarms, no dashboard, no metric filters, no notification path.
-5. **No environments**: one stack, no account or region binding, no dev/prod split.
-6. **No deployment pipeline**: `cdk deploy` from a laptop.
+5. **No observability at all**: no alarms, no dashboard, no metric filters, no notification path.
+   Access logs exist; nothing reads them.
+6. **No custom domain.** The API answers on its generated `execute-api` hostname, which is fine
+   until the day the stack is replaced and the hostname changes with it.
 7. **No federated sign-in.** Apple and Google need real client ids and secrets, and App Store
    guideline 4.8 requires Sign in with Apple alongside any other third-party provider.
 8. Nothing in the app points at any of it.

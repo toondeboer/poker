@@ -44,6 +44,9 @@ import { PolicyStatement } from "aws-cdk-lib/aws-iam";
 import { Runtime } from "aws-cdk-lib/aws-lambda";
 import { NodejsFunction } from "aws-cdk-lib/aws-lambda-nodejs";
 import { LogGroup } from "aws-cdk-lib/aws-logs";
+import { HttpApi, HttpMethod, type CfnStage } from "aws-cdk-lib/aws-apigatewayv2";
+import { HttpUserPoolAuthorizer } from "aws-cdk-lib/aws-apigatewayv2-authorizers";
+import { HttpLambdaIntegration } from "aws-cdk-lib/aws-apigatewayv2-integrations";
 import { PLAYER_NAMESPACE, TABLE_NAMESPACE } from "@poker/core";
 import { settingsFor, type StageSettings } from "./stage";
 import { Construct } from "constructs";
@@ -250,6 +253,10 @@ export class PokerStack extends Stack {
       environment: {
         TABLE_NAME: table.tableName,
         EVENT_API_HTTP: Fn.getAtt(eventApi.logicalId, "Dns.Http").toString(),
+        // Without this the bundled source map is never loaded, and the first
+        // thing anybody sees after a deploy — this handler's deliberate throw
+        // — points at a minified line number.
+        NODE_OPTIONS: "--enable-source-maps",
       },
       // An explicit log group rather than `logRetention`, which is deprecated
       // and, more to the point, deploys a second Lambda whose only job is to
@@ -279,6 +286,121 @@ export class PokerStack extends Stack {
       }),
     );
 
+    /**
+     * How the app asks for something to happen.
+     *
+     * **Nothing could invoke the action handler at all before this** — no API,
+     * no function URL, no mutation. The rules ran on a phone and on a Lambda
+     * nobody could reach.
+     *
+     * The shape is deliberate, and it is the part worth understanding: **a
+     * client never learns the result of its action from this response.** The
+     * response says accepted or rejected; the *truth* arrives on the AppSync
+     * channel, the same way it reaches everybody else at the table. One code
+     * path for state instead of two that can disagree — and it is what makes
+     * optimistic prediction on the phone safe, because the phone runs the same
+     * `@poker/core` locally and the authoritative event either confirms what it
+     * predicted or replaces it.
+     *
+     * No CORS. The mobile app does not need it, and a permissive policy added
+     * "for later" is a permissive policy nobody revisits. The web timer can
+     * have one the day it needs one, scoped to its own origin.
+     */
+    const identityHandler = new NodejsFunction(this, "Identity", {
+      entry: path.join(__dirname, "lambda", "identity.ts"),
+      runtime: Runtime.NODEJS_22_X,
+      memorySize: 256,
+      timeout: Duration.seconds(5),
+      logGroup: new LogGroup(this, "IdentityLogs", {
+        retention: settings.logRetention,
+        removalPolicy: RemovalPolicy.DESTROY,
+      }),
+      // Bundling a source map does nothing on its own — Node ignores it unless
+      // told to load it, so without this every stack trace reads
+      // `index.js:1:24310` and the map is dead weight in the artefact.
+      environment: { NODE_OPTIONS: "--enable-source-maps" },
+      bundling: { minify: true, sourceMap: true, target: "node22" },
+    });
+
+    /**
+     * Verified before a handler ever runs.
+     *
+     * API Gateway checks the signature, the issuer, the audience and the expiry
+     * and hands the decoded claims to the function. A handler that parsed the
+     * `Authorization` header itself would be duplicating that, and the
+     * duplicate is the one that eventually gets it wrong.
+     */
+    const authorizer = new HttpUserPoolAuthorizer("Authorizer", userPool, {
+      userPoolClients: [userPoolClient],
+    });
+
+    const api = new HttpApi(this, "Api", {
+      apiName: `${this.stackName}-api`,
+      description: "Requests in. Everything else comes back over AppSync.",
+      // **Default, not per-route.** A route added later is authenticated
+      // because nobody did anything, and making one public has to be a
+      // deliberate `authorizer: new HttpNoneAuthorizer()`. Fail closed is only
+      // worth anything when it is the thing that happens by default.
+      defaultAuthorizer: authorizer,
+    });
+
+    api.addRoutes({
+      path: "/me",
+      methods: [HttpMethod.GET],
+      integration: new HttpLambdaIntegration("IdentityRoute", identityHandler),
+    });
+
+    api.addRoutes({
+      path: "/tables/{tableId}/actions",
+      methods: [HttpMethod.POST],
+      integration: new HttpLambdaIntegration("ActionRoute", actionHandler),
+    });
+
+    /**
+     * Access logs, and a ceiling.
+     *
+     * The log line names the caller's `sub`, which is what turns "something is
+     * erroring" into "this account, this route, this request id". It carries no
+     * headers and no body: the `Authorization` header is a bearer token, and a
+     * log that contains one is a credential store nobody is treating as one.
+     *
+     * The throttle is not capacity planning — a home poker app does not need
+     * 10,000 requests a second, and the number exists so that a client stuck in
+     * a retry loop costs a rejection rather than a bill.
+     *
+     * **It is per route, shared by everybody**, which is the honest limitation:
+     * one account hammering `/tables/{id}/actions` returns 429 to every player
+     * at every table, so it protects the bill and not availability. HTTP APIs
+     * have no per-caller quota — usage plans are a REST API feature — so the
+     * fix when it is needed is a WAF rate rule keyed on IP or on the caller,
+     * which costs about $5 a month for a web ACL. Not worth it before anybody
+     * has connected; worth knowing before somebody wonders why one bad client
+     * took the table down.
+     */
+    const accessLogs = new LogGroup(this, "ApiAccessLogs", {
+      retention: settings.logRetention,
+      removalPolicy: RemovalPolicy.DESTROY,
+    });
+    const stage = api.defaultStage!.node.defaultChild as CfnStage;
+    stage.accessLogSettings = {
+      destinationArn: accessLogs.logGroupArn,
+      format: JSON.stringify({
+        requestId: "$context.requestId",
+        route: "$context.routeKey",
+        method: "$context.httpMethod",
+        status: "$context.status",
+        latencyMs: "$context.responseLatency",
+        integrationStatus: "$context.integrationStatus",
+        // Who, not what they sent.
+        accountId: "$context.authorizer.claims.sub",
+      }),
+    };
+    stage.defaultRouteSettings = {
+      throttlingRateLimit: 50,
+      throttlingBurstLimit: 100,
+    };
+
+    new CfnOutput(this, "ApiUrl", { value: api.apiEndpoint });
     new CfnOutput(this, "Stage", { value: settings.stage });
     new CfnOutput(this, "UserPoolId", { value: userPool.userPoolId });
     new CfnOutput(this, "UserPoolClientId", {

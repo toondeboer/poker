@@ -63,8 +63,15 @@ export const applyAction = (
     return { status: "rejected", reason: "the hand is already complete" };
   }
   if (legal.playerId !== request.playerId) {
-    // Checked here as well as inside the engine, because this is the boundary
-    // where the id comes from a token rather than from our own state.
+    // Whose turn it is. Checked here as well as inside the engine because the
+    // engine's version throws, and a rejected action is an ordinary thing that
+    // deserves an answer rather than a stack trace.
+    //
+    // **This is not an authorization check** — it says the *named* player is to
+    // act, not that the caller is that player. See {@link actingPlayer}, which
+    // is the check that matters and does not live here on purpose: this
+    // function decides what an action does, and who is allowed to send one is
+    // a question about a request.
     return {
       status: "rejected",
       reason: `it is ${legal.playerId}'s turn`,
@@ -123,6 +130,73 @@ export const privateView = (
   return seat ? { playerId, hole: seat.hole } : null;
 };
 
+/** What API Gateway hands over once it has verified the token. */
+export type VerifiedRequest = {
+  pathParameters?: Record<string, string | undefined> | null;
+  body?: string | null;
+  requestContext?: {
+    authorizer?: { jwt?: { claims?: Record<string, unknown> } };
+  };
+};
+
+export type Refusal = { error: string };
+
+/**
+ * Which player this request is allowed to act as.
+ *
+ * **The single most important line in this file.** A token that passes the
+ * authorizer only proves somebody is signed in — sign-up is open, so that is
+ * anybody at all. Without this, a stranger holding a table id could fold
+ * somebody else's hand, and the engine would apply it happily: it checks that
+ * the *claimed* player is to act, and the claim would be a lie.
+ *
+ * The player id **is** the Cognito subject. Not a field in the body, not a
+ * header — the one value in the request the caller cannot choose, because API
+ * Gateway put it there after verifying a signature. A body field that
+ * disagrees is not reconciled or preferred; it is refused, because a request
+ * asking to act as somebody else is not a request with a typo in it.
+ */
+export const actingPlayer = (
+  request: VerifiedRequest,
+  claimedPlayerId?: string,
+): { playerId: string } | Refusal => {
+  const sub = request.requestContext?.authorizer?.jwt?.claims?.sub;
+  if (typeof sub !== "string" || sub.length === 0) {
+    return { error: "unauthenticated" };
+  }
+  if (claimedPlayerId !== undefined && claimedPlayerId !== sub) {
+    return { error: "you cannot act for another player" };
+  }
+  return { playerId: sub };
+};
+
+/**
+ * Which table this request is about.
+ *
+ * **The path, never the body.** They are two places to say the same thing, and
+ * whenever there are two, something eventually reads the wrong one: a rate
+ * limit or an authorizer keyed on `{tableId}` would be guarding a table the
+ * request is not touching, and the access log would name it wrongly for good
+ * measure. A body that disagrees is refused rather than ignored — silently
+ * preferring one is how the two drift apart in the first place.
+ */
+export const targetTable = (
+  request: VerifiedRequest,
+  bodyTableId?: string,
+): { tableId: string } | Refusal => {
+  const tableId = request.pathParameters?.tableId;
+  if (typeof tableId !== "string" || tableId.length === 0) {
+    return { error: "no table" };
+  }
+  if (bodyTableId !== undefined && bodyTableId !== tableId) {
+    return { error: "the table in the body is not the table in the path" };
+  }
+  return { tableId };
+};
+
+export const isRefusal = (value: unknown): value is Refusal =>
+  typeof value === "object" && value !== null && "error" in value;
+
 /**
  * The Lambda entry point.
  *
@@ -137,9 +211,42 @@ export const privateView = (
  * every invocation with `Runtime.HandlerNotFound`, which is a far more
  * confusing way to discover this is unfinished than being told so.
  */
-export const handler = async (): Promise<never> => {
+export const handler = async (request: VerifiedRequest): Promise<never> => {
+  // Run before the throw, deliberately. These are the two checks a first
+  // deployment must not be able to skip, and putting them behind an unfinished
+  // storage call is how they end up written in a hurry the day storage lands.
+  const body = parseBody(request.body);
+  const actor = actingPlayer(request, body.playerId);
+  const table = targetTable(request, body.tableId);
+  void actor;
+  void table;
+
   throw new Error(
     "The table action handler has no storage or publishing wired up yet. " +
       "See apps/infra/lib/lambda/tableAction.ts.",
   );
+};
+
+/** Whatever the caller sent, treated as untrusted and never trusted for identity. */
+export const parseBody = (
+  body?: string | null,
+): { playerId?: string; tableId?: string } => {
+  if (!body) return {};
+  try {
+    const parsed: unknown = JSON.parse(body);
+    // An array is an object to `typeof`, and a body of `[]` is not a request.
+    if (typeof parsed !== "object" || parsed === null || Array.isArray(parsed)) {
+      return {};
+    }
+    const record = parsed as Record<string, unknown>;
+    return {
+      playerId:
+        typeof record.playerId === "string" ? record.playerId : undefined,
+      tableId: typeof record.tableId === "string" ? record.tableId : undefined,
+    };
+  } catch {
+    // Unparseable is the same as absent for these two fields; the request will
+    // be refused further down for want of an action, not for want of JSON.
+    return {};
+  }
 };
