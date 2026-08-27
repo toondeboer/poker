@@ -190,11 +190,12 @@ are removed from this file when a release is cut rather than accumulating as ✅
 
 ## Website and store copy — written, waiting on the release
 
-- 🚧 **PR #155 must not merge until 1.2.0 is live in both stores.** Pushing to `main` deploys the
-  site, and the page now advertises payouts, the chop, the leaderboard, groups and sharing — none of
-  which is downloadable yet. This is a deliberate exception to the "web goes to `main` so it isn't
-  held hostage to App Store review" rule: that rule exists so *fixes* ship freely, not so the site
-  can describe an app that does not exist. Merge it alongside the submission.
+- 🚧 **PR #155 now targets `release/1.2.0`, so it ships when the app does.** The page advertises
+  payouts, the chop, the leaderboard, groups, dealing a hand and sharing — none of it downloadable
+  yet — and pushing to `main` deploys the site immediately. Retargeting means the RC merge at
+  cutting step 8 is the deploy, which removes the standing promise to remember to merge it
+  "alongside the submission". Recorded as a carve-out in CLAUDE.md; a web *fix* still goes straight
+  to `main`.
   - The landing page also gains a **Contact** link, which closes the old question about the contact
     address: `poker.blinds.buzzer@gmail.com` is right, and it lived in exactly one place
     (`privacy-policy/page.tsx`). Both pages now read one shared constant.
