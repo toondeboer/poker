@@ -43,8 +43,9 @@ import {
 import { PolicyStatement } from "aws-cdk-lib/aws-iam";
 import { Runtime } from "aws-cdk-lib/aws-lambda";
 import { NodejsFunction } from "aws-cdk-lib/aws-lambda-nodejs";
-import { LogGroup, RetentionDays } from "aws-cdk-lib/aws-logs";
+import { LogGroup } from "aws-cdk-lib/aws-logs";
 import { PLAYER_NAMESPACE, TABLE_NAMESPACE } from "@poker/core";
+import { settingsFor, type StageSettings } from "./stage";
 import { Construct } from "constructs";
 import * as path from "node:path";
 
@@ -93,9 +94,22 @@ export function onPublish(ctx) {
 }
 `;
 
+export type PokerStackProps = StackProps & {
+  /**
+   * Which backend this is.
+   *
+   * Optional so the tests and a bare `cdk synth` still work — they default to
+   * the *strict* end, because a settings mistake that makes prod behave like
+   * dev deletes data, and one that makes dev behave like prod merely costs a
+   * manual cleanup.
+   */
+  settings?: StageSettings;
+};
+
 export class PokerStack extends Stack {
-  constructor(scope: Construct, id: string, props?: StackProps) {
+  constructor(scope: Construct, id: string, props?: PokerStackProps) {
     super(scope, id, props);
+    const settings = props?.settings ?? settingsFor("prod");
 
     /**
      * Who you are.
@@ -126,7 +140,11 @@ export class PokerStack extends Stack {
       // Losing the user pool loses every account and every link between an
       // account and a player. Nothing about a stack update should be able to
       // do that by accident.
-      removalPolicy: RemovalPolicy.RETAIN,
+      removalPolicy: settings.dataRemovalPolicy,
+      // Prod refuses to be deleted at all until somebody turns this off on
+      // purpose — `RETAIN` saves the rows, and this saves the identities they
+      // are keyed by.
+      deletionProtection: settings.deletionProtection,
     });
 
     const userPoolClient = new UserPoolClient(this, "MobileClient", {
@@ -160,8 +178,10 @@ export class PokerStack extends Stack {
       billing: Billing.onDemand(),
       // A season of game nights cannot be retyped. Both of these are about
       // that, not about uptime.
-      pointInTimeRecoverySpecification: { pointInTimeRecoveryEnabled: true },
-      removalPolicy: RemovalPolicy.RETAIN,
+      pointInTimeRecoverySpecification: {
+        pointInTimeRecoveryEnabled: settings.pointInTimeRecovery,
+      },
+      removalPolicy: settings.dataRemovalPolicy,
       // Live table state is worth keeping only while a hand is being played.
       timeToLiveAttribute: "expiresAt",
     });
@@ -235,7 +255,10 @@ export class PokerStack extends Stack {
       // and, more to the point, deploys a second Lambda whose only job is to
       // call PutRetentionPolicy on the first one's log group.
       logGroup: new LogGroup(this, "TableActionLogs", {
-        retention: RetentionDays.ONE_MONTH,
+        retention: settings.logRetention,
+        // Logs are always disposable, in both stages: what they are worth is
+        // debugging the thing that just happened, and the retention above is
+        // what decides how long that lasts.
         removalPolicy: RemovalPolicy.DESTROY,
       }),
       bundling: {
@@ -256,6 +279,7 @@ export class PokerStack extends Stack {
       }),
     );
 
+    new CfnOutput(this, "Stage", { value: settings.stage });
     new CfnOutput(this, "UserPoolId", { value: userPool.userPoolId });
     new CfnOutput(this, "UserPoolClientId", {
       value: userPoolClient.userPoolClientId,

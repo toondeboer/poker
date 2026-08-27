@@ -1,0 +1,150 @@
+# Deploying the backend, without an AWS key existing anywhere.
+#
+# GitHub mints a short-lived OIDC token, AWS exchanges it for temporary
+# credentials, and the role it assumes can do exactly one thing: assume the
+# roles `cdk bootstrap` created. There is no secret to leak, rotate, or print
+# into a log — see apps/infra/lib/deploymentStack.ts.
+#
+# **None of this runs until somebody has bootstrapped the account and deployed
+# `PokerDeployment` by hand.** Until then the jobs below are skipped for want of
+# the variables they need, which is the honest failure: a workflow that tried
+# anyway would fail every run with a credentials error and teach everyone to
+# ignore it.
+
+name: Infra
+
+on:
+  pull_request:
+    paths:
+      - "apps/infra/**"
+      - "packages/core/**"
+      - ".github/workflows/infra.yml"
+  push:
+    branches: [main]
+    paths:
+      - "apps/infra/**"
+      - "packages/core/**"
+  # Prod is never automatic. It is this, with an environment somebody approves.
+  workflow_dispatch:
+    inputs:
+      stage:
+        description: Which backend to deploy
+        required: true
+        default: dev
+        type: choice
+        options: [dev, prod]
+
+concurrency:
+  # Per stage, not per branch: two deploys to the same stack at once is a
+  # CloudFormation error and a bad afternoon.
+  group: infra-${{ github.event.inputs.stage || 'dev' }}
+  cancel-in-progress: false
+
+permissions:
+  id-token: write
+  contents: read
+  pull-requests: write
+
+jobs:
+  # What a pull request gets: the diff, and nothing that changes anything.
+  diff:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+
+      # Synthesising needs no credentials at all, which is the point: this
+      # much always runs, even before the account exists.
+      - name: Synthesise
+        run: npm run synth -w @poker/infra
+
+      - name: Assume the dev deploy role
+        if: vars.AWS_ACCOUNT_ID != ''
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: arn:aws:iam::${{ vars.AWS_ACCOUNT_ID }}:role/poker-github-deploy-dev
+          aws-region: ${{ vars.AWS_REGION }}
+
+      - name: What would change
+        if: vars.AWS_ACCOUNT_ID != ''
+        working-directory: apps/infra
+        run: |
+          npx cdk diff PokerBackend-dev \
+            -c account=${{ vars.AWS_ACCOUNT_ID }} \
+            -c region=${{ vars.AWS_REGION }} \
+            2>&1 | tee diff.txt
+
+      - name: Say so on the pull request
+        if: vars.AWS_ACCOUNT_ID != ''
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const diff = fs.readFileSync('apps/infra/diff.txt', 'utf8');
+            // A diff longer than this is not going to be read in a comment
+            // anyway, and GitHub rejects the request over 65536.
+            const body = diff.length > 60000
+              ? diff.slice(0, 60000) + '\n…truncated. Run `cdk diff` locally for the rest.'
+              : diff;
+            await github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: '### `cdk diff` — dev\n\n```\n' + body + '\n```',
+            });
+
+  # Merging to main deploys dev. Nothing deploys prod without a person.
+  deploy-dev:
+    if: github.event_name == 'push' || github.event.inputs.stage == 'dev'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+      - name: Assume the dev deploy role
+        if: vars.AWS_ACCOUNT_ID != ''
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: arn:aws:iam::${{ vars.AWS_ACCOUNT_ID }}:role/poker-github-deploy-dev
+          aws-region: ${{ vars.AWS_REGION }}
+      - name: Deploy
+        if: vars.AWS_ACCOUNT_ID != ''
+        working-directory: apps/infra
+        run: |
+          npx cdk deploy PokerBackend-dev --require-approval never \
+            -c account=${{ vars.AWS_ACCOUNT_ID }} \
+            -c region=${{ vars.AWS_REGION }}
+
+  # Production. The `environment` is the gate — it is what the prod role's
+  # trust policy checks for, so this job cannot reach production without the
+  # approval configured on that environment in GitHub.
+  deploy-prod:
+    if: github.event_name == 'workflow_dispatch' && github.event.inputs.stage == 'prod'
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+      - name: Assume the prod deploy role
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: arn:aws:iam::${{ vars.AWS_ACCOUNT_ID }}:role/poker-github-deploy-prod
+          aws-region: ${{ vars.AWS_REGION }}
+      - name: Deploy
+        working-directory: apps/infra
+        run: |
+          npx cdk deploy PokerBackend-prod --require-approval never \
+            -c account=${{ vars.AWS_ACCOUNT_ID }} \
+            -c region=${{ vars.AWS_REGION }}

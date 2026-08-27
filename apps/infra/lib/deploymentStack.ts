@@ -1,0 +1,140 @@
+/**
+ * How GitHub Actions is allowed to deploy, without anybody holding an AWS key.
+ *
+ * **Deployed once, by hand, before anything else works** — a role that deploys
+ * a stack cannot be created by the stack it deploys, so this is its own stack
+ * and its own bootstrap step. After that, nothing in this repo ever needs a
+ * long-lived credential: Actions presents a short-lived GitHub token, AWS
+ * exchanges it for temporary credentials, and there is no secret to leak,
+ * rotate, or accidentally print into a log.
+ *
+ * ## The permission it grants, and why it is not `AdministratorAccess`
+ *
+ * A CDK deploy does not need broad rights of its own. `cdk bootstrap` already
+ * created four roles in the account with exactly the permissions a deploy
+ * needs, and the CLI assumes them. So all this role can do is **assume those
+ * four** — which means the blast radius of a stolen GitHub token is "can run a
+ * CDK deploy", not "owns the account".
+ *
+ * ## Why dev and prod are two roles, not one
+ *
+ * They trust different things. Dev trusts any branch of this repository, so a
+ * pull request can be deployed and tried. **Prod trusts only a GitHub
+ * Environment**, which is a gate a human opens — so reaching production takes
+ * an approval that lives in GitHub rather than a branch name anybody can
+ * create.
+ */
+
+import { Stack, type StackProps } from "aws-cdk-lib";
+import {
+  OpenIdConnectProvider,
+  Role,
+  WebIdentityPrincipal,
+  PolicyStatement,
+  Effect,
+  type IOpenIdConnectProvider,
+} from "aws-cdk-lib/aws-iam";
+import { CfnOutput } from "aws-cdk-lib";
+import { Construct } from "constructs";
+import { STAGES, type Stage } from "./stage";
+
+/** GitHub's OIDC issuer. Fixed by GitHub; not a setting. */
+const GITHUB_ISSUER = "https://token.actions.githubusercontent.com";
+
+/**
+ * The qualifier `cdk bootstrap` uses unless told otherwise.
+ *
+ * It appears in the bootstrap role names, which is the only reason this is
+ * here. Change it only if you bootstrapped with `--qualifier`.
+ */
+const BOOTSTRAP_QUALIFIER = "hnb659fds";
+
+export type DeploymentStackProps = StackProps & {
+  /** `owner/repo`, the only repository these roles will ever trust. */
+  repository: string;
+  /**
+   * An existing OIDC provider to reuse.
+   *
+   * There can be **one** GitHub provider per AWS account, and creating a second
+   * fails the deploy with `EntityAlreadyExists`. If the account already has one
+   * — from another project, or a previous attempt — pass its ARN rather than
+   * deleting the provider that something else is relying on.
+   */
+  existingProviderArn?: string;
+};
+
+export class DeploymentStack extends Stack {
+  constructor(scope: Construct, id: string, props: DeploymentStackProps) {
+    super(scope, id, props);
+
+    const provider: IOpenIdConnectProvider = props.existingProviderArn
+      ? OpenIdConnectProvider.fromOpenIdConnectProviderArn(
+          this,
+          "GitHubProvider",
+          props.existingProviderArn,
+        )
+      : new OpenIdConnectProvider(this, "GitHubProvider", {
+          url: GITHUB_ISSUER,
+          // Who the token is *for*. Without this, a token minted for some other
+          // audience would be accepted, which is most of the point of the
+          // condition below.
+          clientIds: ["sts.amazonaws.com"],
+        });
+
+    for (const stage of STAGES) {
+      const role = new Role(this, `Deploy${titleCase(stage)}`, {
+        roleName: `poker-github-deploy-${stage}`,
+        description: `GitHub Actions deploys the ${stage} backend`,
+        assumedBy: new WebIdentityPrincipal(
+          provider.openIdConnectProviderArn,
+          {
+            StringEquals: {
+              [`${issuerHost()}:aud`]: "sts.amazonaws.com",
+            },
+            // The subject is what actually restricts this. `StringLike` because
+            // the dev pattern ends in a wildcard over refs; prod does not, and
+            // an exact string in a `StringLike` is still exact.
+            StringLike: {
+              [`${issuerHost()}:sub`]: subjectFor(props.repository, stage),
+            },
+          },
+        ),
+      });
+
+      // Everything a CDK deploy needs, and nothing else: the four roles
+      // `cdk bootstrap` created, which already carry the real permissions.
+      role.addToPolicy(
+        new PolicyStatement({
+          effect: Effect.ALLOW,
+          actions: ["sts:AssumeRole"],
+          resources: [
+            `arn:aws:iam::${this.account}:role/cdk-${BOOTSTRAP_QUALIFIER}-*-role-${this.account}-*`,
+          ],
+        }),
+      );
+
+      new CfnOutput(this, `Deploy${titleCase(stage)}RoleArn`, {
+        value: role.roleArn,
+        description: `Put this in the ${stage} workflow's role-to-assume`,
+      });
+    }
+  }
+}
+
+const issuerHost = (): string => GITHUB_ISSUER.replace("https://", "");
+
+const titleCase = (value: string): string =>
+  value.charAt(0).toUpperCase() + value.slice(1);
+
+/**
+ * Which GitHub identities may assume the role for a stage.
+ *
+ * Dev: any ref of this repository, so a branch can be deployed and tried.
+ * Prod: **only** the `production` GitHub Environment, which is a gate a person
+ * opens — an approval that lives in GitHub rather than a branch name anybody
+ * with push access can create.
+ */
+export const subjectFor = (repository: string, stage: Stage): string =>
+  stage === "prod"
+    ? `repo:${repository}:environment:production`
+    : `repo:${repository}:*`;
