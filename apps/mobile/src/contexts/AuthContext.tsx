@@ -9,17 +9,73 @@ import {
 } from "react";
 import { validateCredentials, type Account, type CredentialError } from "@poker/core";
 import { stubAuthProvider } from "@/src/services/stubAuthProvider";
+import { createCognitoAuthProvider, CognitoFailure } from "@/src/services/cognitoAuthProvider";
+import { backendConfig } from "@/src/services/backendConfig";
 import { logger } from "@/src/utils/logger";
 
+/**
+ * Cognito when there is a backend, the development stub when there is not.
+ *
+ * One line, decided once, at module load — which is the whole point of the
+ * `AuthProvider` seam. Nothing above this knows which it got, and the stub is
+ * not a fallback that could be reached accidentally in production: it is
+ * reached when `backendConfig` is `null`, and `backendConfig` being null is
+ * also what keeps the account screens unreachable.
+ */
+const auth = backendConfig
+  ? createCognitoAuthProvider(backendConfig)
+  : stubAuthProvider;
+
+/** Whether accounts are real. The screens read this to know what to say. */
+export const accountsAreReal = backendConfig !== null;
+
 /** What went wrong, in words a form can show. */
-export type AuthError = CredentialError | "failed";
+export type AuthError =
+  | CredentialError
+  | "failed"
+  | "network"
+  | "email-taken"
+  | "email-unknown"
+  | "credentials-wrong"
+  | "code-wrong"
+  | "code-expired"
+  | "not-confirmed"
+  | "password-weak"
+  | "too-many-attempts"
+  | "session-expired";
+
+/**
+ * Turn whatever was thrown into something a form can show.
+ *
+ * A `CognitoFailure` already carries a reason somebody can act on — "that
+ * email is taken" is an instruction, "that didn't work" is a shrug — and
+ * anything else is genuinely unknown and says so.
+ */
+const reasonFor = (error: unknown): AuthError =>
+  error instanceof CognitoFailure && error.reason !== "unknown"
+    ? (error.reason as AuthError)
+    : "failed";
 
 type AuthContextValue = {
   account: Account | null;
   isLoading: boolean;
   /** True while a sign-up, sign-in or deletion is in flight. */
   busy: boolean;
-  signUp: (email: string, password: string) => Promise<AuthError | null>;
+  /**
+   * Create an account.
+   *
+   * Resolves to `"needs-confirmation"` when the provider emailed a code and is
+   * waiting for it — which is not a failure and not a signed-in session, and
+   * the screen has to be able to tell the difference.
+   */
+  signUp: (
+    email: string,
+    password: string,
+  ) => Promise<AuthError | "needs-confirmation" | null>;
+  /** Hand back the code from the email. */
+  confirmSignUp: (email: string, code: string) => Promise<AuthError | null>;
+  /** Send the code again. */
+  resendCode: (email: string) => Promise<AuthError | null>;
   signIn: (email: string, password: string) => Promise<AuthError | null>;
   /** Resolves to an error when it failed, so the screen can say so. */
   signOut: () => Promise<AuthError | null>;
@@ -31,9 +87,10 @@ const AuthContext = createContext<AuthContextValue | null>(null);
 /**
  * Who this device is signed in as.
  *
- * Wired to an {@link AuthProvider}, which is a **development stub** today —
- * see `stubAuthProvider`. Nothing in the app links to the account screens
- * because of that, and the seam means swapping in Cognito changes one import.
+ * Wired to an {@link AuthProvider}: **Cognito when `backendConfig` names a user
+ * pool, and a development stub when it does not.** It does not today, because
+ * the stack has never been deployed — which is also why nothing in the app
+ * links to the account screens.
  *
  * Credentials are checked locally before anything is attempted, so an obviously
  * wrong address is refused without a round trip and the form can say which
@@ -48,7 +105,7 @@ export function AuthProviderContext({
 
   useEffect(() => {
     let active = true;
-    stubAuthProvider
+    auth
       .currentAccount()
       .then((current) => {
         if (active) setAccount(current);
@@ -80,7 +137,7 @@ export function AuthProviderContext({
         return null;
       } catch (error) {
         logger.error("Account request failed:", error);
-        return "failed";
+        return reasonFor(error);
       } finally {
         setBusy(false);
       }
@@ -88,19 +145,65 @@ export function AuthProviderContext({
     [],
   );
 
-  // Wrapped rather than passed as `stubAuthProvider.signUp`: an unbound method
-  // only works because the stub happens to reference itself by name, and the
-  // whole point of the seam is that a class-based provider drops in without
-  // anything above it changing. That one would throw on its first call.
+  // Wrapped rather than passed as `auth.signUp`: an unbound method only works
+  // because the provider happens to reference itself by name, and the whole
+  // point of the seam is that a class-based provider drops in without anything
+  // above it changing. That one would throw on its first call.
   const signUp = useCallback(
-    (email: string, password: string) =>
-      attempt(email, password, (e, p) => stubAuthProvider.signUp(e, p)),
-    [attempt],
+    async (
+      email: string,
+      password: string,
+    ): Promise<AuthError | "needs-confirmation" | null> => {
+      const invalid = validateCredentials(email, password);
+      if (invalid) return invalid;
+      setBusy(true);
+      try {
+        const result = await auth.signUp(email.trim(), password);
+        if (result.status === "needs-confirmation") return "needs-confirmation";
+        setAccount(result.account);
+        return null;
+      } catch (error) {
+        logger.error("Sign-up failed:", error);
+        return reasonFor(error);
+      } finally {
+        setBusy(false);
+      }
+    },
+    [],
+  );
+
+  /** Wraps a call that neither signs in nor signs out — just succeeds or does not. */
+  const plain = useCallback(
+    async (run: () => Promise<void>, what: string): Promise<AuthError | null> => {
+      setBusy(true);
+      try {
+        await run();
+        return null;
+      } catch (error) {
+        logger.error(`Failed to ${what}:`, error);
+        return reasonFor(error);
+      } finally {
+        setBusy(false);
+      }
+    },
+    [],
+  );
+
+  const confirmSignUp = useCallback(
+    (email: string, code: string) =>
+      plain(() => auth.confirmSignUp(email.trim(), code.trim()), "confirm"),
+    [plain],
+  );
+
+  const resendCode = useCallback(
+    (email: string) =>
+      plain(() => auth.resendCode(email.trim()), "resend the code"),
+    [plain],
   );
 
   const signIn = useCallback(
     (email: string, password: string) =>
-      attempt(email, password, (e, p) => stubAuthProvider.signIn(e, p), {
+      attempt(email, password, (e, p) => auth.signIn(e, p), {
         // A length rule governs the password being *created*, not the one
         // being presented. Enforcing it here locks out anyone whose existing
         // password is shorter than today's minimum.
@@ -126,7 +229,7 @@ export function AuthProviderContext({
         return null;
       } catch (error) {
         logger.error(`Failed to ${what}:`, error);
-        return "failed";
+        return reasonFor(error);
       } finally {
         setBusy(false);
       }
@@ -135,18 +238,38 @@ export function AuthProviderContext({
   );
 
   const signOut = useCallback(
-    () => end(() => stubAuthProvider.signOut(), "sign out"),
+    () => end(() => auth.signOut(), "sign out"),
     [end],
   );
 
   const deleteAccount = useCallback(
-    () => end(() => stubAuthProvider.deleteAccount(), "delete the account"),
+    () => end(() => auth.deleteAccount(), "delete the account"),
     [end],
   );
 
   const value = useMemo<AuthContextValue>(
-    () => ({ account, isLoading, busy, signUp, signIn, signOut, deleteAccount }),
-    [account, isLoading, busy, signUp, signIn, signOut, deleteAccount],
+    () => ({
+      account,
+      isLoading,
+      busy,
+      signUp,
+      signIn,
+      confirmSignUp,
+      resendCode,
+      signOut,
+      deleteAccount,
+    }),
+    [
+      account,
+      isLoading,
+      busy,
+      signUp,
+      signIn,
+      confirmSignUp,
+      resendCode,
+      signOut,
+      deleteAccount,
+    ],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

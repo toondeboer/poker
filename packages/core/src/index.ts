@@ -123,7 +123,33 @@ export {
   isValidEmail,
   validateCredentials,
 } from "./auth/account";
-export type { Account, AuthProvider, CredentialError } from "./auth/account";
+export type {
+  Account,
+  AuthProvider,
+  CredentialError,
+  SignUpResult,
+} from "./auth/account";
+export type {
+  CognitoConfig,
+  CognitoCall,
+  CognitoTokens,
+  CognitoError,
+} from "./auth/cognito";
+export {
+  signUpCall,
+  confirmSignUpCall,
+  resendCodeCall,
+  signInCall,
+  refreshCall,
+  signOutCall,
+  deleteAccountCall,
+  errorFrom,
+  tokensFrom,
+  needsRefresh,
+  accountFromIdToken,
+  decodeBase64Url,
+  EXPIRY_SLACK_MS,
+} from "./auth/cognito";
 
 // Monetization
 export type {

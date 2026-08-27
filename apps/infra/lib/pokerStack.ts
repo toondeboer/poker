@@ -275,7 +275,22 @@ export class PokerStack extends Stack {
       userPool,
       // A phone cannot keep a secret, so it does not get one.
       generateSecret: false,
-      authFlows: { userSrp: true },
+      /**
+       * Both flows, and the app uses the second.
+       *
+       * `userSrp` proves knowledge of a password without sending it, and needs
+       * big-integer maths — which means a client library, which on React Native
+       * means native modules, which means every dev-client binary is invalid
+       * until rebuilt and every release binary is bigger. For accounts holding
+       * a poker leaderboard that is a bad trade, so the app uses
+       * `userPassword`: the password crosses inside the TLS session rather than
+       * not at all.
+       *
+       * SRP stays enabled because switching to it later means adding a library
+       * and changing one file — nothing above `AuthProvider` knows which is in
+       * use — and because a future federated or hosted-UI flow may want it.
+       */
+      authFlows: { userSrp: true, userPassword: true },
       // No `oAuth` block: the app signs in through SRP, not a hosted UI. CDK
       // fills an omitted `callbackUrls` with `https://example.com`, which is
       // inert without a hosted-UI domain and a perfectly valid redirect target

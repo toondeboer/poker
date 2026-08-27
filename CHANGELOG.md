@@ -23,6 +23,13 @@ platform-tagged heading (e.g. `## [1.1.3] - 2026-07-20 — Android`) when you cu
   feature set — the screen where somebody decides to pay was describing an app with fewer things in
   it than the one they had just been using, and dealing a hand, the headline of this release, was
   missing from it entirely.
+- Accounts can now talk to a real server. The sign-in screens are wired to Amazon Cognito, including
+  the step nobody thinks about until they meet it: creating an account sends a code to your email
+  and does **not** sign you in until it comes back, so the screen asks for it rather than saying
+  "welcome" to somebody who is not logged in. Every refusal says what to do about it — that address
+  is already taken, that code has expired, wait a minute and try again — rather than "that didn't
+  work". **Nothing is deployed, so nothing links to any of it yet**, and until a backend exists the
+  screens run against the same development stub as before.
 - **Progressive bounties (Pro).** Knock somebody out and half their bounty is yours in cash — the
   other half goes onto your own head, so whoever is winning becomes the one worth beating. It is the
   format nobody can run on paper: the bounty on every head changes a dozen times an evening, and
