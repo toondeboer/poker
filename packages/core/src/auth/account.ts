@@ -92,9 +92,36 @@ export const validateCredentials = (
 export interface AuthProvider {
   /** The account this device is signed in as, or `null`. */
   currentAccount(): Promise<Account | null>;
-  signUp(email: string, password: string): Promise<Account>;
+  /**
+   * Create an account. **Does not necessarily sign anybody in** — see
+   * {@link SignUpResult}.
+   */
+  signUp(email: string, password: string): Promise<SignUpResult>;
   signIn(email: string, password: string): Promise<Account>;
+  /**
+   * Hand back the code that was emailed.
+   *
+   * Required rather than optional, so that every provider has to answer the
+   * question "how does somebody prove they own this address?" — a provider
+   * that needs no proof resolves immediately and says so.
+   */
+  confirmSignUp(email: string, code: string): Promise<void>;
+  /** Send the code again, for the one that never arrived. */
+  resendCode(email: string): Promise<void>;
   signOut(): Promise<void>;
   /** Delete the account and everything the server holds for it. */
   deleteAccount(): Promise<void>;
 }
+
+/**
+ * What happened when somebody signed up.
+ *
+ * A union rather than an `Account`, because the two outcomes are genuinely
+ * different and collapsing them produces one specific bug: an account is
+ * created, the screen says "welcome", and nothing is signed in — because the
+ * provider is still waiting for a code from an email. Cognito behaves exactly
+ * this way, and a return type of `Account` gives a caller no way to notice.
+ */
+export type SignUpResult =
+  | { status: "signed-in"; account: Account }
+  | { status: "needs-confirmation"; email: string };

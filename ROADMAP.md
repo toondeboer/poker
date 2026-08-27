@@ -90,12 +90,22 @@ are removed from this file when a release is cut rather than accumulating as ✅
 
 ## Accounts — screens built, entry point deliberately absent
 
-- 🚧 **Nothing links to `/account`.** The screens are written and work, against a **development
-  stub that signs nobody up**: it records an email on the device and hands back an id, with no
+- 🚧 **Nothing links to `/account`, because nothing is deployed.** The screens are written and
+  wired to Cognito — sign up, the emailed confirmation code, sign in, refresh, global sign-out and
+  account deletion, with every Cognito error mapped to something a person can act on. They run
+  against a **development stub that signs nobody up**: it records an email on the device and hands back an id, with no
   server, no verification, no password checked. Shipping a route to that would be shipping a login
   that logs nobody in, so the Settings row goes in when the backend does — the screen is reachable
-  by URL for development only. Deleting the stub and pointing `AuthContext` at Cognito is a
-  one-import change; that is what the `AuthProvider` seam is for.
+  by URL for development only. **The switch is one constant**: `backendConfig` in
+  `apps/mobile/src/services/backendConfig.ts` is `null`, and filling it in from the CDK outputs
+  turns the whole thing on.
+  - **No client library.** Cognito's user-pool API is JSON over HTTPS and the calls an app needs
+    are unauthenticated in the SigV4 sense, so the request shaping lives in `@poker/core` with
+    tests and the app supplies `fetch`. The alternative, `aws-amplify`, brings native modules —
+    invalidating every dev-client binary and growing a release binary — to buy SRP. The trade
+    taken instead is `USER_PASSWORD_AUTH`: the password crosses inside TLS rather than not at all.
+    Switching to SRP later means adding a library and changing one file, because nothing above
+    `AuthProvider` knows which is in use.
 - ✅ Claiming is built, on the leaderboard's player rows rather than the account screen — that is
   where the names are. Invisible while signed out, so it degrades to nothing rather than to
   something broken. **Delete this line when 1.2.0 is cut.**

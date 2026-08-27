@@ -1,5 +1,5 @@
 // src/services/stubAuthProvider.ts
-import type { Account, AuthProvider } from "@poker/core";
+import type { Account, AuthProvider, SignUpResult } from "@poker/core";
 import { asyncStorageAdapter } from "@/src/services/storageAdapter";
 import { generateId } from "@/src/utils/id";
 
@@ -51,10 +51,22 @@ export const stubAuthProvider: AuthProvider = {
     }
   },
 
-  async signUp(email: string): Promise<Account> {
+  async signUp(email: string): Promise<SignUpResult> {
     const account: Account = { id: generateId(), email: email.trim() };
     await asyncStorageAdapter.setItem(STORAGE_KEY, JSON.stringify(account));
-    return account;
+    // No address is verified here because none is sent anywhere, so the stub
+    // answers the confirmation question with "already done". A real provider
+    // says `needs-confirmation`, and the screen handles both.
+    return { status: "signed-in", account };
+  },
+
+  async confirmSignUp(): Promise<void> {
+    // Nothing to confirm: nothing was ever emailed.
+  },
+
+  async resendCode(): Promise<void> {
+    // As above. Silently doing nothing is right here and would be a bug in a
+    // real provider, which is why the interface makes every provider answer.
   },
 
   async signIn(email: string): Promise<Account> {
@@ -63,7 +75,9 @@ export const stubAuthProvider: AuthProvider = {
     // make the screens look tested when they are not.
     const existing = await stubAuthProvider.currentAccount();
     if (existing && existing.email === email.trim()) return existing;
-    return stubAuthProvider.signUp(email, "");
+    const created = await stubAuthProvider.signUp(email, "");
+    if (created.status !== "signed-in") throw new Error("unreachable");
+    return created.account;
   },
 
   async signOut(): Promise<void> {

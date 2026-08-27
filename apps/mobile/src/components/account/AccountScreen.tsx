@@ -24,11 +24,28 @@ import { Button } from "@/src/components/ui/Button";
 import { Card, CardContent, CardHeader } from "@/src/components/ui/Card";
 import { TextField } from "@/src/components/ui/TextField";
 
-/** What to put under the form when something is refused. */
+/**
+ * What to put under the form when something is refused.
+ *
+ * Every one of these is something a person can *do* something about, which is
+ * the whole reason they are distinct: "that email is taken" is an instruction
+ * and "that didn't work" is a shrug. The generic message is the last resort,
+ * not the default.
+ */
 const MESSAGE: Record<AuthError, string> = {
   "email-empty": "Enter the email address you want to use.",
   "email-malformed": "That doesn't look like an email address.",
   "password-too-short": `Use at least ${MIN_PASSWORD_LENGTH} characters.`,
+  "email-taken": "There's already an account with that address. Sign in instead.",
+  "email-unknown": "No account with that address. Create one below.",
+  "credentials-wrong": "That email and password don't match an account.",
+  "code-wrong": "That code isn't right. Check the email and try again.",
+  "code-expired": "That code has expired. Send a new one.",
+  "not-confirmed": "Confirm your email first — enter the code we sent you.",
+  "password-weak": `Use at least ${MIN_PASSWORD_LENGTH} characters, with a letter and a number.`,
+  "too-many-attempts": "Too many tries. Wait a minute and try again.",
+  "session-expired": "You've been signed out. Sign in again.",
+  network: "Couldn't reach the server. Check your connection.",
   failed: "That didn't work. Try again in a moment.",
 };
 
@@ -49,8 +66,17 @@ export function AccountScreen() {
   const insets = useSafeAreaInsets();
   const { width } = useWindowDimensions();
   const isTablet = isTabletWidth(width);
-  const { account, isLoading, busy, signUp, signIn, signOut, deleteAccount } =
-    useAuth();
+  const {
+    account,
+    isLoading,
+    busy,
+    signUp,
+    signIn,
+    confirmSignUp,
+    resendCode,
+    signOut,
+    deleteAccount,
+  } = useAuth();
   const { releaseAllFor } = useLeaderboard();
 
   /**
@@ -69,6 +95,9 @@ export function AccountScreen() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<AuthError | null>(null);
+  /** True between creating an account and the code from the email coming back. */
+  const [awaitingCode, setAwaitingCode] = useState(false);
+  const [code, setCode] = useState("");
 
   // Never leave the previous user's address and a filled password field on
   // screen after they sign out — that is one tap from restoring their session
@@ -79,6 +108,8 @@ export function AccountScreen() {
     setEmail("");
     setPassword("");
     setError(null);
+    setAwaitingCode(false);
+    setCode("");
   }
 
   const scrollViewRef = useRef<ScrollView>(null);
@@ -100,8 +131,43 @@ export function AccountScreen() {
     topInset: insets.top,
   });
 
-  const run = async (action: typeof signUp) => {
-    setError(await action(email, password));
+  /**
+   * Sign in, which either works or says why.
+   */
+  const attemptSignIn = async () => {
+    setError(await signIn(email, password));
+  };
+
+  /**
+   * Sign up, which has a third outcome the other calls do not.
+   *
+   * A provider that emails a code has not signed anybody in yet, and saying
+   * "welcome" at this point is the bug the union in `SignUpResult` exists to
+   * prevent — an account is created, the screen looks successful, and nothing
+   * is logged in.
+   */
+  const attemptSignUp = async () => {
+    const result = await signUp(email, password);
+    if (result === "needs-confirmation") {
+      setError(null);
+      setAwaitingCode(true);
+      return;
+    }
+    setError(result);
+  };
+
+  const attemptConfirm = async () => {
+    const failure = await confirmSignUp(email, code);
+    if (failure) {
+      setError(failure);
+      return;
+    }
+    // Confirmed, not signed in: Cognito wants the password again. Doing it
+    // here rather than making somebody type it a second time on a screen that
+    // already has it.
+    setAwaitingCode(false);
+    setCode("");
+    setError(await signIn(email, password));
   };
 
 
@@ -149,6 +215,55 @@ export function AccountScreen() {
         />
       </CardContent>
     </Card>
+  ) : awaitingCode ? (
+    <Card>
+      <CardHeader icon="mail-open-outline" title="Check your email" />
+      <CardContent>
+        <Text style={styles.blurb}>
+          {`We sent a code to ${email}. Enter it to finish setting up your account.`}
+        </Text>
+        <TextField
+          label="Code"
+          value={code}
+          onChangeText={(next) => {
+            setCode(next);
+            setError(null);
+          }}
+          autoCapitalize="none"
+          autoCorrect={false}
+          keyboardType="number-pad"
+          textContentType="oneTimeCode"
+          placeholder="123456"
+        />
+        {error ? <Text style={styles.error}>{MESSAGE[error]}</Text> : null}
+        <Button
+          label="Confirm"
+          icon="checkmark"
+          onPress={() => void attemptConfirm()}
+          disabled={busy || code.trim().length === 0}
+        />
+        <Button
+          label="Send it again"
+          variant="secondary"
+          icon="refresh"
+          onPress={() => void resendCode(email).then(setError)}
+          disabled={busy}
+        />
+        {/* A way back that is not the OS back gesture. Somebody who typed the
+            wrong address is otherwise stuck on a screen waiting for an email
+            that will never arrive. */}
+        <Button
+          label="Use a different address"
+          variant="ghost"
+          onPress={() => {
+            setAwaitingCode(false);
+            setCode("");
+            setError(null);
+          }}
+          disabled={busy}
+        />
+      </CardContent>
+    </Card>
   ) : (
     <Card>
       <CardHeader icon="person-circle" title="Sign in" />
@@ -187,14 +302,14 @@ export function AccountScreen() {
         <Button
           label="Sign in"
           icon="log-in-outline"
-          onPress={() => void run(signIn)}
+          onPress={() => void attemptSignIn()}
           disabled={busy}
         />
         <Button
           label="Create an account"
           variant="secondary"
           icon="person-add-outline"
-          onPress={() => void run(signUp)}
+          onPress={() => void attemptSignUp()}
           disabled={busy}
         />
       </CardContent>
