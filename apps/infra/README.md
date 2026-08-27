@@ -147,6 +147,54 @@ boundary in the system, all at once, on a first deployment.
 
 ---
 
+## Standing it up
+
+Four steps, in order. **All of them need credentials, so all of them are yours.** After the last
+one, nothing in this repository ever needs an AWS key again.
+
+```bash
+# 1. Bootstrap the account. Once per account+region, and CDK will tell you to
+#    do this if you forget.
+cd apps/infra
+npx cdk bootstrap aws://<account>/<region>
+
+# 2. Deploy the roles GitHub Actions will assume. A role that deploys a stack
+#    cannot be created by the stack it deploys, so this one goes by hand.
+npx cdk deploy PokerDeployment -c account=<account> -c region=<region>
+
+#    If the account already has a GitHub OIDC provider — there can only be one —
+#    reuse it instead of failing on EntityAlreadyExists:
+#    -c existingProviderArn=arn:aws:iam::<account>:oidc-provider/token.actions.githubusercontent.com
+
+# 3. Deploy dev once by hand, to see it work before CI does it.
+npx cdk deploy PokerBackend-dev -c account=<account> -c region=<region>
+```
+
+**4. Then in GitHub**, under Settings:
+
+- **Variables** (not secrets — neither is sensitive, and a variable is visible in the log, which is
+  what you want when a deploy goes to the wrong place): `AWS_ACCOUNT_ID` and `AWS_REGION`.
+- **Environments → `production`**, with a required reviewer. That environment is not decoration:
+  the prod role's trust policy only accepts a token whose subject is
+  `repo:<owner>/<repo>:environment:production`, so **the approval is what makes the credentials
+  issuable at all**. Without the environment, the prod deploy cannot authenticate, gate or no gate.
+
+Until `AWS_ACCOUNT_ID` is set, the workflow's AWS steps skip themselves and only `cdk synth` runs.
+That is deliberate: a workflow that tried anyway would fail every run on credentials and teach
+everybody to ignore a red tick.
+
+### After that
+
+|                                      |                                                                                    |
+| ------------------------------------ | ---------------------------------------------------------------------------------- |
+| A pull request touching `apps/infra` | `cdk synth`, then `cdk diff` against dev posted as a comment                       |
+| A merge to `main`                    | deploys dev                                                                        |
+| Production                           | **Actions → Infra → Run workflow → prod**, which waits on the environment approval |
+
+Prod is never automatic. It holds the leaderboards.
+
+---
+
 ## Build order
 
 Each step is a PR, CI-checked, and each is deployable on its own.
