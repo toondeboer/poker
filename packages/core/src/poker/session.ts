@@ -13,6 +13,8 @@
  */
 
 import type { RandomSource } from "./cards";
+import { runBounties } from "../payouts/progressiveBounties";
+import type { BountyMode } from "../payouts/payoutStructure";
 import type { BettingAction } from "./bettingRound";
 import {
   type Hand,
@@ -332,6 +334,47 @@ export const knockoutTally = (session: GameSession): Map<string, number> => {
 };
 
 /**
+ * Is every exit accounted for?
+ *
+ * A stored game saved before the app tracked knockouts has busts with no record
+ * of who made them, which is fine for a flat bounty — the ones it does know
+ * about still pay the right amount — and **not** fine for a progressive one,
+ * where an unrecorded bust leaves that head fully loaded and stops the whole
+ * chain after it escalating. The amounts come out materially wrong with nothing
+ * to show for it, so the app has to be able to ask.
+ */
+export const knockoutsFullyRecorded = (session: GameSession): boolean =>
+  session.knockouts.length === session.bustOrder.length;
+
+/**
+ * Bounty money that reached nobody.
+ *
+ * Only ever non-zero in a progressive game: a pot everyone eligible folded out
+ * of leaves the bounty on that player's head with nowhere to go, and in
+ * progressive that head may have grown considerably. It is returned rather than
+ * quietly dropped because somebody at the table is otherwise left counting the
+ * cash and finding it short with no explanation.
+ */
+export const unclaimedBounty = (
+  session: GameSession,
+  bounty: number,
+  mode: BountyMode = "flat",
+): number => {
+  if (mode !== "progressive") {
+    return session.knockouts.filter((knockout) => knockout.by.length === 0)
+      .length * bounty;
+  }
+  return runBounties({
+    playerIds: session.seats.map((seat) => seat.playerId),
+    startingBounty: bounty,
+    knockouts: session.knockouts,
+    winnerId: isSessionComplete(session)
+      ? survivors(session.seats)[0]?.playerId
+      : undefined,
+  }).unclaimed;
+};
+
+/**
  * Knockouts and bounty money per player.
  *
  * **A bounty is one bounty however many people were in on it.** Two players
@@ -349,21 +392,46 @@ export const knockoutTally = (session: GameSession): Map<string, number> => {
 export const knockoutCounts = (
   session: GameSession,
   bounty: number,
+  mode: BountyMode = "flat",
 ): KnockoutCount[] => {
   const counts = new Map<string, number>();
   const money = new Map<string, number>();
 
   for (const knockout of session.knockouts) {
     if (knockout.by.length === 0) continue;
+    for (const playerId of knockout.by) {
+      counts.set(playerId, (counts.get(playerId) ?? 0) + 1);
+    }
+    if (mode === "progressive") continue;
     const share = Math.floor(bounty / knockout.by.length);
     const remainder = bounty - share * knockout.by.length;
     knockout.by.forEach((playerId, index) => {
-      counts.set(playerId, (counts.get(playerId) ?? 0) + 1);
       money.set(
         playerId,
         (money.get(playerId) ?? 0) + share + (index < remainder ? 1 : 0),
       );
     });
+  }
+
+  if (mode === "progressive") {
+    // Progressive money cannot be counted per elimination, because what an
+    // elimination is worth depends on everything that happened before it. The
+    // ledger replays the evening in order, which is the only way to get it
+    // right — and the reason this needs a game the app dealt.
+    const ledger = runBounties({
+      playerIds: session.seats.map((seat) => seat.playerId),
+      startingBounty: bounty,
+      knockouts: session.knockouts,
+      winnerId: isSessionComplete(session)
+        ? survivors(session.seats)[0]?.playerId
+        : undefined,
+    });
+    for (const [playerId, amount] of Object.entries(ledger.cash)) {
+      money.set(playerId, amount);
+      // The winner collects the bounty on their own head without knocking
+      // anybody out with it, so they can have money and no count.
+      if (!counts.has(playerId)) counts.set(playerId, 0);
+    }
   }
 
   return Array.from(counts.entries()).map(([playerId, count]) => ({
@@ -417,6 +485,8 @@ export const toGameResult = (
     now: number;
     buyIn: number;
     bounty: number;
+    /** Flat unless the table agreed otherwise. */
+    bountyMode?: BountyMode;
     winningsByPlace: readonly number[];
   },
 ): GameResult => {
@@ -427,7 +497,7 @@ export const toGameResult = (
     buyIn: params.buyIn,
     bounty: params.bounty,
     now: params.now,
-    knockouts: knockoutCounts(session, params.bounty),
+    knockouts: knockoutCounts(session, params.bounty, params.bountyMode),
   });
 };
 

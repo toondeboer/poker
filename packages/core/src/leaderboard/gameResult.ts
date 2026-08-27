@@ -226,7 +226,11 @@ export const createGameResult = (params: {
   ...(params.knockouts
     ? {
         knockouts: [...params.knockouts]
-          .filter((entry) => entry.count > 0)
+          // Nothing to record is *both* nothing: a progressive winner collects
+          // the bounty from their own head without knocking anybody out with
+          // it, so they legitimately have money and a count of zero. Filtering
+          // on the count alone threw that money away.
+          .filter((entry) => entry.count > 0 || entry.bounty > 0)
           // Ordered, so a stored result reads the same way twice.
           .sort(
             (a, b) =>

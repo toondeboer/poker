@@ -19,6 +19,16 @@ platform-tagged heading (e.g. `## [1.1.3] - 2026-07-20 — Android`) when you cu
   Signing out or deleting an account lets go of the players it had claimed, so nobody is left linked
   to an account that no longer exists — and if one ever is, it can still be unlinked rather than
   being stuck for good.
+- **Progressive bounties (Pro).** Knock somebody out and half their bounty is yours in cash — the
+  other half goes onto your own head, so whoever is winning becomes the one worth beating. It is the
+  format nobody can run on paper: the bounty on every head changes a dozen times an evening, and
+  nobody is keeping that straight between hands. The app deals the game, so it keeps the ledger —
+  who is worth what, who collected it, and the last player standing takes the bounty on their own
+  head, which is theirs and came out of their own buy-in. The odd unit of an odd split goes into the
+  pocket rather than onto the head, so somebody is handed real money tonight. If a pot goes unclaimed
+  the bounty on that head has nowhere to go, and the app says so at the end rather than leaving
+  somebody to count the cash and find it short. Flat bounties are unchanged and stay the default:
+  one number, understood by everyone, settled at the table.
 - **A game the app dealt now knows who knocked whom out (Pro).** A bounty is money that changes
   hands the moment somebody busts, a dozen times over an evening, usually while the host isn't
   watching — which is why a game written down afterwards has never tracked it, and why the

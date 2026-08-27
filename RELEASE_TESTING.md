@@ -318,6 +318,9 @@ Set `FORCE_PRO_IN_DEV` in `PremiumContext.tsx` to see the unlocked screen withou
 | **Chop sheet**: shares add up to the money still on the table, and nobody is below the guarantee | ⬜ | ⬜ |
 | Chop sheet: the chip fields are usable with the keypad up, and the sheet header clears the status bar | ⬜ | ⬜ |
 | Chop button is hidden when only **one** place is paid — there is nothing to split | ⬜ | ⬜ |
+| **Bounty type** appears only once a bounty is set, and disappears again at 0 | ⬜ | ⬜ |
+| Choosing **Progressive** renames the field to "Starting bounty" and the summary row to "Starting at N a head, growing" — the screen must not say "per knockout" anywhere while it is on | ⬜ | ⬜ |
+| **Share payouts** on a progressive tournament sends the progressive line, not the flat one | ⬜ | ⬜ |
 
 ---
 
@@ -393,6 +396,10 @@ the table can follow what is happening from across it.
 | The Save button doesn't offer itself twice — **save, go back, reopen the screen**, and it still says saved rather than offering to record the same night again | ⬜ | ⬜ |
 | Switching leaderboard group mid-game and then saving is **refused**, with a message saying which board to switch back to | ⬜ | ⬜ |
 | Rebuys or add-ons left set on the Payouts screen don't inflate what a dealt game records — this game has no way to buy back in | ⬜ | ⬜ |
+| **Knockouts reach the board.** Play a game out with a bounty set, save it, and the standings show a KO count and the bounty money in the total | ⬜ | ⬜ |
+| A knockout on a **split pot** credits both players one KO each, and the bounty between them — not one each | ⬜ | ⬜ |
+| **Progressive**: the winner's bounty money is visibly more than the flat amount would have been, because they collect their own grown head at the end | ⬜ | ⬜ |
+| A hand where everyone folds and the busted player's pot goes unclaimed shows the "went unclaimed" line on the game-over card rather than silently losing the money | ⬜ | ⬜ |
 | Readable across a table — card faces, stacks and whose turn it is, at arm's length | ⬜ | ⬜ |
 | Tablet: the table is capped and centred rather than running the full width | ⬜ | ⬜ |
 

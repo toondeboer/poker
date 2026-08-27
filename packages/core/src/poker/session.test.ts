@@ -10,6 +10,8 @@ import {
   isSessionComplete,
   knockoutCounts,
   knockoutTally,
+  knockoutsFullyRecorded,
+  unclaimedBounty,
   startNextHand,
   toGameResult,
 } from "./session";
@@ -543,5 +545,160 @@ describe("who knocked whom out", () => {
     expect(result.knockouts).toEqual([
       { playerId: game.knockouts[0].by[0], count: 1, bounty: 5 },
     ]);
+  });
+});
+
+describe("progressive bounties", () => {
+  const game = {
+    ...createSession({ players: ["a", "b", "c", "d"], startingStack: 100 }),
+    seats: [
+      { playerId: "a", stack: 400 },
+      { playerId: "b", stack: 0 },
+      { playerId: "c", stack: 0 },
+      { playerId: "d", stack: 0 },
+    ],
+    knockouts: [
+      { playerId: "d", by: ["c"] },
+      { playerId: "c", by: ["b"] },
+      { playerId: "b", by: ["a"] },
+    ],
+    bustOrder: ["d", "c", "b"],
+  };
+
+  it("pays a growing bounty rather than the same one every time", () => {
+    // "c" takes 10 off "d" and is worth 15; "b" then collects 8 from a head
+    // that started at 10. That escalation is the whole feature, and no flat
+    // count can express it.
+    const progressive = knockoutCounts(game, 10, "progressive");
+    const byPlayer = new Map(progressive.map((k) => [k.playerId, k]));
+    expect(byPlayer.get("c")?.bounty).toBe(5);
+    expect(byPlayer.get("b")?.bounty).toBe(8);
+  });
+
+  it("still counts one knockout each, however the money moved", () => {
+    const counts = new Map(
+      knockoutCounts(game, 10, "progressive").map((k) => [k.playerId, k.count]),
+    );
+    expect(counts.get("c")).toBe(1);
+    expect(counts.get("b")).toBe(1);
+    expect(counts.get("a")).toBe(1);
+  });
+
+  it("pays the last player standing the bounty on their own head", () => {
+    // Nobody is left to knock them out, and it came out of their buy-in.
+    const winner = knockoutCounts(game, 10, "progressive").find(
+      (k) => k.playerId === "a",
+    );
+    // Every head grew before it was collected: d was worth 10, so c became 15;
+    // c paid b 8 and left b worth 17; b paid a 9 and left a worth 18. The
+    // winner takes that 18 as well — 27 in all, from a 10 bounty.
+    expect(winner?.bounty).toBe(27);
+  });
+
+  it("hands out exactly what was paid in", () => {
+    // Money in equals money out — the property that says the ledger is right.
+    const total = knockoutCounts(game, 10, "progressive").reduce(
+      (sum, entry) => sum + entry.bounty,
+      0,
+    );
+    expect(total).toBe(40);
+  });
+
+  it("pays flat differently, and that is the point", () => {
+    const flat = new Map(
+      knockoutCounts(game, 10).map((k) => [k.playerId, k.bounty]),
+    );
+    expect(flat.get("c")).toBe(10);
+    expect(flat.get("b")).toBe(10);
+    expect(flat.get("a")).toBe(10);
+  });
+
+  it("holds the winner's own head until the game is actually over", () => {
+    // Mid-game the money is still on heads, not in pockets: a player who is
+    // still playing can still lose it.
+    const midGame = {
+      ...game,
+      seats: [
+        { playerId: "a", stack: 300 },
+        { playerId: "b", stack: 100 },
+        { playerId: "c", stack: 0 },
+        { playerId: "d", stack: 0 },
+      ],
+      knockouts: game.knockouts.slice(0, 2),
+      bustOrder: ["d", "c"],
+    };
+    const running = new Map(
+      knockoutCounts(midGame, 10, "progressive").map((k) => [
+        k.playerId,
+        k.bounty,
+      ]),
+    );
+    expect(running.get("a")).toBeUndefined();
+    expect(running.get("b")).toBe(8);
+  });
+});
+
+describe("what the table has to be told about the bounty money", () => {
+  const base = createSession({
+    players: ["a", "b", "c", "d"],
+    startingStack: 100,
+  });
+
+  it("notices when an exit was never credited to anybody", () => {
+    const withDeadPot = {
+      ...base,
+      bustOrder: ["d"],
+      knockouts: [{ playerId: "d", by: [] }],
+    };
+    // Flat: one bounty, nobody to give it to.
+    expect(unclaimedBounty(withDeadPot, 10)).toBe(10);
+  });
+
+  it("counts a grown head that reached nobody, which is the bigger loss", () => {
+    // Progressive is where this hurts: c had already collected off d, so the
+    // head that goes unclaimed is worth more than the bounty ever was.
+    const game = {
+      ...base,
+      bustOrder: ["d", "c"],
+      knockouts: [
+        { playerId: "d", by: ["c"] },
+        { playerId: "c", by: [] },
+      ],
+    };
+    expect(unclaimedBounty(game, 10, "progressive")).toBe(15);
+    expect(unclaimedBounty(game, 10)).toBe(10);
+  });
+
+  it("says nothing went missing when nothing did", () => {
+    const game = {
+      ...base,
+      bustOrder: ["d"],
+      knockouts: [{ playerId: "d", by: ["a"] }],
+    };
+    expect(unclaimedBounty(game, 10)).toBe(0);
+    expect(unclaimedBounty(game, 10, "progressive")).toBe(0);
+  });
+
+  it("knows when exits are missing from the record altogether", () => {
+    // A game resumed from a build that did not track knockouts. Flat still
+    // pays the ones it knows about; progressive comes out short all the way
+    // down the chain, and has to say so.
+    const resumed = {
+      ...base,
+      bustOrder: ["d", "c"],
+      knockouts: [{ playerId: "c", by: ["a"] }],
+    };
+    expect(knockoutsFullyRecorded(resumed)).toBe(false);
+    expect(
+      knockoutsFullyRecorded({
+        ...base,
+        bustOrder: ["d"],
+        knockouts: [{ playerId: "d", by: ["a"] }],
+      }),
+    ).toBe(true);
+  });
+
+  it("is true of a game where nobody has gone out yet", () => {
+    expect(knockoutsFullyRecorded(base)).toBe(true);
   });
 });

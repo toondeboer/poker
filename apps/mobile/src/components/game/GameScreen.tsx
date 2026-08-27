@@ -6,6 +6,8 @@ import {
   computePayouts,
   finishingPlacings,
   knockoutCounts,
+  knockoutsFullyRecorded,
+  unclaimedBounty,
   MAX_SEATS,
   toPayoutOptions,
 } from "@poker/core";
@@ -244,6 +246,13 @@ function ActiveGame({ nameFor }: { nameFor: (id: string) => string }) {
     return byPlace.map((amount) => amount ?? 0);
   }, [session, settings]);
 
+  // Two things the table has to be told about the bounty money, both computed
+  // from the same ledger the recorded amounts come from.
+  const unclaimed = session
+    ? unclaimedBounty(session, settings.bounty, settings.bountyMode)
+    : 0;
+  const fullyRecorded = session ? knockoutsFullyRecorded(session) : true;
+
   if (!session) return null;
 
   /**
@@ -272,7 +281,7 @@ function ActiveGame({ nameFor }: { nameFor: (id: string) => string }) {
       // every hand, so it knows whose chips took whom out. Without it a bounty
       // game's money column is prize money only, which is most of the point of
       // playing one missing.
-      knockouts: knockoutCounts(session, settings.bounty),
+      knockouts: knockoutCounts(session, settings.bounty, settings.bountyMode),
     });
     // Only claim it was saved if it was. A refused result used to leave the
     // message saying otherwise and took the retry away with it.
@@ -296,6 +305,25 @@ function ActiveGame({ nameFor }: { nameFor: (id: string) => string }) {
           <CardHeader icon="trophy" title="Game over" />
           <CardContent>
             <FinishingOrder order={order} nameFor={nameFor} />
+            {/* Money that reached nobody: a pot everyone eligible folded out
+                of leaves the bounty on that head with nowhere to go. Said out
+                loud, because somebody is otherwise counting the cash at the
+                end of the night and finding it short with no explanation. */}
+            {unclaimed > 0 ? (
+              <Text style={styles.empty}>
+                {`${unclaimed} in bounties went unclaimed — the pot that busted them was won by nobody.`}
+              </Text>
+            ) : null}
+            {/* An evening resumed from a build that did not track knockouts.
+                Flat still pays the ones it knows about correctly; progressive
+                does not, because every unrecorded exit leaves a head loaded and
+                stops the chain after it escalating. */}
+            {settings.bountyMode === "progressive" && !fullyRecorded ? (
+              <Text style={styles.empty}>
+                Some knockouts from earlier in this game were never recorded, so
+                the bounty amounts below are short of what was really won.
+              </Text>
+            ) : null}
             {recorded ? (
               <Text style={styles.empty}>
                 Saved to the leaderboard. The standings have it already.

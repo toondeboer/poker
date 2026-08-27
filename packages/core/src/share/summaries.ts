@@ -42,7 +42,13 @@ export const formatPayoutSummary = (params: {
   lines.push("");
   lines.push(`Prize pool ${structure.prizePool}`);
   if (structure.bountyPerKnockout > 0) {
-    lines.push(`Bounty ${structure.bountyPerKnockout} per knockout`);
+    // The two formats pay differently enough that one line cannot describe
+    // both — somebody reading this in a group chat is deciding what to bring.
+    lines.push(
+      structure.bountyMode === "progressive"
+        ? `Progressive bounty, ${structure.bountyPerKnockout} a head — half in cash, half onto yours`
+        : `Bounty ${structure.bountyPerKnockout} per knockout`,
+    );
   }
 
   return lines.join("\n");

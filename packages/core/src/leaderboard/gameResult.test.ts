@@ -416,3 +416,37 @@ describe("validating the knockouts on a result", () => {
     expect(failures).toEqual([]);
   });
 });
+
+describe("a winner who collected without knocking anybody out", () => {
+  it("keeps their money even though their count is zero", () => {
+    // A progressive winner collects the bounty from their own head, which no
+    // elimination of theirs paid for. Filtering on the count alone threw that
+    // money away — the largest single amount in the game, at that.
+    const result = createGameResult({
+      id: "g1",
+      playerIds: ["a", "b"],
+      placings: [{ playerId: "a", place: 1, winnings: 30 }],
+      buyIn: 20,
+      bounty: 5,
+      now: 1_000,
+      knockouts: [{ playerId: "a", count: 0, bounty: 12 }],
+    });
+    expect(result.knockouts).toEqual([
+      { playerId: "a", count: 0, bounty: 12 },
+    ]);
+    expect(bountiesWon(result, "a")).toBe(12);
+  });
+
+  it("still leaves out somebody who neither knocked anybody out nor collected", () => {
+    const result = createGameResult({
+      id: "g2",
+      playerIds: ["a", "b"],
+      placings: [],
+      buyIn: 20,
+      bounty: 5,
+      now: 1_000,
+      knockouts: [{ playerId: "b", count: 0, bounty: 0 }],
+    });
+    expect(result.knockouts).toEqual([]);
+  });
+});
