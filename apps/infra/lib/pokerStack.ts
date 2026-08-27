@@ -253,6 +253,10 @@ export class PokerStack extends Stack {
       environment: {
         TABLE_NAME: table.tableName,
         EVENT_API_HTTP: Fn.getAtt(eventApi.logicalId, "Dns.Http").toString(),
+        // Without this the bundled source map is never loaded, and the first
+        // thing anybody sees after a deploy — this handler's deliberate throw
+        // — points at a minified line number.
+        NODE_OPTIONS: "--enable-source-maps",
       },
       // An explicit log group rather than `logRetention`, which is deprecated
       // and, more to the point, deploys a second Lambda whose only job is to
@@ -311,6 +315,10 @@ export class PokerStack extends Stack {
         retention: settings.logRetention,
         removalPolicy: RemovalPolicy.DESTROY,
       }),
+      // Bundling a source map does nothing on its own — Node ignores it unless
+      // told to load it, so without this every stack trace reads
+      // `index.js:1:24310` and the map is dead weight in the artefact.
+      environment: { NODE_OPTIONS: "--enable-source-maps" },
       bundling: { minify: true, sourceMap: true, target: "node22" },
     });
 
@@ -359,6 +367,15 @@ export class PokerStack extends Stack {
      * The throttle is not capacity planning — a home poker app does not need
      * 10,000 requests a second, and the number exists so that a client stuck in
      * a retry loop costs a rejection rather than a bill.
+     *
+     * **It is per route, shared by everybody**, which is the honest limitation:
+     * one account hammering `/tables/{id}/actions` returns 429 to every player
+     * at every table, so it protects the bill and not availability. HTTP APIs
+     * have no per-caller quota — usage plans are a REST API feature — so the
+     * fix when it is needed is a WAF rate rule keyed on IP or on the caller,
+     * which costs about $5 a month for a web ACL. Not worth it before anybody
+     * has connected; worth knowing before somebody wonders why one bad client
+     * took the table down.
      */
     const accessLogs = new LogGroup(this, "ApiAccessLogs", {
       retention: settings.logRetention,

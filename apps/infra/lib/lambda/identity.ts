@@ -27,13 +27,9 @@ export type Identity = {
 /**
  * The identity a set of verified claims describes.
  *
- * `null` when the claims carry no subject at all, which should be impossible —
- * a token without a `sub` would not have been issued — and is still checked,
- * because "should be impossible" is where the interesting failures live.
- *
  * The email is optional on purpose. It is a **profile attribute**: it can be
- * absent from a token, and it changes when somebody changes it. Nothing is ever
- * keyed by it. The `sub` is the identity.
+ * absent, and it changes when somebody changes it. Nothing is ever keyed by
+ * it. The `sub` is the identity.
  */
 export const identityFrom = (claims: Claims | undefined): Identity | null => {
   const sub = claims?.sub;
@@ -44,6 +40,24 @@ export const identityFrom = (claims: Claims | undefined): Identity | null => {
     email: typeof email === "string" && email.length > 0 ? email : null,
   };
 };
+
+/**
+ * Which of Cognito's two tokens this is.
+ *
+ * Cognito issues an **access** token and an **ID** token, and API Gateway's JWT
+ * authorizer accepts both: it checks the signature, the issuer and the
+ * audience, and does not look at `token_use`. They carry different claims —
+ * only the ID token has `email` — so a client sending the access token to a
+ * route that wants identity gets a perfectly successful response with the
+ * email missing.
+ *
+ * That is the failure worth refusing rather than absorbing. `email` is required
+ * on this pool, so a missing one never means "this person has no email"; it
+ * means the wrong token was sent, and a client that is told so takes a minute
+ * to fix, while one handed a `null` may never notice.
+ */
+export const tokenUse = (claims: Claims | undefined): string | null =>
+  typeof claims?.token_use === "string" ? claims.token_use : null;
 
 type Event = {
   requestContext?: { authorizer?: { jwt?: { claims?: Claims } } };
@@ -62,7 +76,17 @@ const json = (statusCode: number, body: unknown): Response => ({
 });
 
 export const handler = async (event: Event): Promise<Response> => {
-  const identity = identityFrom(event.requestContext?.authorizer?.jwt?.claims);
+  const claims = event.requestContext?.authorizer?.jwt?.claims;
+
+  // Refused, not absorbed. An access token here would answer 200 with no email
+  // and look like a person who has none.
+  if (tokenUse(claims) === "access") {
+    return json(400, {
+      error: "send the id token, not the access token",
+    });
+  }
+
+  const identity = identityFrom(claims);
   // 401 rather than 500: the authorizer should have made this unreachable, and
   // if it somehow did not, the honest answer is that we do not know who this
   // is — not that something broke.

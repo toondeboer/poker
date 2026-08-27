@@ -5,6 +5,10 @@ import {
   privateView,
   publicView,
   type StoredTable,
+  actingPlayer,
+  targetTable,
+  parseBody,
+  isRefusal,
 } from "../lib/lambda/tableAction";
 
 const dealHand = (seed = 1): Hand =>
@@ -230,5 +234,88 @@ describe("what leaves the server", () => {
 
   it("has nothing to give somebody who isn't at the table", () => {
     expect(privateView(dealHand(), "stranger")).toBeNull();
+  });
+});
+
+describe("who a request may act as", () => {
+  const withSub = (sub: unknown) => ({
+    requestContext: { authorizer: { jwt: { claims: { sub } } } },
+  });
+
+  it("is the token's subject, never a field in the body", () => {
+    // The single most important check in the file. A token that passes the
+    // authorizer only proves somebody is signed in — sign-up is open, so that
+    // is anybody at all.
+    expect(actingPlayer(withSub("u-1"))).toEqual({ playerId: "u-1" });
+  });
+
+  it("refuses a request asking to act as somebody else", () => {
+    // Without this, a stranger holding a table id could fold a victim's hand
+    // and the engine would apply it happily: it checks the *claimed* player is
+    // to act, and the claim would be a lie.
+    expect(actingPlayer(withSub("attacker"), "victim")).toEqual({
+      error: "you cannot act for another player",
+    });
+  });
+
+  it("accepts a body that agrees, rather than insisting on silence", () => {
+    expect(actingPlayer(withSub("u-1"), "u-1")).toEqual({ playerId: "u-1" });
+  });
+
+  it("refuses anything with no verified subject at all", () => {
+    const failures = [undefined, "", 42, null].filter(
+      (sub) => !isRefusal(actingPlayer(withSub(sub))),
+    );
+    expect(failures).toEqual([]);
+    expect(actingPlayer({})).toEqual({ error: "unauthenticated" });
+  });
+});
+
+describe("which table a request is about", () => {
+  const atPath = (tableId?: string) => ({ pathParameters: { tableId } });
+
+  it("is the path, so a rate limit or a log names the right one", () => {
+    expect(targetTable(atPath("t-1"))).toEqual({ tableId: "t-1" });
+  });
+
+  it("refuses a body that names a different table", () => {
+    // Two places to say the same thing, and something eventually reads the
+    // wrong one. Silently preferring one is how they drift apart.
+    expect(targetTable(atPath("t-1"), "t-2")).toEqual({
+      error: "the table in the body is not the table in the path",
+    });
+  });
+
+  it("refuses a request with no table in the path", () => {
+    expect(targetTable({})).toEqual({ error: "no table" });
+    expect(targetTable(atPath(""))).toEqual({ error: "no table" });
+  });
+});
+
+describe("reading an untrusted body", () => {
+  it("takes the two fields it knows and nothing else", () => {
+    expect(
+      parseBody(JSON.stringify({ playerId: "u-1", tableId: "t-1", admin: true })),
+    ).toEqual({ playerId: "u-1", tableId: "t-1" });
+  });
+
+  it("treats nonsense as absence rather than throwing", () => {
+    // Unparseable is the same as absent for these two; the request is refused
+    // further down for want of an action, not for want of JSON.
+    const failures = ["", "not json", "[]", "null", "42", '"a string"'].filter(
+      (body) => {
+        const parsed = parseBody(body);
+        return parsed.playerId !== undefined || parsed.tableId !== undefined;
+      },
+    );
+    expect(failures).toEqual([]);
+    expect(parseBody(undefined)).toEqual({});
+  });
+
+  it("ignores fields of the wrong type", () => {
+    expect(parseBody(JSON.stringify({ playerId: 7, tableId: ["t"] }))).toEqual({
+      playerId: undefined,
+      tableId: undefined,
+    });
   });
 });

@@ -33,16 +33,20 @@ sitting on a namespace those channels never touch.
 2. The action handler **throws on purpose** — no DynamoDB read/write, no publish. `POST
 /tables/{id}/actions` therefore reaches a function that fails, which is a deliberate step up
    from a route that did not exist.
-3. The shared `table` namespace is **authenticated but not authorized**. A signed-in account holding
+3. **The throttle protects the bill, not availability.** It is per route and shared by everybody,
+   so one account hammering a route returns 429 to every player at every table. HTTP APIs have no
+   per-caller quota — usage plans are a REST API feature — so the fix, when somebody is actually
+   connected, is a WAF rate rule at roughly $5 a month for a web ACL.
+4. The shared `table` namespace is **authenticated but not authorized**. A signed-in account holding
    a table id could stream a stranger's game. Not exploitable — nothing connects — and it must be
    closed before anything does.
-4. **No observability at all**: no alarms, no dashboard, no metric filters, no notification path.
+5. **No observability at all**: no alarms, no dashboard, no metric filters, no notification path.
    Access logs exist; nothing reads them.
-5. **No custom domain.** The API answers on its generated `execute-api` hostname, which is fine
+6. **No custom domain.** The API answers on its generated `execute-api` hostname, which is fine
    until the day the stack is replaced and the hostname changes with it.
-6. **No federated sign-in.** Apple and Google need real client ids and secrets, and App Store
+7. **No federated sign-in.** Apple and Google need real client ids and secrets, and App Store
    guideline 4.8 requires Sign in with Apple alongside any other third-party provider.
-7. Nothing in the app points at any of it.
+8. Nothing in the app points at any of it.
 
 ---
 

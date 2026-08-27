@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { identityFrom, handler } from "../lib/lambda/identity";
+import { identityFrom, handler, tokenUse } from "../lib/lambda/identity";
 
 describe("who is calling", () => {
   it("is the subject, not the email", () => {
@@ -62,5 +62,51 @@ describe("the route", () => {
       },
     });
     expect(response.body).not.toContain("do-not-echo");
+  });
+});
+
+describe("Cognito's two tokens", () => {
+  it("refuses the access token rather than answering without an email", () => {
+    // API Gateway accepts both: it checks signature, issuer and audience and
+    // never looks at `token_use`. Only the ID token carries `email`, so an
+    // access token would answer 200 with a null email and look like a person
+    // who has none. `email` is required on this pool, so that is always a lie.
+    const response = handler({
+      requestContext: {
+        authorizer: { jwt: { claims: { sub: "u-1", token_use: "access" } } },
+      },
+    });
+    return response.then((result) => {
+      expect(result.statusCode).toBe(400);
+      expect(JSON.parse(result.body).error).toContain("id token");
+    });
+  });
+
+  it("accepts the id token", async () => {
+    const response = await handler({
+      requestContext: {
+        authorizer: {
+          jwt: {
+            claims: { sub: "u-1", token_use: "id", email: "a@example.com" },
+          },
+        },
+      },
+    });
+    expect(response.statusCode).toBe(200);
+    expect(JSON.parse(response.body).email).toBe("a@example.com");
+  });
+
+  it("reads the claim when it is there, and says nothing when it is not", () => {
+    expect(tokenUse({ sub: "u-1", token_use: "id" })).toBe("id");
+    expect(tokenUse({ sub: "u-1" })).toBeNull();
+    expect(tokenUse(undefined)).toBeNull();
+  });
+
+  it("does not refuse a token that never said which it was", async () => {
+    // A federated or future token may omit the claim. Absent is not "access".
+    const response = await handler({
+      requestContext: { authorizer: { jwt: { claims: { sub: "u-1" } } } },
+    });
+    expect(response.statusCode).toBe(200);
   });
 });
