@@ -173,11 +173,15 @@ work outwards, rather than editing these fields from memory.
 
 **Both platforms together**, as in 1.1.4.
 
-Unlike 1.1.4, this release **does** add behind the paywall — payouts, the chop calculator, the
-leaderboard and sharing are all Pro. The long description and the Pro feature lists in both stores
-need updating too, not just these notes: the in-app paywall was found still selling the 1.1.4
-feature set during this cycle, and the store copy has exactly the same failure mode one level out.
-See `ROADMAP.md`'s Play listing item.
+This is a much bigger release than 1.1.4, and **most of it is behind the paywall**: dealing a hand,
+payouts, the chop calculator, leaderboards, groups and sharing are all Pro. The long description and
+the Pro feature lists in both stores need updating too, not just these notes — the in-app paywall
+was found still selling the 1.1.4 feature set during this cycle, and the store copy has exactly the
+same failure mode one level out. See `ROADMAP.md`'s Play listing item.
+
+**Two things are in the binary and deliberately unreachable**: the account screens and the shared
+clock, both of which need a backend that has never been deployed. Neither is mentioned here, because
+neither is something anybody can use.
 
 The **website** has not been updated for these features yet. Keep store copy and landing-page copy
 describing the same app, so do that before or alongside submission.
@@ -188,37 +192,43 @@ describing the same app, so do that before or alongside submission.
 `•` (U+2022), which is punctuation rather than emoji and renders everywhere.
 
 ```
-• New Payouts screen (Pro). Set a buy-in and see exactly what each place wins, with optional knockout bounties taken out of the buy-in rather than added on top. Rebuys and add-ons are counted too, and the table always adds up to the prize pool.
+• Play a hand (Pro). The app deals. When you have chips but no cards — or nobody can find the deck — pass the phone round the table and it runs the whole game: blinds, betting, side pots, the showdown, and who is out. Your cards stay hidden until you tap, and hide again the moment the turn passes.
 
-• Chop the remaining money (Pro). When the players still in agree to end it there, everyone left keeps the lowest prize still live and whatever is above that is split by chip stack — so nobody ends up below the place they had already locked up.
+• A game the app deals puts itself on the leaderboard (Pro). It watched every hand, so it already knows who went out fourth. One button saves the night, priced from your payout setup for the field that actually sat down.
 
-• New Leaderboard (Pro). Keep score across game nights: who has won the most, who turns up, and what everyone has taken home. It all stays on your device, with no accounts and nothing to sign up for.
+• Knockouts are tracked, and bounties finally add up (Pro). The app knows whose chips took whom out — including which side pot the last of them went into — so bounty money lands on the leaderboard instead of being remembered wrong at the end of the night.
 
-• Recording a game takes two taps per player. Mark who bought in, tap them in finishing order, and the winnings fill themselves in from your payout setup. Reset the timer after a game and the app offers to record it for you.
+• Progressive bounties (Pro). Knock somebody out and half their bounty is yours in cash; the other half goes on your own head. Whoever is winning becomes the one worth beating. It is the format nobody can run on paper, and the app keeps the whole ledger.
+
+• A leaderboard for every group you play with (Pro). Thursdays and the office game are different seasons, kept apart, each with their own players and history.
+
+• Payouts and the chop (Pro). Set a buy-in and see exactly what each place wins, bounties, rebuys and add-ons included. When the table agrees to end it early, the chop splits what is left by chip stack without anybody dropping below the place they had already locked up.
 
 • Share the payouts or the standings straight to your group chat.
 
-• Sheets no longer stretch the full width of a tablet, and the generator's header stays clear of the status bar with the keypad up.
+• A game in progress now survives the app closing. Shut it between hands, or have the phone die mid-evening, and reopening puts you back at the same table with the same stacks.
+
+• Android no longer asks twice for notification permission, and stale Live Activities are cleared away instead of piling up on the lock screen.
 
 Thanks for playing — feedback always welcome.
 ```
-`1164` chars.
+
+Re-count in App Store Connect before saving; the limit is 4000 characters and this is well inside it.
 
 ### Android — "Release notes" (Play Console, ≤500 chars per language)
 ```
-💰 Payouts (Pro): set a buy-in and see what every place wins — bounties, rebuys and add-ons included, and it always adds up.
-🤝 Chop (Pro): split the money left fairly when you agree to end it early.
-🏆 Leaderboard (Pro): track who wins across game nights. Stays on your device.
-📤 Share payouts or standings straight to your group chat.
-📐 Sheets no longer run full-width on tablets.
+🃏 Play a hand (Pro): no cards? The app deals. Blinds, betting, side pots, showdown.
+🏆 A dealt game saves itself to the leaderboard, knockouts and all.
+💰 Progressive bounties (Pro): half in cash, half onto your own head.
+👥 A leaderboard per group — Thursdays and the office game kept apart.
+♻️ Games survive the app closing.
 ```
-`379` chars — fits the 500-char Play Console limit. Re-count in the
+`323` chars — fits the 500-char Play Console limit. Re-count in the
 console before saving, since emoji and locale can shift it.
 
-**Deliberately not mentioned:** the record-a-game prompt only appears once the blinds have moved on
-from level 1, and only with Pro unlocked and players on the roster; and the chop is only offered
-while more than one place is paid. Those nuances belong in the app, not in 500 characters of store
-copy.
+**Deliberately not mentioned:** the account and shared-clock screens, which are in the binary but
+unreachable; the record-a-game prompt's conditions; and that progressive bounties only work for a
+game the app deals. Those nuances belong in the app, not in 500 characters of store copy.
 
 ---
 

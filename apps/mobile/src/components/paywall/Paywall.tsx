@@ -10,10 +10,20 @@ import {
 import { usePremium } from "@/src/contexts/PremiumContext";
 import { Sheet } from "@/src/components/ui/Sheet";
 
+/**
+ * What Pro actually buys, in the order somebody decides by.
+ *
+ * **This list has to be checked against the app every release.** It was found
+ * selling the previous version's feature set during 1.2.0 — the screen where
+ * people decide to pay was describing an app with fewer things in it than the
+ * one they had just been using. Dealing a hand is the headline of this release
+ * and was missing from here entirely.
+ */
 const PRO_FEATURES = [
   "Remove all ads — a clean, full-screen timer",
+  "Deal the cards when you have chips but nothing to deal",
   "Work out buy-ins, payouts and bounties",
-  "Keep a leaderboard across game nights",
+  "Keep a leaderboard for every group you play with",
   "Save & load tournament presets",
   "Choose your alarm sound",
   "Support an indie developer",

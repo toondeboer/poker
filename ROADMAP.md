@@ -164,7 +164,8 @@ are removed from this file when a release is cut rather than accumulating as ✅
 - ✅ **Shipped in 1.2.0** (unreleased). Local-first, single-device, no accounts — the host's phone
   is the source of truth. Recording is manual but pre-filled from the payout setup; the timer offers
   to record when a game looks finished. Ranked by wins with a deterministic tie-break; shows prize
-  money won rather than net profit, because bounty winnings can't be reconstructed after the fact.
+  money won rather than net profit — a bounty settled by hand can't be reconstructed after the fact,
+  though one from a game the app dealt is counted.
   Standings can be shared to a group chat as plain text.
   The design questions this entry used to carry are answered in the changelog entry and the commits.
   **Delete this section when 1.2.0 is cut** (cutting step 3).
