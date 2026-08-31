@@ -37,27 +37,19 @@ export type BackendConfig = CognitoConfig & {
 };
 
 /**
- * Which backend a build talks to. **`null` ships.**
- *
- * `DEV_BACKEND` below is real and reachable now, so this is no longer "there is
- * nothing to point at" — it is a deliberate choice not to point 1.2.0 at a
- * development stack. A release build with this set to `DEV_BACKEND` would put
- * real users' accounts in a user pool whose whole purpose is being thrown away
- * and stood up again, and `/account` is reachable by URL, so "nothing links to
- * it" is not the same as "nobody can reach it".
- *
- * Set it to `DEV_BACKEND` **locally, uncommitted**, to work on the account
- * screens against the real thing. It goes to `PROD_BACKEND` for good when prod
- * is deployed and the Settings entry point lands with it.
- */
-export const backendConfig: BackendConfig | null = null;
-
-/**
  * The two backends, for when there are two backends.
  *
  * Kept as named constants rather than as an environment variable so that
  * pointing a build at the wrong one is a visible line in a diff instead of a
  * setting nobody can see from the code.
+ *
+ * **Declared above `backendConfig`, and that is not cosmetic.** These are
+ * `const`, so they sit in the temporal dead zone until their own line runs —
+ * and `backendConfig` is evaluated at module load. With the declarations below
+ * it, the single edit this file exists to support (`= DEV_BACKEND`) is a
+ * `ReferenceError` at import time, which takes the whole app down at launch
+ * rather than failing anywhere near the thing that caused it. It was in that
+ * order until somebody actually tried it.
  */
 export const DEV_BACKEND: BackendConfig = {
   region: "us-east-1",
@@ -82,3 +74,19 @@ export const PROD_BACKEND: BackendConfig = {
   clientId: "replace-me",
   apiUrl: "https://replace-me.execute-api.us-east-1.amazonaws.com",
 };
+
+/**
+ * Which backend a build talks to. **`null` ships.**
+ *
+ * `DEV_BACKEND` is real and reachable now, so this is no longer "there is
+ * nothing to point at" — it is a deliberate choice not to point 1.2.0 at a
+ * development stack. A release build with this set to `DEV_BACKEND` would put
+ * real users' accounts in a user pool whose whole purpose is being thrown away
+ * and stood up again, and `/account` is reachable by URL, so "nothing links to
+ * it" is not the same as "nobody can reach it".
+ *
+ * Set it to `DEV_BACKEND` **locally, uncommitted**, to work on the account
+ * screens against the real thing. It goes to `PROD_BACKEND` for good when prod
+ * is deployed and the Settings entry point lands with it.
+ */
+export const backendConfig: BackendConfig | null = null;
