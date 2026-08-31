@@ -140,17 +140,15 @@ Actions over OIDC, and **accounts end-to-end as the first deployable slice**.
 
 ## Backend: before anything connects to it
 
-- 🔍 **The shared `table` channel is authenticated but not authorized.** A subscriber has to be
-  signed in, but nothing ties them to the table they are subscribing to — so an account holding a
-  table id could stream a stranger's game. Not exploitable today: nothing publishes and no app code
-  connects. **It has to be closed before either changes.** The fix is a Lambda authorizer on
-  subscribe, because membership lives in DynamoDB and an AppSync JS handler cannot read it. Left
-  unwritten deliberately rather than written blind, since it cannot be exercised without a
-  deployment.
-- ⬜ **The action handler has no storage or publishing.** `applyAction` and the view functions are
-  written and tested; the DynamoDB read/conditional-write loop and the AppSync publish are not,
-  for the same reason. The exported `handler` throws a message saying so, so a deploy fails
-  legibly instead of with `Runtime.HandlerNotFound`.
+- ✅ **The shared `table` channel is authorized on subscribe.** A Lambda reads the table's
+  membership and refuses anybody not at it; the private `/player/…` channels keep their APPSYNC_JS
+  guard, which needs no I/O. Every other branch refuses too — a malformed channel, a table that
+  does not exist, a read that throws, a caller with no subject — and they all refuse with the same
+  message, so a caller learns whether they are a member and nothing else. **Delete this line when
+  1.2.0 is cut.**
+- ✅ **The action handler stores and publishes.** Reads the table, runs the rules, writes back on a
+  version check, then publishes — in that order, because publishing first announces a hand that
+  might not be stored. **Delete this line when 1.2.0 is cut.**
 - ⬜ **Sign in with Apple and Google.** Both need real client ids and secrets, and App Store
   guideline 4.8 requires Sign in with Apple alongside any other third-party provider — so they are
   a credential-bearing decision rather than something to scaffold with placeholders.

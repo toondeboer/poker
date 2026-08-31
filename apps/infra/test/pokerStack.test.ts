@@ -190,9 +190,10 @@ describe("the action handler", () => {
     // call PutRetentionPolicy on another function's log group; an explicit log
     // group does that with no function at all.
     template().resourceCountIs("Custom::LogRetention", 0);
-    // Two: the action handler, and the identity route that proves the API
-    // chain works. Update this deliberately when a third is written.
-    template().resourceCountIs("AWS::Lambda::Function", 2);
+    // Three: the action handler, the identity route that proves the API chain
+    // works, and the subscribe authorizer. Update this deliberately when a
+    // fourth is written.
+    template().resourceCountIs("AWS::Lambda::Function", 3);
   });
 
   it("is the only thing that can publish an event", () => {
@@ -225,6 +226,76 @@ describe("the action handler", () => {
     template().hasResourceProperties("AWS::Lambda::Function", {
       Timeout: 10,
       Runtime: "nodejs22.x",
+    });
+  });
+});
+
+describe("who may watch a shared table", () => {
+  it("checks on subscribe, rather than letting anybody signed in watch", () => {
+    // The hole everything else was waiting on: sign-up is open, so
+    // "authenticated" is anybody at all, and a table id was the only thing
+    // between a stranger and every bet, board and showdown of a stranger's game.
+    template().hasResourceProperties("AWS::AppSync::ChannelNamespace", {
+      Name: "table",
+      HandlerConfigs: {
+        OnSubscribe: Match.objectLike({
+          Behavior: "DIRECT",
+          Integration: Match.objectLike({
+            DataSourceName: "SubscribeAuthorizer",
+          }),
+        }),
+      },
+    });
+  });
+
+  it("waits for the answer, because an asynchronous guard cannot refuse", () => {
+    // `EVENT` mode does not wait for a response, so an authorizer configured
+    // that way is a log line rather than a guard.
+    template().hasResourceProperties("AWS::AppSync::ChannelNamespace", {
+      Name: "table",
+      HandlerConfigs: {
+        OnSubscribe: Match.objectLike({
+          Integration: Match.objectLike({
+            LambdaConfig: { InvokeType: "REQUEST_RESPONSE" },
+          }),
+        }),
+      },
+    });
+  });
+
+  it("gives the authorizer read access and nothing more", () => {
+    // A guard has no business writing to the thing it is deciding about.
+    const policies = Object.values(
+      template().findResources("AWS::IAM::Policy"),
+    ).map(
+      (policy) =>
+        policy.Properties as {
+          PolicyDocument: { Statement: { Action: string | string[] }[] };
+        },
+    );
+    const authorizerPolicy = policies.find((policy) =>
+      JSON.stringify(policy).includes("SubscribeAuthorizer"),
+    );
+    expect(authorizerPolicy).toBeDefined();
+    const actions = authorizerPolicy!.PolicyDocument.Statement.flatMap(
+      (statement) =>
+        Array.isArray(statement.Action) ? statement.Action : [statement.Action],
+    );
+    const writes = actions.filter((action) =>
+      /PutItem|UpdateItem|DeleteItem|BatchWrite/.test(action),
+    );
+    expect(writes).toEqual([]);
+  });
+
+  it("lets AppSync invoke it, and only AppSync", () => {
+    template().hasResourceProperties("AWS::IAM::Role", {
+      AssumeRolePolicyDocument: Match.objectLike({
+        Statement: Match.arrayWith([
+          Match.objectLike({
+            Principal: { Service: "appsync.amazonaws.com" },
+          }),
+        ]),
+      }),
     });
   });
 });

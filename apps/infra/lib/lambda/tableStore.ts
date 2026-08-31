@@ -69,6 +69,16 @@ type StoredItem = {
   sk: string;
   hand: Hand;
   version: number;
+  /**
+   * Everybody allowed to watch this table.
+   *
+   * Stored rather than derived from `hand.seats`, because those two answer
+   * different questions: the seats are who is *in the current hand*, and a
+   * player knocked out an hour ago is not in them — but is still at the table,
+   * still watching, and still entitled to. Deriving membership from the seats
+   * would silently cut somebody off the moment they busted.
+   */
+  members: string[];
   /** Epoch **seconds**, which is what DynamoDB's TTL wants. */
   expiresAt: number;
 };
@@ -82,6 +92,7 @@ export const itemFor = (
   ...tableKey(tableId),
   hand: table.hand,
   version: table.version,
+  members: [...(table.members ?? [])],
   // Seconds, not milliseconds. DynamoDB does not validate this, so getting it
   // wrong means a TTL 1,000 times too far away — an item that never expires and
   // a bill that grows for a year before anybody notices.
@@ -100,10 +111,23 @@ export const itemFor = (
  */
 export const tableFrom = (item: unknown): StoredTable | null => {
   if (typeof item !== "object" || item === null) return null;
-  const { hand, version } = item as { hand?: unknown; version?: unknown };
+  const { hand, version, members } = item as {
+    hand?: unknown;
+    version?: unknown;
+    members?: unknown;
+  };
   if (typeof version !== "number" || !Number.isInteger(version)) return null;
   if (typeof hand !== "object" || hand === null) return null;
-  return { hand: hand as Hand, version };
+  return {
+    hand: hand as Hand,
+    version,
+    // An item written before members existed has none, and the guard that
+    // reads this treats "no members" as "nobody may watch" — which is the
+    // right direction for a missing field in an authorization check.
+    members: Array.isArray(members)
+      ? members.filter((id): id is string => typeof id === "string")
+      : [],
+  };
 };
 
 export const createTableStore = (

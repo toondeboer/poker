@@ -125,8 +125,10 @@ Two decisions in it are structural rather than incidental:
 - **Only the server publishes.** Clients connect and subscribe with their token; publishing is
   IAM-only, so every change to a table goes through the rules once.
 
-`ROADMAP.md` carries what must be closed before anything connects to it — the shared channel is
-authenticated but not yet authorized, and the action handler has no storage or publishing wired up.
+The action handler stores and publishes, and both channel namespaces are guarded on subscribe — the
+private ones by comparing a path segment to the caller's own subject, the shared one by a Lambda
+that reads the table's membership. `ROADMAP.md` carries what is still open, and nothing has been
+deployed.
 [`apps/infra/README.md`](./apps/infra/README.md) is the plan for the rest: how the app will call it,
 what observability is built on, how environments and deploys work, and the order it gets built in.
 
