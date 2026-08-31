@@ -89,4 +89,4 @@ export const PROD_BACKEND: BackendConfig = {
  * screens against the real thing. It goes to `PROD_BACKEND` for good when prod
  * is deployed and the Settings entry point lands with it.
  */
-export const backendConfig: BackendConfig | null = DEV_BACKEND;
+export const backendConfig: BackendConfig | null = null;
