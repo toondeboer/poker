@@ -29,6 +29,7 @@ import {
   Fn,
   RemovalPolicy,
   Stack,
+  Tags,
   type StackProps,
 } from "aws-cdk-lib";
 import {
@@ -187,6 +188,24 @@ export class PokerStack extends Stack {
   constructor(scope: Construct, id: string, props?: PokerStackProps) {
     super(scope, id, props);
     const settings = props?.settings ?? settingsFor("prod");
+
+    /**
+     * Tags on everything in this stack.
+     *
+     * **Grafana Cloud's CloudWatch scrape cannot see an untagged resource.** It
+     * discovers what to scrape through the Resource Groups Tagging API, so a
+     * resource carrying no tags at all is simply absent from the dashboards —
+     * not an error, just permanently missing data, which is the hardest kind of
+     * gap to notice.
+     *
+     * They are also what a budget would need to filter on. The `poker-dev`
+     * budget currently forecasts the *whole account*, because `CfnBudget` has no
+     * cost filter and this account runs other projects; filtering it means
+     * activating `project` as a cost allocation tag in Billing and waiting for
+     * AWS to backfill it.
+     */
+    Tags.of(this).add("project", "poker");
+    Tags.of(this).add("stage", settings.stage);
 
     /**
      * Telemetry and the alarms that read it — set up first, because every

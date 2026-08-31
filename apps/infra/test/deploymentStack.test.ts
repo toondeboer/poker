@@ -9,7 +9,9 @@ import {
 
 const REPO = "toondeboer/poker";
 
-const template = (props: { existingProviderArn?: string } = {}) =>
+const template = (
+  props: { existingProviderArn?: string; grafanaExternalId?: string } = {},
+) =>
   Template.fromStack(
     new DeploymentStack(new App(), "Deploy", {
       env: { account: "123456789012", region: "eu-west-1" },
@@ -145,6 +147,59 @@ describe("what a stolen token could do", () => {
     );
     expect(resources.every((arn) => arn.includes("123456789012"))).toBe(true);
     expect(resources.some((arn) => arn === "*")).toBe(false);
+  });
+});
+
+describe("the role Grafana Cloud assumes to read CloudWatch", () => {
+  const withGrafana = () => template({ grafanaExternalId: "ext-12345" });
+
+  it("is not created at all without an external id", () => {
+    // The safe degradation, and the reason it is not merely a default: Grafana's
+    // AWS account is shared by every one of its customers, so a role trusting
+    // that account with the condition left off is assumable by any Grafana
+    // tenant. No id must mean no role, never a role without the condition.
+    const named = Object.values(template().findResources("AWS::IAM::Role"))
+      .map((role) => (role.Properties as { RoleName?: string }).RoleName)
+      .filter(Boolean);
+    expect(named).not.toContain("poker-grafana-cloudwatch-scrape");
+  });
+
+  it("trusts Grafana only together with the external id", () => {
+    const roles = withGrafana().findResources("AWS::IAM::Role");
+    const scrape = Object.values(roles).find(
+      (role) =>
+        (role.Properties as { RoleName?: string }).RoleName ===
+        "poker-grafana-cloudwatch-scrape",
+    );
+    expect(scrape?.Properties.AssumeRolePolicyDocument.Statement[0]).toMatchObject(
+      {
+        Condition: { StringEquals: { "sts:ExternalId": "ext-12345" } },
+      },
+    );
+  });
+
+  it("can read metrics and nothing else", () => {
+    // CloudWatch's read APIs take no resource ARNs — a metric is not a resource
+    // — so the resource cannot be narrowed and the *actions* are the only
+    // boundary there is. Grafana's documented policy includes a dozen services
+    // this account does not run; pasting those in would widen a role somebody
+    // else can assume, for nothing.
+    const policies = Object.values(
+      withGrafana().findResources("AWS::IAM::Policy"),
+    );
+    const scrapePolicy = policies.find((policy) =>
+      JSON.stringify(policy.Properties).includes("cloudwatch:GetMetricData"),
+    );
+    const actions = (
+      scrapePolicy?.Properties as {
+        PolicyDocument: { Statement: { Action: string[] }[] };
+      }
+    ).PolicyDocument.Statement[0].Action;
+    expect(actions).toContain("tag:GetResources");
+    expect(actions.every((action) => !action.endsWith(":*"))).toBe(true);
+    expect(
+      actions.some((action) => /^(iam|s3|dynamodb|lambda):/.test(action)),
+    ).toBe(false);
   });
 });
 

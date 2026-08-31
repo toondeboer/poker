@@ -3,6 +3,7 @@
   "watch": { "exclude": ["**/*.test.ts", "node_modules/**"] },
   "context": {
     "alertEmail": "poker.blinds.buzzer@gmail.com",
-    "monthlyBudgetUsd": 25
+    "monthlyBudgetUsd": 25,
+    "telemetry": "true"
   }
 }

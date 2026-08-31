@@ -87,5 +87,11 @@ new DeploymentStack(app, "PokerDeployment", {
   existingProviderArn: app.node.tryGetContext("existingProviderArn") as
     | string
     | undefined,
+  // From Grafana Cloud's *Add new account* page. Absent means no scrape role,
+  // which is the right default: the role trusts Grafana's shared AWS account,
+  // and the external ID is the only thing making it yours.
+  grafanaExternalId: app.node.tryGetContext("grafanaExternalId") as
+    | string
+    | undefined,
   description: "GitHub Actions deployment roles for the Poker backend",
 });
