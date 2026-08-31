@@ -444,7 +444,7 @@ export class PokerStack extends Stack {
      * because by then the data source already exists. Only a create from
      * nothing shows it, which is exactly what a first deploy is — and was.
      */
-    tableNamespace.addDependency(authorizerSource);
+    tableNamespace.addResourceDependency(authorizerSource);
 
     // What only one player sees. The handler is the entire secrecy mechanism.
     new CfnChannelNamespace(this, "PlayerNamespace", {

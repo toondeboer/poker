@@ -242,12 +242,20 @@ npm run deploy:roles
 npm run deploy:dev
 ```
 
-**The context values live in those npm scripts on purpose, and re-running the raw `cdk deploy` is a
-trap.** CDK context is not sticky: a deploy without `-c alertEmail=…` does not leave the existing
-alarm subscription alone, it *deletes* it, because the template no longer has one. Same for the
-budget. Every one of them degrades to something safe and useless rather than to something wrong —
-alarms firing into a topic nobody reads, no budget, nothing exported — which is exactly why losing
-one is quiet. Use `npm run deploy:dev`, and add flags to it rather than replacing it.
+**`alertEmail` and `monthlyBudgetUsd` live in `cdk.json`'s `context` block, not on a command line,
+and that is load-bearing.** CDK context is not sticky: a deploy *without* them does not leave the
+existing alarm subscription and budget alone, it **deletes** them — and reports success, because a
+template without them is a perfectly valid template. Every setting here degrades to something safe
+and useless rather than to something wrong (alarms firing into a topic nobody reads, no budget,
+nothing exported), which is exactly why losing one is quiet.
+
+They were `-c` flags at first, and the workflow did not pass them, so the first CI deploy would have
+destroyed both. The PR's own `cdk diff` printed `[-] AWS::SNS::Subscription … destroy` and that is
+how it was caught. `cdk.json` is read by the CLI on **every** invocation, local or CI, which is what
+makes the two agree without anybody remembering anything. A test asserts both keys are there.
+
+Only account and region are still flags, because they legitimately differ between a laptop and CI —
+the workflow passes them from repository variables.
 
 **4. Then in Grafana Cloud** — free tier, no card:
 

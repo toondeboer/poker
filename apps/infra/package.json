@@ -10,7 +10,7 @@
     "diff": "cdk diff",
     "deploy": "cdk deploy",
     "diff:dev": "cdk diff PokerBackend-dev -c account=096695166445 -c region=us-east-1",
-    "deploy:dev": "cdk deploy PokerBackend-dev -c account=096695166445 -c region=us-east-1 -c alertEmail=poker.blinds.buzzer@gmail.com -c monthlyBudgetUsd=25",
+    "deploy:dev": "cdk deploy PokerBackend-dev -c account=096695166445 -c region=us-east-1",
     "deploy:roles": "cdk deploy PokerDeployment -c account=096695166445 -c region=us-east-1 -c existingProviderArn=arn:aws:iam::096695166445:oidc-provider/token.actions.githubusercontent.com",
     "smoke": "tsx scripts/smoke.ts"
   },
