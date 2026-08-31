@@ -116,6 +116,28 @@ export function onPublish(ctx) {
 }
 `;
 
+/**
+ * What makes the bundled handler instrumentable.
+ *
+ * esbuild compiles `export const handler` into a getter installed by its
+ * `__export` helper, which calls `Object.defineProperty` **without
+ * `configurable: true`** — so the property is non-configurable. ADOT's
+ * `AwsLambdaInstrumentation` wraps the handler with `shimmer`, which is another
+ * `defineProperty`, and it throws:
+ *
+ *     TypeError: Cannot redefine property: handler
+ *
+ * That is an uncaught exception during init, so it does not merely lose
+ * telemetry — **every invocation fails and every route returns 500.** Spreading
+ * `module.exports` over itself reads each getter once and leaves ordinary,
+ * configurable properties behind.
+ *
+ * Exported so a test can assert it is still there: nothing in the synthesised
+ * template records it, and removing it breaks the whole API at runtime rather
+ * than at build time.
+ */
+export const HANDLER_EXPORT_FOOTER = "module.exports = { ...module.exports };";
+
 export type PokerStackProps = StackProps & {
   /** Where alarms are sent. Without it they fire into a topic nobody reads. */
   alertEmail?: string;
@@ -191,7 +213,19 @@ export class PokerStack extends Stack {
       NODE_OPTIONS: "--enable-source-maps",
       ...(telemetryEnabled
         ? {
-            OPENTELEMETRY_COLLECTOR_CONFIG_URI: "/var/task/collector.yaml",
+            // **`file:` matters.** This is a *URI*, and the collector's confmap
+            // resolver dispatches on the scheme — a bare `/var/task/…` matches
+            // no provider and fails to resolve before the file is ever opened.
+            // The failure is silent in the worst way: the extension reports
+            // only `unable to start, otelcol state is Closed`, the config is
+            // never parsed (so raising `service.telemetry.logs.level` inside it
+            // changes nothing, which is a very confusing thing to observe), and
+            // the function then fails *every* invocation with
+            // `Extension.InitError` — a 500 on every route, from a telemetry
+            // setting. The older variable this replaced,
+            // `OPENTELEMETRY_COLLECTOR_CONFIG_FILE`, did take a bare path,
+            // which is where the wrong shape comes from.
+            OPENTELEMETRY_COLLECTOR_CONFIG_URI: "file:/var/task/collector.yaml",
             GRAFANA_OTLP_ENDPOINT: observability.grafanaCredential
               .secretValueFromJson("otlpEndpoint")
               .unsafeUnwrap(),
@@ -240,6 +274,32 @@ export class PokerStack extends Stack {
       afterBundling: (inputDir: string, outputDir: string) => [
         `cp ${path.join(inputDir, "apps", "infra", "lib", "lambda", "collector.yaml")} ${outputDir}`,
       ],
+    };
+
+    /**
+     * How every handler in this stack is bundled. One object, three functions,
+     * because the footer below is not optional and is very easy to omit.
+     *
+     * **The footer is what lets OpenTelemetry instrument the handler at all.**
+     * esbuild compiles `export const handler` into a getter installed by its
+     * `__export` helper, which calls `Object.defineProperty` **without
+     * `configurable: true`** — so the property defaults to non-configurable.
+     * ADOT's `AwsLambdaInstrumentation` wraps the handler with `shimmer`, which
+     * is another `defineProperty`, and it throws:
+     *
+     *     TypeError: Cannot redefine property: handler
+     *
+     * That is an *uncaught exception at init*, so it does not degrade
+     * telemetry — it fails the invocation, and every route returns 500.
+     * Re-assigning `module.exports` to a spread of itself reads each getter once
+     * and leaves ordinary, configurable properties in its place.
+     */
+    const handlerBundling = {
+      minify: true,
+      sourceMap: true,
+      target: "node22",
+      commandHooks: bundleCollectorConfig,
+      footer: HANDLER_EXPORT_FOOTER,
     };
 
     /**
@@ -389,12 +449,7 @@ export class PokerStack extends Stack {
         retention: settings.logRetention,
         removalPolicy: RemovalPolicy.DESTROY,
       }),
-      bundling: {
-        minify: true,
-        sourceMap: true,
-        target: "node22",
-        commandHooks: bundleCollectorConfig,
-      },
+      bundling: handlerBundling,
     });
     // Read only. An authorizer has no business writing to the thing it is
     // deciding about.
@@ -483,15 +538,10 @@ export class PokerStack extends Stack {
         // what decides how long that lasts.
         removalPolicy: RemovalPolicy.DESTROY,
       }),
-      bundling: {
-        // `@poker/core` is a private workspace package, so it is bundled rather
-        // than installed. esbuild follows the workspace link and inlines it,
-        // which is why the same rules can run here and on the phone.
-        minify: true,
-        sourceMap: true,
-        target: "node22",
-        commandHooks: bundleCollectorConfig,
-      },
+      // `@poker/core` is a private workspace package, so it is bundled rather
+      // than installed. esbuild follows the workspace link and inlines it,
+      // which is why the same rules can run here and on the phone.
+      bundling: handlerBundling,
     });
 
     table.grantReadWriteData(actionHandler);
@@ -536,12 +586,7 @@ export class PokerStack extends Stack {
       // `index.js:1:24310` and the map is dead weight in the artefact.
       environment: telemetryEnvironment,
       adotInstrumentation,
-      bundling: {
-        minify: true,
-        sourceMap: true,
-        target: "node22",
-        commandHooks: bundleCollectorConfig,
-      },
+      bundling: handlerBundling,
     });
 
     /**

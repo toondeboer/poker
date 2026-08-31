@@ -78,15 +78,42 @@ sitting on a namespace those channels never touch.
 
 1. **Prod has never been deployed.** Dev has, and everything below is written from that side of the
    line now.
-2. **No telemetry.** The ADOT layer is wired but off — `-c telemetry=true` needs the Grafana Cloud
-   credential in Secrets Manager first, and the secret does not exist yet. Cold starts were measured
-   without it, so the "before" half of that number is real and the "after" half is still a guess:
+2. **Telemetry works, and costs about ten times what this file used to claim.** Measured, n=6 per
+   function, forced parallel cold starts:
 
-   | Function             | Init, telemetry off |
-   | -------------------- | ------------------- |
-   | Identity             | 138.81 ms           |
-   | TableAction          | 294.82 ms           |
-   | SubscribeAuthorizer  | 315.77 ms           |
+   | Function             | Telemetry off | Telemetry on | Delta               |
+   | -------------------- | ------------- | ------------ | ------------------- |
+   | Identity             | 142.9 ms      | 1889.2 ms    | **+1746 ms** (13×)  |
+   | TableAction          | 302.0 ms      | 2267.5 ms    | **+1966 ms** (7.5×) |
+   | SubscribeAuthorizer  | 277.4 ms      | 2160.9 ms    | **+1884 ms** (7.8×) |
+
+   The published figure, repeated below in *The four decisions*, is 50–200 ms. **It is not 50–200 ms
+   here.** Two things make that worse than the numbers alone suggest: this app's traffic is almost
+   entirely cold starts, because a table plays one evening a week; and `SubscribeAuthorizer` has a
+   **3-second timeout** and runs before a player can see a table, so ~2.2 s of init is most of its
+   budget on the one path somebody actually waits on.
+
+   Memory tripled too — `Max Memory Used` went 76 MB → 189 MB on a 256 MB function, which puts
+   Identity near its ceiling and means it is CPU-starved during init as well (Lambda scales CPU with
+   memory). Raising memory would buy some of the time back, at a price per invocation.
+
+   **The documented fallback exists for exactly this**: export metrics and logs only, and get the
+   infrastructure picture from the CloudWatch scrape instead. **Deliberately not taken** — telemetry
+   is left on, with the cost known and written down rather than discovered later.
+
+   Getting there took three separate faults, none of which a synth or a test could have found, and
+   each of which broke *every route* rather than merely losing telemetry:
+
+   | What                                            | Symptom                                                                 |
+   | ----------------------------------------------- | ----------------------------------------------------------------------- |
+   | `OPENTELEMETRY_COLLECTOR_CONFIG_URI` had no scheme | Config never fetched. `otelcol state is Closed`, no reason given        |
+   | `batch` processor is not in this layer          | `unknown type: "batch" ... (valid values: [])` — **no processors at all** |
+   | esbuild's non-configurable `handler` export     | `TypeError: Cannot redefine property: handler`, uncaught, at init        |
+
+   The first one is the nastiest, and worth knowing for its own sake: **because the config was never
+   parsed, raising `service.telemetry.logs.level` inside it changed nothing.** The obvious debugging
+   move produced no new output, which reads like "the setting is not working" rather than "we never
+   got as far as your file".
 
 3. **The throttle protects the bill, not availability.** It is per route and shared by everybody,
    so one account hammering a route returns 429 to every player at every table. HTTP APIs have no

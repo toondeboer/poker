@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { App } from "aws-cdk-lib";
 import { Match, Template } from "aws-cdk-lib/assertions";
-import { PokerStack } from "../lib/pokerStack";
+import { HANDLER_EXPORT_FOOTER, PokerStack } from "../lib/pokerStack";
 import { settingsFor } from "../lib/stage";
 
 let synthesised: Template | null = null;
@@ -170,16 +170,42 @@ describe("telemetry reaching Grafana", () => {
     expect(uninstrumented).toEqual([]);
   });
 
-  it("points the collector at the config that names Grafana", () => {
+  it("points the collector at the config that names Grafana, as a URI", () => {
     // The ADOT layer's default configuration exports to X-Ray and nothing
     // else, so without this the traces never leave AWS.
+    //
+    // **The `file:` scheme is the whole assertion.** This was a bare
+    // `/var/task/collector.yaml`, which the collector's confmap resolver cannot
+    // dispatch — it matches no provider, so the config is never fetched, let
+    // alone parsed. The extension then reports only `unable to start, otelcol
+    // state is Closed`, and because the config never parses, raising
+    // `service.telemetry.logs.level` inside it changes nothing, which is a
+    // memorably confusing thing to debug. The function fails *every* invocation
+    // with `Extension.InitError`: a 500 on every route, caused by a telemetry
+    // setting.
     template().hasResourceProperties("AWS::Lambda::Function", {
       Environment: Match.objectLike({
         Variables: Match.objectLike({
-          OPENTELEMETRY_COLLECTOR_CONFIG_URI: "/var/task/collector.yaml",
+          OPENTELEMETRY_COLLECTOR_CONFIG_URI: "file:/var/task/collector.yaml",
         }),
       }),
     });
+  });
+
+  it("re-exports the handler so OpenTelemetry can wrap it", () => {
+    // esbuild compiles `export const handler` into a getter installed by its
+    // `__export` helper, which calls `Object.defineProperty` without
+    // `configurable: true`. ADOT's `AwsLambdaInstrumentation` then wraps it with
+    // shimmer — another `defineProperty` — and throws `Cannot redefine
+    // property: handler` as an uncaught exception at init, failing every
+    // invocation with a 500.
+    //
+    // **This cannot be asserted from the template**: the footer is a bundling
+    // option, and what it produces is inside an asset. So the assertion is on
+    // the constant itself — enough to fail if somebody deletes it while tidying,
+    // which is the realistic way it would be lost.
+    expect(HANDLER_EXPORT_FOOTER).toContain("module.exports");
+    expect(HANDLER_EXPORT_FOOTER).toContain("...module.exports");
   });
 
   it("says which environment a span came from", () => {

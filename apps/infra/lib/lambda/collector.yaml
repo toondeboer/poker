@@ -17,12 +17,17 @@ receivers:
         # The layer's SDK exports here, in-process. Not a network hop.
         endpoint: "localhost:4318"
 
-processors:
-  # Lambda gives a function a few hundred milliseconds after the response to
-  # finish work, so a batch that waits too long is a batch that never ships.
-  batch:
-    timeout: 1s
-    send_batch_size: 128
+# No `processors:` block, and not by choice. The ADOT JavaScript Lambda layer
+# ships a *reduced* collector: it registers no processor factories at all, so a
+# `batch` processor — the obvious thing to want, and what this file had — fails
+# the whole config with `unknown type: "batch" ... (valid values: [])`, which
+# takes every route down with `Extension.InitError`. Check what a layer actually
+# contains before adding one; the upstream OpenTelemetry Lambda layer is the
+# alternative if a processor ever becomes necessary.
+#
+# Losing batching is survivable here: a Lambda handling a few actions a minute
+# exports a handful of spans per invocation, and the collector flushes them at
+# the end of the invocation either way.
 
 exporters:
   otlphttp/grafana:
@@ -35,17 +40,17 @@ service:
   # invocation in CloudWatch, which is a bill for telling us it is working.
   telemetry:
     logs:
+      # `debug` is what you want the day this breaks, and it is worth knowing it
+      # tells you nothing until the config *parses* — a config the resolver
+      # cannot even fetch fails long before this line is read.
       level: warn
   pipelines:
     traces:
       receivers: [otlp]
-      processors: [batch]
       exporters: [otlphttp/grafana]
     metrics:
       receivers: [otlp]
-      processors: [batch]
       exporters: [otlphttp/grafana]
     logs:
       receivers: [otlp]
-      processors: [batch]
       exporters: [otlphttp/grafana]

@@ -52,14 +52,27 @@ of a fresh environment, and is invisible to `cdk synth`. Fixed with a regression
    token is refused with `send the id token`, and no token is 401 from the authorizer. The
    `identified` log line and the API access log both appear. Sign-up used a real emailed code, so
    Cognito's email delivery is proven too. **Delete this line when 1.2.0 is cut.**
-2. ⬜ **Measure the ADOT cold start.** Half done: the *baseline* is measured — Identity 138.81 ms,
-   TableAction 294.82 ms, SubscribeAuthorizer 315.77 ms, all with telemetry off. The "after" number
-   needs the Grafana credential to exist. If the delta is bad, the documented fallback is dropping
-   the layer and exporting metrics and logs only.
-3. ⬜ **Grafana**: create the stack, put the OTLP credential in Secrets Manager by hand, redeploy
-   with `-c telemetry=true`, add the CloudWatch metrics scrape. Confirm a span and a log line both
-   arrive — they travel by different paths and only one of them is OTLP. **This is the only item in
-   §3 still outstanding**, and it is blocked on an account nobody has created.
+2. ✅ **The ADOT cold start is measured, and it is roughly ten times the published figure.** n=6 per
+   function: Identity 142.9 → **1889.2 ms**, TableAction 302.0 → **2267.5 ms**, SubscribeAuthorizer
+   277.4 → **2160.9 ms**. The number everyone quotes is 50–200 ms. Memory also went 76 → ~200 MB on
+   256 MB functions. **Kept anyway, as a deliberate call** — the numbers are in
+   [`apps/infra/README.md`](./apps/infra/README.md) so the trade can be revisited knowingly.
+   - 🟡 **`SubscribeAuthorizer` has a 3-second timeout and ~2.2 s of that is now init.** It runs
+     before a player sees a table, so it is the one path where this is felt. It has not failed, and
+     there is not much margin. Raising its memory (Lambda scales CPU with memory) is the cheap
+     lever if it ever does.
+   **Delete this line when 1.2.0 is cut.**
+3. 🚧 **Grafana**: stack created, credential in Secrets Manager, deployed with `-c telemetry=true`,
+   and **traces are confirmed arriving** — a span posted straight at the OTLP gateway returns
+   `200 {"partialSuccess":{}}`, and the Lambdas' own exports log no failures. What is left is the
+   **CloudWatch metrics scrape**, which is console work and is the half that covers what OTel cannot
+   see from inside a function (API Gateway 5xx, DynamoDB throttles, cold starts) — plus a dashboard.
+   - 🟡 **Metrics can be rejected with HTTP 429 under a burst.** Grafana's tenant limit is 75
+     requests/s and this layer's collector has **no `batch` processor available**, so a burst of
+     concurrent cold starts exports one request each. Seen only while firing 18 invocations at once
+     to measure cold starts; a single invocation exports cleanly. Real traffic will not approach it.
+   - Grafana's OpenTelemetry setup wizard says *"We could not find any traces yet"* even when traces
+     are arriving. Do not trust it — query Explore, or post a span by hand and search its id.
 4. ✅ **Break something on purpose.** The action handler was pointed at a table it cannot read;
    `ActionErrors` went to `ALARM` about a minute later and emailed, carrying its description.
    Recovery is *not* `cdk deploy` — that answered "no changes" and left it broken, because
