@@ -23,6 +23,8 @@ platform-tagged heading (e.g. `## [1.1.3] - 2026-07-20 — Android`) when you cu
   feature set — the screen where somebody decides to pay was describing an app with fewer things in
   it than the one they had just been using, and dealing a hand, the headline of this release, was
   missing from it entirely.
+- The website describes the app that exists: dealing a hand when nobody brought cards, progressive
+  bounties, and a dealt game putting itself on the leaderboard with knockouts included.
 - Accounts can now talk to a real server. The sign-in screens are wired to Amazon Cognito, including
   the step nobody thinks about until they meet it: creating an account sends a code to your email
   and does **not** sign you in until it comes back, so the screen asks for it rather than saying

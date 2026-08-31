@@ -14,6 +14,7 @@ import {
   Handshake,
   ListOrdered,
   Share2,
+  Spade,
   LucideIcon,
 } from "lucide-react";
 import Image, { StaticImageData } from "next/image";
@@ -342,10 +343,16 @@ const LandingPage: React.FC = () => {
                     "Edit every level on its own screen, insert or duplicate levels anywhere, and jump straight to any level mid-game. Save what you build as a preset and reuse it. From cash games to deep stack tournaments.",
                 },
                 {
+                  icon: Spade,
+                  title: "No Cards? The App Deals",
+                  description:
+                    "Somebody forgot the deck, or there isn't one. Pass the phone round and the app runs the whole game — blinds, betting, side pots, the showdown, and who's out. Your cards stay hidden until you tap, and hide again the moment the turn passes. When the last chip changes hands the night goes onto the leaderboard by itself, because it watched every hand: it knows who went out fourth and who knocked them out.",
+                },
+                {
                   icon: Coins,
                   title: "Payouts, Worked Out",
                   description:
-                    "Set a buy-in and see what every place wins, so the split is agreed before the first hand instead of argued about heads-up. Bounties, rebuys and add-ons all count. Pick the smallest note you want to hand over and every place below the winner comes out a round number you can count straight out of the pot — the winner takes what's left, so the table still adds up to exactly the prize pool.",
+                    "Set a buy-in and see what every place wins, so the split is agreed before the first hand instead of argued about heads-up. Bounties, rebuys and add-ons all count — flat, or progressive, where knocking somebody out puts half their bounty in your pocket and the other half on your own head. Pick the smallest note you want to hand over and every place below the winner comes out a round number you can count straight out of the pot — the winner takes what's left, so the table still adds up to exactly the prize pool.",
                 },
                 {
                   icon: Handshake,
@@ -357,7 +364,7 @@ const LandingPage: React.FC = () => {
                   icon: ListOrdered,
                   title: "Keep Score Across Nights",
                   description:
-                    "A leaderboard for your group — who's won most, who turns up, and what everyone has taken home. Keep a separate board for each set of people you play with. Recording a game is two taps per player and no typing: the winnings come from your payout structure.",
+                    "A leaderboard for your group — who's won most, who turns up, and what everyone has taken home. Keep a separate board for each set of people you play with. Recording a game is two taps per player and no typing: the winnings come from your payout structure, and a game the app dealt records itself, knockouts included.",
                 },
                 {
                   icon: Share2,
