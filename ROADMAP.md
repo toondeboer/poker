@@ -229,6 +229,19 @@ Actions over OIDC, and **accounts end-to-end as the first deployable slice**.
 - ✅ **The action handler stores and publishes.** Reads the table, runs the rules, writes back on a
   version check, then publishes — in that order, because publishing first announces a hand that
   might not be stored. **Delete this line when 1.2.0 is cut.**
+- ⬜ **Cognito's built-in email cannot go to production, and confirmation codes land in spam.**
+  Both test sign-ups delivered, and **both went to the spam folder** — `no-reply@verificationemail.com`
+  is AWS's shared sender, so nothing authenticates the mail as coming from this app. A confirmation
+  code in spam is a sign-up that silently fails: the person is told to check their email, the email
+  is not in their inbox, and there is nothing in the app that can tell them why.
+  - The harder limit is separate and absolute: **Cognito's default email is capped at 50 messages a
+    day**, per account, with no way to raise it. That is a cap on *sign-ups per day* across the
+    whole app, so it blocks launch on its own rather than merely degrading.
+  - The fix for both is the same — `UserPoolEmail.withSES()` against a verified domain with SPF,
+    DKIM and DMARC, which is what makes the mail authenticate and land in an inbox. It needs a
+    domain and DNS records, so it is a credential-bearing step like Apple and Google below.
+  - **Worth doing before any real user signs up, and it costs nothing to defer until then**: dev is
+    fine on the built-in sender now that it is known where the mail goes.
 - ⬜ **Sign in with Apple and Google.** Both need real client ids and secrets, and App Store
   guideline 4.8 requires Sign in with Apple alongside any other third-party provider — so they are
   a credential-bearing decision rather than something to scaffold with placeholders.

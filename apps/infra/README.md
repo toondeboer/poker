@@ -101,6 +101,12 @@ sitting on a namespace those channels never touch.
    until the day the stack is replaced and the hostname changes with it.
 6. **No federated sign-in.** Apple and Google need real client ids and secrets, and App Store
    guideline 4.8 requires Sign in with Apple alongside any other third-party provider.
+6a. **`UserPoolEmail.withCognito()` is a development setting.** It delivers — both test sign-ups
+   arrived — but **into the spam folder**, because `no-reply@verificationemail.com` is AWS's shared
+   sender and nothing authenticates it as this app. It is also capped at **50 messages a day** with
+   no way to raise it, which is a cap on sign-ups per day for the whole app. Production wants
+   `withSES()` against a verified domain with SPF/DKIM/DMARC. Fine for dev; not a launch
+   configuration.
 7. **Nothing in the app points at it yet** — `backendConfig` is `null` deliberately, not for want of
    somewhere to point.
 8. **No route creates a table.** A table is created by a game starting, and the app side of that is
