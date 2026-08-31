@@ -1,30 +1,40 @@
 /**
  * Knowing what the backend is doing, and being told when it stops.
  *
- * Two paths, one destination, and the split is the part that is easy to get
- * wrong. **OpenTelemetry runs inside a function**, so it sees spans, custom
- * metrics and logs from code somebody wrote — and it cannot see API Gateway
- * 5xx, DynamoDB throttles, AppSync connection errors or a cold start, because
- * those happen outside it. Those are CloudWatch service metrics, and Grafana
- * pulls them in with its CloudWatch integration. Instrument the Lambda and
- * assume the system is covered, and the dashboard is half empty for reasons
- * nobody can see.
+ * **All CloudWatch, and that is a decision rather than the path of least
+ * resistance.** This was built to export OpenTelemetry to Grafana Cloud, it
+ * worked, and it was removed once there was a number attached to it: the
+ * collector layer cost ~1.9 s of cold start against a published 50-200 ms, and
+ * the CloudWatch scrape that fills in what OTel cannot see would have cost more
+ * per month than the entire rest of the backend — to copy metrics out of the
+ * place they already were. See the README.
  *
- * ## Why the alarms are CloudWatch and not Grafana
+ * ## The split that used to matter, and why it stopped
  *
- * The plan for this said alerts would live in Grafana, beside the dashboards.
- * That was wrong in one specific way: **an alert defined in the telemetry
- * pipeline stops working when the telemetry pipeline is what broke**, which is
- * exactly when it is needed. CloudWatch alarms read service metrics that exist
- * whether or not anything is exporting, they are infrastructure-as-code rather
- * than console clicks, and they are checked by CI. Grafana still gets the
- * dashboards; it does not get the pager.
+ * **OpenTelemetry runs inside a function**, so it sees spans and custom metrics
+ * from code somebody wrote — and it cannot see API Gateway 5xx, DynamoDB
+ * throttles, AppSync connection errors or a cold start, because those happen
+ * outside it. Those are CloudWatch service metrics. With a third-party backend
+ * that meant two pipelines and a scrape to join them; with CloudWatch both
+ * halves are already in one place, and the dashboard below draws them together.
+ *
+ * ## Why the alarms were always CloudWatch
+ *
+ * Even under the Grafana plan, alerts lived here, for a reason that still
+ * holds: **an alert defined in the telemetry pipeline stops working when the
+ * telemetry pipeline is what broke**, which is exactly when it is needed.
+ * CloudWatch alarms read service metrics that exist whether or not anything is
+ * exporting, they are infrastructure-as-code rather than console clicks, and
+ * they are checked by CI.
  */
 
 import { Duration } from "aws-cdk-lib";
 import {
   Alarm,
+  AlarmStatusWidget,
   ComparisonOperator,
+  Dashboard,
+  GraphWidget,
   Metric,
   TreatMissingData,
   type IMetric,
@@ -32,7 +42,6 @@ import {
 import { SnsAction } from "aws-cdk-lib/aws-cloudwatch-actions";
 import { Topic } from "aws-cdk-lib/aws-sns";
 import { EmailSubscription } from "aws-cdk-lib/aws-sns-subscriptions";
-import { Secret, type ISecret } from "aws-cdk-lib/aws-secretsmanager";
 import { CfnBudget } from "aws-cdk-lib/aws-budgets";
 import { Construct } from "constructs";
 import type { StageSettings } from "./stage";
@@ -52,40 +61,27 @@ export type ObservabilityProps = {
    * is a line item in a console rather than a warning.
    */
   monthlyBudgetUsd?: number;
-  /** Where the Grafana OTLP credential lives. Created by hand; never by CDK. */
-  grafanaSecretName?: string;
 };
-
-/** The name the README tells you to create. */
-export const DEFAULT_GRAFANA_SECRET = "poker/grafana-otlp";
 
 export class Observability extends Construct {
   /** Alarms publish here; the email subscription is what makes that useful. */
   readonly alarms: Topic;
   /**
-   * The Grafana Cloud OTLP credential, **imported and never created**.
+   * One page showing whether the backend is healthy.
    *
-   * Deliberately not a CDK-managed secret. One that CDK owns has a value in the
-   * template, and a later change to any of its properties rewrites that value
-   * over whatever was set by hand — silently killing telemetry at the exact
-   * moment somebody was deploying something else. Importing by name means CDK
-   * can read the ARN and grant access to it, and can never write to it.
+   * **In CDK rather than clicked together in a console**, which is the whole
+   * reason this is worth having at all: a dashboard somebody built by hand is
+   * undocumented, unreviewable, and gone when the account is. This one is in
+   * the diff of the pull request that changes it.
    *
-   * Create it once, before turning telemetry on:
-   *
-   * ```
-   * aws secretsmanager create-secret --name poker/grafana-otlp --secret-string \
-   *   '{"otlpEndpoint":"https://otlp-gateway-prod-<zone>.grafana.net/otlp","otlpAuth":"Basic <base64>"}'
-   * ```
-   *
-   * **What this does not protect against:** anybody who can call
-   * `lambda:GetFunctionConfiguration` can read the resolved value off the
-   * function. That is the accepted trade — the alternative is fetching it at
-   * every cold start, on the path that is already the slow one. It is an
-   * ingest token: it can write telemetry, not read data.
+   * Every alarm added through {@link watch} puts itself on here, so a metric
+   * worth alarming on is automatically a metric worth looking at — and the two
+   * cannot drift apart, which they do the moment they are maintained
+   * separately.
    */
-  readonly grafanaCredential: ISecret;
-
+  readonly dashboard: Dashboard;
+  private readonly watched: Alarm[] = [];
+  private readonly graphs: GraphWidget[] = [];
   constructor(scope: Construct, id: string, props: ObservabilityProps) {
     super(scope, id);
     const { settings } = props;
@@ -99,11 +95,12 @@ export class Observability extends Construct {
       this.alarms.addSubscription(new EmailSubscription(props.alertEmail));
     }
 
-    this.grafanaCredential = Secret.fromSecretNameV2(
-      this,
-      "GrafanaOtlp",
-      props.grafanaSecretName ?? DEFAULT_GRAFANA_SECRET,
-    );
+    this.dashboard = new Dashboard(this, "Dashboard", {
+      dashboardName: `poker-${settings.stage}`,
+      // Three days. Long enough to cover the weekend a game was played on, and
+      // short enough that opening it does not take a minute.
+      defaultInterval: Duration.days(3),
+    });
 
     // A budget with no subscriber notifies nobody, which is a line item in a
     // console rather than a warning. `!== undefined` rather than truthiness, so
@@ -174,7 +171,42 @@ export class Observability extends Construct {
       treatMissingData: options.missingData ?? TreatMissingData.NOT_BREACHING,
     });
     alarm.addAlarmAction(new SnsAction(this.alarms));
+    this.watched.push(alarm);
+    // Held rather than added, so `summarise()` can put the status row above the
+    // graphs — widgets render in the order they are added, and "is anything
+    // wrong right now" is the question somebody opens this to answer.
+    this.graphs.push(
+      new GraphWidget({
+        title: `${id} — ${options.meaning.split(".")[0]}`,
+        left: [options.metric],
+        width: 12,
+        height: 6,
+      }),
+    );
     return alarm;
+  }
+
+  /**
+   * Lay the dashboard out. **Call once, after every {@link watch}.**
+   *
+   * The alarm status row goes first because it answers the question somebody
+   * actually opens a dashboard to ask — is anything wrong right now — and the
+   * graphs below it are for working out why. Nothing renders until this runs,
+   * which is deliberate: a dashboard assembled as a side effect of declaring
+   * alarms would order itself by whatever order the alarms happened to be
+   * written in.
+   */
+  summarise(): void {
+    if (this.watched.length === 0) return;
+    this.dashboard.addWidgets(
+      new AlarmStatusWidget({
+        title: "Everything worth being woken for",
+        alarms: this.watched,
+        width: 24,
+        height: 3,
+      }),
+    );
+    for (const graph of this.graphs) this.dashboard.addWidgets(graph);
   }
 }
 

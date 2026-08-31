@@ -65,9 +65,9 @@ argument for standing dev up before writing anything else against it.
 | **Publishing**     | Signed with the Lambda's own IAM credentials (SigV4 by hand, `node:crypto`, checked against AWS's published vectors). The shared channel gets a hand with every hole card stripped; each player's own cards go to a channel only they can subscribe to |
 | **HTTP API**       | `GET /me` and `POST /tables/{tableId}/actions`, both behind a Cognito JWT authorizer that is the API's **default** — a route added later is authenticated because nobody did anything. Access logs, throttled                                          |
 | **Environments**   | `PokerBackend-dev` and `PokerBackend-prod`, plus `PokerDeployment` for the GitHub OIDC roles                                                                                                                                                           |
-| **Telemetry**      | ADOT layer on both functions, exporting OTLP to Grafana Cloud through a bundled collector config; credential from Secrets Manager by dynamic reference                                                                                                 |
+| **Telemetry**      | X-Ray `Tracing.ACTIVE` on all three functions, CloudWatch metrics and structured logs, and a `poker-<stage>` dashboard built in CDK from the alarm definitions. No third-party export — see decision 2                                                 |
 | **Alarms**         | Seven, into an SNS topic, each carrying what it means; a forecast budget alarm alongside                                                                                                                                                               |
-| **Tests**          | 166, covering the synthesised template and the handlers' decision-making                                                                                                                                                                               |
+| **Tests**          | 171, covering the synthesised template and the handlers' decision-making                                                                                                                                                                               |
 
 **Hole cards are private because of where they are published**, not because a client declines to
 draw them. Both sides build channel paths from `playerChannel` in `@poker/core`, because the two
@@ -78,57 +78,49 @@ sitting on a namespace those channels never touch.
 
 1. **Prod has never been deployed.** Dev has, and everything below is written from that side of the
    line now.
-2. **Telemetry works, and costs about ten times what this file used to claim.** Measured, n=6 per
-   function, forced parallel cold starts:
+2. **No third-party telemetry, deliberately.** This exported OpenTelemetry to Grafana Cloud, it
+   worked, and it was removed once there was a number attached to it. Measured, n=6 per function,
+   forced parallel cold starts:
 
-   | Function             | Telemetry off | Telemetry on | Delta               |
-   | -------------------- | ------------- | ------------ | ------------------- |
-   | Identity             | 142.9 ms      | 1889.2 ms    | **+1746 ms** (13×)  |
-   | TableAction          | 302.0 ms      | 2267.5 ms    | **+1966 ms** (7.5×) |
-   | SubscribeAuthorizer  | 277.4 ms      | 2160.9 ms    | **+1884 ms** (7.8×) |
+   | Function             | No telemetry | ADOT → Grafana | X-Ray (now)  |
+   | -------------------- | ------------ | -------------- | ------------ |
+   | Identity             | 142.9 ms     | 1889.2 ms      | **127.0 ms** |
+   | TableAction          | 302.0 ms     | 2267.5 ms      | **310.2 ms** |
+   | SubscribeAuthorizer  | 277.4 ms     | 2160.9 ms      | **315.0 ms** |
 
-   The published figure, repeated below in *The four decisions*, is 50–200 ms. **It is not 50–200 ms
-   here.** Two things make that worse than the numbers alone suggest: this app's traffic is almost
-   entirely cold starts, because a table plays one evening a week; and `SubscribeAuthorizer` has a
-   **3-second timeout** and runs before a player can see a table, so ~2.2 s of init is most of its
-   budget on the one path somebody actually waits on.
+   The figure everyone quotes for that layer is 50–200 ms. It was **~1.9 seconds**, and this app is
+   the worst case for it: a table plays one evening a week, so almost every invocation is a cold
+   start rather than a rounding error on a warm fleet — and `SubscribeAuthorizer` runs before a
+   player can see a table, on a three-second timeout that ~2.2 s of init nearly exhausts.
 
-   Memory tripled too — `Max Memory Used` went 76 MB → 189 MB on a 256 MB function, which puts
-   Identity near its ceiling and means it is CPU-starved during init as well (Lambda scales CPU with
-   memory). Raising memory would buy some of the time back, at a price per invocation.
+   `Tracing.ACTIVE` costs within noise of nothing, because the X-Ray daemon is part of the execution
+   environment rather than a Go binary each function has to start.
 
-   **The documented fallback exists for exactly this**: export metrics and logs only, and get the
-   infrastructure picture from the CloudWatch scrape instead. **Deliberately not taken** — telemetry
-   is left on, with the cost known and written down rather than discovered later.
+   **The other half of the bill was the scrape.** Grafana cannot see API Gateway 5xx, DynamoDB
+   throttles or AppSync connection errors on its own — those are CloudWatch metrics — so the plan
+   was its CloudWatch scrape, at roughly **$3–9/month against an account that spends $0.64**. That
+   is paying to copy metrics out of the place they already are, in order to look at them.
 
-   Getting there took three separate faults, none of which a synth or a test could have found, and
-   each of which broke *every route* rather than merely losing telemetry:
-
-   | What                                            | Symptom                                                                 |
-   | ----------------------------------------------- | ----------------------------------------------------------------------- |
-   | `OPENTELEMETRY_COLLECTOR_CONFIG_URI` had no scheme | Config never fetched. `otelcol state is Closed`, no reason given        |
-   | `batch` processor is not in this layer          | `unknown type: "batch" ... (valid values: [])` — **no processors at all** |
-   | esbuild's non-configurable `handler` export     | `TypeError: Cannot redefine property: handler`, uncaught, at init        |
-
-   The first one is the nastiest, and worth knowing for its own sake: **because the config was never
-   parsed, raising `service.telemetry.logs.level` inside it changed nothing.** The obvious debugging
-   move produced no new output, which reads like "the setting is not working" rather than "we never
-   got as far as your file".
+   What was given up is vendor neutrality, which was the original argument and the weakest one
+   here: the backend is Cognito, AppSync Events, DynamoDB and CDK. Telemetry was the one portable
+   piece of something entirely AWS-specific.
 
 3. **The throttle protects the bill, not availability.** It is per route and shared by everybody,
    so one account hammering a route returns 429 to every player at every table. HTTP APIs have no
    per-caller quota — usage plans are a REST API feature — so the fix, when somebody is actually
    connected, is a WAF rate rule at roughly $5 a month for a web ACL.
-4. **No dashboards.** Alarms are code, and one of them has now been seen to fire — the action
-   handler was pointed at a table it had no permission to read, and `ActionErrors` went to `ALARM`
-   about a minute later and emailed. A Grafana dashboard is still console work, as is the
-   CloudWatch metrics scrape that fills in what OTel cannot see (API Gateway 5xx, DynamoDB
-   throttles, cold starts) — that scrape is the half of the picture worth doing first.
+4. **No considered dashboard.** There is one — `poker-<stage>`, in CDK, an alarm status row over a
+   graph per alarm — but it was generated from the alarm definitions rather than designed. One of
+   those alarms has been seen to fire: the action handler was pointed at a table it had no
+   permission to read, and `ActionErrors` reached `ALARM` about a minute later and emailed.
 5. **No custom domain.** The API answers on its generated `execute-api` hostname, which is fine
    until the day the stack is replaced and the hostname changes with it.
 6. **No federated sign-in.** Apple and Google need real client ids and secrets, and App Store
    guideline 4.8 requires Sign in with Apple alongside any other third-party provider.
-6a. **`UserPoolEmail.withCognito()` is a development setting.** It delivers — both test sign-ups
+6a. **No dashboard beyond the one in code.** `poker-<stage>` is built by CDK from the same `watch`
+   calls that declare the alarms, so the two cannot drift. It is a starting point, not a considered
+   layout.
+6b. **`UserPoolEmail.withCognito()` is a development setting.** It delivers — both test sign-ups
    arrived — but **into the spam folder**, because `no-reply@verificationemail.com` is AWS's shared
    sender and nothing authenticates it as this app. It is also capped at **50 messages a day** with
    no way to raise it, which is a cap on sign-ups per day for the whole app. Production wants
@@ -175,34 +167,42 @@ response — it learns it from the event, the same way every other player does. 
 rather than two that can disagree, and it is what makes optimistic prediction on the client safe:
 the phone runs `@poker/core` locally, and the authoritative event either confirms it or replaces it.
 
-### 2. OpenTelemetry to Grafana Cloud, with CloudWatch for what OTel cannot see
+### 2. CloudWatch, X-Ray and a dashboard in code — after trying the other thing
 
-**App telemetry** — traces, spans, custom metrics, structured logs from the Lambda — is emitted as
-OTLP and shipped to Grafana Cloud. Vendor-neutral instrumentation, one place for all three signals,
-and nothing that ties the next decision to AWS.
+**This decision was made twice.** It read *"OpenTelemetry to Grafana Cloud, with CloudWatch for what
+OTel cannot see"*, on the argument that vendor-neutral instrumentation keeps all three signals in one
+place and ties nothing to AWS. It was built, it was deployed, it worked — traces reached Grafana —
+and it was then removed. The original text is in the history; what replaced it is below, and the
+reason is a number.
 
-**Infrastructure metrics are a separate path, and this is the part that is easy to get wrong.** OTel
-runs _inside_ the Lambda, so it cannot see API Gateway 5xx, DynamoDB throttles, AppSync connection
-errors, or Lambda concurrency and cold starts. Those are CloudWatch service metrics. Grafana Cloud
-pulls them with its **CloudWatch metrics scrape** (or a metric stream via Firehose, which is
-lower-latency and costs more). Both signals then sit in one place.
+**The collector layer cost ~1.9 s of cold start**, against a published 50–200 ms (measured table at
+the top of this file). This app is the worst possible case for that: a table plays one evening a
+week, so cold starts are the *common* case rather than a rounding error on a warm fleet, and
+`SubscribeAuthorizer` runs before a player can see a table on a three-second timeout.
 
-On the Lambda side there is a real trade to make, not a free lunch:
+**And the infrastructure half would have cost more than the whole backend.** OTel runs _inside_ a
+Lambda, so it cannot see API Gateway 5xx, DynamoDB throttles, AppSync connection errors or cold
+starts — those happen outside the function and are CloudWatch metrics. Reaching them from Grafana
+means its CloudWatch scrape, at roughly **$3–9/month against an account that spends $0.64** — to
+copy metrics out of the place they already were so they could be looked at elsewhere.
 
-- The **collector layer** (ADOT or the upstream OpenTelemetry Lambda layer) batches and exports out
-  of band, and adds roughly **50–200 ms to a cold start**. AWS's newer collector-free layers are
-  faster and export only to X-Ray and CloudWatch, so they cannot reach Grafana.
-- **In-process OTLP export** avoids the layer but has to flush before the invocation returns, which
-  puts the export latency in the request path.
+So:
 
-For a table that plays one evening a week, cold starts are the common case, so this matters more
-here than it would under steady traffic. **Start with the collector layer, measure a cold start
-before and after, and write the number down.** If it is unacceptable, fall back to exporting
-metrics and logs only and leave tracing to X-Ray.
+- **Traces:** Lambda `Tracing.ACTIVE`. The X-Ray daemon is part of the execution environment rather
+  than a Go binary each function starts, and it costs within noise of nothing.
+- **Metrics:** CloudWatch, where they already are, with no export step to break.
+- **Logs:** CloudWatch, structured JSON from `lib/lambda/logging.ts`, queryable with Logs Insights.
+- **Dashboard:** `poker-<stage>`, built in CDK from the same `watch()` calls that declare the
+  alarms — so a metric worth alarming on is automatically a metric worth looking at, and the two
+  cannot drift.
 
-Grafana Cloud's free tier is 10,000 active series, 50 GB of logs, 50 GB of traces and 14-day
-retention, with no card required — comfortably above this project's volume, and worth re-checking at
-sign-up rather than trusting a number written down here.
+**What this gives up is vendor neutrality**, and it is worth being honest that this was the whole
+original argument. It is also the weakest one here: the backend is Cognito, AppSync Events, DynamoDB
+and CDK. Telemetry was the single portable piece of something otherwise welded to AWS, and it was
+being paid for in cold-start latency on every invocation. If this project ever spans two clouds, the
+instrumentation is one layer and one config file away from going back — **and the footer in
+`handlerBundling` has to come back with it**, or ADOT's handler wrap throws `Cannot redefine
+property: handler` and fails every invocation.
 
 **What to alert on** (an alert nobody acts on is worse than no alert):
 
@@ -216,9 +216,11 @@ sign-up rather than trusting a number written down here.
 | Cognito sign-in failure rate                | An expired Apple key or a broken client config, which looks like "the app is down" |
 | Monthly spend > a threshold                 | The only alarm that catches a loop nobody noticed                                  |
 
-Alerts are declared in Grafana (so they live beside the dashboards) and delivered by email; a
-CloudWatch billing alarm into SNS is the one exception, because it has to work even when the
-telemetry pipeline is the thing that broke.
+All seven are CloudWatch alarms into an SNS topic, delivered by email, and **one of them has been
+seen to fire** — the action handler was pointed at a table it could not read, and `ActionErrors`
+alarmed about a minute later. They were always going to be CloudWatch rather than declared in the
+telemetry backend, for a reason that survived the rewrite: **an alert defined in the telemetry
+pipeline stops working when the telemetry pipeline is what broke.**
 
 ### 3. Two stacks in one account, deployed by GitHub Actions over OIDC
 
@@ -290,29 +292,11 @@ makes the two agree without anybody remembering anything. A test asserts both ke
 Only account and region are still flags, because they legitimately differ between a laptop and CI —
 the workflow passes them from repository variables.
 
-**4. Then in Grafana Cloud** — free tier, no card:
-
-- Create a stack, open the **OpenTelemetry** tile, and generate a token. It gives you an OTLP
-  endpoint (`https://otlp-gateway-prod-<zone>.grafana.net/otlp`) and an `Authorization: Basic …`
-  header built from the instance id and the token.
-- Create the secret **yourself** — CDK imports it by name and never writes to it, so a deploy can
-  never overwrite the value:
-
-  ```bash
-  aws secretsmanager create-secret --name poker/grafana-otlp --secret-string \
-    '{"otlpEndpoint":"https://otlp-gateway-prod-<zone>.grafana.net/otlp","otlpAuth":"Basic <base64 of instanceId:token>"}'
-  ```
-
-- **Then** redeploy with telemetry on: `npx cdk deploy PokerBackend-dev -c telemetry=true …`.
-
-  Telemetry is off until asked for, and the order matters: the collector refuses to start without
-  an endpoint, so turning it on before the secret exists would take every route down with it and
-  the cause would look like anything but a missing telemetry credential.
-
-- Add the **CloudWatch metrics scrape** for this account. OTel cannot see API Gateway 5xx, DynamoDB
-  throttles, AppSync connection errors or cold starts, because all of those happen outside the
-  function it lives in. Without the scrape, half the dashboard is empty for reasons nobody can see.
-  Log lines come this way too — a `console.log` is not OTLP, so the collector never sees one.
+**4. There is no step 4 any more.** It used to be *"then in Grafana Cloud"* — create a stack,
+generate an OTLP token, put it in Secrets Manager, redeploy with `-c telemetry=true`, add the
+CloudWatch metrics scrape. All of that was done, and then undone; see decision 2 for the numbers.
+Telemetry now needs no account, no credential and no step: `Tracing.ACTIVE` and CloudWatch are on
+from the first deploy.
 
 **5. Then in GitHub**, under Settings — **done**:
 
@@ -379,8 +363,8 @@ Each step is a PR, CI-checked, and each is deployable on its own.
 2. GitHub OIDC role + `cdk diff` on PRs, deploy-to-dev on merge, prod behind approval.
 3. `cdk bootstrap` — **needs credentials, so this is yours to run.**
 
-**B. Accounts** 4. HTTP API + Cognito JWT authorizer, with one trivial authenticated route to prove the chain. 5. OTel wiring: collector layer, OTLP export to Grafana, structured logs, a first dashboard, the
-alarms above. Cold-start measured and recorded. 6. Replace `stubAuthProvider` with Cognito in the app; environment configuration for dev vs prod. 7. Link the account screens into Settings — the entry point that has been deliberately absent. 8. Account deletion actually deletes server-side data (App Store 5.1.1(v) — the screen exists, the
+**B. Accounts** 4. HTTP API + Cognito JWT authorizer, with one trivial authenticated route to prove the chain. 5. Telemetry: X-Ray tracing, structured logs, the dashboard and the alarms above. Cold-start
+measured and recorded — which is what ended the OpenTelemetry export. 6. Replace `stubAuthProvider` with Cognito in the app; environment configuration for dev vs prod. 7. Link the account screens into Settings — the entry point that has been deliberately absent. 8. Account deletion actually deletes server-side data (App Store 5.1.1(v) — the screen exists, the
 deletion does not).
 
 **C. Sync** 9. The DynamoDB access patterns for groups, players and results; the read/write loop in the Lambda. 10. Groups and leaderboards sync across devices, guest players linkable to accounts.
@@ -397,7 +381,9 @@ back at a machine that has them.
 
 At around 1,000 monthly actives with a tenth of them hosting, measured against published pricing:
 **$10–28/month**, of which the server side is roughly $0.30–0.40 per hosting user — about 2% of any
-plausible subscription price. Grafana Cloud is $0 on the free tier at this volume.
+plausible subscription price. Observability adds about **$1/month** — seven alarms at $0.10 and a
+dashboard — with X-Ray free at this volume. Exporting to Grafana Cloud instead would have added
+$3-9/month for the CloudWatch scrape alone, which is what settled it.
 
 The one unresolved number: **Cognito bills users arriving through a SAML/OIDC identity provider on a
 separate 50-MAU free tier**, then $0.015/MAU, against 10,000 free on Essentials. Whether Sign in
@@ -410,8 +396,6 @@ or a throwaway pool before step E**, not after.
 The bootstrap, the OIDC provider and the first deploys are done, so that list is shorter than it
 was. What is left needs an account somebody has to create or a console somebody has to open:
 
-- **The Grafana Cloud account**, and therefore the OTLP credential, the telemetry deploy, the
-  cold-start "after" number, the dashboards and the CloudWatch metrics scrape.
 - **Apple and Google sign-in credentials**, and the RevenueCat/App Store/Play console work.
 - **Anything needing two physical devices**, which is most of what D is for.
 - **Prod.** One `workflow_dispatch` away, and there is no reason to reach for it before the app is

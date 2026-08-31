@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { App } from "aws-cdk-lib";
 import { Match, Template } from "aws-cdk-lib/assertions";
-import { HANDLER_EXPORT_FOOTER, PokerStack } from "../lib/pokerStack";
+import { PokerStack } from "../lib/pokerStack";
 import { settingsFor } from "../lib/stage";
 
 let synthesised: Template | null = null;
@@ -11,20 +11,10 @@ const template = (): Template => {
       settings: settingsFor("prod"),
       alertEmail: "someone@example.com",
       monthlyBudgetUsd: 50,
-      telemetry: true,
     }),
   );
   return synthesised;
 };
-
-/** The same stack as it deploys the *first* time: no credential, no exporter. */
-const beforeTelemetry = (): Template =>
-  Template.fromStack(
-    new PokerStack(new App(), "PreTelemetry", {
-      settings: settingsFor("prod"),
-      alertEmail: "someone@example.com",
-    }),
-  );
 
 const alarms = () =>
   Object.values(template().findResources("AWS::CloudWatch::Alarm")).map(
@@ -114,120 +104,69 @@ describe("a stack nobody gave an address", () => {
   });
 });
 
-describe("a first deploy, before the credential exists", () => {
-  it("attaches no collector, because one without an endpoint refuses to start", () => {
-    // The failure this avoids is the worst kind: the API returns 502 to
-    // everything, and the cause is a telemetry credential nobody was thinking
-    // about. Deploy, create the secret, redeploy with telemetry on.
-    const functions = Object.values(
-      beforeTelemetry().findResources("AWS::Lambda::Function"),
-    );
-    const instrumented = functions.filter(
-      (fn) => ((fn.Properties as { Layers?: unknown[] }).Layers ?? []).length > 0,
-    );
-    expect(instrumented).toEqual([]);
-  });
-
-  it("still alarms on everything, so the switch is only about export", () => {
-    beforeTelemetry().resourceCountIs("AWS::CloudWatch::Alarm", 7);
-  });
-
-  it("asks for no secret it has not been told exists", () => {
-    const rendered = JSON.stringify(beforeTelemetry().toJSON());
-    expect(rendered).not.toContain("{{resolve:secretsmanager:");
-  });
-});
-
-describe("telemetry reaching Grafana", () => {
-  it("uses the Node wrapper, not the Python one", () => {
-    // The names invite the wrong choice: `INSTRUMENT_HANDLER` is
-    // `/opt/otel-instrument`, which is Python's. Node wants `/opt/otel-handler`,
-    // and the wrong one fails at init on every single invocation.
-    template().hasResourceProperties("AWS::Lambda::Function", {
-      Environment: Match.objectLike({
-        Variables: Match.objectLike({
-          AWS_LAMBDA_EXEC_WRAPPER: "/opt/otel-handler",
-        }),
-      }),
-    });
-  });
-
-  it("instruments every function without a line of code in any of them", () => {
-    // All of them, asserted as "none left out" rather than as a count — a
-    // function added later is instrumented or the test says which one is not.
-    const functions = Object.values(
-      template().findResources("AWS::Lambda::Function"),
-    );
-    const uninstrumented = Object.entries(
+describe("traces, without a collector in the way", () => {
+  it("traces every function through X-Ray", () => {
+    // Asserted as "none left out" rather than as a count, so a function added
+    // later is traced or the test names the one that is not.
+    const untraced = Object.entries(
       template().findResources("AWS::Lambda::Function"),
     )
       .filter(
         ([, fn]) =>
-          ((fn.Properties as { Layers?: unknown[] }).Layers ?? []).length === 0,
+          (fn.Properties as { TracingConfig?: { Mode?: string } }).TracingConfig
+            ?.Mode !== "Active",
       )
       .map(([id]) => id);
-    expect(functions.length).toBeGreaterThan(0);
-    expect(uninstrumented).toEqual([]);
+    expect(untraced).toEqual([]);
   });
 
-  it("points the collector at the config that names Grafana, as a URI", () => {
-    // The ADOT layer's default configuration exports to X-Ray and nothing
-    // else, so without this the traces never leave AWS.
-    //
-    // **The `file:` scheme is the whole assertion.** This was a bare
-    // `/var/task/collector.yaml`, which the collector's confmap resolver cannot
-    // dispatch — it matches no provider, so the config is never fetched, let
-    // alone parsed. The extension then reports only `unable to start, otelcol
-    // state is Closed`, and because the config never parses, raising
-    // `service.telemetry.logs.level` inside it changes nothing, which is a
-    // memorably confusing thing to debug. The function fails *every* invocation
-    // with `Extension.InitError`: a 500 on every route, caused by a telemetry
-    // setting.
-    template().hasResourceProperties("AWS::Lambda::Function", {
-      Environment: Match.objectLike({
-        Variables: Match.objectLike({
-          OPENTELEMETRY_COLLECTOR_CONFIG_URI: "file:/var/task/collector.yaml",
-        }),
-      }),
-    });
+  it("attaches no Lambda layer at all", () => {
+    // The measurement that ended the OpenTelemetry collector: it cost ~1.9 s of
+    // cold start against a published 50-200 ms, on an app where a table plays
+    // one evening a week and therefore almost every invocation is a cold start.
+    // A layer reappearing here is that cost coming back.
+    const layered = Object.entries(
+      template().findResources("AWS::Lambda::Function"),
+    )
+      .filter(
+        ([, fn]) => ((fn.Properties as { Layers?: unknown[] }).Layers ?? []).length > 0,
+      )
+      .map(([id]) => id);
+    expect(layered).toEqual([]);
   });
 
-  it("re-exports the handler so OpenTelemetry can wrap it", () => {
-    // esbuild compiles `export const handler` into a getter installed by its
-    // `__export` helper, which calls `Object.defineProperty` without
-    // `configurable: true`. ADOT's `AwsLambdaInstrumentation` then wraps it with
-    // shimmer — another `defineProperty` — and throws `Cannot redefine
-    // property: handler` as an uncaught exception at init, failing every
-    // invocation with a 500.
-    //
-    // **This cannot be asserted from the template**: the footer is a bundling
-    // option, and what it produces is inside an asset. So the assertion is on
-    // the constant itself — enough to fail if somebody deletes it while tidying,
-    // which is the realistic way it would be lost.
-    expect(HANDLER_EXPORT_FOOTER).toContain("module.exports");
-    expect(HANDLER_EXPORT_FOOTER).toContain("...module.exports");
+  it("resolves no secret into the template", () => {
+    // There is no telemetry credential any more. This is what would catch one
+    // being reintroduced as a dynamic reference, which puts the resolved value
+    // on every function's configuration.
+    expect(JSON.stringify(template().toJSON())).not.toContain(
+      "{{resolve:secretsmanager:",
+    );
+  });
+});
+
+describe("the dashboard", () => {
+  it("exists, in code rather than in somebody's console", () => {
+    // A dashboard clicked together by hand is undocumented, unreviewable, and
+    // gone with the account. This one is in the diff that changes it.
+    template().resourceCountIs("AWS::CloudWatch::Dashboard", 1);
   });
 
-  it("says which environment a span came from", () => {
-    // Two stacks reporting into one Grafana with no way to tell them apart is
-    // worse than one stack reporting into it.
-    template().hasResourceProperties("AWS::Lambda::Function", {
-      Environment: Match.objectLike({
-        Variables: Match.objectLike({
-          OTEL_RESOURCE_ATTRIBUTES: Match.stringLikeRegexp(
-            "deployment.environment=prod",
-          ),
-        }),
-      }),
-    });
-  });
-
-  it("keeps the credential out of the template entirely", () => {
-    // A dynamic reference is resolved by CloudFormation at deploy time, so the
-    // token is in neither this repository nor the synthesised artefact.
-    const rendered = JSON.stringify(template().toJSON());
-    expect(rendered).toContain("{{resolve:secretsmanager:");
-    const secrets = ["unset-real-token", "glc_", "Basic "];
-    expect(secrets.filter((needle) => rendered.includes(needle))).toEqual([]);
+  it("shows every alarm it is worth being woken for", () => {
+    // The dashboard and the alarms are built from the same `watch` call, so
+    // they cannot drift — which they do the moment they are maintained apart.
+    const dashboards = Object.values(
+      template().findResources("AWS::CloudWatch::Dashboard"),
+    );
+    // The body is a `Fn::Join` of escaped JSON, so the quotes are `\"` rather
+    // than `"` once stringified — matching the unescaped shape silently finds
+    // nothing and passes a `toBeGreaterThan(0)` written the obvious way.
+    const body = JSON.stringify(dashboards[0].Properties.DashboardBody);
+    const widgets = (type: string) =>
+      (body.match(new RegExp(`\\\\"type\\\\":\\\\"${type}\\\\"`, "g")) ?? [])
+        .length;
+    // The status row first, then one graph per alarm.
+    expect(widgets("alarm")).toBe(1);
+    expect(widgets("metric")).toBe(7);
   });
 });

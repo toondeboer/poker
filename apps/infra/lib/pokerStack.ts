@@ -54,12 +54,7 @@ import {
   Role,
   ServicePrincipal,
 } from "aws-cdk-lib/aws-iam";
-import {
-  AdotLambdaExecWrapper,
-  AdotLambdaLayerJavaScriptSdkVersion,
-  AdotLayerVersion,
-  Runtime,
-} from "aws-cdk-lib/aws-lambda";
+import { Runtime, Tracing } from "aws-cdk-lib/aws-lambda";
 import { NodejsFunction } from "aws-cdk-lib/aws-lambda-nodejs";
 import { LogGroup } from "aws-cdk-lib/aws-logs";
 import { HttpApi, HttpMethod, type CfnStage } from "aws-cdk-lib/aws-apigatewayv2";
@@ -117,43 +112,11 @@ export function onPublish(ctx) {
 }
 `;
 
-/**
- * What makes the bundled handler instrumentable.
- *
- * esbuild compiles `export const handler` into a getter installed by its
- * `__export` helper, which calls `Object.defineProperty` **without
- * `configurable: true`** — so the property is non-configurable. ADOT's
- * `AwsLambdaInstrumentation` wraps the handler with `shimmer`, which is another
- * `defineProperty`, and it throws:
- *
- *     TypeError: Cannot redefine property: handler
- *
- * That is an uncaught exception during init, so it does not merely lose
- * telemetry — **every invocation fails and every route returns 500.** Spreading
- * `module.exports` over itself reads each getter once and leaves ordinary,
- * configurable properties behind.
- *
- * Exported so a test can assert it is still there: nothing in the synthesised
- * template records it, and removing it breaks the whole API at runtime rather
- * than at build time.
- */
-export const HANDLER_EXPORT_FOOTER = "module.exports = { ...module.exports };";
-
 export type PokerStackProps = StackProps & {
   /** Where alarms are sent. Without it they fire into a topic nobody reads. */
   alertEmail?: string;
   /** Dollars a month before somebody is warned. Needs an `alertEmail`. */
   monthlyBudgetUsd?: number;
-  /**
-   * Export telemetry to Grafana. **Off by default.**
-   *
-   * The collector will not start without an endpoint, so turning this on before
-   * the credential exists takes every route down with it. Deploy, create the
-   * secret, then redeploy with this on.
-   */
-  telemetry?: boolean;
-  /** Where the Grafana OTLP credential lives. Created by hand; never by CDK. */
-  grafanaSecretName?: string;
   /**
    * Which backend this is.
    *
@@ -192,13 +155,7 @@ export class PokerStack extends Stack {
     /**
      * Tags on everything in this stack.
      *
-     * **Grafana Cloud's CloudWatch scrape cannot see an untagged resource.** It
-     * discovers what to scrape through the Resource Groups Tagging API, so a
-     * resource carrying no tags at all is simply absent from the dashboards —
-     * not an error, just permanently missing data, which is the hardest kind of
-     * gap to notice.
-     *
-     * They are also what a budget would need to filter on. The `poker-dev`
+     * What a budget would need to filter on. The `poker-dev`
      * budget currently forecasts the *whole account*, because `CfnBudget` has no
      * cost filter and this account runs other projects; filtering it means
      * activating `project` as a cost allocation tag in Billing and waiting for
@@ -215,110 +172,55 @@ export class PokerStack extends Stack {
       settings,
       alertEmail: props?.alertEmail,
       monthlyBudgetUsd: props?.monthlyBudgetUsd,
-      grafanaSecretName: props?.grafanaSecretName,
     });
 
     /**
-     * What every function needs to reach Grafana.
+     * Traces, the AWS-native way.
      *
-     * The ADOT layer ships a collector whose default configuration exports to
-     * X-Ray and nothing else, so the config file bundled beside the handler is
-     * what actually points it at Grafana. The credential is a CloudFormation
-     * dynamic reference: resolved at deploy, so the token is in neither the
-     * repository nor the synthesised template.
+     * **This replaced an OpenTelemetry collector layer, and the reason is a
+     * measurement.** The ADOT layer worked — traces reached Grafana Cloud — and
+     * it cost **~1.9 seconds of cold start** on every function: Identity
+     * 142.9 → 1889.2 ms, TableAction 302.0 → 2267.5 ms, SubscribeAuthorizer
+     * 277.4 → 2160.9 ms, n=6 each. The figure everybody quotes for that layer,
+     * including an earlier version of this comment, is 50-200 ms.
+     *
+     * That is the wrong trade for this app specifically. A table plays one
+     * evening a week, so **most invocations are cold starts** rather than a
+     * rounding error on a warm fleet — and `SubscribeAuthorizer` runs before a
+     * player can see a table, on a three-second timeout, which ~2.2 s of init
+     * very nearly exhausts.
+     *
+     * `Tracing.ACTIVE` costs single-digit milliseconds because the X-Ray daemon
+     * is part of the execution environment rather than a Go binary this
+     * function has to start. What it gives up is vendor neutrality — and that
+     * was always the weakest argument here, in a backend welded to Cognito,
+     * AppSync Events, DynamoDB and CDK. The telemetry was the one portable
+     * piece of something entirely AWS-specific.
+     *
+     * The infrastructure half needs no export at all: API Gateway 5xx, DynamoDB
+     * throttles and AppSync connection errors are already CloudWatch metrics,
+     * which is what the alarms read and what the dashboard draws. Shipping them
+     * to a third party meant paying to copy data out of the place it already
+     * was.
      */
-    const telemetryEnabled = props?.telemetry ?? false;
-    const telemetryEnvironment = {
-      NODE_OPTIONS: "--enable-source-maps",
-      ...(telemetryEnabled
-        ? {
-            // **`file:` matters.** This is a *URI*, and the collector's confmap
-            // resolver dispatches on the scheme — a bare `/var/task/…` matches
-            // no provider and fails to resolve before the file is ever opened.
-            // The failure is silent in the worst way: the extension reports
-            // only `unable to start, otelcol state is Closed`, the config is
-            // never parsed (so raising `service.telemetry.logs.level` inside it
-            // changes nothing, which is a very confusing thing to observe), and
-            // the function then fails *every* invocation with
-            // `Extension.InitError` — a 500 on every route, from a telemetry
-            // setting. The older variable this replaced,
-            // `OPENTELEMETRY_COLLECTOR_CONFIG_FILE`, did take a bare path,
-            // which is where the wrong shape comes from.
-            OPENTELEMETRY_COLLECTOR_CONFIG_URI: "file:/var/task/collector.yaml",
-            GRAFANA_OTLP_ENDPOINT: observability.grafanaCredential
-              .secretValueFromJson("otlpEndpoint")
-              .unsafeUnwrap(),
-            GRAFANA_OTLP_AUTH: observability.grafanaCredential
-              .secretValueFromJson("otlpAuth")
-              .unsafeUnwrap(),
-            OTEL_RESOURCE_ATTRIBUTES: `deployment.environment=${settings.stage},service.namespace=poker`,
-          }
-        : {}),
-    };
+    const functionEnvironment = { NODE_OPTIONS: "--enable-source-maps" };
 
     /**
-     * The layer, the wrapper that starts it, and the switch that keeps a
-     * missing credential from taking the API down with it.
+     * How every handler in this stack is bundled. One object, three functions.
      *
-     * **`REGULAR_HANDLER`, not `INSTRUMENT_HANDLER`.** The names invite the
-     * wrong one: `INSTRUMENT_HANDLER` is `/opt/otel-instrument`, which is the
-     * *Python* layer's wrapper. Node wants `/opt/otel-handler`, and the wrong
-     * one fails at init on every single invocation.
-     *
-     * **Off unless asked for**, because the collector refuses to start when its
-     * exporter has no endpoint — which is the state of a fresh account, and
-     * would mean the first deploy of the API returns 502 to everything until
-     * somebody notices the telemetry credential was the cause. Deploy once
-     * without, create the secret, then redeploy with `-c telemetry=true`.
-     *
-     * It costs roughly 50-200 ms on a cold start — which matters here more than
-     * under steady traffic, because a table plays one evening a week and most
-     * invocations *are* cold starts. **Measure it after the first deploy and
-     * write the number down**; if it is bad, the fallback is dropping the layer
-     * and exporting metrics and logs only.
-     */
-    const adotInstrumentation = telemetryEnabled
-      ? {
-          layerVersion: AdotLayerVersion.fromJavaScriptSdkLayerVersion(
-            AdotLambdaLayerJavaScriptSdkVersion.LATEST,
-          ),
-          execWrapper: AdotLambdaExecWrapper.REGULAR_HANDLER,
-        }
-      : undefined;
-
-    /** Copies the collector's configuration in beside the bundled handler. */
-    const bundleCollectorConfig = {
-      beforeBundling: () => [],
-      beforeInstall: () => [],
-      afterBundling: (inputDir: string, outputDir: string) => [
-        `cp ${path.join(inputDir, "apps", "infra", "lib", "lambda", "collector.yaml")} ${outputDir}`,
-      ],
-    };
-
-    /**
-     * How every handler in this stack is bundled. One object, three functions,
-     * because the footer below is not optional and is very easy to omit.
-     *
-     * **The footer is what lets OpenTelemetry instrument the handler at all.**
-     * esbuild compiles `export const handler` into a getter installed by its
-     * `__export` helper, which calls `Object.defineProperty` **without
-     * `configurable: true`** — so the property defaults to non-configurable.
-     * ADOT's `AwsLambdaInstrumentation` wraps the handler with `shimmer`, which
-     * is another `defineProperty`, and it throws:
-     *
-     *     TypeError: Cannot redefine property: handler
-     *
-     * That is an *uncaught exception at init*, so it does not degrade
-     * telemetry — it fails the invocation, and every route returns 500.
-     * Re-assigning `module.exports` to a spread of itself reads each getter once
-     * and leaves ordinary, configurable properties in its place.
+     * Nothing is copied in beside the bundle any more: the collector
+     * configuration this used to carry went with the collector. Nor is there a
+     * `footer` re-exporting the handler — that existed because esbuild compiles
+     * `export const handler` into a **non-configurable** getter, which made
+     * ADOT's `shimmer` wrap throw `Cannot redefine property: handler` and fail
+     * every invocation. Nothing wraps the handler now. **If an OpenTelemetry
+     * layer is ever added back, that footer has to come back with it**; see the
+     * README.
      */
     const handlerBundling = {
       minify: true,
       sourceMap: true,
       target: "node22",
-      commandHooks: bundleCollectorConfig,
-      footer: HANDLER_EXPORT_FOOTER,
     };
 
     /**
@@ -462,8 +364,8 @@ export class PokerStack extends Stack {
       // latency is felt. A read that has not answered in three seconds is not
       // going to.
       timeout: Duration.seconds(3),
-      environment: { ...telemetryEnvironment, TABLE_NAME: table.tableName },
-      adotInstrumentation,
+      environment: { ...functionEnvironment, TABLE_NAME: table.tableName },
+      tracing: Tracing.ACTIVE,
       logGroup: new LogGroup(this, "SubscribeAuthorizerLogs", {
         retention: settings.logRetention,
         removalPolicy: RemovalPolicy.DESTROY,
@@ -542,11 +444,11 @@ export class PokerStack extends Stack {
       memorySize: 512,
       timeout: Duration.seconds(10),
       environment: {
-        ...telemetryEnvironment,
+        ...functionEnvironment,
         TABLE_NAME: table.tableName,
         EVENT_API_HTTP: Fn.getAtt(eventApi.logicalId, "Dns.Http").toString(),
       },
-      adotInstrumentation,
+      tracing: Tracing.ACTIVE,
       // An explicit log group rather than `logRetention`, which is deprecated
       // and, more to the point, deploys a second Lambda whose only job is to
       // call PutRetentionPolicy on the first one's log group.
@@ -603,8 +505,8 @@ export class PokerStack extends Stack {
       // Bundling a source map does nothing on its own — Node ignores it unless
       // told to load it, so without this every stack trace reads
       // `index.js:1:24310` and the map is dead weight in the artefact.
-      environment: telemetryEnvironment,
-      adotInstrumentation,
+      environment: functionEnvironment,
+      tracing: Tracing.ACTIVE,
       bundling: handlerBundling,
     });
 
@@ -779,10 +681,14 @@ export class PokerStack extends Stack {
         "DynamoDB itself is erroring. Nothing to fix here; worth knowing before a player reports it.",
     });
 
+    // Everything watched above, laid out. After the last `watch`, or the
+    // dashboard is missing whatever came later.
+    observability.summarise();
+
     new CfnOutput(this, "AlarmTopicArn", { value: observability.alarms.topicArn });
-    new CfnOutput(this, "GrafanaSecretArn", {
-      value: observability.grafanaCredential.secretArn,
-      description: "Put the Grafana Cloud OTLP endpoint and auth header here",
+    new CfnOutput(this, "DashboardName", {
+      value: observability.dashboard.dashboardName,
+      description: "CloudWatch > Dashboards",
     });
     new CfnOutput(this, "ApiUrl", { value: api.apiEndpoint });
     new CfnOutput(this, "Stage", { value: settings.stage });

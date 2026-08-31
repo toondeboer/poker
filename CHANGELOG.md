@@ -130,6 +130,13 @@ platform-tagged heading (e.g. `## [1.1.3] - 2026-07-20 — Android`) when you cu
   account should live there. Two faults were found by deploying that no amount of testing beforehand
   could have: one that would only ever appear on the very first deploy of a fresh environment, and
   one that would have put an approval step in front of every website update.
+- The server watches itself, and can say so: traces of every request, the numbers behind them, and
+  seven alarms that email when something is actually wrong — one of which has been deliberately set
+  off to check the email arrives. This was first built on an outside monitoring service and then
+  moved onto Amazon's own, because measuring it showed the outside route was adding nearly two
+  seconds to the first request after an idle period — on an app whose whole traffic pattern is one
+  evening a week, so almost every request is that first one. Nobody would have seen a bug; they
+  would have seen the app feeling slow to wake up.
 
 ### Removed
 - The Maestro end-to-end suite (26 flows) is gone. It had rotted while nothing referenced it: a
