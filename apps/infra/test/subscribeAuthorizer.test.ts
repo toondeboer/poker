@@ -1,7 +1,9 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it } from "vitest";
 import {
   authorize,
+  handler,
   tableFromChannel,
+  useTableStore,
   type SubscribeEvent,
 } from "../lib/lambda/subscribeAuthorizer";
 import type { TableStore } from "../lib/lambda/tableStore";
@@ -38,6 +40,8 @@ const seated = (members: string[]): StoredTable => ({
   version: 1,
   members,
 });
+
+afterEach(() => useTableStore(null));
 
 describe("which table a channel is about", () => {
   it("reads the id out of the path", () => {
@@ -150,5 +154,35 @@ describe("failing closed", () => {
       if (result?.error) reasons.add(result.error);
     }
     expect(reasons.size).toBe(1);
+  });
+});
+
+describe("the handler itself", () => {
+  it("refuses a read that throws before it ever returns a promise", async () => {
+    // A synchronous throw and a rejected promise are different paths through
+    // an `async` caller, and only one of them is what a broken client library
+    // actually does on construction.
+    useTableStore({
+      read() {
+        throw new Error("thrown synchronously, before any promise exists");
+      },
+      async write() {
+        return true;
+      },
+    });
+    await expect(
+      handler(subscribing("u-1", tableChannel("t-1"))),
+    ).resolves.toEqual({ error: "not a member of this table" });
+  });
+
+  it("refuses rather than guessing a table name it was not given", async () => {
+    // A guard reading the wrong table is worse than one that is down.
+    useTableStore(null);
+    const before = process.env.TABLE_NAME;
+    delete process.env.TABLE_NAME;
+    await expect(
+      handler(subscribing("u-1", tableChannel("t-1"))),
+    ).resolves.toEqual({ error: "not a member of this table" });
+    if (before !== undefined) process.env.TABLE_NAME = before;
   });
 });

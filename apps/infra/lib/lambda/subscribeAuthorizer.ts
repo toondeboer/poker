@@ -116,17 +116,32 @@ let store: TableStore | null = null;
 export const handler = async (
   event: SubscribeEvent,
 ): Promise<SubscribeResponse> => {
-  if (!store) {
-    const tableName = process.env.TABLE_NAME;
-    if (!tableName) {
-      // Refuse rather than guess a table name. A guard reading the wrong table
-      // is worse than one that is down.
-      log("error", "TABLE_NAME is not set; refusing every subscription");
-      return DENIED;
+  // **Nothing here throws**, because AWS documents what a *returned* refusal
+  // means and says nothing about what an invocation failure means — so a guard
+  // that throws has undefined behaviour at the moment it matters most.
+  //
+  // `authorize` already returns rather than throws on every path it owns. This
+  // catch is for the one thing outside it: `createTableStore`, which builds a
+  // DynamoDB client and could fail on a runtime that is not what it promised.
+  // **Deliberately untested** — forcing that construction to fail needs the
+  // module mocked, and a test that mocked it would be asserting that the mock
+  // throws rather than that this refuses. It is belt to `authorize`'s braces.
+  try {
+    if (!store) {
+      const tableName = process.env.TABLE_NAME;
+      if (!tableName) {
+        // Refuse rather than guess a table name. A guard reading the wrong
+        // table is worse than one that is down.
+        log("error", "TABLE_NAME is not set; refusing every subscription");
+        return DENIED;
+      }
+      store = createTableStore(tableName);
     }
-    store = createTableStore(tableName);
+    return await authorize(event, store);
+  } catch (error) {
+    log("error", "subscribe guard failed; refusing", { error: String(error) });
+    return DENIED;
   }
-  return authorize(event, store);
 };
 
 /** For tests, which need a store that is not DynamoDB. */
