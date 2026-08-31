@@ -126,10 +126,16 @@ jobs:
   # Production. The `environment` is the gate — it is what the prod role's
   # trust policy checks for, so this job cannot reach production without the
   # approval configured on that environment in GitHub.
+  #
+  # `backend-production` rather than `production`: GitHub environment names are
+  # case-insensitive, and `Production` in this repository belongs to Vercel,
+  # which deploys the website on every push to `main`. A required reviewer there
+  # would gate the website too — see PRODUCTION_ENVIRONMENT in
+  # apps/infra/lib/deploymentStack.ts.
   deploy-prod:
     if: github.event_name == 'workflow_dispatch' && github.event.inputs.stage == 'prod'
     runs-on: ubuntu-latest
-    environment: production
+    environment: backend-production
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4

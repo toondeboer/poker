@@ -4,11 +4,15 @@ import type { CognitoConfig } from "@poker/core";
 /**
  * Where the backend is, or nothing.
  *
- * **`null` today, and that is the switch for the whole feature.** The stack in
- * `apps/infra` has never been deployed, so there is no user pool to point at —
- * and the account screens stay unreachable while this is null, for the same
- * reason the shared clock does: a sign-up form that signs nobody up is worse
- * than no sign-up form.
+ * **`null` today, and that is the switch for the whole feature.** The account
+ * screens stay unreachable while this is null, for the same reason the shared
+ * clock does: a sign-up form that signs nobody up is worse than no sign-up
+ * form.
+ *
+ * What changed is *why* it is null. `PokerBackend-dev` is deployed and the
+ * values below are real — sign-up, the emailed code, sign-in and `GET /me` have
+ * all been run against it. Null is now a choice about which stack a shipped
+ * build should reach, not an absence of one to reach. See `backendConfig`.
  *
  * Filled in from the CDK outputs after a deploy:
  *
@@ -32,7 +36,20 @@ export type BackendConfig = CognitoConfig & {
   apiUrl: string;
 };
 
-/** Not deployed. Replace with `DEV_BACKEND` or `PROD_BACKEND` once it is. */
+/**
+ * Which backend a build talks to. **`null` ships.**
+ *
+ * `DEV_BACKEND` below is real and reachable now, so this is no longer "there is
+ * nothing to point at" — it is a deliberate choice not to point 1.2.0 at a
+ * development stack. A release build with this set to `DEV_BACKEND` would put
+ * real users' accounts in a user pool whose whole purpose is being thrown away
+ * and stood up again, and `/account` is reachable by URL, so "nothing links to
+ * it" is not the same as "nobody can reach it".
+ *
+ * Set it to `DEV_BACKEND` **locally, uncommitted**, to work on the account
+ * screens against the real thing. It goes to `PROD_BACKEND` for good when prod
+ * is deployed and the Settings entry point lands with it.
+ */
 export const backendConfig: BackendConfig | null = null;
 
 /**
@@ -43,15 +60,25 @@ export const backendConfig: BackendConfig | null = null;
  * setting nobody can see from the code.
  */
 export const DEV_BACKEND: BackendConfig = {
-  region: "eu-west-1",
-  userPoolId: "replace-me",
-  clientId: "replace-me",
-  apiUrl: "https://replace-me.execute-api.eu-west-1.amazonaws.com",
+  region: "us-east-1",
+  userPoolId: "us-east-1_6iwLdpBIy",
+  clientId: "2lahhup3m7il6iqusctitu6lbc",
+  apiUrl: "https://hv0qrcgmt4.execute-api.us-east-1.amazonaws.com",
 };
 
+/**
+ * Not deployed yet, and deliberately left unfillable-looking.
+ *
+ * `PokerBackend-prod` exists as code and has never been deployed — prod holds
+ * leaderboards and there is nothing to put in it until the app is actually
+ * talking to a backend. Pointing a build at this would fail at the first
+ * request rather than silently reaching dev, which is the right failure: the
+ * two are separate stacks with separate user pools, and an account made against
+ * one does not exist in the other.
+ */
 export const PROD_BACKEND: BackendConfig = {
-  region: "eu-west-1",
+  region: "us-east-1",
   userPoolId: "replace-me",
   clientId: "replace-me",
-  apiUrl: "https://replace-me.execute-api.eu-west-1.amazonaws.com",
+  apiUrl: "https://replace-me.execute-api.us-east-1.amazonaws.com",
 };

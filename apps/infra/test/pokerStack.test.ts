@@ -169,6 +169,25 @@ describe("the realtime bus", () => {
     expect(names).toEqual([channel.split("/")[1]]);
   });
 
+  it("creates the subscribe authorizer's data source before the namespace", () => {
+    // The first deploy failed here, and nothing before it could have caught
+    // that: `DataSourceName` is a plain string, not a `Ref`, so CloudFormation
+    // sees no dependency and creates both in parallel — the namespace loses the
+    // race and the stack rolls back with `DataSource not found`.
+    //
+    // Invisible in a synth, and invisible on every deploy after the first,
+    // because by then the data source is already there. So the assertion is on
+    // the explicit `DependsOn` rather than on any observable behaviour.
+    const namespaces = template().findResources("AWS::AppSync::ChannelNamespace", {
+      Properties: { HandlerConfigs: Match.anyValue() },
+    });
+    const [guarded] = Object.values(namespaces);
+    const sources = Object.keys(
+      template().findResources("AWS::AppSync::DataSource"),
+    );
+    expect(guarded.DependsOn).toEqual(expect.arrayContaining(sources));
+  });
+
   it("reads the player id from where the shared path builder puts it", () => {
     // The handler and `playerChannel` must agree on the position, or the guard
     // compares the wrong segment and fails open or closed at random.

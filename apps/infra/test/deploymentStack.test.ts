@@ -1,7 +1,11 @@
 import { describe, expect, it } from "vitest";
 import { App } from "aws-cdk-lib";
 import { Match, Template } from "aws-cdk-lib/assertions";
-import { DeploymentStack, subjectFor } from "../lib/deploymentStack";
+import {
+  DeploymentStack,
+  PRODUCTION_ENVIRONMENT,
+  subjectFor,
+} from "../lib/deploymentStack";
 
 const REPO = "toondeboer/poker";
 
@@ -69,11 +73,21 @@ describe("production is a gate somebody opens", () => {
   it("is reachable only through a GitHub Environment, not a branch", () => {
     // A branch name is something anybody with push access can create. An
     // Environment is an approval, and this is what makes the workflow's
-    // `environment: production` load-bearing rather than decorative.
+    // `environment:` line load-bearing rather than decorative.
     expect(subjectFor(REPO, "prod")).toBe(
-      "repo:toondeboer/poker:environment:production",
+      "repo:toondeboer/poker:environment:backend-production",
     );
     expect(subjectFor(REPO, "prod")).not.toContain("*");
+  });
+
+  it("does not gate on an environment Vercel already owns", () => {
+    // GitHub environment names are case-insensitive and this repository has a
+    // `Production` environment driving the website's deploys. Gating on
+    // `production` would put a required reviewer in front of every web push
+    // and, because the OIDC subject carries the stored casing, would not have
+    // matched this policy anyway.
+    expect(PRODUCTION_ENVIRONMENT).not.toBe("production");
+    expect(subjectFor(REPO, "prod")).not.toMatch(/:environment:production$/i);
   });
 
   it("lets dev be deployed from any branch, which is what dev is for", () => {

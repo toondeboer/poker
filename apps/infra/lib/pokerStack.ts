@@ -416,7 +416,7 @@ export class PokerStack extends Stack {
 
     // What everyone at a table sees: the board, the bets, whose turn it is —
     // and now only if they are at it.
-    new CfnChannelNamespace(this, "TableNamespace", {
+    const tableNamespace = new CfnChannelNamespace(this, "TableNamespace", {
       apiId: eventApi.attrApiId,
       name: TABLE_NAMESPACE,
       handlerConfigs: {
@@ -429,6 +429,22 @@ export class PokerStack extends Stack {
         },
       },
     });
+
+    /**
+     * Build the data source first. **CloudFormation cannot work this out.**
+     *
+     * `dataSourceName` above is a plain string — `"SubscribeAuthorizer"`, not a
+     * `Ref` or a `GetAtt` — because that is the shape AppSync's API takes. A
+     * string carries no dependency, so CloudFormation is free to create the
+     * namespace and the data source in parallel, and on a first deploy it does:
+     * the namespace goes first and fails with `DataSource not found`, rolling
+     * the whole stack back.
+     *
+     * It is invisible in `cdk synth` and invisible on every *subsequent* deploy,
+     * because by then the data source already exists. Only a create from
+     * nothing shows it, which is exactly what a first deploy is — and was.
+     */
+    tableNamespace.addDependency(authorizerSource);
 
     // What only one player sees. The handler is the entire secrecy mechanism.
     new CfnChannelNamespace(this, "PlayerNamespace", {
