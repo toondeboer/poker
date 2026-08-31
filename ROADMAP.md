@@ -11,6 +11,73 @@ are removed from this file when a release is cut rather than accumulating as ✅
 
 **Legend:** 🚧 in progress · 🔍 investigated, not yet fixed · 🟡 known gap, accepted · ⬜ not started
 
+## When you are back: the week, in order
+
+Everything below was built while you were away and **none of it has been run by a human**. That is
+the whole shape of the week: there is no more code that can be usefully written without somebody at
+a keyboard with a phone and an AWS account, and there is a lot that cannot be trusted until there is.
+
+The order matters. Each step is cheap to do and expensive to skip, and the later ones are worthless
+if an earlier one is broken.
+
+### 1. Ship 1.2.0, before touching the backend
+
+The release is the thing with a date on it, and the backend is the thing that can wait. Doing them
+the other way round means a half-deployed backend competing for attention with an App Store review.
+
+- **Run the manual pass.** ~151 unrun rows in [RELEASE_TESTING.md](./RELEASE_TESTING.md), heaviest
+  in *Play a hand* (64), *Leaderboard* (49), the blind editor (30) and *Payouts* (29). §1 billing
+  blocks submission and cannot be exercised from a local build at all.
+- **Android has seen almost none of this.** Eight features were looked at on an iOS simulator only,
+  and simulator synthetic taps do not work here — so **nothing in the new UI has ever been pressed
+  by hand on either platform**. Assume the first real tap finds something.
+- Then the cutting steps in [CLAUDE.md](./CLAUDE.md): roll the changelog, clear the finished items
+  out of this file and reset `RELEASE_TESTING.md`, build and submit from the release branch to the
+  **testing track**, promote, merge PR #147, tag the built commit, delete the branch.
+
+### 2. Stand the backend up, in four commands
+
+All four need credentials, which is why they are yours. They are written out in full in
+[`apps/infra/README.md`](./apps/infra/README.md) under *Standing it up*: `cdk bootstrap`, deploy
+`PokerDeployment`, deploy `PokerBackend-dev`, then set `AWS_ACCOUNT_ID` / `AWS_REGION` as GitHub
+variables and create the `production` environment with a required reviewer.
+
+**Expect the first deploy to fail at something.** None of this has run: not the OIDC trust policy,
+not the JWT authorizer, not the conditional write, not the subscribe guard. The tests say the
+templates synthesise and the pure logic is right; they say nothing about whether AWS accepts any of
+it.
+
+### 3. Then, and only then, the things that need a deployment
+
+In this order, because each one proves the last:
+
+1. **`GET /me` with a real token.** The smallest possible end-to-end: sign up in the app, take the
+   code from the email, sign in, call the route. If this works, identity, the authorizer, the
+   Lambda and the log pipeline all work.
+2. **Measure the ADOT cold start** and write the number down. It is the one figure in the infra
+   README that is a guess (50–200 ms published). If it is bad, the documented fallback is dropping
+   the layer and exporting metrics and logs only.
+3. **Grafana**: create the stack, put the OTLP credential in Secrets Manager by hand, redeploy with
+   `-c telemetry=true`, add the CloudWatch metrics scrape. Confirm a span and a log line both
+   arrive — they travel by different paths and only one of them is OTLP.
+4. **Break something on purpose** and confirm an alarm emails you. An alarm nobody has seen fire is
+   an alarm nobody knows is wired up.
+5. **The subscribe guard, from the wrong account.** Sign in as a second account, try to subscribe to
+   the first one's table, and confirm it is refused. This is the one test worth doing by hand
+   however good the unit tests look.
+6. **Resolve the Cognito federated-MAU question** before wiring Apple or Google — $0 against roughly
+   $14/month at 1,000 users, and the pricing page names neither provider.
+
+### 4. What is still code, for when you want me building again
+
+Nothing below needs you present once the above is done:
+
+- The app side of the table: subscribe, apply events, predict optimistically, reconcile.
+- The real `SessionTransport`, replacing the shared clock's loopback.
+- Groups, players and results in DynamoDB — the sync half of the backend.
+- Linking the account screens into Settings, and account deletion that deletes server-side data.
+- Sign in with Apple and Google, once the credentials exist.
+
 ## Carried over from 1.1.4 — needs verification
 
 - 🟡 **Keep-awake release: verified on Android, still unverified on iOS** (was D11). The screen is
