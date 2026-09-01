@@ -121,6 +121,19 @@ platform-tagged heading (e.g. `## [1.1.3] - 2026-07-20 — Android`) when you cu
   rules once — the same rules the phone runs, which is what stops the two disagreeing. The channel
   names both sides use are defined once and shared, because the app and the server disagreeing
   about them is the kind of mistake that is silent rather than obvious.
+- Groundwork for leaderboards that several people share. A group can now live on the server rather
+  than only on the host's phone: more than one person can be an admin, anybody at the table can add
+  a player or record a game, and only an admin can remove one — because writing down a name should
+  be easy and making a season disappear should not. People join by a link that does not expire, so
+  it can be pinned in the group chat, and an admin can rotate it if it ever goes somewhere it should
+  not. **Nothing in the app uses any of this yet**, and it is deliberately built so the app keeps
+  working with no signal at a table: the things that only need your own phone — the timer, dealing,
+  writing down who won — carry on offline and catch up later, and only the things that genuinely
+  need everybody else wait for a connection. Deleting your account now removes what the server holds
+  as well: the players you claimed are let go, but the games stay on the board, because a night of
+  poker belongs to the table rather than to whoever wrote it down — and if you were the last person
+  who could manage a group, somebody else is put in charge of it rather than it being left with
+  nobody.
 - That backend now actually runs. A development environment is deployed and has been exercised end
   to end: an account created from a real emailed code, signed in, a hand dealt and acted on, and the
   cards arriving on the right screens — including the part that matters, which is that a player's

@@ -221,6 +221,20 @@ export class PokerStack extends Stack {
       minify: true,
       sourceMap: true,
       target: "node22",
+      /**
+       * **Bundle the Cognito client rather than trusting the runtime to have
+       * it.** CDK leaves every `@aws-sdk/*` external by default, which is right
+       * for DynamoDB — the runtime certainly ships that — and a gamble for
+       * anything else. `DELETE /me` calls Cognito at the **last** step, after
+       * every row is already gone, so a missing module there fails in the one
+       * place from which no retry can recover.
+       *
+       * It does work unbundled today; that was verified twice against the
+       * deployed stack. It is not a thing to depend on: what the runtime
+       * includes is AWS's to change, and bundling costs a few hundred kilobytes
+       * to stop it being a question.
+       */
+      externalModules: ["@aws-sdk/client-dynamodb", "@aws-sdk/lib-dynamodb"],
     };
 
     /**
@@ -309,7 +323,9 @@ export class PokerStack extends Stack {
         pointInTimeRecoveryEnabled: settings.pointInTimeRecovery,
       },
       removalPolicy: settings.dataRemovalPolicy,
-      // Live table state is worth keeping only while a hand is being played.
+      // Live table state is worth keeping only while a hand is being played,
+      // and a tombstone only until every phone that might resurrect the thing
+      // it deleted has seen it — see SYNC.md.
       timeToLiveAttribute: "expiresAt",
     });
 
@@ -537,6 +553,69 @@ export class PokerStack extends Stack {
       methods: [HttpMethod.GET],
       integration: new HttpLambdaIntegration("IdentityRoute", identityHandler),
     });
+
+    /**
+     * The shared leaderboard.
+     *
+     * One function behind every group route, because they share the thing that
+     * matters — each authorizes before it acts, and one entry point is how that
+     * stays true of a route somebody adds later. Its own function rather than a
+     * branch inside the action handler: a leaderboard write must not be able to
+     * fail because a poker hand was slow.
+     */
+    const groupsHandler = new NodejsFunction(this, "Groups", {
+      entry: path.join(__dirname, "lambda", "groups.ts"),
+      runtime: Runtime.NODEJS_22_X,
+      memorySize: 512,
+      timeout: Duration.seconds(10),
+      environment: {
+        ...functionEnvironment,
+        TABLE_NAME: table.tableName,
+        USER_POOL_ID: userPool.userPoolId,
+      },
+      tracing: Tracing.ACTIVE,
+      logGroup: new LogGroup(this, "GroupsLogs", {
+        retention: settings.logRetention,
+        removalPolicy: RemovalPolicy.DESTROY,
+      }),
+      bundling: handlerBundling,
+    });
+    table.grantReadWriteData(groupsHandler);
+    /**
+     * Deleting the Cognito user, and **only** that.
+     *
+     * `DELETE /me` is the last step of a deletion the server is running on
+     * somebody's behalf, so it needs a permission the client's own token cannot
+     * give it. Scoped to this one action on this one pool: a handler that could
+     * also *create* or *update* users would be a handler that could mint an
+     * account or change somebody's email.
+     */
+    groupsHandler.addToRolePolicy(
+      new PolicyStatement({
+        actions: ["cognito-idp:AdminDeleteUser"],
+        resources: [userPool.userPoolArn],
+      }),
+    );
+
+    const groupsRoute = new HttpLambdaIntegration("GroupsRoute", groupsHandler);
+    for (const [path_, methods] of [
+      ["/groups", [HttpMethod.GET, HttpMethod.POST]],
+      ["/groups/{groupId}", [HttpMethod.GET]],
+      ["/groups/{groupId}/players", [HttpMethod.POST]],
+      ["/groups/{groupId}/players/{playerId}", [HttpMethod.DELETE]],
+      ["/groups/{groupId}/games", [HttpMethod.POST]],
+      ["/groups/{groupId}/games/{gameId}", [HttpMethod.DELETE]],
+      ["/groups/{groupId}/claims", [HttpMethod.POST]],
+      ["/groups/{groupId}/members", [HttpMethod.GET]],
+      ["/groups/{groupId}/invite", [HttpMethod.POST]],
+      ["/groups/{groupId}/members/{accountId}", [HttpMethod.PUT, HttpMethod.DELETE]],
+      ["/invites/{token}", [HttpMethod.POST]],
+      // The account's own deletion. `GET /me` stays on the identity handler —
+      // one says who you are, the other unpicks everything you touched.
+      ["/me", [HttpMethod.DELETE]],
+    ] as [string, HttpMethod[]][]) {
+      api.addRoutes({ path: path_, methods, integration: groupsRoute });
+    }
 
     api.addRoutes({
       path: "/tables/{tableId}/actions",

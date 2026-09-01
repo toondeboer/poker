@@ -234,10 +234,25 @@ describe("the action handler", () => {
     // call PutRetentionPolicy on another function's log group; an explicit log
     // group does that with no function at all.
     template().resourceCountIs("Custom::LogRetention", 0);
-    // Three: the action handler, the identity route that proves the API chain
-    // works, and the subscribe authorizer. Update this deliberately when a
-    // fourth is written.
-    template().resourceCountIs("AWS::Lambda::Function", 3);
+    // Four: the action handler, the identity route that proves the API chain
+    // works, the subscribe authorizer, and the group routes. Update this
+    // deliberately when a fifth is written.
+    template().resourceCountIs("AWS::Lambda::Function", 4);
+  });
+
+  it("has no secondary index at all", () => {
+    // There was one, to read memberships from the group's side. It is gone
+    // because memberships are now written twice — which makes that read a
+    // strongly consistent query on the group's own partition, and removes a
+    // hot partition with it: the obvious inverted index partitions on `sk`, and
+    // every poker table row carries the constant `sk: "STATE"`.
+    const table = Object.values(
+      template().findResources("AWS::DynamoDB::GlobalTable"),
+    )[0];
+    expect(
+      (table.Properties as { GlobalSecondaryIndexes?: unknown[] })
+        .GlobalSecondaryIndexes,
+    ).toBeUndefined();
   });
 
   it("is the only thing that can publish an event", () => {

@@ -15,6 +15,7 @@
     "smoke": "tsx scripts/smoke.ts"
   },
   "dependencies": {
+    "@aws-sdk/client-cognito-identity-provider": "^3.1123.0",
     "@poker/core": "*",
     "aws-cdk-lib": "^2.219.0",
     "constructs": "^10.4.2"
