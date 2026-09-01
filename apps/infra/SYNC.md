@@ -208,8 +208,17 @@ Two things it needs that do not exist:
   cold-launch deep link cannot be tested from a dev client at all — this is already a known trap in
   CLAUDE.md and would need a real build to verify.
 
-Still open: **whether an invite expires, and whether it is single-use.** A link in a group chat
-outlives the evening it was shared in.
+**An invite does not expire, and is not single-use** — decided. A link pinned in a group chat is how
+a Thursday game actually works, and a link that dies mid-season is a link somebody has to reissue
+every time a new person turns up.
+
+That makes **revocation the necessary half**, because nothing else can undo a link once it is loose:
+the group's `META` row holds the current token, and an admin rotating it deletes the old
+`INVITE#<token>` partition and writes a new one. Without that, a link forwarded out of the group
+chat is permanent, unfixable, and reads everyone's history — and there is no support channel to fix
+it by hand.
+
+One invite per group rather than many, so "the link" is a thing with one answer.
 
 **What does a person see of a group they were added to but never joined?** "Added by somebody else"
 and "joined myself" are different states, and the first has no membership item — so today that
