@@ -220,6 +220,21 @@ export const enqueue = (queue: SyncQueue, write: QueuedWrite): SyncQueue => {
  * Silently a no-op when there is nothing pending — the write is already gone,
  * and there is no way to recall it.
  */
+/**
+ * Withdraw everything queued for a board, because the board is gone.
+ *
+ * The whole board rather than one subject, and that is the point: deleting a
+ * group created with no signal has to take its players and games with it, or
+ * they arrive on a server that has just been told to create the board they
+ * belong to. **No route deletes a board** — an emptied one deliberately
+ * survives its members — so a board created by a queue nobody wanted is
+ * permanent, and its players are admin-only to remove.
+ */
+export const cancelBoard = (queue: SyncQueue, groupId: string): SyncQueue => ({
+  ...queue,
+  pending: queue.pending.filter((write) => write.groupId !== groupId),
+});
+
 export const cancel = (queue: SyncQueue, subject: WriteSubject): SyncQueue => {
   const key = keyOf(subject);
   return {

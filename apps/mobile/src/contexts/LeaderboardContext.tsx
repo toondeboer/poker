@@ -173,6 +173,7 @@ export function LeaderboardProvider({
   const recordWrite = sync.record;
   const announceGroups = sync.announce;
   const cancelWrite = sync.cancel;
+  const cancelBoardWrites = sync.cancelBoard;
 
   useEffect(() => {
     let active = true;
@@ -457,13 +458,34 @@ export function LeaderboardProvider({
   );
 
   const renameGroupById = useCallback(
-    (id: string, name: string) => persist(renameGroup(state, id, name)),
-    [state, persist],
+    (id: string, name: string) => {
+      persist(renameGroup(state, id, name));
+      /**
+       * A board still waiting to be created should be created under its new
+       * name. Replacing the queued write is the whole of what can be done here:
+       * **there is no route that renames a board**, so one the server already
+       * has keeps the name it was created with. Latent while nothing reads the
+       * server's copy; it needs a `PATCH /groups/{id}` before anything does.
+       */
+      cancelWrite({ kind: "createGroup", groupId: id });
+      const group = state.groups.find((entry) => entry.group.id === id)?.group;
+      if (group) {
+        recordWrite({ kind: "createGroup", groupId: id, name, createdAt: group.createdAt });
+      }
+    },
+    [state, persist, cancelWrite, recordWrite],
   );
 
   const deleteGroup = useCallback(
-    (id: string) => persist(removeGroup(state, id)),
-    [state, persist],
+    (id: string) => {
+      persist(removeGroup(state, id));
+      // **Everything queued for it, not just its creation.** A board made with
+      // no signal and deleted before it synced would otherwise be created on
+      // the server, with its players — and no route deletes a board, so it
+      // would be there for good.
+      cancelBoardWrites(id);
+    },
+    [state, persist, cancelBoardWrites],
   );
 
   return (

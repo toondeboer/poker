@@ -6,6 +6,7 @@ import {
   MAX_REFUSALS,
   applyReport,
   cancel,
+  cancelBoard,
   dismiss,
   drain,
   enqueue,
@@ -55,6 +56,8 @@ export type GroupSync = {
    * add lands anyway and only an admin can undo it.
    */
   cancel: (subject: WriteSubject) => void;
+  /** The same, for a whole board that has just been deleted. */
+  cancelBoard: (groupId: string) => void;
 };
 
 export const useGroupSync = (): GroupSync => {
@@ -166,6 +169,14 @@ export const useGroupSync = (): GroupSync => {
     [update],
   );
 
+  const cancelWholeBoard = useCallback(
+    (groupId: string) => {
+      if (!backendConfig) return;
+      update((current) => cancelBoard(current, groupId));
+    },
+    [update],
+  );
+
   const acknowledge = useCallback(
     (id: string) => update((current) => dismiss(current, id)),
     [update],
@@ -237,7 +248,15 @@ export const useGroupSync = (): GroupSync => {
   // Memoised so consumers can depend on the whole thing without re-running on
   // every render of the provider that holds it.
   return useMemo(
-    () => ({ queue, record, syncNow, acknowledge, announce, cancel: cancelWrite }),
-    [queue, record, syncNow, acknowledge, announce, cancelWrite],
+    () => ({
+      queue,
+      record,
+      syncNow,
+      acknowledge,
+      announce,
+      cancel: cancelWrite,
+      cancelBoard: cancelWholeBoard,
+    }),
+    [queue, record, syncNow, acknowledge, announce, cancelWrite, cancelWholeBoard],
   );
 };

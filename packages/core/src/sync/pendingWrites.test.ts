@@ -5,6 +5,7 @@ import {
   EMPTY_QUEUE,
   MAX_REFUSALS,
   cancel,
+  cancelBoard,
   describeWrite,
   dismiss,
   enqueue,
@@ -269,6 +270,29 @@ describe("withdrawing a write that was never sent", () => {
     expect(cancel(EMPTY_QUEUE, { kind: "recordGame", groupId: "g1", resultId: "r1" })).toEqual(
       EMPTY_QUEUE,
     );
+  });
+});
+
+describe("withdrawing a whole board", () => {
+  it("takes its players and games with it", () => {
+    // A board made with no signal and deleted before it synced would otherwise
+    // be created on the server *with its players*. No route deletes a board, so
+    // it would be there for good.
+    const q = queueOf(
+      { kind: "createGroup", groupId: "g1", name: "T", createdAt: 1 },
+      { kind: "addPlayer", groupId: "g1", player: player("p2") },
+      { kind: "recordGame", groupId: "g1", result: game("r2") },
+      { kind: "addPlayer", groupId: "g2", player: player("p3") },
+    );
+    const after = cancelBoard(q, "g1");
+    expect(after.pending).toHaveLength(1);
+    expect(after.pending[0].groupId).toBe("g2");
+  });
+
+  it("leaves refusals alone, because somebody still has not read them", () => {
+    const q = queueOf({ kind: "addPlayer", groupId: "g1", player: player("p2") });
+    const refused = refuse(q, q.pending[0].id, "nope", 5);
+    expect(cancelBoard(refused, "g1").refused).toHaveLength(1);
   });
 });
 

@@ -354,7 +354,7 @@ export type {
   RefusedWrite,
   SyncQueue,
 } from "./sync/pendingWrites";
-export { cancel, describeWrite } from "./sync/pendingWrites";
+export { cancel, cancelBoard, describeWrite } from "./sync/pendingWrites";
 export type { WriteSubject } from "./sync/pendingWrites";
 export { applyReport, drain } from "./sync/drain";
 export { createSyncQueueStorage, SYNC_QUEUE_KEY } from "./storage/syncQueueStorage";
