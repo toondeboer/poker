@@ -12,6 +12,15 @@
 
 import type { GameResult, Group, GroupState, Player } from "@poker/core";
 
+/**
+ * The inverted index, and the one question it answers: who is in this group?
+ *
+ * `GSI1PK = sk`, `GSI1SK = pk`, so a membership keyed `ACCOUNT#<sub>` /
+ * `GROUP#<id>` is readable from either end. **Nothing authorizes against it** —
+ * see the note on the index in `pokerStack.ts`.
+ */
+export const MEMBERS_INDEX = "MembersByGroup";
+
 /** Roles a membership can hold. Adding is open; removing is not. */
 export type Role = "admin" | "member";
 
