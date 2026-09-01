@@ -342,6 +342,7 @@ export {
   dismiss,
   enqueue,
   hasPendingFor,
+  markSending,
   refuse,
   settle,
   withPending,

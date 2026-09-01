@@ -313,11 +313,18 @@ export const boardFrom = (
   // No group row means no group. Players and results without it are a board
   // with no identity that every caller would have to special-case.
   if (!group) return null;
-  // Sorted here rather than by the key, because the key is the game's id — see
-  // `resultKey` for why that is worth a sort. Newest last, matching what the
-  // old time-ordered key produced, with the id breaking a tie so the order does
-  // not depend on what DynamoDB happened to return.
-  results.sort((a, b) => a.playedAt - b.playedAt || (a.id < b.id ? -1 : 1));
+  /**
+   * Sorted here rather than by the key, because the key is the game's id — see
+   * `resultKey` for why that is worth a sort.
+   *
+   * **Newest first, matching the app.** `addGameResult` prepends and `playedAt`
+   * is documented as "newest-first ordering", so a server sorting the other way
+   * hands back a history that renders backwards the moment a phone reads it.
+   * The id breaks a tie, and equal ids compare equal.
+   */
+  results.sort(
+    (a, b) => b.playedAt - a.playedAt || (a.id === b.id ? 0 : a.id < b.id ? -1 : 1),
+  );
   return { group, players, results };
 };
 

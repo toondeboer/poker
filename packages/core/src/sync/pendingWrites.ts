@@ -32,14 +32,33 @@ export type PendingWrite =
   | { kind: "addPlayer"; groupId: string; player: Player }
   | { kind: "removePlayer"; groupId: string; playerId: string }
   | { kind: "recordGame"; groupId: string; result: GameResult }
-  | { kind: "removeGame"; groupId: string; gameId: string }
-  | { kind: "claimPlayer"; groupId: string; playerId: string }
-  | { kind: "releasePlayer"; groupId: string; playerId: string };
+  | { kind: "removeGame"; groupId: string; gameId: string };
+
+/**
+ * **Claiming is deliberately not in that list**, and an earlier version of this
+ * file had it — contradicting its own header two paragraphs up.
+ *
+ * Two people claiming the same player on two offline phones cannot both be
+ * right, and the queue would let them try: both would show the player as theirs
+ * until one came back refused, and the refusal would arrive long after somebody
+ * had been shown an answer. It is the one action where merging late and merging
+ * wrongly are the same thing, so it needs a connection.
+ */
 
 export type QueuedWrite = PendingWrite & {
   /** Stable across retries, so a resend is recognisably the same write. */
   id: string;
   queuedAt: number;
+  /**
+   * When this was handed to the server, if it has been.
+   *
+   * **A write in flight cannot be collapsed away.** Without this, queuing a
+   * removal while the matching add is mid-request cancels both — the server
+   * accepts the add anyway, `settle` finds nothing to remove, and no removal is
+   * ever sent. The player is then stuck on a shared board with nothing left
+   * that intends to take them off it.
+   */
+  sentAt?: number;
 };
 
 /** Why the server would not take a write, in words a person can act on. */
@@ -78,8 +97,6 @@ const subjectOf = (write: PendingWrite): string => {
     case "addPlayer":
       return `player:${write.groupId}:${write.player.id}`;
     case "removePlayer":
-    case "claimPlayer":
-    case "releasePlayer":
       return `player:${write.groupId}:${write.playerId}`;
     case "recordGame":
       return `game:${write.groupId}:${write.result.id}`;
@@ -108,38 +125,54 @@ const subjectOf = (write: PendingWrite): string => {
  */
 export const enqueue = (queue: SyncQueue, write: QueuedWrite): SyncQueue => {
   const subject = subjectOf(write);
-  const sameSubject = queue.pending.filter((q) => subjectOf(q) === subject);
 
-  // Removing something this phone has not managed to create yet: neither write
-  // needs to happen at all.
-  if (
-    (write.kind === "removePlayer" &&
-      sameSubject.some((q) => q.kind === "addPlayer")) ||
-    (write.kind === "removeGame" && sameSubject.some((q) => q.kind === "recordGame"))
-  ) {
+  /** The un-sent creation this write would undo, if there is one. */
+  const cancellable = queue.pending.find(
+    (q) =>
+      subjectOf(q) === subject &&
+      q.sentAt === undefined &&
+      ((write.kind === "removePlayer" && q.kind === "addPlayer") ||
+        (write.kind === "removeGame" && q.kind === "recordGame")),
+  );
+
+  // **Nothing else may still depend on it.** Add Bo, record the game he played,
+  // then remove him — cancelling the add would leave a game naming a player the
+  // server is never told about. Removing a player deliberately keeps their
+  // games, so this is an ordinary sequence rather than a contrived one.
+  const dependedOn =
+    write.kind === "removePlayer" &&
+    queue.pending.some(
+      (q) => q.kind === "recordGame" && q.result.playerIds.includes(write.playerId),
+    );
+
+  if (cancellable && !dependedOn) {
+    // Only the one write it undoes — filtering everything about the subject
+    // would silently discard an earlier genuine removal if an id ever recurs.
     return {
       ...queue,
-      pending: queue.pending.filter((q) => subjectOf(q) !== subject),
-    };
-  }
-
-  // Only the last word on a claim counts.
-  if (write.kind === "claimPlayer" || write.kind === "releasePlayer") {
-    return {
-      ...queue,
-      pending: [
-        ...queue.pending.filter(
-          (q) =>
-            subjectOf(q) !== subject ||
-            (q.kind !== "claimPlayer" && q.kind !== "releasePlayer"),
-        ),
-        write,
-      ],
+      pending: queue.pending.filter((q) => q.id !== cancellable.id),
     };
   }
 
   return { ...queue, pending: [...queue.pending, write] };
 };
+
+/**
+ * This one is on its way to the server.
+ *
+ * Marked rather than removed, because it has not arrived yet and a phone that
+ * dies mid-request has to find it again on the next launch.
+ */
+export const markSending = (
+  queue: SyncQueue,
+  id: string,
+  now: number,
+): SyncQueue => ({
+  ...queue,
+  pending: queue.pending.map((write) =>
+    write.id === id ? { ...write, sentAt: now } : write,
+  ),
+});
 
 /** It reached the server. */
 export const settle = (queue: SyncQueue, id: string): SyncQueue => ({
@@ -184,11 +217,7 @@ export const dismiss = (queue: SyncQueue, id: string): SyncQueue => ({
  * changed. Kept separate, a refusal is just a queue entry that stops being
  * applied.
  */
-export const withPending = (
-  board: GroupState,
-  queue: SyncQueue,
-  accountId: string | null,
-): GroupState => {
+export const withPending = (board: GroupState, queue: SyncQueue): GroupState => {
   let players = [...board.players];
   let results = [...board.results];
 
@@ -213,23 +242,22 @@ export const withPending = (
       case "removeGame":
         results = results.filter((r) => r.id !== write.gameId);
         break;
-      case "claimPlayer":
-        players = players.map((p) =>
-          p.id === write.playerId && accountId ? { ...p, accountId } : p,
-        );
-        break;
-      case "releasePlayer":
-        players = players.map((p) =>
-          p.id === write.playerId ? { id: p.id, name: p.name } : p,
-        );
-        break;
     }
   }
 
-  // Same order the server would give: by when the game was played, id breaking
-  // a tie, so a pending game does not jump to the end and then move once it
-  // syncs.
-  results.sort((a, b) => a.playedAt - b.playedAt || (a.id < b.id ? -1 : 1));
+  /**
+   * **Newest first**, which is the order the app has always kept results in —
+   * `addGameResult` prepends, and `playedAt` is documented as "newest-first
+   * ordering". An ascending sort here reversed the whole history on screen even
+   * with an empty queue.
+   *
+   * The id breaks a tie so two games recorded in the same millisecond do not
+   * swap places between renders, and equal ids compare equal rather than
+   * claiming an order that does not exist.
+   */
+  results.sort(
+    (a, b) => b.playedAt - a.playedAt || (a.id === b.id ? 0 : a.id < b.id ? -1 : 1),
+  );
   return { ...board, players, results };
 };
 

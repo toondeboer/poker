@@ -81,15 +81,20 @@ describe("result ordering", () => {
     expect(resultKey("g1", "r1").sk).toBe("RESULT#r1");
   });
 
-  it("orders a backdated game correctly when the board is assembled", () => {
+  it("puts the newest game first, matching the app", () => {
     // Ordering moved out of the key and into `boardFrom`, which costs a sort
     // over a season of game nights — tens of rows.
+    //
+    // **Newest first**, because `addGameResult` prepends and `playedAt` is
+    // documented as "newest-first ordering". A server sorting the other way
+    // hands back a history that renders backwards the moment a phone reads it —
+    // and the two disagreed until somebody checked.
     const board = boardFrom("g1", [
       groupItem("g1", { name: "T", createdAt: 1 }),
-      resultItem("g1", result("recent", 1_788_180_000_000)),
       resultItem("g1", result("old", 999_999_999_999)),
+      resultItem("g1", result("recent", 1_788_180_000_000)),
     ]);
-    expect(board?.results.map((r) => r.id)).toEqual(["old", "recent"]);
+    expect(board?.results.map((r) => r.id)).toEqual(["recent", "old"]);
   });
 
 });
