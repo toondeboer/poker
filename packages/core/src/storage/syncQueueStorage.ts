@@ -1,0 +1,117 @@
+import { StorageAdapter } from "./StorageAdapter";
+import {
+  EMPTY_QUEUE,
+  type QueuedWrite,
+  type RefusedWrite,
+  type SyncQueue,
+} from "../sync/pendingWrites";
+
+export const SYNC_QUEUE_KEY = "sync_queue";
+
+export interface SyncQueueStorage {
+  loadQueue(): Promise<SyncQueue>;
+  saveQueue(queue: SyncQueue): Promise<void>;
+  clearQueue(): Promise<void>;
+}
+
+/**
+ * A write this phone has not sent is a thing somebody did.
+ *
+ * They typed a name at a table with no signal, or recorded the game that just
+ * finished. Losing the queue on a cold launch loses that, silently, and the
+ * only symptom is a board missing a night nobody can quite place — so it is
+ * persisted like anything else the app would be embarrassed to forget.
+ */
+const isQueuedWrite = (value: unknown): value is QueuedWrite => {
+  if (typeof value !== "object" || value === null) return false;
+  const write = value as QueuedWrite;
+  if (typeof write.id !== "string" || typeof write.queuedAt !== "number") {
+    return false;
+  }
+  if (typeof write.groupId !== "string" || write.groupId.length === 0) {
+    return false;
+  }
+  // **The kind decides what else has to be there**, and an unrecognised one is
+  // dropped rather than guessed at: a queue is replayed against a live server,
+  // and a write this version does not understand is one it cannot send
+  // correctly either.
+  if (write.kind === "addPlayer") {
+    return (
+      typeof write.player?.id === "string" && typeof write.player?.name === "string"
+    );
+  }
+  if (write.kind === "recordGame") {
+    return (
+      typeof write.result?.id === "string" &&
+      typeof write.result?.playedAt === "number" &&
+      Array.isArray(write.result?.playerIds)
+    );
+  }
+  return false;
+};
+
+const isRefusedWrite = (value: unknown): value is RefusedWrite => {
+  if (typeof value !== "object" || value === null) return false;
+  const refused = value as RefusedWrite;
+  return (
+    typeof refused.reason === "string" &&
+    typeof refused.refusedAt === "number" &&
+    isQueuedWrite(refused.write)
+  );
+};
+
+/**
+ * Create a store for the pending-write queue, backed by any
+ * {@link StorageAdapter}. Pure persistence and validation — no platform or UI
+ * dependencies.
+ */
+export function createSyncQueueStorage(storage: StorageAdapter): SyncQueueStorage {
+  return {
+    async loadQueue(): Promise<SyncQueue> {
+      try {
+        const raw = await storage.getItem(SYNC_QUEUE_KEY);
+        if (!raw) return EMPTY_QUEUE;
+        const parsed: unknown = JSON.parse(raw);
+        if (typeof parsed !== "object" || parsed === null) return EMPTY_QUEUE;
+        const { pending, refused } = parsed as {
+          pending?: unknown;
+          refused?: unknown;
+        };
+        return {
+          // Filtered rather than rejected wholesale: one unreadable row should
+          // not throw away an evening's worth of writes beside it.
+          pending: Array.isArray(pending) ? pending.filter(isQueuedWrite) : [],
+          refused: Array.isArray(refused) ? refused.filter(isRefusedWrite) : [],
+        };
+      } catch {
+        // Unreadable JSON is the one case where there is nothing to salvage.
+        return EMPTY_QUEUE;
+      }
+    },
+
+    async saveQueue(queue: SyncQueue): Promise<void> {
+      /**
+       * `sentAt` is deliberately **not** persisted.
+       *
+       * It means "a request for this is in the air right now", and nothing is
+       * in the air across a launch. Writing it out would restore a queue full
+       * of writes flagged as in-flight by a process that no longer exists —
+       * and the drain loop retries those anyway, so the flag would be a lie
+       * that costs nothing but confuses everything that reads it.
+       */
+      const pending = queue.pending.map((write) => {
+        const stored: Record<string, unknown> = { ...write };
+        delete stored.sentAt;
+        return stored;
+      });
+      await storage.setItem(
+        SYNC_QUEUE_KEY,
+        JSON.stringify({ pending, refused: queue.refused }),
+      );
+    },
+
+    async clearQueue(): Promise<void> {
+      await storage.multiRemove([SYNC_QUEUE_KEY]);
+    },
+  };
+}

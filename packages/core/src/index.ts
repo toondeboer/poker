@@ -354,6 +354,10 @@ export type {
   RefusedWrite,
   SyncQueue,
 } from "./sync/pendingWrites";
+export { drain } from "./sync/drain";
+export { createSyncQueueStorage, SYNC_QUEUE_KEY } from "./storage/syncQueueStorage";
+export type { SyncQueueStorage } from "./storage/syncQueueStorage";
+export type { DrainReport, SendResult, Sender } from "./sync/drain";
 
 // Realtime channels (shared with the backend, deliberately)
 export {
