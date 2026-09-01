@@ -21,7 +21,12 @@ import type { GroupStore } from "./groupStore";
 export type DeletionReport = {
   claimsReleased: number;
   groupsInherited: string[];
-  groupsRemoved: string[];
+  /**
+   * Groups this left with no admin, because the heir was gone by the time we
+   * tried. Reported rather than swallowed: it is rare, it is not recoverable by
+   * the person leaving, and somebody has to know.
+   */
+  groupsStranded: string[];
 };
 
 const CLAIM_PREFIX = "CLAIM#";
@@ -57,7 +62,7 @@ export const groupIdOf = (sk: string): string | null =>
 export const succession = (
   members: readonly MembershipItem[],
   leaving: string,
-): { action: "none" } | { action: "promote"; accountId: string } | { action: "remove" } => {
+): { action: "none" } | { action: "promote"; accountId: string } => {
   const leavingIsAdmin = members.some(
     (m) => m.accountId === leaving && m.role === "admin",
   );
@@ -68,8 +73,7 @@ export const succession = (
     return { action: "none" };
   }
   const heir = heirTo(members, leaving);
-  // Nobody else is in it at all, so there is no history but this account's.
-  return heir ? { action: "promote", accountId: heir.accountId } : { action: "remove" };
+  return heir ? { action: "promote", accountId: heir.accountId } : { action: "none" };
 };
 
 export const deleteAccount = async (
@@ -81,7 +85,7 @@ export const deleteAccount = async (
   const report: DeletionReport = {
     claimsReleased: 0,
     groupsInherited: [],
-    groupsRemoved: [],
+    groupsStranded: [],
   };
 
   const rows = await store.belongings(accountId);
@@ -100,17 +104,37 @@ export const deleteAccount = async (
   }
 
   // 2. Make sure no group is left with nobody who can manage it.
+  //
+  // **This never deletes a group**, and that is a deliberate retreat. It used
+  // to tombstone one whose last member was leaving — decided from
+  // `store.members`, which reads the *eventually consistent* index. A stale
+  // read there destroys a group that still has people in it, and an
+  // irreversible action taken on a maybe-stale read is the wrong trade against
+  // leaving a few rows behind. What survives is an empty group nobody can see;
+  // see SYNC.md for the cleanup that still owes.
+  //
+  // The same staleness is safe for *promotion* because the write is conditional
+  // on the heir still being a member: a stale index names somebody who has
+  // left, the condition fails, and the group is no worse off than before.
   for (const row of rows) {
     const groupId = groupIdOf(row.sk);
     if (!groupId) continue;
     const members = await store.members(groupId);
     const next = succession(members, accountId);
-    if (next.action === "promote") {
-      await store.setRole(next.accountId, groupId, "admin");
+    if (next.action !== "promote") continue;
+    const promoted = await store.promoteHeir(next.accountId, groupId);
+    // Reported only when it actually happened. Claiming an inheritance that a
+    // condition refused would tell somebody a group is looked after when it is
+    // not — and step 3 removes this account either way.
+    if (promoted.status === "ok") {
       report.groupsInherited.push(groupId);
-    } else if (next.action === "remove") {
-      await store.removeGroup(groupId, Date.now());
-      report.groupsRemoved.push(groupId);
+    } else {
+      log("warn", "group left without an admin", {
+        requestId,
+        groupId,
+        reason: promoted.reason,
+      });
+      report.groupsStranded.push(groupId);
     }
   }
 
@@ -127,7 +151,7 @@ export const deleteAccount = async (
     accountId,
     claimsReleased: report.claimsReleased,
     groupsInherited: report.groupsInherited.length,
-    groupsRemoved: report.groupsRemoved.length,
+    groupsStranded: report.groupsStranded.length,
   });
   return report;
 };

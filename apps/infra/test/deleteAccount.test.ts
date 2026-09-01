@@ -32,8 +32,8 @@ const store = (overrides: Partial<GroupStore> = {}) => {
       calls.push("setRole");
       return ok;
     },
-    removeGroup: async () => {
-      calls.push("removeGroup");
+    promoteHeir: async () => {
+      calls.push("promoteHeir");
       return ok;
     },
     forget: async () => {
@@ -87,10 +87,13 @@ describe("what happens to a group somebody leaves", () => {
     });
   });
 
-  it("removes a group nobody else is in", () => {
-    // Nobody else's history is in it, so there is nothing to preserve.
+  it("does not destroy a group even when nobody else is in it", () => {
+    // **It used to.** The decision came from the eventually consistent index,
+    // and a stale read there destroys a group that still has people in it. An
+    // irreversible action on a maybe-stale read is the wrong trade against
+    // leaving a few rows behind.
     expect(succession([member("me", "admin", 1)], "me")).toEqual({
-      action: "remove",
+      action: "none",
     });
   });
 });
@@ -136,17 +139,22 @@ describe("the sequence", () => {
       members: async () => [member("me", "admin", 1), member("you", "member", 2)],
     });
     const report = await deleteAccount("me", s, async () => {});
-    expect(calls).toContain("setRole");
+    expect(calls).toContain("promoteHeir");
     expect(report.groupsInherited).toEqual(["g1"]);
   });
 
-  it("removes a group the leaver was alone in", async () => {
-    const { store: s, calls } = store({
-      members: async () => [member("me", "admin", 1)],
+  it("does not claim an inheritance the write refused", async () => {
+    // A stale index can name an heir who has since left. The write is
+    // conditional so it fails rather than inventing a membership — and
+    // reporting it as inherited anyway would tell somebody a group is looked
+    // after when it is not.
+    const { store: s } = store({
+      members: async () => [member("me", "admin", 1), member("gone", "member", 2)],
+      promoteHeir: async () => ({ status: "conflict", reason: "heir is no longer a member" }),
     });
     const report = await deleteAccount("me", s, async () => {});
-    expect(calls).toContain("removeGroup");
-    expect(report.groupsRemoved).toEqual(["g1"]);
+    expect(report.groupsInherited).toEqual([]);
+    expect(report.groupsStranded).toEqual(["g1"]);
   });
 
   it("finishes a deletion that was already half done", async () => {

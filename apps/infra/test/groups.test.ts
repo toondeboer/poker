@@ -62,7 +62,15 @@ const store = (role: Role | null, overrides: Partial<GroupStore> = {}): GroupSto
       return { status: "ok" } as WriteOutcome;
     },
     releaseClaim: async () => ({ status: "ok" }) as WriteOutcome,
-    setRole: async () => ({ status: "ok" }) as WriteOutcome,
+    setRole: async () => {
+      calls.push("setRole");
+      return { status: "ok" } as WriteOutcome;
+    },
+    promoteHeir: async () => ({ status: "ok" }) as WriteOutcome,
+    createGroup: async () => ({ status: "ok" }) as WriteOutcome,
+    setInvite: async () => ({ status: "ok" }) as WriteOutcome,
+    groupForInvite: async () => "g1",
+    join: async () => ({ status: "ok" }) as WriteOutcome,
     forget: async () => {},
     ...overrides,
   }) as GroupStore;
@@ -151,6 +159,28 @@ describe("a member", () => {
     ];
     expect(ok.map((r) => r.statusCode)).toEqual([200, 200, 200]);
     expect(calls).toEqual(["addPlayer", "recordGame", "claimPlayer"]);
+  });
+
+  it("leaves the last-admin guard to the write, not a read", async () => {
+    // Reading the members and then writing is a check two people can both pass.
+    // The store decrements a counter conditional on staying above one, so the
+    // route just reports what the write said.
+    useGroupStore(
+      store("admin", {
+        setRole: async () => ({
+          status: "conflict",
+          reason: "a group needs at least one admin",
+        }),
+      }),
+    );
+    const response = await handler(
+      request("PUT /groups/{groupId}/members/{accountId}", {
+        pathParameters: { groupId: "g1", accountId: "someone" },
+        body: { role: "member" },
+      }),
+    );
+    expect(response.statusCode).toBe(409);
+    expect(JSON.parse(response.body).reason).toBe("a group needs at least one admin");
   });
 
   it("may not remove anything", async () => {
@@ -288,6 +318,57 @@ describe("refusals that are not errors", () => {
     // same as never having been a member: there is nothing to show.
     useGroupStore(store("member", { board: async () => null }));
     const response = await handler(request("GET /groups/{groupId}"));
+    expect(response.statusCode).toBe(404);
+  });
+});
+
+describe("what a shared board will accept", () => {
+  it("refuses a game with a malformed placing", async () => {
+    // **A result is stored verbatim and served to every member.** A client
+    // sending nonsense does not break its own screen; it puts something on a
+    // shared board that everybody else's app then has to render. The player
+    // route sidesteps this by rebuilding `{id, name}`; a result is too big for
+    // that, so it is validated.
+    useGroupStore(store("member"));
+    const bad = { ...game(), placings: [{ playerId: "p1", place: 0, winnings: "lots" }] };
+    const response = await handler(
+      request("POST /groups/{groupId}/games", { body: { result: bad } }),
+    );
+    expect(response.statusCode).toBe(400);
+    expect(calls).toEqual([]);
+  });
+
+  it("refuses a player whose id is empty", async () => {
+    // Written happily, then dropped by `boardFrom` on every read: a row that
+    // exists, answered 200, never appears, and cannot be deleted through an API
+    // that addresses it by the id it does not have.
+    useGroupStore(store("member"));
+    const response = await handler(
+      request("POST /groups/{groupId}/players", { body: { player: { id: "", name: "Ann" } } }),
+    );
+    expect(response.statusCode).toBe(400);
+    expect(calls).toEqual([]);
+  });
+
+  it("refuses an id that would break the key it lands in", async () => {
+    useGroupStore(store("member"));
+    const response = await handler(
+      request("POST /groups/{groupId}/players", {
+        body: { player: { id: "a#b", name: "Ann" } },
+      }),
+    );
+    expect(response.statusCode).toBe(400);
+  });
+});
+
+describe("redeeming an invite", () => {
+  it("refuses a link to a group that is gone", async () => {
+    // An invite row outlives the group it names. Joining one would grant a
+    // membership to something that answers 404 forever.
+    useGroupStore(store("member", { board: async () => null }));
+    const response = await handler(
+      request("POST /invites/{token}", { pathParameters: { token: "tok" } }),
+    );
     expect(response.statusCode).toBe(404);
   });
 });

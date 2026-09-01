@@ -160,11 +160,22 @@ describe("claiming a player", () => {
     return { outcome, items: (sent[0].TransactItems ?? []) as Op[] };
   };
 
-  it("writes all three items in one transaction", async () => {
+  it("writes claim, seat, player and membership in one transaction", async () => {
     // A claim without the player update shows an account a board it is not on;
     // the player without the claim is invisible to account deletion.
     const { items } = await claim();
-    expect(items).toHaveLength(3);
+    expect(items).toHaveLength(4);
+  });
+
+  it("refuses a second seat on the same board", async () => {
+    // The claim key carries the *player*, so on its own it stops two accounts
+    // holding one person and does nothing about one account holding two.
+    // `@poker/core` enforces one seat locally and SYNC.md says the server does
+    // — without this item it did not, and one account could occupy half a
+    // leaderboard and double-count its own nights.
+    const { items } = await claim();
+    const seat = items.find((i) => i.Put?.Item.sk === "SEAT#g1")?.Put;
+    expect(seat?.ConditionExpression).toBe("attribute_not_exists(pk)");
   });
 
   it("refuses a player somebody already holds", async () => {
@@ -194,11 +205,32 @@ describe("claiming a player", () => {
     expect(membership?.ConditionExpression).toBeUndefined();
   });
 
-  it("reports a cancelled transaction as a refusal, not an error", async () => {
+  it("reports a cancelled transaction as a refusal only when a condition failed", async () => {
     const { outcome } = await claim(
-      new TransactionCanceledException({ $metadata: {}, message: "nope" }),
+      new TransactionCanceledException({
+        $metadata: {},
+        message: "nope",
+        CancellationReasons: [{ Code: "ConditionalCheckFailed" }],
+      }),
     );
     expect(outcome).toEqual({ status: "conflict", reason: "already claimed" });
+  });
+
+  it("does not call a throttled transaction a conflict", async () => {
+    // **`TransactionCanceledException` is not a synonym for "somebody got there
+    // first".** DynamoDB also cancels for `TransactionConflict` and throttling,
+    // all retryable — and telling the caller "already claimed" sends them to
+    // resolve a conflict that does not exist.
+    const { client } = fakeClient([
+      new TransactionCanceledException({
+        $metadata: {},
+        message: "slow down",
+        CancellationReasons: [{ Code: "ThrottlingError" }],
+      }),
+    ]);
+    await expect(
+      createGroupStore("T", client).claimPlayer("acc", "g1", "p1", 1),
+    ).rejects.toThrow();
   });
 });
 
@@ -250,11 +282,81 @@ describe("what account deletion needs", () => {
 });
 
 describe("changing a role", () => {
-  it("refuses to promote somebody who is not a member", async () => {
-    // Would create a membership with no `joinedAt` — the field the heir to a
-    // group is chosen by.
+  const ops = (sent: Record<string, unknown>[]) =>
+    (sent[0].TransactItems ?? []) as {
+      Update?: { ConditionExpression?: string; UpdateExpression?: string };
+    }[];
+
+  it("refuses to demote the last admin, as a condition rather than a check", async () => {
+    // **Reading the members and then writing is something two people can both
+    // pass.** Two admins demoting each other at the same instant each see
+    // another admin, each proceed, and the group is left unmanageable with no
+    // support channel to undo it. As a condition on a counter, only one wins.
+    const { client, sent } = fakeClient([{}]);
+    await createGroupStore("T", client).setRole("acc", "g1", "member");
+    const counter = ops(sent).find((o) =>
+      o.Update?.UpdateExpression?.includes("adminCount"),
+    );
+    expect(counter?.Update?.ConditionExpression).toBe("adminCount > :floor");
+  });
+
+  it("moves the count the other way when promoting", async () => {
     const { client, sent } = fakeClient([{}]);
     await createGroupStore("T", client).setRole("acc", "g1", "admin");
+    const counter = ops(sent).find((o) =>
+      o.Update?.UpdateExpression?.includes("adminCount"),
+    );
+    expect(counter?.Update?.ConditionExpression).toBe("attribute_exists(pk)");
+  });
+
+  it("will not count a role change that is not a change", async () => {
+    // Promoting an existing admin would increment the counter for nothing, and
+    // a count that drifts above the truth eventually permits the demotion it
+    // exists to refuse.
+    const { client, sent } = fakeClient([{}]);
+    await createGroupStore("T", client).setRole("acc", "g1", "admin");
+    const role = ops(sent).find((o) => o.Update?.UpdateExpression?.includes("#role"));
+    expect(role?.Update?.ConditionExpression).toContain("#role <> :other");
+  });
+
+  it("promotes an heir without moving the count", async () => {
+    // One admin leaving and one arriving is a net zero, and it is conditional
+    // on the heir still being a member so a stale index fails loudly.
+    const { client, sent } = fakeClient([{}]);
+    await createGroupStore("T", client).promoteHeir("acc", "g1");
     expect(sent[0].ConditionExpression).toBe("attribute_exists(pk)");
+    expect(JSON.stringify(sent[0])).not.toContain("adminCount");
+  });
+});
+
+describe("not resurrecting what somebody deleted", () => {
+  it("refuses an add that lands on a tombstone", async () => {
+    // The app queues writes offline and replays them, and a replayed add on a
+    // row somebody has since deleted brings it back — the exact failure the
+    // whole tombstone scheme exists to prevent.
+    const { client, sent } = fakeClient([{}]);
+    await createGroupStore("T", client).addPlayer("g1", { id: "p1", name: "Ann" });
+    expect(sent[0].ConditionExpression).toBe("attribute_not_exists(deletedAt)");
+  });
+
+  it("refuses a recorded game that lands on a tombstone", async () => {
+    const { client, sent } = fakeClient([{}]);
+    await createGroupStore("T", client).recordGame("g1", game());
+    expect(sent[0].ConditionExpression).toBe("attribute_not_exists(deletedAt)");
+  });
+});
+
+describe("reading more than one page", () => {
+  it("follows the cursor rather than stopping at 1 MB", async () => {
+    // The place this hurt most is `DELETE /me`: rows a truncated query did not
+    // return are rows nobody deletes, *after* the Cognito user is gone and no
+    // token exists to ask again with.
+    const { client, sent } = fakeClient([
+      { Items: [{ pk: "ACCOUNT#a", sk: "GROUP#g1" }], LastEvaluatedKey: { pk: "x" } },
+      { Items: [{ pk: "ACCOUNT#a", sk: "CLAIM#g1#p1" }] },
+    ]);
+    const rows = await createGroupStore("T", client).belongings("a");
+    expect(sent).toHaveLength(2);
+    expect(rows).toHaveLength(2);
   });
 });

@@ -224,6 +224,20 @@ One invite per group rather than many, so "the link" is a thing with one answer.
 and "joined myself" are different states, and the first has no membership item — so today that
 board is invisible to them entirely, which may be right or may be the missing half of joining.
 
+## Known gaps
+
+- **An empty group is never deleted.** Account deletion used to tombstone a group whose last member
+  was leaving, decided from the eventually consistent index — and a stale read there destroys a
+  group that still has people in it. That trade is the wrong way round, so the destructive branch is
+  gone and an emptied group survives with its players and results. Cleaning them up wants a
+  deliberate path (a scheduled sweep, or a consistent member count on the group's own item), not a
+  guess made during somebody's deletion.
+- **Two admins demoting each other are ordered by a counter, not a lock.** `adminCount` on the
+  group's `META` makes "would this leave nobody in charge?" a _condition on a write_, so only one of
+  two simultaneous demotions can win. What it does not do is survive the count drifting — every
+  path that changes a role has to move it, in the same transaction, or the guard eventually permits
+  what it exists to refuse.
+
 ## Not covered here
 
 - **When sync runs.** On foreground, on change, on a pull. The merge is designed; the trigger is not.

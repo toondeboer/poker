@@ -11,9 +11,9 @@
  * changed and the client merges it. See [SYNC.md](../../SYNC.md).
  */
 
-import type { GameResult, GroupState, Player } from "@poker/core";
+import type { GameResult, GroupState, Placing, Player } from "@poker/core";
 import { log } from "./logging";
-import { may, type GroupAction } from "./groupKeys";
+import { isUsableId, may, type GroupAction } from "./groupKeys";
 import { createGroupStore, type GroupStore } from "./groupStore";
 import { deleteAccount } from "./deleteAccount";
 import { randomBytes, randomUUID } from "node:crypto";
@@ -98,18 +98,57 @@ export const visibleTo = (caller: string, board: GroupState): GroupState => ({
   ),
 });
 
-const isPlayer = (value: unknown): value is Player =>
-  typeof value === "object" &&
-  value !== null &&
-  typeof (value as Player).id === "string" &&
-  typeof (value as Player).name === "string";
+const isPlayer = (value: unknown): value is Player => {
+  if (typeof value !== "object" || value === null) return false;
+  const player = value as Player;
+  // **Not merely `typeof === "string"`.** An empty id is written happily and
+  // then dropped by `boardFrom` on every read: a row that exists, answered 200,
+  // never appears, and cannot be deleted through an API that addresses it by
+  // the id it does not have. A `#` would break the key it lands in.
+  return isUsableId(player.id) && typeof player.name === "string" &&
+    player.name.trim().length > 0;
+};
 
-const isResult = (value: unknown): value is GameResult =>
-  typeof value === "object" &&
-  value !== null &&
-  typeof (value as GameResult).id === "string" &&
-  typeof (value as GameResult).playedAt === "number" &&
-  Array.isArray((value as GameResult).playerIds);
+const isPlacing = (value: unknown): boolean => {
+  if (typeof value !== "object" || value === null) return false;
+  const placing = value as Placing;
+  return (
+    isUsableId(placing.playerId) &&
+    Number.isInteger(placing.place) &&
+    placing.place > 0 &&
+    typeof placing.winnings === "number" &&
+    Number.isFinite(placing.winnings)
+  );
+};
+
+/**
+ * A game, checked properly before it is believed.
+ *
+ * **This is stored verbatim and then served to every member of the group.** A
+ * client sending a malformed `placings` does not break its own screen; it puts
+ * something on a shared board that everybody else's app then has to render.
+ * The player route sidesteps this by rebuilding `{id, name}` and ignoring the
+ * rest — a result is too big for that, so it is validated instead.
+ *
+ * The engine's own rules are not duplicated here. What is checked is the shape
+ * the board depends on: ids that can be found again, numbers that are numbers.
+ */
+const isResult = (value: unknown): value is GameResult => {
+  if (typeof value !== "object" || value === null) return false;
+  const result = value as GameResult;
+  return (
+    isUsableId(result.id) &&
+    Number.isFinite(result.playedAt) &&
+    Array.isArray(result.playerIds) &&
+    result.playerIds.every(isUsableId) &&
+    Array.isArray(result.placings) &&
+    result.placings.every(isPlacing) &&
+    typeof result.buyIn === "number" &&
+    Number.isFinite(result.buyIn) &&
+    typeof result.bounty === "number" &&
+    Number.isFinite(result.bounty)
+  );
+};
 
 /**
  * The check every route runs, and the reason this file has one entry point.
@@ -196,10 +235,15 @@ export const handler = async (request: VerifiedRequest): Promise<Response> => {
     const token = request.pathParameters?.token;
     if (!token) return json(400, { error: "no token" });
     const invited = await store.groupForInvite(token);
-    // The same answer for an unknown token and a revoked one. Distinguishing
-    // them would tell somebody holding an old link that it used to work, which
-    // is a fact about a group they are not in.
-    if (!invited) return json(404, { error: "that link is no longer valid" });
+    // The same answer for an unknown token, a revoked one, and a link to a
+    // group that no longer exists. Distinguishing them would tell somebody
+    // holding an old link that it used to work, which is a fact about a group
+    // they are not in — and the board check is not only privacy: an invite row
+    // outlives the group it names, and joining one would grant a membership to
+    // something that answers 404 forever.
+    if (!invited || !(await store.board(invited))) {
+      return json(404, { error: "that link is no longer valid" });
+    }
     const outcome = await store.join(caller, invited, "member", now);
     // Already a member is a success: somebody tapping a pinned link a second
     // time expects to end up in the group, not to be told off.
@@ -303,21 +347,12 @@ export const handler = async (request: VerifiedRequest): Promise<Response> => {
       if (!subject || (role !== "admin" && role !== "member")) {
         return json(400, { error: "no role" });
       }
-      if (role === "member") {
-        // **Refuse to leave a group unmanageable.** Demoting the last admin —
-        // including yourself — makes a board nobody can ever rename or remove a
-        // player from, and there is no support channel to undo it.
-        const members = await store.members(groupId);
-        const stranded = !members.some(
-          (m) => m.accountId !== subject && m.role === "admin",
-        );
-        if (stranded) {
-          return json(409, {
-            status: "conflict",
-            reason: "a group needs at least one admin",
-          });
-        }
-      }
+      // **The last-admin guard is a condition on the write, not a check here.**
+      // Reading the members and then writing is something two people can both
+      // pass: two admins demoting each other at the same instant each see
+      // another admin, each proceed, and the group is left unmanageable. The
+      // store decrements a counter conditional on it staying above one, so only
+      // one of them can win. See `setRole`.
       const outcome = await store.setRole(subject, groupId, role);
       return answer(outcome, requestId, { groupId, caller });
     }

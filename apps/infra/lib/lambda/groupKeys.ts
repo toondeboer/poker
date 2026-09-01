@@ -90,6 +90,20 @@ export const claimKey = (
 });
 
 /**
+ * That this account holds a seat on this board — **one, at most**.
+ *
+ * Separate from the claim, whose key carries the player and therefore cannot
+ * stop somebody claiming a second person in the same group. `@poker/core`'s
+ * `claimPlayer` enforces one seat locally and SYNC.md says the server does too;
+ * without this item it did not, and one account could quietly occupy half a
+ * leaderboard.
+ */
+export const seatKey = (accountId: string, groupId: string) => ({
+  pk: `ACCOUNT#${accountId}`,
+  sk: `SEAT#${groupId}`,
+});
+
+/**
  * An invite, keyed by its own token so redeeming it is a `GetItem`.
  *
  * **Its own partition, not a row under the group**, because the person
@@ -112,6 +126,20 @@ export type GroupItem = Keyed & {
   createdAt: number;
   /** Guards rename and role changes. Results and players do not need one. */
   version: number;
+  /**
+   * How many admins this group has.
+   *
+   * **A counter rather than a count of what a query returned**, because the
+   * question it answers — "would demoting this person leave nobody in charge?"
+   * — has to be settled by a *condition on a write*, not by a read followed by
+   * a write. Two admins demoting each other at the same moment both read "there
+   * is another admin", both proceed, and the group is left unmanageable with no
+   * support channel to fix it.
+   *
+   * Kept on the group's own item so it is read consistently and updated in the
+   * same transaction as the role it counts.
+   */
+  adminCount: number;
   deletedAt?: number;
   expiresAt?: number;
 };
@@ -142,11 +170,13 @@ export const groupItem = (
   groupId: string,
   group: Omit<Group, "id">,
   version: number,
+  adminCount = 1,
 ): GroupItem => ({
   ...groupKey(groupId),
   name: group.name,
   createdAt: group.createdAt,
   version,
+  adminCount,
 });
 
 export const playerItem = (groupId: string, player: Player): PlayerItem => ({
@@ -328,6 +358,17 @@ export const may = (
  * `null` means nobody is left, and the caller tombstones the group — there is
  * no history belonging to anybody else in it.
  */
+/**
+ * A name or an id somebody could actually find again.
+ *
+ * An empty string passes `typeof value === "string"` and is written happily,
+ * and then `boardFrom` drops it on every read — a row that exists, answers 200,
+ * never appears, and cannot be deleted through an API that addresses it by the
+ * id it does not have.
+ */
+export const isUsableId = (value: unknown): value is string =>
+  typeof value === "string" && value.trim().length > 0 && !value.includes("#");
+
 export const heirTo = (
   members: readonly MembershipItem[],
   leaving: string,
