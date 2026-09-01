@@ -4,6 +4,7 @@ import type { GroupState } from "../leaderboard/groups";
 import {
   EMPTY_QUEUE,
   MAX_REFUSALS,
+  cancel,
   describeWrite,
   dismiss,
   enqueue,
@@ -227,6 +228,75 @@ describe("settling and refusing", () => {
     const q = queueOf({ kind: "recordGame", groupId: "g1", result: game("r2") });
     const after = refuse(q, q.pending[0].id, "nope", 5);
     expect(dismiss(after, after.refused[0].write.id).refused).toEqual([]);
+  });
+});
+
+describe("withdrawing a write that was never sent", () => {
+  it("takes the add with the deletion", () => {
+    // **The bug this exists for.** A name typed at a table with no signal and
+    // deleted a moment later would still have been POSTed on the next
+    // foreground — and removing a player from a shared board is admin-only, so
+    // the typo would be on every member's board permanently.
+    const q = queueOf({ kind: "addPlayer", groupId: "g1", player: player("p2") });
+    expect(cancel(q, { kind: "addPlayer", groupId: "g1", playerId: "p2" }).pending).toEqual(
+      [],
+    );
+  });
+
+  it("leaves a game that named the cancelled player", () => {
+    // Where this differs from a refusal. The local board keeps the game and
+    // drops the player from the standings; a server that never heard the add
+    // does exactly the same. The two agree, so there is nothing to withhold.
+    const q = queueOf(
+      { kind: "addPlayer", groupId: "g1", player: player("p2") },
+      { kind: "recordGame", groupId: "g1", result: { ...game("r2"), playerIds: ["p2"] } },
+    );
+    const after = cancel(q, { kind: "addPlayer", groupId: "g1", playerId: "p2" });
+    expect(after.pending).toHaveLength(1);
+    expect(after.pending[0].kind).toBe("recordGame");
+  });
+
+  it("leaves the same player on another board alone", () => {
+    const q = queueOf({ kind: "addPlayer", groupId: "g2", player: player("p2") });
+    expect(cancel(q, { kind: "addPlayer", groupId: "g1", playerId: "p2" }).pending).toHaveLength(
+      1,
+    );
+  });
+
+  it("does nothing when the write has already gone", () => {
+    // There is no recalling a sent write, and pretending otherwise would be
+    // worse than the divergence.
+    expect(cancel(EMPTY_QUEUE, { kind: "recordGame", groupId: "g1", resultId: "r1" })).toEqual(
+      EMPTY_QUEUE,
+    );
+  });
+});
+
+describe("queueing something that was already refused", () => {
+  it("does not queue it again", () => {
+    // The app announces every board on each launch. Without this, a board the
+    // server keeps refusing appends an identical refusal every launch until the
+    // cap evicts the one somebody actually needed to read.
+    const q = queueOf({ kind: "createGroup", groupId: "g1", name: "T", createdAt: 1 });
+    const refused = refuse(q, q.pending[0].id, "you are not on this board", 5);
+    const again = enqueue(
+      refused,
+      write({ kind: "createGroup", groupId: "g1", name: "T", createdAt: 1 }),
+    );
+    expect(again.pending).toEqual([]);
+    expect(again.refused).toHaveLength(1);
+  });
+
+  it("lets it be queued again once somebody has dismissed it", () => {
+    // Dismissing is what says "try this again" — and it takes a person.
+    const q = queueOf({ kind: "createGroup", groupId: "g1", name: "T", createdAt: 1 });
+    const refused = refuse(q, q.pending[0].id, "nope", 5);
+    const cleared = dismiss(refused, refused.refused[0].write.id);
+    const again = enqueue(
+      cleared,
+      write({ kind: "createGroup", groupId: "g1", name: "T", createdAt: 1 }),
+    );
+    expect(again.pending).toHaveLength(1);
   });
 });
 

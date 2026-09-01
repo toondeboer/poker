@@ -172,6 +172,7 @@ export function LeaderboardProvider({
   // callback that depended on the object would be rebuilt on every write.
   const recordWrite = sync.record;
   const announceGroups = sync.announce;
+  const cancelWrite = sync.cancel;
 
   useEffect(() => {
     let active = true;
@@ -279,12 +280,25 @@ export function LeaderboardProvider({
       // Results keep the id. The games still happened, and everyone else's
       // history depends on the field sizes they were part of; computeStandings
       // simply ignores placings for players no longer on the roster.
-      withActiveGroup((entry) => ({
+      const groupId = withActiveGroup((entry) => ({
         ...entry,
         players: removePlayer(entry.players, id),
       }));
+      /**
+       * **A name added with no signal and deleted before it went must not go.**
+       *
+       * Removing a player from a shared board is admin-only and deliberately
+       * not a thing the queue can carry, so an add that survives its own
+       * deletion is permanent: the typo appears on every member's board on the
+       * next foreground and only an admin can take it off again.
+       *
+       * Cancels nothing that has already been sent — there is no recalling
+       * that, and the board here has diverged from the server either way,
+       * which is the same state a build with no backend has always been in.
+       */
+      cancelWrite({ kind: "addPlayer", groupId, playerId: id });
     },
-    [withActiveGroup],
+    [withActiveGroup, cancelWrite],
   );
 
   const recordResult = useCallback(
@@ -328,12 +342,17 @@ export function LeaderboardProvider({
   );
 
   const deleteResult = useCallback(
-    (id: string) =>
-      withActiveGroup((entry) => ({
+    (id: string) => {
+      const groupId = withActiveGroup((entry) => ({
         ...entry,
         results: removeGameResult(entry.results, id),
-      })),
-    [withActiveGroup],
+      }));
+      // Same as deleting a player: a game recorded at the table and deleted
+      // before there was any signal should not turn up later on everybody
+      // else's board, where removing it is somebody else's job.
+      cancelWrite({ kind: "recordGame", groupId, resultId: id });
+    },
+    [withActiveGroup, cancelWrite],
   );
 
   const claimedPlayer = useCallback(

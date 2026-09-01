@@ -118,17 +118,40 @@ export const EMPTY_QUEUE: SyncQueue = Object.freeze({
   refused: Object.freeze([]) as readonly RefusedWrite[] as RefusedWrite[],
 });
 
+/**
+ * The thing a write is about, named without the write.
+ *
+ * Exists so a *deletion* can say what it is cancelling. A caller that had to
+ * build a whole `PendingWrite` to name one would be inventing a player name or
+ * an empty game to fill the fields, and inventing data to identify data is how
+ * the wrong row gets matched.
+ */
+export type WriteSubject =
+  | { kind: "createGroup"; groupId: string }
+  | { kind: "addPlayer"; groupId: string; playerId: string }
+  | { kind: "recordGame"; groupId: string; resultId: string };
+
 /** What a write is about. Two writes about the same thing are one write. */
-const subjectOf = (write: PendingWrite): string => {
-  switch (write.kind) {
+const keyOf = (subject: WriteSubject): string => {
+  switch (subject.kind) {
     case "createGroup":
-      return `group:${write.groupId}`;
+      return `group:${subject.groupId}`;
     case "addPlayer":
-      return `player:${write.groupId}:${write.player.id}`;
+      return `player:${subject.groupId}:${subject.playerId}`;
     case "recordGame":
-      return `game:${write.groupId}:${write.result.id}`;
+      return `game:${subject.groupId}:${subject.resultId}`;
   }
 };
+
+/** The same answer, for a write that already exists. */
+const subjectOf = (write: PendingWrite): string =>
+  keyOf(
+    write.kind === "createGroup"
+      ? write
+      : write.kind === "addPlayer"
+        ? { kind: "addPlayer", groupId: write.groupId, playerId: write.player.id }
+        : { kind: "recordGame", groupId: write.groupId, resultId: write.result.id },
+  );
 
 /**
  * Does this write depend on that one having landed first?
@@ -164,7 +187,45 @@ export const dependsOn = (write: QueuedWrite, other: QueuedWrite): boolean => {
 export const enqueue = (queue: SyncQueue, write: QueuedWrite): SyncQueue => {
   const subject = subjectOf(write);
   if (queue.pending.some((q) => subjectOf(q) === subject)) return queue;
+  /**
+   * **A refusal is not retried by something automatic.**
+   *
+   * The app announces every board it has on each launch, so a board the server
+   * keeps refusing — one an admin removed you from — would queue again, be
+   * refused again, and append an identical refusal every single launch until
+   * the cap evicted the one somebody actually needed to read.
+   *
+   * Dismissing a refusal is what says "try this again": the subject is free
+   * once, and only because a person chose it.
+   */
+  if (queue.refused.some((r) => subjectOf(r.write) === subject)) return queue;
   return { ...queue, pending: [...queue.pending, write] };
+};
+
+/**
+ * Withdraw a write nobody has sent yet, because the thing it was about is gone.
+ *
+ * **Deleting a player added five minutes ago, with no signal, must not still
+ * add them.** The board removes them locally and the queue would happily go on
+ * to POST the add on the next foreground — and since removing a player is
+ * admin-only and deliberately not queueable, a typo deleted offline would
+ * reappear on every member's board and stay there.
+ *
+ * It cancels exactly the one write and nothing that depended on it, which is
+ * where this differs from `refuse`. A game naming a deleted player is still
+ * worth sending: the local board keeps the game and drops the player from the
+ * standings, and a server that never heard the add does exactly the same. The
+ * two agree. Under a refusal they do not, which is why that one cascades.
+ *
+ * Silently a no-op when there is nothing pending — the write is already gone,
+ * and there is no way to recall it.
+ */
+export const cancel = (queue: SyncQueue, subject: WriteSubject): SyncQueue => {
+  const key = keyOf(subject);
+  return {
+    ...queue,
+    pending: queue.pending.filter((q) => subjectOf(q) !== key),
+  };
 };
 
 /** It reached the server. */

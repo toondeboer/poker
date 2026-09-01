@@ -341,6 +341,7 @@ export {
   EMPTY_QUEUE,
   dismiss,
   enqueue,
+  MAX_REFUSALS,
   dependsOn,
   hasPendingFor,
   refuse,
@@ -353,7 +354,8 @@ export type {
   RefusedWrite,
   SyncQueue,
 } from "./sync/pendingWrites";
-export { describeWrite } from "./sync/pendingWrites";
+export { cancel, describeWrite } from "./sync/pendingWrites";
+export type { WriteSubject } from "./sync/pendingWrites";
 export { applyReport, drain } from "./sync/drain";
 export { createSyncQueueStorage, SYNC_QUEUE_KEY } from "./storage/syncQueueStorage";
 export type { SyncQueueStorage } from "./storage/syncQueueStorage";

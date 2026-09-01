@@ -3,12 +3,15 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AppState } from "react-native";
 import {
   EMPTY_QUEUE,
+  MAX_REFUSALS,
   applyReport,
+  cancel,
   dismiss,
   drain,
   enqueue,
   type PendingWrite,
   type SyncQueue,
+  type WriteSubject,
 } from "@poker/core";
 import { createSyncQueueStorage } from "@poker/core";
 import { asyncStorageAdapter } from "@/src/services/storageAdapter";
@@ -45,6 +48,13 @@ export type GroupSync = {
    * every write, forever, with nothing that would ever fix it.
    */
   announce: (groups: readonly { id: string; name: string; createdAt: number }[]) => void;
+  /**
+   * Withdraw a write nobody has sent, because what it was about is gone.
+   *
+   * Deleting a player added offline has to take the queued add with it, or the
+   * add lands anyway and only an admin can undo it.
+   */
+  cancel: (subject: WriteSubject) => void;
 };
 
 export const useGroupSync = (): GroupSync => {
@@ -148,6 +158,14 @@ export const useGroupSync = (): GroupSync => {
     [record],
   );
 
+  const cancelWrite = useCallback(
+    (subject: WriteSubject) => {
+      if (!backendConfig) return;
+      update((current) => cancel(current, subject));
+    },
+    [update],
+  );
+
   const acknowledge = useCallback(
     (id: string) => update((current) => dismiss(current, id)),
     [update],
@@ -182,8 +200,28 @@ export const useGroupSync = (): GroupSync => {
     QueueStorage.loadQueue()
       .then((loaded) => {
         if (!active) return;
-        latest.current = loaded;
-        setQueue(loaded);
+        /**
+         * **Merged under what is already here, not swapped in.**
+         *
+         * This read races two others: the board loads on its own promise and
+         * announces every group, and a person can record something before
+         * either lands. Replacing the queue threw those away and then persisted
+         * the result over them.
+         *
+         * The stored writes are the older ones, so they go first and anything
+         * recorded meanwhile is enqueued on top — which also dedupes it, since
+         * an announce made twice is one write.
+         */
+        update((current) => {
+          const merged = current.pending.reduce(
+            (queue, write) => enqueue(queue, write),
+            loaded,
+          );
+          return {
+            ...merged,
+            refused: [...loaded.refused, ...current.refused].slice(-MAX_REFUSALS),
+          };
+        });
         // Whatever an earlier session could not send is the first thing to try.
         syncNow();
       })
@@ -191,15 +229,15 @@ export const useGroupSync = (): GroupSync => {
     return () => {
       active = false;
     };
-    // Once, on mount: `syncNow` is stable and re-running this would re-read a
-    // queue that state already holds.
+    // Once, on mount: `syncNow` and `update` are stable and re-running this
+    // would re-read a queue that state already holds.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // Memoised so consumers can depend on the whole thing without re-running on
   // every render of the provider that holds it.
   return useMemo(
-    () => ({ queue, record, syncNow, acknowledge, announce }),
-    [queue, record, syncNow, acknowledge, announce],
+    () => ({ queue, record, syncNow, acknowledge, announce, cancel: cancelWrite }),
+    [queue, record, syncNow, acknowledge, announce, cancelWrite],
   );
 };
