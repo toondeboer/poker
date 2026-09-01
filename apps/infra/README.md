@@ -9,17 +9,17 @@ on, events arriving on both channels, and a non-member refused: 19 checks, run b
 
 `cdk synth` and the tests still run with no credentials, which is what lets CI check the whole stack
 without anybody holding a key. What the first deploy proved is that this is necessary and not
-sufficient — see *What only a deploy could tell us*, below.
+sufficient — see _What only a deploy could tell us_, below.
 
 ## Where dev is
 
-| Output             | Value                                                             |
-| ------------------ | ----------------------------------------------------------------- |
-| `ApiUrl`           | `https://hv0qrcgmt4.execute-api.us-east-1.amazonaws.com`          |
-| `UserPoolId`       | `us-east-1_6iwLdpBIy`                                             |
-| `UserPoolClientId` | `2lahhup3m7il6iqusctitu6lbc`                                      |
+| Output             | Value                                                                     |
+| ------------------ | ------------------------------------------------------------------------- |
+| `ApiUrl`           | `https://hv0qrcgmt4.execute-api.us-east-1.amazonaws.com`                  |
+| `UserPoolId`       | `us-east-1_6iwLdpBIy`                                                     |
+| `UserPoolClientId` | `2lahhup3m7il6iqusctitu6lbc`                                              |
 | `EventApiDns`      | `55bempvj4fh2fcvzcy7x26vgy4.appsync-realtime-api.us-east-1.amazonaws.com` |
-| `TableName`        | `PokerBackend-dev-TableCD117FA1-FLOO5GQYD00E`                     |
+| `TableName`        | `PokerBackend-dev-TableCD117FA1-FLOO5GQYD00E`                             |
 
 None of these are secrets — a user pool id and a public app client id are public by design. They are
 mirrored in `DEV_BACKEND` in
@@ -56,18 +56,19 @@ argument for standing dev up before writing anything else against it.
 
 ## What exists today
 
-|                    |                                                                                                                                                                                                                                                        |
-| ------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| **Cognito**        | User pool + client, email recovery, `RETAIN`                                                                                                                                                                                                           |
-| **DynamoDB**       | `TableV2`, single-table `pk`/`sk`, on-demand billing, PITR on, `RETAIN`, `expiresAt` TTL for live hands                                                                                                                                                |
-| **AppSync Events** | Cognito to connect and subscribe, **IAM to publish**. Namespaces `table` (shared) and `player` (private); the private one carries an APPSYNC_JS subscribe handler enforcing `segments[2] === ctx.identity.sub`                                         |
-| **Action Lambda**  | `NodejsFunction`, Node 22, esbuild inlines the workspace-private `@poker/core` — the same rules run on the phone and here. Explicit `LogGroup`                                                                                                         |
-| **Publishing**     | Signed with the Lambda's own IAM credentials (SigV4 by hand, `node:crypto`, checked against AWS's published vectors). The shared channel gets a hand with every hole card stripped; each player's own cards go to a channel only they can subscribe to |
-| **HTTP API**       | `GET /me` and `POST /tables/{tableId}/actions`, both behind a Cognito JWT authorizer that is the API's **default** — a route added later is authenticated because nobody did anything. Access logs, throttled                                          |
-| **Environments**   | `PokerBackend-dev` and `PokerBackend-prod`, plus `PokerDeployment` for the GitHub OIDC roles                                                                                                                                                           |
-| **Telemetry**      | X-Ray `Tracing.ACTIVE` on all three functions, CloudWatch metrics and structured logs, and a `poker-<stage>` dashboard built in CDK from the alarm definitions. No third-party export — see decision 2                                                 |
-| **Alarms**         | Ten, into an SNS topic, each carrying what it means; a forecast budget alarm alongside. One has been seen to fire                                                                                                                                     |
-| **Tests**          | 171, covering the synthesised template and the handlers' decision-making                                                                                                                                                                               |
+|                    |                                                                                                                                                                                                                                                                                                          |
+| ------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Cognito**        | User pool + client, email recovery, `RETAIN`                                                                                                                                                                                                                                                             |
+| **DynamoDB**       | `TableV2`, single-table `pk`/`sk`, on-demand billing, PITR on, `RETAIN`, `expiresAt` TTL for live hands                                                                                                                                                                                                  |
+| **AppSync Events** | Cognito to connect and subscribe, **IAM to publish**. Namespaces `table` (shared) and `player` (private); the private one carries an APPSYNC_JS subscribe handler enforcing `segments[2] === ctx.identity.sub`                                                                                           |
+| **Action Lambda**  | `NodejsFunction`, Node 22, esbuild inlines the workspace-private `@poker/core` — the same rules run on the phone and here. Explicit `LogGroup`                                                                                                                                                           |
+| **Publishing**     | Signed with the Lambda's own IAM credentials (SigV4 by hand, `node:crypto`, checked against AWS's published vectors). The shared channel gets a hand with every hole card stripped; each player's own cards go to a channel only they can subscribe to                                                   |
+| **HTTP API**       | Sixteen routes — identity, the poker table, and the shared leaderboard (groups, players, games, claims, invites, members, `DELETE /me`) — all behind a Cognito JWT authorizer that is the API's **default**, so a route added later is authenticated because nobody did anything. Access logs, throttled |
+| **Groups**         | Shared boards: several admins, anybody may add a player or record a game, only an admin may remove one. Invite links that do not expire and are revoked by rotation. **Every read is authorized, not merely authenticated** — see [SYNC.md](./SYNC.md)                                                   |
+| **Environments**   | `PokerBackend-dev` and `PokerBackend-prod`, plus `PokerDeployment` for the GitHub OIDC roles                                                                                                                                                                                                             |
+| **Telemetry**      | X-Ray `Tracing.ACTIVE` on all three functions, CloudWatch metrics and structured logs, and a `poker-<stage>` dashboard built in CDK from the alarm definitions. No third-party export — see decision 2                                                                                                   |
+| **Alarms**         | Ten, into an SNS topic, each carrying what it means; a forecast budget alarm alongside. One has been seen to fire                                                                                                                                                                                        |
+| **Tests**          | 277, covering the synthesised template and the handlers' decision-making                                                                                                                                                                                                                                 |
 
 **Hole cards are private because of where they are published**, not because a client declines to
 draw them. Both sides build channel paths from `playerChannel` in `@poker/core`, because the two
@@ -82,11 +83,11 @@ sitting on a namespace those channels never touch.
    worked, and it was removed once there was a number attached to it. Measured, n=6 per function,
    forced parallel cold starts:
 
-   | Function             | No telemetry | ADOT → Grafana | X-Ray (now)  |
-   | -------------------- | ------------ | -------------- | ------------ |
-   | Identity             | 142.9 ms     | 1889.2 ms      | **127.0 ms** |
-   | TableAction          | 302.0 ms     | 2267.5 ms      | **310.2 ms** |
-   | SubscribeAuthorizer  | 277.4 ms     | 2160.9 ms      | **315.0 ms** |
+   | Function            | No telemetry | ADOT → Grafana | X-Ray (now)  |
+   | ------------------- | ------------ | -------------- | ------------ |
+   | Identity            | 142.9 ms     | 1889.2 ms      | **127.0 ms** |
+   | TableAction         | 302.0 ms     | 2267.5 ms      | **310.2 ms** |
+   | SubscribeAuthorizer | 277.4 ms     | 2160.9 ms      | **315.0 ms** |
 
    The figure everyone quotes for that layer is 50–200 ms. It was **~1.9 seconds**, and this app is
    the worst case for it: a table plays one evening a week, so almost every invocation is a cold
@@ -117,17 +118,19 @@ sitting on a namespace those channels never touch.
    until the day the stack is replaced and the hostname changes with it.
 6. **No federated sign-in.** Apple and Google need real client ids and secrets, and App Store
    guideline 4.8 requires Sign in with Apple alongside any other third-party provider.
-6a. **No dashboard beyond the one in code.** `poker-<stage>` is built by CDK from the same `watch`
+   6a. **No dashboard beyond the one in code.** `poker-<stage>` is built by CDK from the same `watch`
    calls that declare the alarms, so the two cannot drift. It is a starting point, not a considered
    layout.
-6b. **`UserPoolEmail.withCognito()` is a development setting.** It delivers — both test sign-ups
+   6b. **`UserPoolEmail.withCognito()` is a development setting.** It delivers — both test sign-ups
    arrived — but **into the spam folder**, because `no-reply@verificationemail.com` is AWS's shared
    sender and nothing authenticates it as this app. It is also capped at **50 messages a day** with
    no way to raise it, which is a cap on sign-ups per day for the whole app. Production wants
    `withSES()` against a verified domain with SPF/DKIM/DMARC. Fine for dev; not a launch
    configuration.
 7. **Nothing in the app points at it yet** — `backendConfig` is `null` deliberately, not for want of
-   somewhere to point.
+   somewhere to point. **This is the largest caveat on the group backend**: every route has been
+   exercised by hand, and none has ever been called by a phone, replayed from an offline queue, or
+   merged against local state. Those are the parts most likely to be wrong.
 8. **No route creates a table.** A table is created by a game starting, and the app side of that is
    unbuilt, so `POST /tables/{id}/actions` answers `404 no such table` until a row exists. This is
    why the smoke script seeds one directly.
@@ -169,15 +172,15 @@ the phone runs `@poker/core` locally, and the authoritative event either confirm
 
 ### 2. CloudWatch, X-Ray and a dashboard in code — after trying the other thing
 
-**This decision was made twice.** It read *"OpenTelemetry to Grafana Cloud, with CloudWatch for what
-OTel cannot see"*, on the argument that vendor-neutral instrumentation keeps all three signals in one
+**This decision was made twice.** It read _"OpenTelemetry to Grafana Cloud, with CloudWatch for what
+OTel cannot see"_, on the argument that vendor-neutral instrumentation keeps all three signals in one
 place and ties nothing to AWS. It was built, it was deployed, it worked — traces reached Grafana —
 and it was then removed. The original text is in the history; what replaced it is below, and the
 reason is a number.
 
 **The collector layer cost ~1.9 s of cold start**, against a published 50–200 ms (measured table at
 the top of this file). This app is the worst possible case for that: a table plays one evening a
-week, so cold starts are the *common* case rather than a rounding error on a warm fleet, and
+week, so cold starts are the _common_ case rather than a rounding error on a warm fleet, and
 `SubscribeAuthorizer` runs before a player can see a table on a three-second timeout.
 
 **And the infrastructure half would have cost more than the whole backend.** OTel runs _inside_ a
@@ -206,19 +209,19 @@ property: handler` and fails every invocation.
 
 **What to alert on** (an alert nobody acts on is worse than no alert):
 
-| Alarm                        | Metric                                    | Why it is worth waking up for                                       |
-| ---------------------------- | ----------------------------------------- | ------------------------------------------------------------------- |
-| `ActionErrors`               | Lambda `Errors`                           | The rules are rejecting real actions, or something is throwing      |
-| `ActionSlow`                 | Lambda `Duration` p99                     | A table is waiting on a turn that will not land                     |
-| `IdentityErrors`             | Lambda `Errors`                           | Sign-in is broken from the app's point of view                      |
-| `ApiServerErrors`            | API Gateway `5xx`                         | The API is failing before a handler runs                            |
-| `ApiClientErrors`            | API Gateway `4xx`                         | Sustained 4xx — a client version that no longer agrees with the API |
-| `TableThrottled`             | DynamoDB `ThrottledRequests`              | On-demand should not throttle; if it does, something is very wrong  |
-| `TableSystemErrors`          | DynamoDB `SystemErrors`                   | DynamoDB itself is erroring                                         |
-| `TableContention`            | DynamoDB `ConditionalCheckFailedRequests` | Optimistic concurrency thrashing — two clients fighting             |
-| `RealtimeConnectFailures`    | AppSync `ConnectServerError`              | Players cannot connect — **the failure nobody reports**             |
-| `RealtimeSubscribeFailures`  | AppSync `SubscribeServerError`            | The subscribe authorizer is erroring rather than refusing           |
-| Monthly spend > a threshold  | Budgets, forecast                         | The only alarm that catches a loop nobody noticed                   |
+| Alarm                       | Metric                                    | Why it is worth waking up for                                       |
+| --------------------------- | ----------------------------------------- | ------------------------------------------------------------------- |
+| `ActionErrors`              | Lambda `Errors`                           | The rules are rejecting real actions, or something is throwing      |
+| `ActionSlow`                | Lambda `Duration` p99                     | A table is waiting on a turn that will not land                     |
+| `IdentityErrors`            | Lambda `Errors`                           | Sign-in is broken from the app's point of view                      |
+| `ApiServerErrors`           | API Gateway `5xx`                         | The API is failing before a handler runs                            |
+| `ApiClientErrors`           | API Gateway `4xx`                         | Sustained 4xx — a client version that no longer agrees with the API |
+| `TableThrottled`            | DynamoDB `ThrottledRequests`              | On-demand should not throttle; if it does, something is very wrong  |
+| `TableSystemErrors`         | DynamoDB `SystemErrors`                   | DynamoDB itself is erroring                                         |
+| `TableContention`           | DynamoDB `ConditionalCheckFailedRequests` | Optimistic concurrency thrashing — two clients fighting             |
+| `RealtimeConnectFailures`   | AppSync `ConnectServerError`              | Players cannot connect — **the failure nobody reports**             |
+| `RealtimeSubscribeFailures` | AppSync `SubscribeServerError`            | The subscribe authorizer is erroring rather than refusing           |
+| Monthly spend > a threshold | Budgets, forecast                         | The only alarm that catches a loop nobody noticed                   |
 
 **This table used to be a design and is now a description.** Three of the alarms it once listed did
 not exist — and the gap survived a review, because a documented alarm reads exactly like a real one.
@@ -295,7 +298,7 @@ npm run deploy:dev
 ```
 
 **`alertEmail` and `monthlyBudgetUsd` live in `cdk.json`'s `context` block, not on a command line,
-and that is load-bearing.** CDK context is not sticky: a deploy *without* them does not leave the
+and that is load-bearing.** CDK context is not sticky: a deploy _without_ them does not leave the
 existing alarm subscription and budget alone, it **deletes** them — and reports success, because a
 template without them is a perfectly valid template. Every setting here degrades to something safe
 and useless rather than to something wrong (alarms firing into a topic nobody reads, no budget,
@@ -309,7 +312,7 @@ makes the two agree without anybody remembering anything. A test asserts both ke
 Only account and region are still flags, because they legitimately differ between a laptop and CI —
 the workflow passes them from repository variables.
 
-**4. There is no step 4 any more.** It used to be *"then in Grafana Cloud"* — create a stack,
+**4. There is no step 4 any more.** It used to be _"then in Grafana Cloud"_ — create a stack,
 generate an OTLP token, put it in Secrets Manager, redeploy with `-c telemetry=true`, add the
 CloudWatch metrics scrape. All of that was done, and then undone; see decision 2 for the numbers.
 Telemetry now needs no account, no credential and no step: `Tracing.ACTIVE` and CloudWatch are on
@@ -384,7 +387,10 @@ Each step is a PR, CI-checked, and each is deployable on its own.
 measured and recorded — which is what ended the OpenTelemetry export. 6. Replace `stubAuthProvider` with Cognito in the app; environment configuration for dev vs prod. 7. Link the account screens into Settings — the entry point that has been deliberately absent. 8. Account deletion actually deletes server-side data (App Store 5.1.1(v) — the screen exists, the
 deletion does not).
 
-**C. Sync** 9. The DynamoDB access patterns for groups, players and results; the read/write loop in the Lambda. 10. Groups and leaderboards sync across devices, guest players linkable to accounts.
+**C. Sync** — ✅ **the server half.** The access patterns, the store, the routes and account
+deletion are built, deployed and exercised by hand against dev; the design and the reasoning are in
+[SYNC.md](./SYNC.md). ⬜ What is left is the **app** half: the offline queue, the merge, and
+somewhere to say that a queued write was refused.
 
 **D. The table** 11. **Close the `table` namespace authorization gate.** A Lambda authorizer on subscribe checking
 membership in DynamoDB. Nothing else in D lands before this. 12. The action handler's storage and publishing. 13. The shared clock's real `SessionTransport`, replacing the loopback. 14. Multiplayer table wired to the app; automatic recording into the leaderboard.

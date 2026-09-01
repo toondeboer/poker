@@ -30,8 +30,9 @@ platform-tagged heading (e.g. `## [1.1.3] - 2026-07-20 — Android`) when you cu
   and does **not** sign you in until it comes back, so the screen asks for it rather than saying
   "welcome" to somebody who is not logged in. Every refusal says what to do about it — that address
   is already taken, that code has expired, wait a minute and try again — rather than "that didn't
-  work". **Nothing is deployed, so nothing links to any of it yet**, and until a backend exists the
-  screens run against the same development stub as before.
+  work". **Nothing links to any of it yet**: the screens are reachable only by URL, and a shipped
+  build still runs them against the same development stub, because a development server is a thing
+  that gets deleted and rebuilt and nobody's account should live there.
 - **Progressive bounties (Pro).** Knock somebody out and half their bounty is yours in cash — the
   other half goes onto your own head, so whoever is winning becomes the one worth beating. It is the
   format nobody can run on paper: the bounty on every head changes a dozen times an evening, and
@@ -114,7 +115,7 @@ platform-tagged heading (e.g. `## [1.1.3] - 2026-07-20 — Android`) when you cu
   described a timer whose only paid extras were presets and alarm sounds.
 - Groundwork for accounts and online play: the backend is now defined as code in a new `apps/infra`
   workspace — accounts, one small database, and a realtime channel for a shared poker table.
-  **Nothing is deployed and nothing in the app talks to it yet.** Two decisions are worth recording
+  **Nothing in the app talks to it.** Two decisions are worth recording
   because they are hard to change later: hole cards are kept private by *where they are published*
   rather than by the app choosing not to draw them, so a card you should not see never reaches your
   phone at all; and only the server may publish, so every change to a table goes through the poker
