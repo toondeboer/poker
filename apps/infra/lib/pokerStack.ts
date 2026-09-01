@@ -592,6 +592,7 @@ export class PokerStack extends Stack {
       ["/groups/{groupId}/games", [HttpMethod.POST]],
       ["/groups/{groupId}/games/{gameId}", [HttpMethod.DELETE]],
       ["/groups/{groupId}/claims", [HttpMethod.POST]],
+      ["/groups/{groupId}/members", [HttpMethod.GET]],
       ["/groups/{groupId}/invite", [HttpMethod.POST]],
       ["/groups/{groupId}/members/{accountId}", [HttpMethod.PUT]],
       ["/invites/{token}", [HttpMethod.POST]],

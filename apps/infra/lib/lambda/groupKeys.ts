@@ -80,9 +80,24 @@ export const playerKey = (groupId: string, playerId: string) => ({
   sk: `PLAYER#${playerId}`,
 });
 
-export const resultKey = (groupId: string, playedAt: number, id: string) => ({
+/**
+ * A game, keyed by **its id alone**.
+ *
+ * The obvious key is `RESULT#<playedAt>#<id>`, so the partition comes back in
+ * time order for free. It is wrong, and subtly: it makes a game's identity
+ * `(playedAt, id)`, so the *same* id posted with a different `playedAt` writes a
+ * **second row** — standings count the night twice, and deleting removes only
+ * whichever copy matches the body. `attribute_not_exists(pk)` cannot make an id
+ * unique when the id is not the key.
+ *
+ * Keyed by id, uniqueness is structural. Ordering moves into `boardFrom`, which
+ * costs a sort over a season of game nights — tens of rows, not thousands — and
+ * it means deleting a game needs only its id rather than the client also
+ * handing back the exact `playedAt` the row was written under.
+ */
+export const resultKey = (groupId: string, id: string) => ({
   pk: `GROUP#${groupId}`,
-  sk: `RESULT#${stampSegment(playedAt)}#${id}`,
+  sk: `RESULT#${id}`,
 });
 
 /**
@@ -172,7 +187,7 @@ export const playerItem = (groupId: string, player: Player) => ({
 });
 
 export const resultItem = (groupId: string, result: GameResult) => ({
-  ...resultKey(groupId, result.playedAt, result.id),
+  ...resultKey(groupId, result.id),
   result,
   playedAt: result.playedAt,
 });
@@ -317,7 +332,13 @@ export const boardFrom = (
 
   // No group row means no group. Players and results without it are a board
   // with no identity that every caller would have to special-case.
-  return group ? { group, players, results } : null;
+  if (!group) return null;
+  // Sorted here rather than by the key, because the key is the game's id — see
+  // `resultKey` for why that is worth a sort. Newest last, matching what the
+  // old time-ordered key produced, with the id breaking a tie so the order does
+  // not depend on what DynamoDB happened to return.
+  results.sort((a, b) => a.playedAt - b.playedAt || (a.id < b.id ? -1 : 1));
+  return { group, players, results };
 };
 
 // ---------------------------------------------------------------------------

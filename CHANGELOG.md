@@ -131,7 +131,9 @@ platform-tagged heading (e.g. `## [1.1.3] - 2026-07-20 — Android`) when you cu
   writing down who won — carry on offline and catch up later, and only the things that genuinely
   need everybody else wait for a connection. Deleting your account now removes what the server holds
   as well: the players you claimed are let go, but the games stay on the board, because a night of
-  poker belongs to the table rather than to whoever wrote it down.
+  poker belongs to the table rather than to whoever wrote it down — and if you were the last person
+  who could manage a group, somebody else is put in charge of it rather than it being left with
+  nobody.
 - That backend now actually runs. A development environment is deployed and has been exercised end
   to end: an account created from a real emailed code, signed in, a hand dealt and acted on, and the
   cards arriving on the right screens — including the part that matters, which is that a player's

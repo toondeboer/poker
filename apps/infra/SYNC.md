@@ -185,7 +185,9 @@ player updated without the claim would be invisible to deletion.
    - Another admin exists → nothing to do. **This is the common case now that groups have several.**
    - No other admin, but other members → **promote the longest-standing member by `joinedAt`.** A
      group must never be left with nobody who can manage it.
-   - No other members at all → tombstone the group. Nobody else's history is in it.
+   - No other members at all → **nothing.** The group survives, empty. Deleting it would mean
+     deciding "nobody else is here" from a read, and getting that wrong destroys somebody's season;
+     leaving it costs a few rows nobody can see. See _Known gaps_.
 4. Delete the `ACCOUNT#<sub>` items.
 5. `AdminDeleteUser` in Cognito, **last**.
 

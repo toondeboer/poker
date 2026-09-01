@@ -33,6 +33,7 @@ describe("something can finally call the backend", () => {
       "DELETE /me",
       "GET /groups",
       "GET /groups/{groupId}",
+      "GET /groups/{groupId}/members",
       "GET /me",
       "POST /groups",
       "POST /groups/{groupId}/claims",

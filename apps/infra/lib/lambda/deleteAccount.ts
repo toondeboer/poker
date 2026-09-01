@@ -39,6 +39,32 @@ export const claimGroupOf = (sk: string): string | null =>
 export const groupIdOf = (sk: string): string | null =>
   sk.startsWith(GROUP_PREFIX) ? sk.slice(GROUP_PREFIX.length) || null : null;
 
+/**
+ * Leave anyway, once a guaranteed departure has failed.
+ *
+ * **A membership must never outlive its account.** The account-side copy goes
+ * with everything else under `ACCOUNT#`, and Cognito goes after that — so a
+ * group-side `MEMBER#` row left behind is a ghost that `anotherAdmin` and
+ * `heirTo` will keep naming, and that nobody can ever remove, because the
+ * account it belongs to no longer exists.
+ *
+ * So the unguaranteed departure is the fallback rather than the failure: the
+ * group may be left with no admin, which is recoverable and is reported, where
+ * a ghost admin is neither.
+ */
+const depart = async (
+  store: GroupStore,
+  accountId: string,
+  groupId: string,
+  report: DeletionReport,
+  requestId: string | undefined,
+  reason: string,
+): Promise<void> => {
+  log("warn", "leaving without a guarantor", { requestId, groupId, reason });
+  await store.leave(accountId, groupId, null);
+  if (!report.groupsStranded.includes(groupId)) report.groupsStranded.push(groupId);
+};
+
 export const deleteAccount = async (
   accountId: string,
   store: GroupStore,
@@ -93,10 +119,7 @@ export const deleteAccount = async (
       // Somebody else is already in charge. Asserted in the same transaction as
       // the departure, so they cannot stop being an admin in between.
       const left = await store.leave(accountId, groupId, other.accountId);
-      if (left.status !== "ok") {
-        log("warn", "could not leave cleanly", { requestId, groupId, reason: left.reason });
-        report.groupsStranded.push(groupId);
-      }
+      if (left.status !== "ok") await depart(store, accountId, groupId, report, requestId, left.reason);
       continue;
     }
 
@@ -123,7 +146,11 @@ export const deleteAccount = async (
       continue;
     }
     report.groupsInherited.push(groupId);
-    await store.leave(accountId, groupId, heir.accountId);
+    const left = await store.leave(accountId, groupId, heir.accountId);
+    // Checked, unlike before. An unreported failure here leaves the group-side
+    // `MEMBER#` row behind while everything else about the account goes — a
+    // ghost admin that `anotherAdmin` and `heirTo` keep naming forever.
+    if (left.status !== "ok") await depart(store, accountId, groupId, report, requestId, left.reason);
   }
 
   // 3. Then whatever is left under the account. Unconditional, so a second

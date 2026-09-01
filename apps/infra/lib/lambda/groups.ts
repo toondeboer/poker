@@ -291,7 +291,11 @@ export const handler = async (request: VerifiedRequest): Promise<Response> => {
       const allowed = await authorize(store, caller, groupId, "claimPlayer");
       if (!allowed.ok) return allowed.response;
       const playerId = body.playerId;
-      if (typeof playerId !== "string") return json(400, { error: "no player" });
+      // `isUsableId`, not `typeof === "string"`. An empty or `#`-bearing id
+      // reaches `playerKey`, misses, and comes back as a 409 saying somebody
+      // else holds that player — which is a confusing answer to a malformed
+      // request.
+      if (!isUsableId(playerId)) return json(400, { error: "no player" });
       const outcome = await store.claimPlayer(caller, groupId, playerId, now);
       // A refused claim is an ordinary answer — somebody else got there, or
       // this account already holds a seat — and 409 says "look again" rather
@@ -311,17 +315,34 @@ export const handler = async (request: VerifiedRequest): Promise<Response> => {
     case "DELETE /groups/{groupId}/games/{gameId}": {
       const allowed = await authorize(store, caller, groupId, "removeGame");
       if (!allowed.ok) return allowed.response;
-      // **The body carries the game, not just the id in the path.** The sort
-      // key contains `playedAt`, and the client is the one holding it. A route
-      // that took only an id would have to query the partition to find the row
-      // first, which is a read on every delete to save the client sending a
-      // number it already has.
-      if (!isResult(body.result)) return json(400, { error: "no result" });
-      if (body.result.id !== request.pathParameters?.gameId) {
-        return json(400, { error: "the game in the body is not the one in the path" });
-      }
-      const outcome = await store.removeGame(groupId, body.result, now);
+      // Just the id. This used to need the whole game in the body, because the
+      // sort key carried `playedAt` and only the client had it — which also
+      // meant a body naming a different game could tombstone the wrong row.
+      // Keying a result by its id removed the need and the hazard together.
+      const gameId = request.pathParameters?.gameId;
+      if (!isUsableId(gameId)) return json(400, { error: "no game" });
+      const outcome = await store.removeGame(groupId, gameId, now);
       return answer(outcome, requestId, { groupId, caller });
+    }
+
+    case "GET /groups/{groupId}/members": {
+      const allowed = await authorize(store, caller, groupId, "read");
+      if (!allowed.ok) return allowed.response;
+      // **Without this there is no way to promote a second admin.** The board
+      // strips other people's `accountId`, and `GET /groups` returns ids only —
+      // so an admin had no way to learn the subject that
+      // `PUT /members/{accountId}` needs, and the route was undrivable.
+      //
+      // Members only, and only to members: this is the one place an account id
+      // is disclosed, and it is disclosed to the people already on the board.
+      const members = await store.members(groupId);
+      return json(200, {
+        members: members.map((m) => ({
+          accountId: m.accountId,
+          role: m.role,
+          joinedAt: m.joinedAt,
+        })),
+      });
     }
 
     case "POST /groups/{groupId}/invite": {

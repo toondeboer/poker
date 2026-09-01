@@ -72,7 +72,7 @@ export type GroupStore = {
   addPlayer(groupId: string, player: Player): Promise<WriteOutcome>;
   recordGame(groupId: string, result: GameResult): Promise<WriteOutcome>;
   removePlayer(groupId: string, playerId: string, now: number): Promise<WriteOutcome>;
-  removeGame(groupId: string, result: GameResult, now: number): Promise<WriteOutcome>;
+  removeGame(groupId: string, gameId: string, now: number): Promise<WriteOutcome>;
   claimPlayer(accountId: string, groupId: string, playerId: string, now: number): Promise<WriteOutcome>;
   releaseClaim(accountId: string, groupId: string, playerId: string): Promise<WriteOutcome>;
   /** Change a role, asserting `guarantor` is still an admin if one is named. */
@@ -197,10 +197,29 @@ export const createGroupStore = (
     },
 
     async members(groupId) {
-      // The group's own partition, so this is consistent too — which is the
-      // whole reason membership is written twice. The previous design read an
-      // index here and every decision resting on it was a race.
-      return membersFrom(await groupPartition(groupId));
+      // The group's own partition, so this is consistent — which is the whole
+      // reason membership is written twice. The previous design read an index
+      // here, and every decision resting on it was a race.
+      //
+      // `begins_with` rather than filtering the whole partition in memory:
+      // `DELETE /me` calls this once per group inside a sequential loop under a
+      // ten-second timeout, and reading every player and every game to find the
+      // memberships is most of that budget spent on rows it discards.
+      const items = await allPages((start) =>
+        client.send(
+          new QueryCommand({
+            TableName: tableName,
+            KeyConditionExpression: "pk = :pk AND begins_with(sk, :member)",
+            ExpressionAttributeValues: {
+              ":pk": groupKey(groupId).pk,
+              ":member": "MEMBER#",
+            },
+            ConsistentRead: true,
+            ExclusiveStartKey: start,
+          }),
+        ),
+      );
+      return membersFrom(items);
     },
 
     async belongings(accountId) {
@@ -256,6 +275,12 @@ export const createGroupStore = (
        * this is written to tolerate — wipes the `accountId` of whoever claimed
        * that player. And the condition is on `deletedAt` rather than existence,
        * because a replay landing on a deleted row would otherwise resurrect it.
+       *
+       * **`if_not_exists` on the name, so adding cannot double as renaming.**
+       * This route is open to every member; an unconditional `SET` would let
+       * anybody rename anybody, including a player somebody else has claimed.
+       * Renaming is not in the permission table, and until it is, the way to
+       * get it is not to leave it lying here by accident.
        */
       return conditional(
         () =>
@@ -263,7 +288,8 @@ export const createGroupStore = (
             new UpdateCommand({
               TableName: tableName,
               Key: playerKey(groupId, player.id),
-              UpdateExpression: "SET #name = :name, playerId = :id",
+              UpdateExpression:
+                "SET #name = if_not_exists(#name, :name), playerId = :id",
               ExpressionAttributeNames: { "#name": "name" },
               ExpressionAttributeValues: { ":name": player.name, ":id": player.id },
               ConditionExpression: "attribute_not_exists(deletedAt)",
@@ -329,17 +355,17 @@ export const createGroupStore = (
       );
     },
 
-    removeGame(groupId, result, now) {
-      // Rebuilt from the result the caller holds, because the sort key carries
-      // `playedAt` and the app deletes by id alone. Safe only while a recorded
-      // game is immutable. The condition makes a wrong key fail loudly rather
-      // than orphan a tombstone.
+    removeGame(groupId, gameId, now) {
+      // Just the id, now that the id is the key — the caller no longer has to
+      // hand back the exact `playedAt` the row was written under, and cannot
+      // get it wrong. The condition makes a wrong id fail loudly rather than
+      // leave a tombstone for a game that never existed.
       return conditional(
         () =>
           client.send(
             new PutCommand({
               TableName: tableName,
-              Item: tombstone(resultKey(groupId, result.playedAt, result.id), now),
+              Item: tombstone(resultKey(groupId, gameId), now),
               ConditionExpression: "attribute_exists(pk)",
             }),
           ),

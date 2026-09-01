@@ -197,7 +197,6 @@ describe("a member", () => {
       await handler(
         request("DELETE /groups/{groupId}/games/{gameId}", {
           pathParameters: { groupId: "g1", gameId: "r1" },
-          body: { result: game() },
         }),
       ),
     ];
@@ -238,7 +237,6 @@ describe("an admin", () => {
       await handler(
         request("DELETE /groups/{groupId}/games/{gameId}", {
           pathParameters: { groupId: "g1", gameId: "r1" },
-          body: { result: game() },
         }),
       ),
     ];
@@ -246,20 +244,19 @@ describe("an admin", () => {
     expect(calls).toEqual(["removePlayer", "removeGame"]);
   });
 
-  it("cannot delete a game by sending a different one", async () => {
-    // The body carries the game because the sort key needs `playedAt`. Without
-    // this check, the path would name one game and the tombstone land on
-    // another — and the condition on the write would not catch it, because the
-    // other game exists.
+  it("deletes a game by its id, with no body to disagree with the path", async () => {
+    // This used to need the whole game in the body, because the key carried
+    // `playedAt`. That created a way for the path to name one game and the
+    // tombstone to land on another — which the write's own condition could not
+    // catch, because the other game exists. Keying by id removed both.
     useGroupStore(store("admin"));
     const response = await handler(
       request("DELETE /groups/{groupId}/games/{gameId}", {
         pathParameters: { groupId: "g1", gameId: "r1" },
-        body: { result: game("r-other") },
       }),
     );
-    expect(response.statusCode).toBe(400);
-    expect(calls).toEqual([]);
+    expect(response.statusCode).toBe(200);
+    expect(calls).toEqual(["removeGame"]);
   });
 });
 

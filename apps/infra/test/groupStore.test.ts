@@ -94,6 +94,17 @@ describe("the permission read", () => {
 });
 
 describe("listing members", () => {
+  it("reads only the memberships, not the whole partition", async () => {
+    // `DELETE /me` calls this once per group in a sequential loop under a
+    // ten-second timeout; reading every player and every game to find the
+    // memberships is most of that budget spent on rows it throws away.
+    const { client, sent } = fakeClient([{ Items: [] }]);
+    await createGroupStore("T", client).members("g1");
+    expect(sent[0].KeyConditionExpression).toBe(
+      "pk = :pk AND begins_with(sk, :member)",
+    );
+  });
+
   it("reads the group's own partition, consistently and with no index", async () => {
     // **The reason membership is written twice.** The previous design read an
     // eventually consistent index here, and every decision resting on it — who
@@ -182,14 +193,13 @@ describe("removing things", () => {
     expect(ops.find((o) => o.Delete)?.Delete?.Key.pk).toBe("INVITE#old");
   });
 
-  it("rebuilds a game's key from the result it is given", async () => {
-    // The sort key carries `playedAt` and the app deletes by id alone, so this
-    // only works while a recorded game is immutable.
+  it("removes a game by its id alone", async () => {
+    // It used to need the whole game, because the key carried `playedAt` and
+    // only the client had it — which also meant a body naming a different game
+    // could tombstone the wrong row.
     const { client, sent } = fakeClient([{}]);
-    await createGroupStore("T", client).removeGame("g1", game("r7", 5), 1);
-    expect((sent[0].Item as { sk: string }).sk).toBe(
-      `RESULT#${"5".padStart(13, "0")}#r7`,
-    );
+    await createGroupStore("T", client).removeGame("g1", "r7", 1);
+    expect((sent[0].Item as { sk: string }).sk).toBe("RESULT#r7");
   });
 
   it("lets a real failure through instead of calling it a conflict", async () => {
@@ -392,6 +402,15 @@ describe("not resurrecting what somebody deleted", () => {
     expect(sent[0].ConditionExpression).toBe("attribute_not_exists(deletedAt)");
   });
 
+  it("does not let adding a player double as renaming one", async () => {
+    // The add route is open to every member; an unconditional `SET` would let
+    // anybody rename anybody, including a player somebody else has claimed.
+    // Renaming is not in the permission table.
+    const { client, sent } = fakeClient([{}]);
+    await createGroupStore("T", client).addPlayer("g1", { id: "p1", name: "New" });
+    expect(sent[0].UpdateExpression).toContain("if_not_exists(#name, :name)");
+  });
+
   it("adds a player without wiping whoever claimed them", async () => {
     // A `Put` replaces the row, so a replayed offline add — the thing this is
     // written to tolerate — cleared the claimer's `accountId`, orphaned their
@@ -399,7 +418,9 @@ describe("not resurrecting what somebody deleted", () => {
     // and nothing else.
     const { client, sent } = fakeClient([{}]);
     await createGroupStore("T", client).addPlayer("g1", { id: "p1", name: "Ann" });
-    expect(sent[0].UpdateExpression).toBe("SET #name = :name, playerId = :id");
+    expect(sent[0].UpdateExpression).toBe(
+      "SET #name = if_not_exists(#name, :name), playerId = :id",
+    );
     expect(JSON.stringify(sent[0])).not.toContain("accountId");
   });
 

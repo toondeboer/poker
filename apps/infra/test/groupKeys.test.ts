@@ -45,7 +45,7 @@ describe("keys", () => {
     const partitions = new Set([
       groupKey("g1").pk,
       playerKey("g1", "p1").pk,
-      resultKey("g1", 1_700_000_000_000, "r1").pk,
+      resultKey("g1", "r1").pk,
     ]);
     expect([...partitions]).toEqual(["GROUP#g1"]);
   });
@@ -74,15 +74,24 @@ describe("keys", () => {
 });
 
 describe("result ordering", () => {
-  it("sorts a backdated game before a recent one", () => {
-    // The bug this prevents: epoch ms is 13 digits now and 12 before September
-    // 2001, and `playedAt` is a field somebody can set when recording a game
-    // played earlier. Unpadded, "999999999999" > "1788180000000" as a string,
-    // so a game from the nineties would sort as the most recent one on the
-    // board — silently, and only visible as a board in the wrong order.
-    const old = resultKey("g1", 999_999_999_999, "a").sk;
-    const recent = resultKey("g1", 1_788_180_000_000, "b").sk;
-    expect(old < recent).toBe(true);
+  it("makes a game's id its identity", () => {
+    // **The key is the id alone.** `RESULT#<playedAt>#<id>` reads better and
+    // makes the identity `(playedAt, id)` — so the same id re-posted with a
+    // different date writes a *second* row, standings count the night twice,
+    // and deleting removes only the copy that matches. `attribute_not_exists`
+    // cannot make an id unique when the id is not the key.
+    expect(resultKey("g1", "r1").sk).toBe("RESULT#r1");
+  });
+
+  it("orders a backdated game correctly when the board is assembled", () => {
+    // Ordering moved out of the key and into `boardFrom`, which costs a sort
+    // over a season of game nights — tens of rows.
+    const board = boardFrom("g1", [
+      groupItem("g1", { name: "T", createdAt: 1 }),
+      resultItem("g1", result("recent", 1_788_180_000_000)),
+      resultItem("g1", result("old", 999_999_999_999)),
+    ]);
+    expect(board?.results.map((r) => r.id)).toEqual(["old", "recent"]);
   });
 
   it("keeps every stamp the same width", () => {
@@ -102,7 +111,7 @@ describe("tombstones", () => {
   it("strips the payload it is replacing", () => {
     // A tombstone that still carried its game would be a deleted game anybody
     // could read straight out of the table.
-    const stone = tombstone(resultKey("g1", 1, "r1"), 1_700_000_000_000);
+    const stone = tombstone(resultKey("g1", "r1"), 1_700_000_000_000);
     expect(Object.keys(stone).sort()).toEqual([
       "deletedAt",
       "expiresAt",
@@ -176,20 +185,13 @@ describe("assembling a board", () => {
     ]);
   });
 
-  it("derives the same key for a game from its own fields", () => {
-    // **The constraint this whole keying rests on.** `removeGameResult` deletes
-    // by id alone, but the sort key carries `playedAt` — so deleting means
-    // rebuilding the key from a `GameResult` the client still holds. That works
-    // only because a recorded game is immutable: nothing in the app edits one,
-    // so `playedAt` cannot drift away from the key that was written.
-    //
-    // If a game ever becomes editable, this breaks silently: the tombstone
-    // lands at a key nothing lives at, and the real row survives. The write is
-    // conditional on the row existing for exactly that reason.
+  it("keys a game the same however it is reached", () => {
+    // The constraint this used to rest on is gone: the key was
+    // `RESULT#<playedAt>#<id>`, so deleting meant rebuilding it from a
+    // `GameResult` the client still held, which only worked while a recorded
+    // game stayed immutable — and made the same id at two dates two rows.
     const game = result("r1", 1_700_000_000_000);
-    const written = resultItem("g1", game).sk;
-    const derived = resultKey("g1", game.playedAt, game.id).sk;
-    expect(derived).toBe(written);
+    expect(resultItem("g1", game).sk).toBe(resultKey("g1", game.id).sk);
   });
 
   it("is nothing at all without the group row", () => {
