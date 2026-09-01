@@ -54,6 +54,7 @@ import {
   DeleteCommand,
   DynamoDBDocumentClient,
   PutCommand,
+  QueryCommand,
 } from "@aws-sdk/lib-dynamodb";
 import {
   accountFromIdToken,
@@ -382,6 +383,127 @@ const waitFor = async (
 // The run
 // ---------------------------------------------------------------------------
 
+/**
+ * The shared-board routes, and the one property the phone depends on most.
+ *
+ * **A queued write is replayed whenever its answer went missing**, which on a
+ * phone is often — the request reached the server, the response did not, and
+ * the outbox has no way to tell that apart from never having been sent. So
+ * every write here is sent twice and expected to succeed twice. A route that
+ * answers "already exists" to the second one is a route that turns a lost
+ * response into a permanent refusal, cascading to everything queued behind it.
+ *
+ * This is worth doing against the real thing rather than trusting the suite: a
+ * transaction earlier in this cycle passed a unit test that asserted the wrong
+ * condition, and only failed when a real member claimed a real seat.
+ */
+const checkGroups = async (
+  apiUrl: string,
+  me: { accountId: string; tokens: { idToken: string } },
+  tableName: string,
+  region: string,
+): Promise<void> => {
+  const groupId = `smoke-${randomBytes(6).toString("hex")}`;
+  const send = (path: string, body: unknown) =>
+    fetch(`${apiUrl}${path}`, {
+      method: "POST",
+      headers: {
+        Authorization: me.tokens.idToken,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(body),
+    });
+
+  step(`creating board ${groupId}`);
+  const created = await send("/groups", {
+    groupId,
+    name: "Smoke Thursday",
+    createdAt: Date.now(),
+  });
+  check("a board can be created", created.status === 201, `${created.status}`);
+
+  const again = await send("/groups", {
+    groupId,
+    name: "Smoke Thursday",
+    createdAt: Date.now(),
+  });
+  check(
+    "creating the same board again is not a conflict",
+    again.status === 201 || again.status === 200,
+    `${again.status} — a 409 here is a permanent refusal on the phone`,
+  );
+
+  const player = { id: `p-${randomBytes(4).toString("hex")}`, name: "Ann" };
+  const added = await send(`/groups/${groupId}/players`, { player });
+  check("a player can be added", added.ok, `${added.status}`);
+  const addedAgain = await send(`/groups/${groupId}/players`, { player });
+  check("adding the same player again is not a conflict", addedAgain.ok, `${addedAgain.status}`);
+
+  const result = {
+    id: `r-${randomBytes(4).toString("hex")}`,
+    playedAt: Date.now(),
+    playerIds: [player.id],
+    placings: [{ playerId: player.id, place: 1, winnings: 20 }],
+    buyIn: 10,
+    bounty: 0,
+  };
+  const recorded = await send(`/groups/${groupId}/games`, { result });
+  check("a game can be recorded", recorded.ok, `${recorded.status}`);
+  const recordedAgain = await send(`/groups/${groupId}/games`, { result });
+  check(
+    "recording the same game again is not a conflict",
+    recordedAgain.ok,
+    `${recordedAgain.status}`,
+  );
+
+  const board = await fetch(`${apiUrl}/groups/${groupId}`, {
+    headers: { Authorization: me.tokens.idToken },
+  });
+  const drawn = (await board.json()) as {
+    players?: unknown[];
+    results?: unknown[];
+  };
+  // The point of replaying: twice sent, once stored. A duplicate here would
+  // double-count somebody's night on the leaderboard.
+  check(
+    "the board holds one of each, not two",
+    drawn.players?.length === 1 && drawn.results?.length === 1,
+    `${drawn.players?.length} players, ${drawn.results?.length} games`,
+  );
+
+  if (KEEP) {
+    console.log(`  keeping board ${groupId}`);
+    return;
+  }
+  // No route deletes a board — deliberately, an emptied group survives its
+  // members — so the rows go directly, the same way the table's do.
+  step(`removing board ${groupId}`);
+  const documents = DynamoDBDocumentClient.from(new DynamoDBClient({ region }), {
+    marshallOptions: { removeUndefinedValues: true },
+  });
+  const rows = await documents.send(
+    new QueryCommand({
+      TableName: tableName,
+      KeyConditionExpression: "pk = :pk",
+      ExpressionAttributeValues: { ":pk": `GROUP#${groupId}` },
+    }),
+  );
+  for (const row of rows.Items ?? []) {
+    await documents.send(
+      new DeleteCommand({
+        TableName: tableName,
+        Key: { pk: row.pk as string, sk: row.sk as string },
+      }),
+    );
+  }
+  await documents.send(
+    new DeleteCommand({
+      TableName: tableName,
+      Key: { pk: `ACCOUNT#${me.accountId}`, sk: `GROUP#${groupId}` },
+    }),
+  );
+};
+
 const main = async (): Promise<void> => {
   step(`reading the outputs of ${STACK}`);
   const outputs = stackOutputs(STACK);
@@ -439,6 +561,8 @@ const main = async (): Promise<void> => {
    */
   const tableId = `smoke-${randomBytes(6).toString("hex")}`;
   const opponent = "smokebot";
+
+  await checkGroups(apiUrl, me, tableName, REGION);
 
   step(`seeding table ${tableId}`);
   const hand: Hand = startHand({

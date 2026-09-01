@@ -281,7 +281,23 @@ export const handler = async (request: VerifiedRequest): Promise<Response> => {
     if (typeof name !== "string" || name.trim().length === 0) {
       return json(400, { error: "a group needs a name" });
     }
-    const id = randomUUID();
+    /**
+     * **The client may name the id, exactly as it does for players and games.**
+     *
+     * Without this a group made on a phone can never be addressed here: the app
+     * generates its own id, the server generated a different one, and nothing
+     * about that group could ever sync — so a board created offline, or before
+     * signing in, was local forever with no way to promote it.
+     *
+     * Safe because the create is conditional on `attribute_not_exists`, so
+     * guessing an id in use is refused rather than joining somebody's group;
+     * and a group id was never what protects a board — membership is.
+     */
+    const supplied = body.groupId;
+    if (supplied !== undefined && !isUsableId(supplied)) {
+      return json(400, { error: "that is not a usable group id" });
+    }
+    const id = supplied ?? randomUUID();
     // The founder is an admin, in the same transaction. A group whose creator
     // is only a member is a group nobody could ever remove a player from.
     const outcome = await store.createGroup(id, name.trim(), caller, now);

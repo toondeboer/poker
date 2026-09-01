@@ -336,6 +336,38 @@ export type {
 } from "./leaderboard/groups";
 export type { LeaderboardStanding } from "./leaderboard/standings";
 
+// Syncing a shared board: what this phone has done and not yet sent
+export {
+  EMPTY_QUEUE,
+  dismiss,
+  enqueue,
+  MAX_REFUSALS,
+  dependsOn,
+  hasPendingFor,
+  refuse,
+  settle,
+  withPending,
+} from "./sync/pendingWrites";
+export type {
+  PendingWrite,
+  QueuedWrite,
+  RefusedWrite,
+  SyncQueue,
+} from "./sync/pendingWrites";
+export { cancel, cancelBoard, describeWrite } from "./sync/pendingWrites";
+export type { WriteSubject } from "./sync/pendingWrites";
+export { applyReport, drain } from "./sync/drain";
+export { createSyncQueueStorage, SYNC_QUEUE_KEY } from "./storage/syncQueueStorage";
+export type { SyncQueueStorage } from "./storage/syncQueueStorage";
+export type { DrainReport, SendResult, Sender } from "./sync/drain";
+export {
+  RETRYABLE_STATUSES,
+  reasonFrom as reasonForRefusal,
+  requestFor,
+  resultForStatus,
+} from "./sync/groupRequests";
+export type { GroupCall } from "./sync/groupRequests";
+
 // Realtime channels (shared with the backend, deliberately)
 export {
   TABLE_NAMESPACE,

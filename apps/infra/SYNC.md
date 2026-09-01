@@ -101,6 +101,13 @@ bars. The split is by whether an action needs anybody else:
 | Recording a game you just played   | Claiming a player — it must not double-claim    |
 | Adding a player                    | Removing a player or a game — it is destructive |
 
+**The queue that implements this carries additive writes only** — `addPlayer` and `recordGame`, and
+nothing else (`packages/core/src/sync/pendingWrites.ts`). Two earlier versions of it were wider,
+each contradicting the table above, and each brought its own class of bug: a queued claim let two
+offline phones both believe they had the same player, and a queued removal hid something on one
+phone that the server might refuse days later. Narrowing it to the safe direction also deleted the
+collapse rules and the dependency guards they needed.
+
 The rule behind that table: **an offline action is allowed when the worst case is that it merges
 late, and refused when the worst case is that it merges wrongly.** Claiming is the clear example —
 two people claiming the same player on two offline phones cannot both be right, and resolving it
@@ -226,6 +233,17 @@ board is invisible to them entirely, which may be right or may be the missing ha
 
 ## Known gaps
 
+- **A board cannot be renamed on the server.** There is no `PATCH /groups/{groupId}`, so the name a
+  board is created with is the name it keeps. The app replaces a *queued* `createGroup` when
+  somebody renames a board, which covers a board renamed before it ever synced; a board the server
+  already has keeps the old name and the client is told the write landed, because it did. Latent
+  while nothing reads the server's copy of a board back — the app draws from its own storage — and
+  it stops being latent the moment a second phone joins a board.
+- **Nothing removes a player or a game from the server.** Both are deliberately not queueable: a
+  removal has to be checked against who you are *now*, and a queue replayed a week later cannot be.
+  So a deletion made offline reaches the server only if the matching write had not gone yet, which
+  the app now handles by withdrawing it. Once a write has landed, deleting locally diverges from the
+  shared board until somebody with admin removes it there too.
 - **An empty group is never deleted.** Account deletion used to tombstone a group whose last member
   was leaving, decided from the eventually consistent index — and a stale read there destroys a
   group that still has people in it. That trade is the wrong way round, so the destructive branch is

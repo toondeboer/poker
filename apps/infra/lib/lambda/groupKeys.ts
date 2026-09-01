@@ -313,11 +313,18 @@ export const boardFrom = (
   // No group row means no group. Players and results without it are a board
   // with no identity that every caller would have to special-case.
   if (!group) return null;
-  // Sorted here rather than by the key, because the key is the game's id — see
-  // `resultKey` for why that is worth a sort. Newest last, matching what the
-  // old time-ordered key produced, with the id breaking a tie so the order does
-  // not depend on what DynamoDB happened to return.
-  results.sort((a, b) => a.playedAt - b.playedAt || (a.id < b.id ? -1 : 1));
+  /**
+   * Sorted here rather than by the key, because the key is the game's id — see
+   * `resultKey` for why that is worth a sort.
+   *
+   * **Newest first, matching the app.** `addGameResult` prepends and `playedAt`
+   * is documented as "newest-first ordering", so a server sorting the other way
+   * hands back a history that renders backwards the moment a phone reads it.
+   * The id breaks a tie, and equal ids compare equal.
+   */
+  results.sort(
+    (a, b) => b.playedAt - a.playedAt || (a.id === b.id ? 0 : a.id < b.id ? -1 : 1),
+  );
   return { group, players, results };
 };
 
@@ -396,4 +403,45 @@ export const heirTo = (
       ? candidate
       : best,
   );
+};
+
+/**
+ * Are these the same game, as far as anybody can tell?
+ *
+ * **Not `JSON.stringify`, which was the bug.** That compares key *order*, and a
+ * game read back from DynamoDB has whatever order the attribute map felt like:
+ * a `placings` entry sent as `{playerId, place, winnings}` came back as
+ * `{playerId, winnings, place}`. So a replayed game — the ordinary case, since
+ * a phone re-sends anything whose answer went missing — never matched itself,
+ * and the caller was told 409 for a game that had saved perfectly. Its client
+ * reads that as a permanent refusal and throws away the evening.
+ *
+ * Arrays stay ordered, because `placings` *is* an order — first place is not
+ * third place. Absent and `undefined` compare equal, because the document
+ * client drops undefined on the way in, so a field the client sent as
+ * `undefined` comes back missing rather than null.
+ */
+export const sameGame = (a: unknown, b: unknown): boolean => {
+  if (a === b) return true;
+  if (a === null || b === null) return false;
+  if (Array.isArray(a) || Array.isArray(b)) {
+    return (
+      Array.isArray(a) &&
+      Array.isArray(b) &&
+      a.length === b.length &&
+      a.every((item, index) => sameGame(item, b[index]))
+    );
+  }
+  if (typeof a !== "object" || typeof b !== "object") return false;
+  const left = a as Record<string, unknown>;
+  const right = b as Record<string, unknown>;
+  const keys = new Set([...Object.keys(left), ...Object.keys(right)]);
+  for (const key of keys) {
+    // An absent key and an explicit `undefined` are the same thing here: the
+    // document client is configured to remove undefined values, so one becomes
+    // the other on the way to storage.
+    if (left[key] === undefined && right[key] === undefined) continue;
+    if (!sameGame(left[key], right[key])) return false;
+  }
+  return true;
 };

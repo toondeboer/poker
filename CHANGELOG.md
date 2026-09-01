@@ -10,6 +10,16 @@ platform-tagged heading (e.g. `## [1.1.3] - 2026-07-20 — Android`) when you cu
 ## [Unreleased]
 
 ### Added
+- **A leaderboard now survives having no signal.** Adding a player or recording a game writes the
+  board on the phone first and tells the server second, keeping what could not be sent in an outbox
+  that is retried when the app comes back to the foreground, when somebody signs in, and on the
+  next cold launch. The night at a table with one bar of reception is the case the whole thing is
+  built for: nothing waits on a network, and nothing is silently lost when the network never comes.
+  A write the server *refuses* — a board somebody removed you from between Tuesday and Thursday —
+  is kept aside to be shown rather than dropped or silently applied, and anything that depended on
+  it is held back with it, so a game can never be recorded naming a player who was never added.
+  The leaderboard says so plainly when that happens — what was not saved, why, and the part that
+  matters: it is on your phone and the other players will not see it.
 - **Claim yourself on a leaderboard.** Signed in, a player on the board can be linked to your
   account — and because every game ever recorded refers to the person rather than to an account,
   the whole season becomes yours with nothing rewritten. It can be undone, so a mis-tap costs

@@ -36,6 +36,7 @@ import {
   Placing,
   Player,
   type KnockoutCount,
+  type RefusedWrite,
 } from "@poker/core";
 import {
   DEFAULT_GROUP_NAME,
@@ -43,6 +44,7 @@ import {
 } from "@/src/services/LeaderboardStorage";
 import { generateId } from "@/src/utils/id";
 import { logger } from "@/src/utils/logger";
+import { useGroupSync } from "@/src/hooks/useGroupSync";
 
 /** One group as the picker needs it: enough to list without loading a board. */
 export type GroupSummary = {
@@ -115,6 +117,18 @@ type LeaderboardContextValue = {
   releasePlayer: (playerId: string) => void;
   /** Unlink every player this account holds, across every board on the device. */
   releaseAllFor: (accountId: string) => void;
+
+  /**
+   * Writes the server would not take.
+   *
+   * **A write is checked when it syncs, not when it was made**, so a game
+   * recorded on Tuesday can be refused on Thursday because an admin removed you
+   * on Wednesday. Silently dropping it loses somebody's evening and silently
+   * applying it is a lie, so it surfaces here for a screen to show and for
+   * somebody to acknowledge.
+   */
+  refusedWrites: RefusedWrite[];
+  acknowledgeRefusal: (id: string) => void;
 };
 
 const LeaderboardContext = createContext<LeaderboardContextValue | null>(null);
@@ -146,6 +160,20 @@ export function LeaderboardProvider({
 }: Readonly<{ children: React.ReactNode }>) {
   const [state, setState] = useState<GroupedLeaderboard>(EMPTY_LEADERBOARD);
   const [isLoading, setIsLoading] = useState(true);
+  /**
+   * What the server has not been told yet.
+   *
+   * **Deliberately beside the board rather than inside it.** The board is what
+   * somebody sees and is written first; this only remembers what still needs
+   * sending, so losing it costs the news and never the night.
+   */
+  const sync = useGroupSync();
+  // The stable half of it. `sync` itself changes whenever the queue does, and a
+  // callback that depended on the object would be rebuilt on every write.
+  const recordWrite = sync.record;
+  const announceGroups = sync.announce;
+  const cancelWrite = sync.cancel;
+  const cancelBoardWrites = sync.cancelBoard;
 
   useEffect(() => {
     let active = true;
@@ -153,6 +181,25 @@ export function LeaderboardProvider({
       .then((loaded) => {
         if (!active) return;
         setState(loaded);
+        /**
+         * **Every board, not only the ones made from now on.**
+         *
+         * Only newly created groups were announced, so a board that existed
+         * before any of this — including the implicit first one the app makes
+         * on its own, which nobody ever "creates" — was unknown to the server,
+         * and every player and game recorded on it would have been refused *no
+         * such group*, permanently, with nothing that would ever have fixed it.
+         *
+         * Cheap to repeat: the server answers *ok* to a board this account is
+         * already on, and the queue ignores one it is already carrying.
+         */
+        announceGroups(
+          loaded.groups.map((entry) => ({
+            id: entry.group.id,
+            name: entry.group.name,
+            createdAt: entry.group.createdAt,
+          })),
+        );
       })
       .catch((error) => logger.error("Failed to load leaderboard:", error))
       .finally(() => {
@@ -161,6 +208,9 @@ export function LeaderboardProvider({
     return () => {
       active = false;
     };
+    // Once, on mount: `announce` is stable, and the board is read here exactly
+    // once. Re-running would re-read storage over live state.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const persist = useCallback((next: GroupedLeaderboard) => {
@@ -185,10 +235,10 @@ export function LeaderboardProvider({
    * user hasn't asked for yet.
    */
   const withActiveGroup = useCallback(
-    (update: (entry: GroupState) => GroupState) => {
+    (update: (entry: GroupState) => GroupState): string => {
       if (activeEntry) {
         persist(updateGroup(state, activeEntry.group.id, update));
-        return;
+        return activeEntry.group.id;
       }
       const group = createGroup({
         id: generateId(),
@@ -197,18 +247,33 @@ export function LeaderboardProvider({
       });
       const seeded = addGroup(state, group);
       persist(updateGroup(seeded, group.id, update));
+      // **The group is announced before anything in it.** This one was created
+      // implicitly by somebody adding a player to an empty leaderboard, so the
+      // server has never heard of it and would refuse the player that follows.
+      recordWrite({
+        kind: "createGroup",
+        groupId: group.id,
+        name: group.name,
+        createdAt: group.createdAt,
+      });
+      return group.id;
     },
-    [activeEntry, state, persist],
+    [activeEntry, state, persist, recordWrite],
   );
 
   const addNewPlayer = useCallback(
     (name: string) => {
-      withActiveGroup((entry) => ({
+      const player = createPlayer({ id: generateId(), name });
+      // **The board first, the queue second**, which is what makes the queue
+      // safe to lose: it carries the news that a player was added, never the
+      // only record of it.
+      const groupId = withActiveGroup((entry) => ({
         ...entry,
-        players: addPlayer(entry.players, createPlayer({ id: generateId(), name })),
+        players: addPlayer(entry.players, player),
       }));
+      recordWrite({ kind: "addPlayer", groupId, player });
     },
-    [withActiveGroup],
+    [withActiveGroup, recordWrite],
   );
 
   const deletePlayer = useCallback(
@@ -216,12 +281,25 @@ export function LeaderboardProvider({
       // Results keep the id. The games still happened, and everyone else's
       // history depends on the field sizes they were part of; computeStandings
       // simply ignores placings for players no longer on the roster.
-      withActiveGroup((entry) => ({
+      const groupId = withActiveGroup((entry) => ({
         ...entry,
         players: removePlayer(entry.players, id),
       }));
+      /**
+       * **A name added with no signal and deleted before it went must not go.**
+       *
+       * Removing a player from a shared board is admin-only and deliberately
+       * not a thing the queue can carry, so an add that survives its own
+       * deletion is permanent: the typo appears on every member's board on the
+       * next foreground and only an admin can take it off again.
+       *
+       * Cancels nothing that has already been sent — there is no recalling
+       * that, and the board here has diverged from the server either way,
+       * which is the same state a build with no backend has always been in.
+       */
+      cancelWrite({ kind: "addPlayer", groupId, playerId: id });
     },
-    [withActiveGroup],
+    [withActiveGroup, cancelWrite],
   );
 
   const recordResult = useCallback(
@@ -254,22 +332,28 @@ export function LeaderboardProvider({
         now: Date.now(),
         knockouts: params.knockouts,
       });
-      withActiveGroup((entry) => ({
+      const groupId = withActiveGroup((entry) => ({
         ...entry,
         results: addGameResult(entry.results, result),
       }));
+      recordWrite({ kind: "recordGame", groupId, result });
       return true;
     },
-    [withActiveGroup],
+    [withActiveGroup, recordWrite],
   );
 
   const deleteResult = useCallback(
-    (id: string) =>
-      withActiveGroup((entry) => ({
+    (id: string) => {
+      const groupId = withActiveGroup((entry) => ({
         ...entry,
         results: removeGameResult(entry.results, id),
-      })),
-    [withActiveGroup],
+      }));
+      // Same as deleting a player: a game recorded at the table and deleted
+      // before there was any signal should not turn up later on everybody
+      // else's board, where removing it is somebody else's job.
+      cancelWrite({ kind: "recordGame", groupId, resultId: id });
+    },
+    [withActiveGroup, cancelWrite],
   );
 
   const claimedPlayer = useCallback(
@@ -361,24 +445,47 @@ export function LeaderboardProvider({
   const createNewGroup = useCallback(
     (name: string) => {
       if (!isValidGroupName(name, state.groups)) return;
-      persist(
-        addGroup(
-          state,
-          createGroup({ id: generateId(), name, now: Date.now() }),
-        ),
-      );
+      const group = createGroup({ id: generateId(), name, now: Date.now() });
+      persist(addGroup(state, group));
+      recordWrite({
+        kind: "createGroup",
+        groupId: group.id,
+        name: group.name,
+        createdAt: group.createdAt,
+      });
     },
-    [state, persist],
+    [state, persist, recordWrite],
   );
 
   const renameGroupById = useCallback(
-    (id: string, name: string) => persist(renameGroup(state, id, name)),
-    [state, persist],
+    (id: string, name: string) => {
+      persist(renameGroup(state, id, name));
+      /**
+       * A board still waiting to be created should be created under its new
+       * name. Replacing the queued write is the whole of what can be done here:
+       * **there is no route that renames a board**, so one the server already
+       * has keeps the name it was created with. Latent while nothing reads the
+       * server's copy; it needs a `PATCH /groups/{id}` before anything does.
+       */
+      cancelWrite({ kind: "createGroup", groupId: id });
+      const group = state.groups.find((entry) => entry.group.id === id)?.group;
+      if (group) {
+        recordWrite({ kind: "createGroup", groupId: id, name, createdAt: group.createdAt });
+      }
+    },
+    [state, persist, cancelWrite, recordWrite],
   );
 
   const deleteGroup = useCallback(
-    (id: string) => persist(removeGroup(state, id)),
-    [state, persist],
+    (id: string) => {
+      persist(removeGroup(state, id));
+      // **Everything queued for it, not just its creation.** A board made with
+      // no signal and deleted before it synced would otherwise be created on
+      // the server, with its players — and no route deletes a board, so it
+      // would be there for good.
+      cancelBoardWrites(id);
+    },
+    [state, persist, cancelBoardWrites],
   );
 
   return (
@@ -405,6 +512,8 @@ export function LeaderboardProvider({
         claimPlayerAs,
         releasePlayer,
         releaseAllFor,
+        refusedWrites: sync.queue.refused,
+        acknowledgeRefusal: sync.acknowledge,
       }}
     >
       {children}

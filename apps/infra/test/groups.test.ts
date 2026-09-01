@@ -363,6 +363,73 @@ describe("what a shared board will accept", () => {
   });
 });
 
+describe("creating a group", () => {
+  it("takes an id the client picked", async () => {
+    // Without this a group made on a phone could never be addressed here: the
+    // app generates its own id and the server generated a different one, so a
+    // board created offline was local forever.
+    let created: string | null = null;
+    useGroupStore(
+      store("admin", {
+        createGroup: async (groupId) => {
+          created = groupId;
+          return { status: "ok" };
+        },
+      }),
+    );
+    const response = await handler(
+      request("POST /groups", {
+        pathParameters: {},
+        body: { name: "Thursday", groupId: "local-abc" },
+      }),
+    );
+    expect(response.statusCode).toBe(201);
+    expect(created).toBe("local-abc");
+  });
+
+  it("still makes one up when the client does not care", async () => {
+    let created: string | null = null;
+    useGroupStore(
+      store("admin", {
+        createGroup: async (groupId) => {
+          created = groupId;
+          return { status: "ok" };
+        },
+      }),
+    );
+    await handler(request("POST /groups", { pathParameters: {}, body: { name: "T" } }));
+    expect(created).toBeTruthy();
+  });
+
+  it("refuses an id that would break the key it lands in", async () => {
+    useGroupStore(store("admin"));
+    const response = await handler(
+      request("POST /groups", {
+        pathParameters: {},
+        body: { name: "T", groupId: "a#b" },
+      }),
+    );
+    expect(response.statusCode).toBe(400);
+  });
+
+  it("refuses an id somebody already has", async () => {
+    // The create is conditional on `attribute_not_exists`, so guessing an id in
+    // use is a conflict rather than a way into somebody's group.
+    useGroupStore(
+      store("admin", {
+        createGroup: async () => ({ status: "conflict", reason: "group exists" }),
+      }),
+    );
+    const response = await handler(
+      request("POST /groups", {
+        pathParameters: {},
+        body: { name: "T", groupId: "taken" },
+      }),
+    );
+    expect(response.statusCode).toBe(409);
+  });
+});
+
 describe("removing a member", () => {
   it("refuses to remove the last admin", async () => {
     // The same invariant the demotion route enforces. Removing the last admin

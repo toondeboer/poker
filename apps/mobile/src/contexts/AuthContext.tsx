@@ -5,6 +5,7 @@ import {
   useContext,
   useEffect,
   useMemo,
+  useRef,
   useState,
 } from "react";
 import { validateCredentials, type Account, type CredentialError } from "@poker/core";
@@ -28,6 +29,38 @@ const auth = backendConfig
 
 /** Whether accounts are real. The screens read this to know what to say. */
 export const accountsAreReal = backendConfig !== null;
+
+/**
+ * A valid ID token for the API, or `null` when nobody is signed in.
+ *
+ * Exported from here rather than built again elsewhere, because a second
+ * `createCognitoAuthProvider` would be a second thing deciding when to refresh
+ * — and two refreshes racing is how a session ends for no reason. `null` covers
+ * the stub, which has no tokens because it has no server.
+ */
+export const apiToken = (): Promise<string | null> =>
+  "idToken" in auth && typeof auth.idToken === "function"
+    ? auth.idToken()
+    : Promise.resolve(null);
+
+/**
+ * Told whenever somebody becomes signed in — including a session restored at
+ * launch.
+ *
+ * **The outbox needs this and cannot use the context for it.** `apiToken` is a
+ * module-level export precisely so a consumer does not have to sit inside this
+ * provider, and the sync hook is one of those consumers. Without a signal it
+ * only tried on a new write or a foreground, so everything queued while signed
+ * out — every write that returned *unreachable* for want of a token — sat there
+ * after signing in until something else happened to poke it.
+ */
+const signInListeners = new Set<() => void>();
+
+/** Listen for that. Returns the unsubscribe. */
+export const onSignedIn = (listener: () => void): (() => void) => {
+  signInListeners.add(listener);
+  return () => signInListeners.delete(listener);
+};
 
 /** What went wrong, in words a form can show. */
 export type AuthError =
@@ -118,6 +151,17 @@ export function AuthProviderContext({
       active = false;
     };
   }, []);
+
+  // Fired from an effect rather than from each `setAccount` call site, so no
+  // future way of becoming signed in can forget to announce itself.
+  const wasSignedIn = useRef(false);
+  useEffect(() => {
+    const signedIn = account !== null;
+    if (signedIn && !wasSignedIn.current) {
+      for (const listener of signInListeners) listener();
+    }
+    wasSignedIn.current = signedIn;
+  }, [account]);
 
   const attempt = useCallback(
     async (

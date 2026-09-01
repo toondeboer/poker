@@ -355,18 +355,25 @@ part that already runs — which is also the thing that proves the OIDC round tr
 ## Checking it still works
 
 ```bash
-export SMOKE_EMAIL=poker.blinds.buzzer.smoke2@gmail.com SMOKE_PASSWORD='…'
+export SMOKE_EMAIL=poker.blinds.buzzer.smoke1@gmail.com SMOKE_PASSWORD='…'
 npm run smoke -w @poker/infra
 
 # The authorization check, which needs a second signed-in account:
-export SMOKE_STRANGER_EMAIL=poker.blinds.buzzer.smoke1@gmail.com SMOKE_STRANGER_PASSWORD='…'
+export SMOKE_STRANGER_EMAIL=poker.blinds.buzzer.smoke2@gmail.com SMOKE_STRANGER_PASSWORD='…'
 npm run smoke -w @poker/infra -- --as-stranger
 ```
 
-19 checks against the live stack: sign-in, `/me` three ways, a seeded hand acted on, the shared
+**The two addresses must differ**, or `--as-stranger` signs in as the same account twice, fails the
+script's own "the stranger is a different account" check, and proves nothing about the guard it
+exists to test.
+
+26 checks against the live stack: sign-in, `/me` three ways, a seeded hand acted on, the shared
 event with every hole card stripped, the private event with exactly two, a replay refused as stale,
-acting as another player refused, and a non-member refused on both channels. It reads the stack's
-own outputs, refuses to run against anything named `-prod`, and deletes the table it seeded.
+acting as another player refused, and a non-member refused on both channels. Then the shared-board
+routes, where **every write is sent twice**: a phone replays anything whose answer went missing, so
+a route that answers "already exists" to the second attempt turns a lost response into a permanent
+refusal. That check found exactly that in `recordGame` on its first run. It reads the stack's own
+outputs, refuses to run against anything named `-prod`, and deletes the table and board it seeded.
 
 **It signs in; it never signs up.** Both accounts must exist and be confirmed, which keeps the pool
 free of accounts nobody meant to create.

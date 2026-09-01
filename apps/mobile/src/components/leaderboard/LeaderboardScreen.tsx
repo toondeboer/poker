@@ -34,6 +34,7 @@ import { Paywall } from "@/src/components/paywall/Paywall";
 import { Badge } from "@/src/components/ui/Badge";
 import { Button } from "@/src/components/ui/Button";
 import { Card, CardContent, CardHeader } from "@/src/components/ui/Card";
+import { SyncNotice } from "@/src/components/leaderboard/SyncNotice";
 import { IconButton } from "@/src/components/ui/IconButton";
 import { ListRow } from "@/src/components/ui/ListRow";
 import { NavRow } from "@/src/components/ui/NavRow";
@@ -78,6 +79,8 @@ export function LeaderboardScreen() {
     claimedPlayer,
     claimPlayerAs,
     releasePlayer,
+    refusedWrites,
+    acknowledgeRefusal,
   } = useLeaderboard();
   const { account } = useAuth();
 
@@ -227,6 +230,11 @@ export function LeaderboardScreen() {
   // next launch. This is the one store here whose contents can't be retyped.
   const content = isLoading ? null : isPremium ? (
     <>
+      {/* Above the standings, because it is about the standings: what is on
+          this phone and not on anybody else's. Renders nothing when there is
+          nothing refused. */}
+      <SyncNotice refused={refusedWrites} onDismiss={acknowledgeRefusal} />
+
       <Card>
         <CardHeader
           icon="trophy"

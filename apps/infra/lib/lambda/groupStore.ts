@@ -47,6 +47,7 @@ import {
   playerKey,
   resultItem,
   resultKey,
+  sameGame,
   tombstone,
   type MemberItem,
   type Role,
@@ -244,11 +245,11 @@ export const createGroupStore = (
       return items as AccountRow[];
     },
 
-    createGroup(groupId, name, founder, now) {
+    async createGroup(groupId, name, founder, now) {
       // The group and its first admin — both copies of the membership — or
       // nothing. A group whose creator is only a member is one nobody could
       // ever remove a player from.
-      return conditional(
+      const outcome = await conditional(
         () =>
           client.send(
             new TransactWriteCommand({
@@ -267,6 +268,28 @@ export const createGroupStore = (
           ),
         "group exists",
       );
+      if (outcome.status === "ok") return outcome;
+
+      /**
+       * **A board this account is already on is not a conflict.**
+       *
+       * The client retries a write whose answer it never received, and it
+       * announces the boards it already has so a phone that predates syncing
+       * can catch up. Both land here, and answering 409 would be a permanent
+       * refusal that cascades to every player and game queued behind the
+       * group — an evening thrown away because a response was lost.
+       *
+       * A group belonging to *somebody else* is still a conflict: the id is
+       * taken, and this caller has no business on it.
+       */
+      const mine = await client.send(
+        new GetCommand({
+          TableName: tableName,
+          Key: memberKey(groupId, founder),
+          ConsistentRead: true,
+        }),
+      );
+      return mine.Item ? OK : outcome;
     },
 
     addPlayer(groupId, player) {
@@ -337,9 +360,11 @@ export const createGroupStore = (
       // The **whole** game, not just its date. Comparing `playedAt` alone
       // answers 200 to a genuinely different game recorded under an id already
       // used — and the client, told it succeeded, drops it from its queue.
-      return stored && JSON.stringify(stored) === JSON.stringify(result)
-        ? OK
-        : outcome;
+      //
+      // Compared structurally rather than by `JSON.stringify`: DynamoDB does
+      // not preserve key order, so a game never matched itself once it had been
+      // round-tripped, and every replay was answered 409. See `sameGame`.
+      return stored && sameGame(stored, result) ? OK : outcome;
     },
 
     async removePlayer(groupId, playerId, now) {

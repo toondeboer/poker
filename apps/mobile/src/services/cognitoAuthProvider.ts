@@ -96,6 +96,8 @@ export const createCognitoAuthProvider = (
 ): AuthProvider & {
   /** A valid access token, refreshing first if it is close to expiring. */
   accessToken: () => Promise<string | null>;
+  /** A valid **ID** token — what the API wants. Refreshed the same way. */
+  idToken: () => Promise<string | null>;
 } => {
   const provider = {
     async currentAccount(): Promise<Account | null> {
@@ -161,27 +163,64 @@ export const createCognitoAuthProvider = (
     },
 
     async accessToken(): Promise<string | null> {
-      const tokens = await readTokens();
-      if (!tokens) return null;
-      if (!needsRefresh(tokens, Date.now())) return tokens.accessToken;
+      const tokens = await freshTokens();
+      return tokens?.accessToken ?? null;
+    },
 
-      try {
-        const body = await send(refreshCall(config, tokens.refreshToken));
-        const refreshed = tokensFrom(body, Date.now(), tokens.refreshToken);
-        if (!refreshed) return null;
-        await writeTokens(refreshed);
-        return refreshed.accessToken;
-      } catch (error) {
-        // A refresh token expires after ninety days, or is revoked by a global
-        // sign-out somewhere else. Either way this session is over, and
-        // leaving the dead tokens on disk means every later call fails the
-        // same way for the same reason.
-        logger.warn("Refresh failed; signing out locally:", error);
-        await forgetTokens();
-        return null;
-      }
+    /**
+     * The token the **API** wants, which is not the one Cognito's own calls
+     * want.
+     *
+     * Cognito issues both, and they are not interchangeable: the ID token
+     * carries `email` and the access token does not, so `GET /me` refuses an
+     * access token outright rather than answering 200 with a missing address.
+     * Sending the wrong one to some routes and the right one to others is how
+     * that becomes a puzzle later, so everything that talks to the API uses
+     * this and everything that talks to Cognito uses `accessToken`.
+     */
+    async idToken(): Promise<string | null> {
+      const tokens = await freshTokens();
+      return tokens?.idToken ?? null;
     },
   };
+
+  /** Whatever is on disk, refreshed first if it is close to expiring. */
+  async function freshTokens(): Promise<CognitoTokens | null> {
+    const tokens = await readTokens();
+    if (!tokens) return null;
+    if (!needsRefresh(tokens, Date.now())) return tokens;
+
+    try {
+      const body = await send(refreshCall(config, tokens.refreshToken));
+      const refreshed = tokensFrom(body, Date.now(), tokens.refreshToken);
+      if (!refreshed) return null;
+      await writeTokens(refreshed);
+      return refreshed;
+    } catch (error) {
+      /**
+       * **A bad signal is not a dead session.**
+       *
+       * A refresh token expires after ninety days or is revoked by a global
+       * sign-out elsewhere, and then this session really is over — leaving dead
+       * tokens on disk would make every later call fail the same way for the
+       * same reason.
+       *
+       * But `send` throws `CognitoFailure("network")` when it cannot reach
+       * Cognito at all, and treating *that* as a dead session is how syncing
+       * destroys the thing it needs: the queue asks for a token per write, so
+       * one drain attempted on a train would sign somebody out and leave every
+       * later drain unreachable forever. Offline is exactly when the queue
+       * matters most.
+       */
+      if (error instanceof CognitoFailure && error.reason === "network") {
+        logger.warn("Refresh unreachable; keeping the session:", error);
+        return null;
+      }
+      logger.warn("Refresh failed; signing out locally:", error);
+      await forgetTokens();
+      return null;
+    }
+  }
 
   return provider;
 };

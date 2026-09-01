@@ -1,4 +1,5 @@
 import { StorageAdapter } from "./StorageAdapter";
+import { SYNC_QUEUE_KEY } from "./syncQueueStorage";
 import { TIMER_KEYS } from "./timerStorage";
 import { BLINDS_KEYS } from "./blindsStorage";
 import { REVIEW_KEYS } from "./reviewStorage";
@@ -33,6 +34,21 @@ export const RECOVERY_CLEARS: readonly string[] = [
   PAYOUT_KEY,
   PRESETS_KEY,
   SOUND_PACK_KEY,
+  /**
+   * Writes this phone has not managed to send. **Cleared, and safe to clear.**
+   *
+   * The recovery screen exists for something saved that the app can no longer
+   * read and reloads on every launch — and a queue is read on every launch by
+   * definition, so leaving it would make the button unable to fix the case it
+   * was built for.
+   *
+   * It is safe because the queue is an **outbox**, not the only copy: a write
+   * goes into the board *and* the queue, so clearing it costs the news that a
+   * game was played, never the game. That is why `LEADERBOARD_KEY` is on the
+   * other list, and the two have to stay that way round — a queue that was the
+   * only record of an offline evening would make this line lose it.
+   */
+  SYNC_QUEUE_KEY,
 ];
 
 /**
