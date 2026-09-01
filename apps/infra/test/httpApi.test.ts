@@ -30,13 +30,18 @@ describe("something can finally call the backend", () => {
     expect(routes().map((route) => route.RouteKey).sort()).toEqual([
       "DELETE /groups/{groupId}/games/{gameId}",
       "DELETE /groups/{groupId}/players/{playerId}",
+      "DELETE /me",
       "GET /groups",
       "GET /groups/{groupId}",
       "GET /me",
+      "POST /groups",
       "POST /groups/{groupId}/claims",
       "POST /groups/{groupId}/games",
+      "POST /groups/{groupId}/invite",
       "POST /groups/{groupId}/players",
+      "POST /invites/{token}",
       "POST /tables/{tableId}/actions",
+      "PUT /groups/{groupId}/members/{accountId}",
     ]);
   });
 });

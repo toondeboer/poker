@@ -31,7 +31,9 @@ import {
   MEMBERS_INDEX,
   boardFrom,
   claimKey,
+  groupItem,
   groupKey,
+  inviteKey,
   memberFrom,
   membershipItem,
   membershipKey,
@@ -77,6 +79,19 @@ export type GroupStore = {
     playerId: string,
   ): Promise<WriteOutcome>;
   setRole(accountId: string, groupId: string, role: Role): Promise<WriteOutcome>;
+  createGroup(
+    groupId: string,
+    name: string,
+    founder: string,
+    now: number,
+  ): Promise<WriteOutcome>;
+  removeGroup(groupId: string, now: number): Promise<WriteOutcome>;
+  /** Replaces whatever invite the group had. Rotating is how one is revoked. */
+  setInvite(groupId: string, token: string, now: number): Promise<WriteOutcome>;
+  /** The group a token opens, or `null`. */
+  groupForInvite(token: string): Promise<string | null>;
+  /** Join a group you were invited to. A no-op if already on it. */
+  join(accountId: string, groupId: string, role: Role, now: number): Promise<WriteOutcome>;
   forget(accountId: string, keys: readonly { pk: string; sk: string }[]): Promise<void>;
 };
 
@@ -272,13 +287,33 @@ export const createGroupStore = (
                 },
               },
               {
-                Put: {
+                /**
+                 * Join the board, unless already on it.
+                 *
+                 * **An upsert, not a conditional `Put`**, and the difference is
+                 * not stylistic. A `Put` guarded by `attribute_not_exists(pk)`
+                 * fails for anybody who is already a member — which is almost
+                 * everybody claiming a player — and because a transaction is
+                 * all-or-nothing that cancelled the entire claim. Claiming on a
+                 * board you were already on could never succeed.
+                 *
+                 * `if_not_exists` gives both halves at once: the row appears
+                 * for somebody joining by claiming, and an existing admin keeps
+                 * the role and the `joinedAt` that decides who inherits the
+                 * group. No condition, so it cannot fail the transaction.
+                 */
+                Update: {
                   TableName: tableName,
-                  // Claiming yourself is how you join a board — but only if you
-                  // are not already on it, or this would reset an admin to a
-                  // member.
-                  Item: membershipItem(accountId, groupId, "member", now),
-                  ConditionExpression: "attribute_not_exists(pk)",
+                  Key: membershipKey(accountId, groupId),
+                  UpdateExpression:
+                    "SET #role = if_not_exists(#role, :member), joinedAt = if_not_exists(joinedAt, :now), accountId = :account, groupId = :group",
+                  ExpressionAttributeNames: { "#role": "role" },
+                  ExpressionAttributeValues: {
+                    ":member": "member",
+                    ":now": now,
+                    ":account": accountId,
+                    ":group": groupId,
+                  },
                 },
               },
             ],
@@ -326,6 +361,126 @@ export const createGroupStore = (
           }),
         ),
       "not a member",
+    );
+  },
+
+  createGroup(groupId, name, founder, now) {
+    /**
+     * A group and its first admin, together or not at all.
+     *
+     * A group with no membership is invisible to the person who made it — they
+     * would create a board and immediately be a stranger to it, because
+     * membership is what authorization reads. And **`admin`**, because a group
+     * whose creator is a member could never have a player removed from it by
+     * anybody.
+     */
+    return conditional(
+      () =>
+        client.send(
+          new TransactWriteCommand({
+            TransactItems: [
+              {
+                Put: {
+                  TableName: tableName,
+                  Item: { ...groupItem(groupId, { name, createdAt: now }, 1) },
+                  ConditionExpression: "attribute_not_exists(pk)",
+                },
+              },
+              {
+                Put: {
+                  TableName: tableName,
+                  Item: membershipItem(founder, groupId, "admin", now),
+                  ConditionExpression: "attribute_not_exists(pk)",
+                },
+              },
+            ],
+          }),
+        ),
+      "group exists",
+    );
+  },
+
+  removeGroup(groupId, now) {
+    // Only reached when the last member of a group deletes their account:
+    // nobody else's history is in it. The players and results are left to their
+    // own TTL rather than deleted one by one — the group row is what every read
+    // starts from, so without it the board is already gone.
+    return conditional(
+      () =>
+        client.send(
+          new PutCommand({
+            TableName: tableName,
+            Item: tombstone(groupKey(groupId), now),
+            ConditionExpression: "attribute_exists(pk)",
+          }),
+        ),
+      "no such group",
+    );
+  },
+
+  async setInvite(groupId, token, now) {
+    // Rotation is the only revocation there is: a link that does not expire can
+    // be undone only by making the old token stop resolving. The old row is
+    // deleted first, so a crash between the two leaves a group with no working
+    // invite rather than two working ones.
+    const previous = await client.send(
+      new GetCommand({ TableName: tableName, Key: groupKey(groupId) }),
+    );
+    const old = (previous.Item as { inviteToken?: string } | undefined)?.inviteToken;
+    if (old && old !== token) {
+      await client.send(
+        new DeleteCommand({ TableName: tableName, Key: inviteKey(old) }),
+      );
+    }
+    return conditional(
+      () =>
+        client.send(
+          new TransactWriteCommand({
+            TransactItems: [
+              {
+                Put: {
+                  TableName: tableName,
+                  Item: { ...inviteKey(token), groupId, createdAt: now },
+                },
+              },
+              {
+                Update: {
+                  TableName: tableName,
+                  Key: groupKey(groupId),
+                  UpdateExpression: "SET inviteToken = :token",
+                  ExpressionAttributeValues: { ":token": token },
+                  ConditionExpression: "attribute_exists(pk)",
+                },
+              },
+            ],
+          }),
+        ),
+      "no such group",
+    );
+  },
+
+  async groupForInvite(token) {
+    const result = await client.send(
+      new GetCommand({ TableName: tableName, Key: inviteKey(token), ConsistentRead: true }),
+    );
+    const groupId = (result.Item as { groupId?: unknown } | undefined)?.groupId;
+    return typeof groupId === "string" && groupId.length > 0 ? groupId : null;
+  },
+
+  join(accountId, groupId, role, now) {
+    // Conditional so redeeming a link twice does not reset an admin who
+    // already belongs back down to `member`. A second redemption is a no-op,
+    // which is what somebody tapping a pinned link again expects.
+    return conditional(
+      () =>
+        client.send(
+          new PutCommand({
+            TableName: tableName,
+            Item: membershipItem(accountId, groupId, role, now),
+            ConditionExpression: "attribute_not_exists(pk)",
+          }),
+        ),
+      "already a member",
     );
   },
 

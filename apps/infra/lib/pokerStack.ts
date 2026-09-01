@@ -582,7 +582,11 @@ export class PokerStack extends Stack {
       runtime: Runtime.NODEJS_22_X,
       memorySize: 512,
       timeout: Duration.seconds(10),
-      environment: { ...functionEnvironment, TABLE_NAME: table.tableName },
+      environment: {
+        ...functionEnvironment,
+        TABLE_NAME: table.tableName,
+        USER_POOL_ID: userPool.userPoolId,
+      },
       tracing: Tracing.ACTIVE,
       logGroup: new LogGroup(this, "GroupsLogs", {
         retention: settings.logRetention,
@@ -591,16 +595,37 @@ export class PokerStack extends Stack {
       bundling: handlerBundling,
     });
     table.grantReadWriteData(groupsHandler);
+    /**
+     * Deleting the Cognito user, and **only** that.
+     *
+     * `DELETE /me` is the last step of a deletion the server is running on
+     * somebody's behalf, so it needs a permission the client's own token cannot
+     * give it. Scoped to this one action on this one pool: a handler that could
+     * also *create* or *update* users would be a handler that could mint an
+     * account or change somebody's email.
+     */
+    groupsHandler.addToRolePolicy(
+      new PolicyStatement({
+        actions: ["cognito-idp:AdminDeleteUser"],
+        resources: [userPool.userPoolArn],
+      }),
+    );
 
     const groupsRoute = new HttpLambdaIntegration("GroupsRoute", groupsHandler);
     for (const [path_, methods] of [
-      ["/groups", [HttpMethod.GET]],
+      ["/groups", [HttpMethod.GET, HttpMethod.POST]],
       ["/groups/{groupId}", [HttpMethod.GET]],
       ["/groups/{groupId}/players", [HttpMethod.POST]],
       ["/groups/{groupId}/players/{playerId}", [HttpMethod.DELETE]],
       ["/groups/{groupId}/games", [HttpMethod.POST]],
       ["/groups/{groupId}/games/{gameId}", [HttpMethod.DELETE]],
       ["/groups/{groupId}/claims", [HttpMethod.POST]],
+      ["/groups/{groupId}/invite", [HttpMethod.POST]],
+      ["/groups/{groupId}/members/{accountId}", [HttpMethod.PUT]],
+      ["/invites/{token}", [HttpMethod.POST]],
+      // The account's own deletion. `GET /me` stays on the identity handler —
+      // one says who you are, the other unpicks everything you touched.
+      ["/me", [HttpMethod.DELETE]],
     ] as [string, HttpMethod[]][]) {
       api.addRoutes({ path: path_, methods, integration: groupsRoute });
     }

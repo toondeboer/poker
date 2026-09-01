@@ -15,6 +15,21 @@ import type { GameResult, GroupState, Player } from "@poker/core";
 import { log } from "./logging";
 import { may, type GroupAction } from "./groupKeys";
 import { createGroupStore, type GroupStore } from "./groupStore";
+import { deleteAccount } from "./deleteAccount";
+import { randomBytes, randomUUID } from "node:crypto";
+
+/**
+ * An invite token.
+ *
+ * **Not the six-character join code.** That one is built to be read aloud
+ * across a table, so it drops every character that gets misheard and is short
+ * enough to say — and short enough to guess. A link is pasted, never spoken, so
+ * it can afford real entropy, and it needs it: this invite does not expire, so
+ * anybody who ever guesses one is in the group until somebody rotates it.
+ */
+export const createInviteToken = (
+  random: (size: number) => Buffer = randomBytes,
+): string => random(24).toString("base64url");
 
 export type VerifiedRequest = {
   routeKey?: string;
@@ -143,6 +158,13 @@ export const handler = async (request: VerifiedRequest): Promise<Response> => {
   const store = groupStore();
   const now = Date.now();
 
+  if (route === "DELETE /me") {
+    // Everything this account touched, then the account. See `deleteAccount`
+    // for why Cognito is last and why every step before it is re-runnable.
+    const report = await deleteAccount(caller, store, deleteUser(), requestId);
+    return json(200, report);
+  }
+
   // `GET /groups` is the one route with no group to authorize against — it *is*
   // the list of what this caller may see.
   if (route === "GET /groups") {
@@ -152,6 +174,37 @@ export const handler = async (request: VerifiedRequest): Promise<Response> => {
         .filter((row) => row.sk.startsWith("GROUP#"))
         .map((row) => row.sk.slice("GROUP#".length)),
     });
+  }
+
+  if (route === "POST /groups") {
+    const name = body.name;
+    if (typeof name !== "string" || name.trim().length === 0) {
+      return json(400, { error: "a group needs a name" });
+    }
+    const id = randomUUID();
+    // The founder is an admin, in the same transaction. A group whose creator
+    // is only a member is a group nobody could ever remove a player from.
+    const outcome = await store.createGroup(id, name.trim(), caller, now);
+    if (outcome.status !== "ok") {
+      return json(409, { status: "conflict", reason: outcome.reason });
+    }
+    log("info", "group created", { requestId, accountId: caller, groupId: id });
+    return json(201, { groupId: id, name: name.trim(), createdAt: now });
+  }
+
+  if (route === "POST /invites/{token}") {
+    const token = request.pathParameters?.token;
+    if (!token) return json(400, { error: "no token" });
+    const invited = await store.groupForInvite(token);
+    // The same answer for an unknown token and a revoked one. Distinguishing
+    // them would tell somebody holding an old link that it used to work, which
+    // is a fact about a group they are not in.
+    if (!invited) return json(404, { error: "that link is no longer valid" });
+    const outcome = await store.join(caller, invited, "member", now);
+    // Already a member is a success: somebody tapping a pinned link a second
+    // time expects to end up in the group, not to be told off.
+    log("info", "invite redeemed", { requestId, accountId: caller, groupId: invited });
+    return json(200, { groupId: invited, joined: outcome.status === "ok" });
   }
 
   if (!groupId) return json(400, { error: "no group" });
@@ -227,6 +280,48 @@ export const handler = async (request: VerifiedRequest): Promise<Response> => {
       return answer(outcome, requestId, { groupId, caller });
     }
 
+    case "POST /groups/{groupId}/invite": {
+      const allowed = await authorize(store, caller, groupId, "manageAdmins");
+      if (!allowed.ok) return allowed.response;
+      // Rotating is the only way to revoke a link that never expires, so
+      // creating and revoking are deliberately the same operation: there is no
+      // state where a group has two working links.
+      const token = createInviteToken();
+      const outcome = await store.setInvite(groupId, token, now);
+      if (outcome.status !== "ok") {
+        return json(409, { status: "conflict", reason: outcome.reason });
+      }
+      log("info", "invite rotated", { requestId, accountId: caller, groupId });
+      return json(200, { token });
+    }
+
+    case "PUT /groups/{groupId}/members/{accountId}": {
+      const allowed = await authorize(store, caller, groupId, "manageAdmins");
+      if (!allowed.ok) return allowed.response;
+      const subject = request.pathParameters?.accountId;
+      const role = body.role;
+      if (!subject || (role !== "admin" && role !== "member")) {
+        return json(400, { error: "no role" });
+      }
+      if (role === "member") {
+        // **Refuse to leave a group unmanageable.** Demoting the last admin —
+        // including yourself — makes a board nobody can ever rename or remove a
+        // player from, and there is no support channel to undo it.
+        const members = await store.members(groupId);
+        const stranded = !members.some(
+          (m) => m.accountId !== subject && m.role === "admin",
+        );
+        if (stranded) {
+          return json(409, {
+            status: "conflict",
+            reason: "a group needs at least one admin",
+          });
+        }
+      }
+      const outcome = await store.setRole(subject, groupId, role);
+      return answer(outcome, requestId, { groupId, caller });
+    }
+
     default:
       return json(404, { error: "no such route" });
   }
@@ -261,4 +356,35 @@ const groupStore = (): GroupStore => {
 /** For tests, which need each case to start from a known store. */
 export const useGroupStore = (replacement: GroupStore | null): void => {
   store = replacement;
+};
+
+/**
+ * Removing the Cognito user, which is the one step that cannot be undone.
+ *
+ * `AdminDeleteUser` rather than the client's own `DeleteUser`: by the time this
+ * runs the server is doing the deleting, and it has already removed the data
+ * the token would have been needed to authenticate against.
+ */
+let cognito: ((accountId: string) => Promise<void>) | null = null;
+const deleteUser = (): ((accountId: string) => Promise<void>) => {
+  if (cognito) return cognito;
+  const userPoolId = process.env.USER_POOL_ID;
+  if (!userPoolId) throw new Error("USER_POOL_ID is not set");
+  cognito = async (accountId: string) => {
+    const { CognitoIdentityProviderClient, AdminDeleteUserCommand } = await import(
+      "@aws-sdk/client-cognito-identity-provider"
+    );
+    const client = new CognitoIdentityProviderClient({});
+    await client.send(
+      new AdminDeleteUserCommand({ UserPoolId: userPoolId, Username: accountId }),
+    );
+  };
+  return cognito;
+};
+
+/** For tests, so nothing here ever reaches a real user pool. */
+export const useUserDeleter = (
+  replacement: ((accountId: string) => Promise<void>) | null,
+): void => {
+  cognito = replacement;
 };

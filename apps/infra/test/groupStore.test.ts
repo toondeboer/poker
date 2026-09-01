@@ -155,7 +155,7 @@ describe("claiming a player", () => {
     );
     type Op = {
       Put?: { Item: Record<string, unknown>; ConditionExpression?: string };
-      Update?: { ConditionExpression?: string };
+      Update?: { ConditionExpression?: string; UpdateExpression?: string };
     };
     return { outcome, items: (sent[0].TransactItems ?? []) as Op[] };
   };
@@ -175,13 +175,23 @@ describe("claiming a player", () => {
     );
   });
 
-  it("does not demote an admin who claims a player", async () => {
-    // Joining by claiming writes a `member` membership. Without the condition,
-    // an admin claiming a player would reset their own role.
+  it("joins the board without demoting an admin already on it", async () => {
+    // **This was a conditional `Put` and it was wrong.** Guarded by
+    // `attribute_not_exists(pk)` it failed for anybody already a member — which
+    // is almost everybody claiming a player — and a transaction is
+    // all-or-nothing, so it cancelled the whole claim. Live testing found it:
+    // creating a group and then claiming a player in it always answered
+    // "already claimed".
+    //
+    // `if_not_exists` gives both halves: the row appears for somebody joining
+    // by claiming, and an existing admin keeps their role and `joinedAt`.
     const { items } = await claim();
-    const membership = items.filter((i) => i.Put).at(-1)?.Put;
-    expect(membership?.Item.role).toBe("member");
-    expect(membership?.ConditionExpression).toBe("attribute_not_exists(pk)");
+    const membership = items.find((i) => i.Update && !i.Update.ConditionExpression)
+      ?.Update;
+    expect(membership?.UpdateExpression).toContain("if_not_exists(#role, :member)");
+    expect(membership?.UpdateExpression).toContain("if_not_exists(joinedAt, :now)");
+    // No condition, or it can fail the transaction for an existing member.
+    expect(membership?.ConditionExpression).toBeUndefined();
   });
 
   it("reports a cancelled transaction as a refusal, not an error", async () => {
