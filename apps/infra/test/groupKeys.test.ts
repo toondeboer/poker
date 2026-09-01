@@ -19,6 +19,7 @@ import {
   tombstone,
   anotherAdmin,
   type MemberItem,
+  sameGame,
 } from "../lib/lambda/groupKeys";
 
 const result = (id: string, playedAt: number): GameResult => ({
@@ -298,5 +299,44 @@ describe("items", () => {
   it("is not a tombstone when it is a real row", () => {
     expect(isTombstone(playerItem("g1", { id: "p1", name: "Ann" }))).toBe(false);
     expect(isTombstone(tombstone(playerKey("g1", "p1"), 1))).toBe(true);
+  });
+});
+
+describe("deciding two games are the same game", () => {
+  it("ignores the order DynamoDB happened to store the keys in", () => {
+    // **This was a live bug and `JSON.stringify` was it.** A `placings` entry
+    // sent as `{playerId, place, winnings}` came back as
+    // `{playerId, winnings, place}`, so a replayed game never matched itself
+    // and every retry was answered 409 — which a phone reads as permanent.
+    expect(
+      sameGame(
+        { id: "r1", placings: [{ playerId: "p1", winnings: 20, place: 1 }] },
+        { id: "r1", placings: [{ playerId: "p1", place: 1, winnings: 20 }] },
+      ),
+    ).toBe(true);
+  });
+
+  it("keeps arrays in order, because placings are an order", () => {
+    expect(sameGame({ playerIds: ["a", "b"] }, { playerIds: ["b", "a"] })).toBe(false);
+  });
+
+  it("treats a missing field and an undefined one as the same", () => {
+    // The document client drops undefined on the way in, so a field sent as
+    // undefined comes back absent rather than null.
+    expect(sameGame({ id: "r1", knockouts: undefined }, { id: "r1" })).toBe(true);
+  });
+
+  it("still says no to a genuinely different game", () => {
+    // The property the comparison exists for: a different game under an id
+    // already used must stay a conflict, or the client drops it from its queue
+    // having been told it saved.
+    expect(sameGame({ id: "r1", buyIn: 10 }, { id: "r1", buyIn: 20 })).toBe(false);
+    expect(sameGame({ id: "r1", buyIn: 10 }, { id: "r1" })).toBe(false);
+    expect(sameGame({ placings: [{ place: 1 }] }, { placings: [] })).toBe(false);
+  });
+
+  it("does not confuse null with an object", () => {
+    expect(sameGame({ a: null }, { a: {} })).toBe(false);
+    expect(sameGame(null, undefined)).toBe(false);
   });
 });

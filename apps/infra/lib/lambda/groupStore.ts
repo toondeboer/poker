@@ -47,6 +47,7 @@ import {
   playerKey,
   resultItem,
   resultKey,
+  sameGame,
   tombstone,
   type MemberItem,
   type Role,
@@ -359,9 +360,11 @@ export const createGroupStore = (
       // The **whole** game, not just its date. Comparing `playedAt` alone
       // answers 200 to a genuinely different game recorded under an id already
       // used — and the client, told it succeeded, drops it from its queue.
-      return stored && JSON.stringify(stored) === JSON.stringify(result)
-        ? OK
-        : outcome;
+      //
+      // Compared structurally rather than by `JSON.stringify`: DynamoDB does
+      // not preserve key order, so a game never matched itself once it had been
+      // round-tripped, and every replay was answered 409. See `sameGame`.
+      return stored && sameGame(stored, result) ? OK : outcome;
     },
 
     async removePlayer(groupId, playerId, now) {

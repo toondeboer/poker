@@ -355,7 +355,7 @@ part that already runs — which is also the thing that proves the OIDC round tr
 ## Checking it still works
 
 ```bash
-export SMOKE_EMAIL=poker.blinds.buzzer.smoke2@gmail.com SMOKE_PASSWORD='…'
+export SMOKE_EMAIL=poker.blinds.buzzer.smoke1@gmail.com SMOKE_PASSWORD='…'
 npm run smoke -w @poker/infra
 
 # The authorization check, which needs a second signed-in account:
