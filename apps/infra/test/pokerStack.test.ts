@@ -240,6 +240,26 @@ describe("the action handler", () => {
     template().resourceCountIs("AWS::Lambda::Function", 4);
   });
 
+  it("does not funnel every poker hand into one index partition", () => {
+    // The obvious index shape is to invert the table and partition on `sk` —
+    // and every table row carries the constant `sk: "STATE"`, so every action
+    // in the system would land in a single index partition, capped around
+    // 1000 WCU/s and not splittable by adaptive capacity. `"META"` would
+    // gather every group and invite the same way.
+    const table = Object.values(
+      template().findResources("AWS::DynamoDB::GlobalTable"),
+    )[0];
+    const index = (
+      table.Properties as {
+        GlobalSecondaryIndexes: { KeySchema: { AttributeName: string; KeyType: string }[] }[];
+      }
+    ).GlobalSecondaryIndexes[0];
+    const hash = index.KeySchema.find((k) => k.KeyType === "HASH");
+    expect(hash?.AttributeName).not.toBe("sk");
+    // Written only on memberships, so the index is sparse.
+    expect(hash?.AttributeName).toBe("groupRef");
+  });
+
   it("is the only thing that can publish an event", () => {
     template().hasResourceProperties(
       "AWS::IAM::Policy",

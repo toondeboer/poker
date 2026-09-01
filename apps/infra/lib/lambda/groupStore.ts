@@ -28,6 +28,7 @@ import {
 } from "@aws-sdk/lib-dynamodb";
 import type { GameResult, GroupState, Player } from "@poker/core";
 import {
+  GROUP_REF,
   MEMBERS_INDEX,
   boardFrom,
   claimKey,
@@ -82,6 +83,15 @@ export type GroupStore = {
   setRole(accountId: string, groupId: string, role: Role): Promise<WriteOutcome>;
   /** Make somebody admin without moving the count — one leaves, one arrives. */
   promoteHeir(accountId: string, groupId: string): Promise<WriteOutcome>;
+  /**
+   * Move a group's admin count without touching a role.
+   *
+   * For the one path that removes an admin without demoting them: deleting an
+   * account. Leaving the count untouched leaves it claiming an admin who is
+   * gone, and the `adminCount > 1` guard then cheerfully permits demoting the
+   * last real one.
+   */
+  adjustAdminCount(groupId: string, delta: number): Promise<WriteOutcome>;
   createGroup(
     groupId: string,
     name: string,
@@ -211,11 +221,9 @@ export const createGroupStore = (
         new QueryCommand({
           TableName: tableName,
           IndexName: MEMBERS_INDEX,
-          KeyConditionExpression: "sk = :sk AND begins_with(pk, :account)",
-          ExpressionAttributeValues: {
-            ":sk": membershipKey("", groupId).sk,
-            ":account": "ACCOUNT#",
-          },
+          KeyConditionExpression: "#ref = :ref",
+          ExpressionAttributeNames: { "#ref": GROUP_REF },
+          ExpressionAttributeValues: { ":ref": `GROUP#${groupId}` },
           ExclusiveStartKey: start,
         }),
       ),
@@ -241,19 +249,27 @@ export const createGroupStore = (
 
   addPlayer(groupId, player) {
     /**
-     * **Not over a tombstone.** An unconditional `Put` is what an add wants —
-     * ids are generated, so a retry should be a harmless no-op rather than an
-     * error. But the app queues writes offline and replays them, and a replayed
-     * add landing on a row somebody has since deleted **resurrects it**, which
-     * is the exact failure tombstones exist to prevent. The guard is on
-     * `deletedAt`, not on existence, so a retry still overwrites a live row.
+     * **An `Update`, not a `Put`, and not over a tombstone.**
+     *
+     * Two failures, one line. A `Put` replaces the whole row, so a replayed
+     * offline add — the exact thing this is written to tolerate — wipes the
+     * `accountId` of whoever had claimed that player, orphaning their `SEAT#`
+     * row and locking them out of ever claiming again. An `Update` touches only
+     * the name.
+     *
+     * And the condition is on `deletedAt` rather than existence: a replay
+     * landing on a row somebody has since deleted would otherwise resurrect it,
+     * which is what the whole tombstone scheme exists to prevent.
      */
     return conditional(
       () =>
         client.send(
-          new PutCommand({
+          new UpdateCommand({
             TableName: tableName,
-            Item: playerItem(groupId, player),
+            Key: playerKey(groupId, player.id),
+            UpdateExpression: "SET #name = :name, playerId = :id",
+            ExpressionAttributeNames: { "#name": "name" },
+            ExpressionAttributeValues: { ":name": player.name, ":id": player.id },
             ConditionExpression: "attribute_not_exists(deletedAt)",
           }),
         ),
@@ -262,33 +278,63 @@ export const createGroupStore = (
   },
 
   recordGame(groupId, result) {
-    // Same reasoning: a replayed offline record must not bring back a game an
-    // admin deleted in the meantime.
+    /**
+     * **Create only.** A `Put` conditional merely on the tombstone lets any
+     * member re-POST an `id` and `playedAt` they were handed by
+     * `GET /groups/{groupId}` and overwrite a recorded game with an emptier
+     * one — deleting it in all but name, and routing straight around the
+     * admin-only removal rule.
+     *
+     * `attribute_not_exists(pk)` also covers the tombstone, since a tombstone
+     * is a row. A genuine offline replay gets a conflict, which is the honest
+     * answer: the game is already recorded.
+     */
     return conditional(
       () =>
         client.send(
           new PutCommand({
             TableName: tableName,
             Item: resultItem(groupId, result),
-            ConditionExpression: "attribute_not_exists(deletedAt)",
+            ConditionExpression: "attribute_not_exists(pk)",
           }),
         ),
-      "that game was removed",
+      "already recorded",
     );
   },
 
-  removePlayer(groupId, playerId, now) {
+  async removePlayer(groupId, playerId, now) {
     const key = playerKey(groupId, playerId);
+    // Who held this player, so their claim and seat go with it. Without this
+    // the seat outlives the player, and — now that a seat is one per board —
+    // that account can never claim a replacement, short of deleting itself.
+    const existing = await client.send(
+      new GetCommand({ TableName: tableName, Key: key, ConsistentRead: true }),
+    );
+    const holder = (existing.Item as { accountId?: unknown } | undefined)?.accountId;
+    const claimer = typeof holder === "string" ? holder : null;
+
     return conditional(
       () =>
         client.send(
-          new PutCommand({
-            TableName: tableName,
-            Item: tombstone(key, now),
-            // The row has to be there. Without this a tombstone for a
-            // mistyped id creates a row that means "a thing that never
-            // existed is deleted", and the real one carries on.
-            ConditionExpression: "attribute_exists(pk)",
+          new TransactWriteCommand({
+            TransactItems: [
+              {
+                Put: {
+                  TableName: tableName,
+                  Item: tombstone(key, now),
+                  // The row has to be there. Without this a tombstone for a
+                  // mistyped id creates a row that means "a thing that never
+                  // existed is deleted", and the real one carries on.
+                  ConditionExpression: "attribute_exists(pk)",
+                },
+              },
+              ...(claimer
+                ? [
+                    { Delete: { TableName: tableName, Key: claimKey(claimer, groupId, playerId) } },
+                    { Delete: { TableName: tableName, Key: seatKey(claimer, groupId) } },
+                  ]
+                : []),
+            ],
           }),
         ),
       "no such player",
@@ -314,7 +360,7 @@ export const createGroupStore = (
     );
   },
 
-  claimPlayer(accountId, groupId, playerId, now) {
+  async claimPlayer(accountId, groupId, playerId, now) {
     /**
      * The one contended write, and the only transaction here.
      *
@@ -323,9 +369,22 @@ export const createGroupStore = (
      * would be invisible to account deletion, which finds what to release by
      * reading the account's own partition.
      */
-    return conditional(
-      () =>
-        client.send(
+    /**
+     * Which of these failed decides what the caller is told.
+     *
+     * All four cancellations used to collapse into "already claimed", so "you
+     * already hold a seat on this board" and "there is no such player" both
+     * read as *somebody else took this person* — which is a different problem
+     * with a different fix, and sends people looking for the wrong one.
+     */
+    const REASONS = [
+      "you have already claimed this player",
+      "you already hold a seat on this board",
+      "somebody else has claimed that player",
+      "could not join the board",
+    ];
+    try {
+      await client.send(
           new TransactWriteCommand({
             TransactItems: [
               {
@@ -397,9 +456,19 @@ export const createGroupStore = (
               },
             ],
           }),
-        ),
-      "already claimed",
-    );
+      );
+      return OK;
+    } catch (error) {
+      if (error instanceof TransactionCanceledException) {
+        // Positional: `CancellationReasons` comes back in the order the items
+        // were sent, so the first failed one names the rule that refused.
+        const failed = (error.CancellationReasons ?? []).findIndex(
+          (reason) => reason.Code === "ConditionalCheckFailed",
+        );
+        if (failed >= 0) return conflict(REASONS[failed] ?? "already claimed");
+      }
+      throw error;
+    }
   },
 
   releaseClaim(accountId, groupId, playerId) {
@@ -632,6 +701,22 @@ export const createGroupStore = (
           }),
         ),
       "already a member",
+    );
+  },
+
+  adjustAdminCount(groupId, delta) {
+    return conditional(
+      () =>
+        client.send(
+          new UpdateCommand({
+            TableName: tableName,
+            Key: groupKey(groupId),
+            UpdateExpression: "SET adminCount = adminCount + :delta",
+            ExpressionAttributeValues: { ":delta": delta },
+            ConditionExpression: "attribute_exists(pk)",
+          }),
+        ),
+      "no such group",
     );
   },
 

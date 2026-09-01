@@ -36,6 +36,10 @@ const store = (overrides: Partial<GroupStore> = {}) => {
       calls.push("promoteHeir");
       return ok;
     },
+    adjustAdminCount: async (_g: string, delta: number) => {
+      calls.push(`adminCount${delta > 0 ? "+" : ""}${delta}`);
+      return ok;
+    },
     forget: async () => {
       calls.push("forget");
     },
@@ -132,6 +136,37 @@ describe("the sequence", () => {
     // Released, never deleted — there is no call that removes a player here.
     expect(released).toEqual(["p1"]);
     expect(report.claimsReleased).toBe(1);
+  });
+
+  it("brings the admin count down when an admin leaves and nobody replaces them", async () => {
+    // **The path that was missing.** With two admins and one deleting their
+    // account, the count stayed at two while one admin remained — and
+    // `setRole`'s `adminCount > 1` guard then permitted demoting the last real
+    // admin, because it was reading a number that no longer described the
+    // group.
+    const { store: s, calls } = store({
+      members: async () => [member("me", "admin", 1), member("you", "admin", 2)],
+    });
+    await deleteAccount("me", s, async () => {});
+    expect(calls).toContain("adminCount-1");
+  });
+
+  it("leaves the count alone when an heir takes over", async () => {
+    // One admin leaves, one arrives. Decrementing here would strand the group
+    // just as surely as never decrementing strands it elsewhere.
+    const { store: s, calls } = store({
+      members: async () => [member("me", "admin", 1), member("you", "member", 2)],
+    });
+    await deleteAccount("me", s, async () => {});
+    expect(calls).not.toContain("adminCount-1");
+  });
+
+  it("leaves the count alone when a plain member leaves", async () => {
+    const { store: s, calls } = store({
+      members: async () => [member("me", "member", 1), member("you", "admin", 2)],
+    });
+    await deleteAccount("me", s, async () => {});
+    expect(calls).not.toContain("adminCount-1");
   });
 
   it("promotes an heir when the leaver was the last admin", async () => {

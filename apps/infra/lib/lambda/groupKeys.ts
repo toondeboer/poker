@@ -13,13 +13,29 @@
 import type { GameResult, Group, GroupState, Player } from "@poker/core";
 
 /**
- * The inverted index, and the one question it answers: who is in this group?
+ * The index, and the one question it answers: who is in this group?
  *
- * `GSI1PK = sk`, `GSI1SK = pk`, so a membership keyed `ACCOUNT#<sub>` /
- * `GROUP#<id>` is readable from either end. **Nothing authorizes against it** —
- * see the note on the index in `pokerStack.ts`.
+ * **Sparse, on an attribute only membership items carry.** The obvious shape is
+ * to invert the table — partition the index on `sk` — and it is quietly awful
+ * here: every poker table row is written with the constant `sk: "STATE"`, so
+ * *every table action in the system* would land in a single index partition,
+ * which caps around 1000 WCU/s and cannot be split by adaptive capacity.
+ * `"META"` would collect every group and every invite the same way.
+ *
+ * `groupRef` is written by nothing else, so the index holds memberships and
+ * nothing else, and partitions by group.
+ *
+ * **The name changed with the key, because DynamoDB gives no choice**: a GSI's
+ * key schema cannot be altered in place, and CloudFormation refuses with
+ * *"Cannot update a GSI's KeySchema or Projection. You can create a new GSI
+ * with a different name."* The old `MembersByGroup` partitioned on `sk`.
+ *
+ * **Nothing authorizes against it** — see the note in `pokerStack.ts`.
  */
-export const MEMBERS_INDEX = "MembersByGroup";
+export const MEMBERS_INDEX = "MembersByGroupRef";
+
+/** The attribute the index partitions on. Only memberships have it. */
+export const GROUP_REF = "groupRef";
 
 /** Roles a membership can hold. Adding is open; removing is not. */
 export type Role = "admin" | "member";
@@ -164,6 +180,8 @@ export type MembershipItem = Keyed & {
   accountId: string;
   role: Role;
   joinedAt: number;
+  /** What {@link MEMBERS_INDEX} partitions on. Memberships only. */
+  groupRef: string;
 };
 
 export const groupItem = (
@@ -206,6 +224,7 @@ export const membershipItem = (
   accountId,
   role,
   joinedAt,
+  groupRef: `GROUP#${groupId}`,
 });
 
 /**
@@ -255,7 +274,14 @@ export const memberFrom = (item: unknown): MembershipItem | null => {
   if (!accountId || !groupId || joinedAt === null || !isRole(row.role)) {
     return null;
   }
-  return { ...membershipKey(accountId, groupId), accountId, groupId, role: row.role, joinedAt };
+  return {
+    ...membershipKey(accountId, groupId),
+    accountId,
+    groupId,
+    role: row.role,
+    joinedAt,
+    groupRef: `GROUP#${groupId}`,
+  };
 };
 
 /**

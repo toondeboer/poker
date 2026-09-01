@@ -116,10 +116,35 @@ describe("removing things", () => {
   it("refuses to tombstone a player that is not there", async () => {
     // Without the condition, a tombstone for a mistyped id creates a row saying
     // "a thing that never existed is deleted" while the real player carries on.
-    const { client, sent } = fakeClient([conditionFailed()]);
+    const { client, sent } = fakeClient([
+      { Item: undefined },
+      new TransactionCanceledException({
+        $metadata: {},
+        message: "no",
+        CancellationReasons: [{ Code: "ConditionalCheckFailed" }],
+      }),
+    ]);
     const outcome = await createGroupStore("T", client).removePlayer("g1", "nope", 1);
     expect(outcome).toEqual({ status: "conflict", reason: "no such player" });
-    expect(sent[0].ConditionExpression).toBe("attribute_exists(pk)");
+    const ops = sent[1].TransactItems as { Put?: { ConditionExpression?: string } }[];
+    expect(ops[0].Put?.ConditionExpression).toBe("attribute_exists(pk)");
+  });
+
+  it("takes the claim and the seat with a removed player", async () => {
+    // The seat is one per board now, so a seat outliving its player locks that
+    // account out of ever claiming a replacement short of deleting itself.
+    const { client, sent } = fakeClient([{ Item: { accountId: "acc" } }, {}]);
+    await createGroupStore("T", client).removePlayer("g1", "p1", 1);
+    const ops = sent[1].TransactItems as { Delete?: { Key: { sk: string } } }[];
+    const deleted = ops.filter((o) => o.Delete).map((o) => o.Delete!.Key.sk);
+    expect(deleted).toEqual(["CLAIM#g1#p1", "SEAT#g1"]);
+  });
+
+  it("removes an unclaimed player without deleting anything else", async () => {
+    const { client, sent } = fakeClient([{ Item: { playerId: "p1" } }, {}]);
+    await createGroupStore("T", client).removePlayer("g1", "p1", 1);
+    const ops = sent[1].TransactItems as { Delete?: unknown }[];
+    expect(ops.filter((o) => o.Delete)).toHaveLength(0);
   });
 
   it("rebuilds a game's key from the result it is given", async () => {
@@ -205,15 +230,24 @@ describe("claiming a player", () => {
     expect(membership?.ConditionExpression).toBeUndefined();
   });
 
-  it("reports a cancelled transaction as a refusal only when a condition failed", async () => {
-    const { outcome } = await claim(
-      new TransactionCanceledException({
-        $metadata: {},
-        message: "nope",
-        CancellationReasons: [{ Code: "ConditionalCheckFailed" }],
-      }),
-    );
-    expect(outcome).toEqual({ status: "conflict", reason: "already claimed" });
+  it("says which rule refused, not just that something did", async () => {
+    // All four cancellations used to collapse into "already claimed", so "you
+    // already hold a seat here" read as *somebody else took this person* — a
+    // different problem with a different fix.
+    const at = async (index: number) => {
+      const reasons = [{}, {}, {}, {}];
+      reasons[index] = { Code: "ConditionalCheckFailed" };
+      const { outcome } = await claim(
+        new TransactionCanceledException({
+          $metadata: {},
+          message: "nope",
+          CancellationReasons: reasons,
+        }),
+      );
+      return outcome.status === "conflict" ? outcome.reason : "";
+    };
+    expect(await at(1)).toBe("you already hold a seat on this board");
+    expect(await at(2)).toBe("somebody else has claimed that player");
   });
 
   it("does not call a throttled transaction a conflict", async () => {
@@ -339,10 +373,25 @@ describe("not resurrecting what somebody deleted", () => {
     expect(sent[0].ConditionExpression).toBe("attribute_not_exists(deletedAt)");
   });
 
-  it("refuses a recorded game that lands on a tombstone", async () => {
+  it("adds a player without wiping whoever claimed them", async () => {
+    // A `Put` replaces the row, so a replayed offline add — the thing this is
+    // written to tolerate — cleared the claimer's `accountId`, orphaned their
+    // seat, and locked them out of claiming again. An `Update` touches the name
+    // and nothing else.
+    const { client, sent } = fakeClient([{}]);
+    await createGroupStore("T", client).addPlayer("g1", { id: "p1", name: "Ann" });
+    expect(sent[0].UpdateExpression).toBe("SET #name = :name, playerId = :id");
+    expect(JSON.stringify(sent[0])).not.toContain("accountId");
+  });
+
+  it("will not let a member overwrite a recorded game", async () => {
+    // `id` and `playedAt` are both handed to every member by the board, so a
+    // condition on the tombstone alone let anybody re-POST an existing game
+    // with an emptier one — deleting it in all but name, straight around the
+    // admin-only removal rule.
     const { client, sent } = fakeClient([{}]);
     await createGroupStore("T", client).recordGame("g1", game());
-    expect(sent[0].ConditionExpression).toBe("attribute_not_exists(deletedAt)");
+    expect(sent[0].ConditionExpression).toBe("attribute_not_exists(pk)");
   });
 });
 

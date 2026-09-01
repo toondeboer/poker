@@ -62,7 +62,7 @@ import { HttpApi, HttpMethod, type CfnStage } from "aws-cdk-lib/aws-apigatewayv2
 import { HttpUserPoolAuthorizer } from "aws-cdk-lib/aws-apigatewayv2-authorizers";
 import { HttpLambdaIntegration } from "aws-cdk-lib/aws-apigatewayv2-integrations";
 import { PLAYER_NAMESPACE, TABLE_NAMESPACE } from "@poker/core";
-import { MEMBERS_INDEX } from "./lambda/groupKeys";
+import { GROUP_REF, MEMBERS_INDEX } from "./lambda/groupKeys";
 import { settingsFor, type StageSettings } from "./stage";
 import { Observability, serviceMetric } from "./observability";
 import { MathExpression } from "aws-cdk-lib/aws-cloudwatch";
@@ -316,24 +316,31 @@ export class PokerStack extends Stack {
       // it deleted has seen it — see SYNC.md.
       timeToLiveAttribute: "expiresAt",
       /**
-       * The inverted index, for one question: **who is in this group?**
+       * The index, for one question: **who is in this group?**
        *
-       * Memberships are keyed `ACCOUNT#<sub>` / `GROUP#<id>`, which answers
-       * "my boards" in one query. Reading it the other way — the members of a
-       * group, to list them or to notice that its last admin is leaving —
-       * needs the key inverted, and the alternative is writing every
-       * membership twice and keeping the copies honest forever.
+       * Memberships are keyed `ACCOUNT#<sub>` / `GROUP#<id>`, which answers "my
+       * boards" in one query. Reading it the other way needs an index, and the
+       * alternative is writing every membership twice and keeping the copies
+       * honest forever.
+       *
+       * **It partitions on `groupRef`, not on `sk`, and that is the whole
+       * point.** Inverting the table is the obvious shape and is quietly awful
+       * here: every poker table row carries the constant `sk: "STATE"`, so
+       * every table action in the system would land in one index partition —
+       * around 1000 WCU/s, and not splittable by adaptive capacity. `"META"`
+       * would gather every group and invite the same way. `groupRef` is written
+       * only on memberships, so the index is sparse and partitions by group.
        *
        * **Authorization never reads this.** GSI reads are eventually
        * consistent, so a permission check against one can pass on a role
        * revoked a second earlier. Every check is a strongly consistent
-       * `GetItem` on the base table; this is for listing, which tolerates
-       * being a moment stale.
+       * `GetItem` on the base table; this is for listing, which tolerates being
+       * a moment stale.
        */
       globalSecondaryIndexes: [
         {
           indexName: MEMBERS_INDEX,
-          partitionKey: { name: "sk", type: AttributeType.STRING },
+          partitionKey: { name: GROUP_REF, type: AttributeType.STRING },
           sortKey: { name: "pk", type: AttributeType.STRING },
           // Only what listing members needs. A full projection would copy every
           // hand and every game result into the index for nothing.

@@ -120,8 +120,29 @@ export const deleteAccount = async (
     const groupId = groupIdOf(row.sk);
     if (!groupId) continue;
     const members = await store.members(groupId);
+    const leavingIsAdmin = members.some(
+      (m) => m.accountId === accountId && m.role === "admin",
+    );
     const next = succession(members, accountId);
-    if (next.action !== "promote") continue;
+
+    if (next.action !== "promote") {
+      /**
+       * An admin is leaving and nobody is replacing them, so the count has to
+       * come down with them.
+       *
+       * **This is the path that was missing**, and the failure it caused is
+       * exactly what SYNC.md warned about: with two admins and one deleting
+       * their account, the count stayed at two while one admin remained, and
+       * `setRole`'s `adminCount > 1` guard then permitted demoting the last
+       * real admin. The guard was reading a number that no longer described
+       * the group.
+       *
+       * Not reached when an heir is promoted — one admin leaves, one arrives,
+       * and the count is already right.
+       */
+      if (leavingIsAdmin) await store.adjustAdminCount(groupId, -1);
+      continue;
+    }
     const promoted = await store.promoteHeir(next.accountId, groupId);
     // Reported only when it actually happened. Claiming an inheritance that a
     // condition refused would tell somebody a group is looked after when it is
@@ -129,6 +150,9 @@ export const deleteAccount = async (
     if (promoted.status === "ok") {
       report.groupsInherited.push(groupId);
     } else {
+      // The heir was gone by the time we tried, so nobody replaced the admin
+      // who is leaving — the count comes down after all.
+      await store.adjustAdminCount(groupId, -1);
       log("warn", "group left without an admin", {
         requestId,
         groupId,

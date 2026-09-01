@@ -224,6 +224,18 @@ One invite per group rather than many, so "the link" is a thing with one answer.
 and "joined myself" are different states, and the first has no membership item — so today that
 board is invisible to them entirely, which may be right or may be the missing half of joining.
 
+## Changing the index, once it exists
+
+DynamoDB refuses both halves of the obvious approach, and CloudFormation reports each separately:
+
+- _"Cannot update a GSI's KeySchema or Projection. You can create a new GSI with a different name."_
+  The key cannot be altered in place, so a change of shape is a change of **name**.
+- _"Cannot perform more than one GSI creation or deletion in a single update."_ So swapping one for
+  another is **two deploys**: remove, then add.
+
+A fresh environment builds the table and its index in one go and meets neither. This is only the
+migration path, and it is written down because the first attempt at it failed twice in a row.
+
 ## Known gaps
 
 - **An empty group is never deleted.** Account deletion used to tombstone a group whose last member
