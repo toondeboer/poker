@@ -336,6 +336,23 @@ export type {
 } from "./leaderboard/groups";
 export type { LeaderboardStanding } from "./leaderboard/standings";
 
+// Syncing a shared board: what this phone has done and not yet sent
+export {
+  EMPTY_QUEUE,
+  dismiss,
+  enqueue,
+  hasPendingFor,
+  refuse,
+  settle,
+  withPending,
+} from "./sync/pendingWrites";
+export type {
+  PendingWrite,
+  QueuedWrite,
+  RefusedWrite,
+  SyncQueue,
+} from "./sync/pendingWrites";
+
 // Realtime channels (shared with the backend, deliberately)
 export {
   TABLE_NAMESPACE,
