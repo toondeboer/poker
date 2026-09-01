@@ -35,38 +35,52 @@ the other way round means a half-deployed backend competing for attention with a
   out of this file and reset `RELEASE_TESTING.md`, build and submit from the release branch to the
   **testing track**, promote, merge PR #147, tag the built commit, delete the branch.
 
-### 2. Stand the backend up, in four commands
+### 2. ✅ The backend is standing up
 
-All four need credentials, which is why they are yours. They are written out in full in
-[`apps/infra/README.md`](./apps/infra/README.md) under *Standing it up*: `cdk bootstrap`, deploy
-`PokerDeployment`, deploy `PokerBackend-dev`, then set `AWS_ACCOUNT_ID` / `AWS_REGION` as GitHub
-variables and create the `production` environment with a required reviewer.
+Done, in `096695166445` / `us-east-1`. Bootstrap, `PokerDeployment` (reusing the account's existing
+GitHub OIDC provider), `PokerBackend-dev`, the GitHub variables, and the approval environment —
+which is named `backend-production`, not `production`, because the latter turned out to belong to
+Vercel. Details and the exact outputs are in [`apps/infra/README.md`](./apps/infra/README.md).
 
-**Expect the first deploy to fail at something.** None of this has run: not the OIDC trust policy,
-not the JWT authorizer, not the conditional write, not the subscribe guard. The tests say the
-templates synthesise and the pure logic is right; they say nothing about whether AWS accepts any of
-it.
+**The first deploy did fail**, as predicted, on a missing CloudFormation dependency between the
+channel namespace and its authorizer data source — a fault that can only appear on the first deploy
+of a fresh environment, and is invisible to `cdk synth`. Fixed with a regression test.
 
 ### 3. Then, and only then, the things that need a deployment
 
-In this order, because each one proves the last:
-
-1. **`GET /me` with a real token.** The smallest possible end-to-end: sign up in the app, take the
-   code from the email, sign in, call the route. If this works, identity, the authorizer, the
-   Lambda and the log pipeline all work.
-2. **Measure the ADOT cold start** and write the number down. It is the one figure in the infra
-   README that is a guess (50–200 ms published). If it is bad, the documented fallback is dropping
-   the layer and exporting metrics and logs only.
-3. **Grafana**: create the stack, put the OTLP credential in Secrets Manager by hand, redeploy with
-   `-c telemetry=true`, add the CloudWatch metrics scrape. Confirm a span and a log line both
-   arrive — they travel by different paths and only one of them is OTLP.
-4. **Break something on purpose** and confirm an alarm emails you. An alarm nobody has seen fire is
-   an alarm nobody knows is wired up.
-5. **The subscribe guard, from the wrong account.** Sign in as a second account, try to subscribe to
-   the first one's table, and confirm it is refused. This is the one test worth doing by hand
-   however good the unit tests look.
-6. **Resolve the Cognito federated-MAU question** before wiring Apple or Google — $0 against roughly
-   $14/month at 1,000 users, and the pricing page names neither provider.
+1. ✅ **`GET /me` with a real token.** Works, all three ways: the ID token answers 200, an access
+   token is refused with `send the id token`, and no token is 401 from the authorizer. The
+   `identified` log line and the API access log both appear. Sign-up used a real emailed code, so
+   Cognito's email delivery is proven too. **Delete this line when 1.2.0 is cut.**
+2. ✅ **The ADOT cold start is measured, and it ended the OpenTelemetry export.** n=6 per function:
+   Identity 142.9 → **1889.2 ms**, TableAction 302.0 → **2267.5 ms**, SubscribeAuthorizer
+   277.4 → **2160.9 ms**, against a published 50–200 ms. Telemetry now goes through X-Ray
+   `Tracing.ACTIVE` instead, at 127.0 / 310.2 / 315.0 ms — within noise of no telemetry at all.
+   **Delete this line when 1.2.0 is cut.**
+3. ✅ **Observability is AWS-native, and that is the second answer to this question.** Grafana Cloud
+   was set up, exported traces successfully, and was removed: the collector cost ~1.9 s of cold
+   start on an app where almost every invocation is a cold start, and the CloudWatch scrape needed
+   to see API Gateway 5xx and DynamoDB throttles would have cost **$3–9/month against an account
+   that spends $0.64** — to copy metrics out of the place they already were. What replaced it:
+   X-Ray traces, CloudWatch metrics and logs, seven alarms, and a `poker-<stage>` dashboard built in
+   CDK from the alarm definitions so the two cannot drift. **Delete this line when 1.2.0 is cut.**
+   - 🟡 **The dashboard is generated, not designed.** An alarm status row over a graph per alarm. It
+     is a starting point and will want a real layout once somebody has used it during a game night.
+   - The vendor-neutrality argument that originally chose Grafana is recorded in
+     [`apps/infra/README.md`](./apps/infra/README.md) decision 2, along with what it would take to
+     go back — one layer, one config file, and the esbuild footer that ADOT's handler wrap needs.
+4. ✅ **Break something on purpose.** The action handler was pointed at a table it cannot read;
+   `ActionErrors` went to `ALARM` about a minute later and emailed, carrying its description.
+   Recovery is *not* `cdk deploy` — that answered "no changes" and left it broken, because
+   CloudFormation compares templates rather than live resources. **Delete this line when 1.2.0 is
+   cut.**
+5. ✅ **The subscribe guard, from the wrong account.** A second signed-in account is refused on the
+   shared channel with `not a member of this table`, and on somebody else's private channel by the
+   APPSYNC_JS guard. Both are asserted by `npm run smoke -w @poker/infra -- --as-stranger`, so it is
+   a check that can be re-run rather than a thing that was once true. **Delete this line when 1.2.0
+   is cut.**
+6. ⬜ **Resolve the Cognito federated-MAU question** before wiring Apple or Google — $0 against
+   roughly $14/month at 1,000 users, and the pricing page names neither provider.
 
 ### 4. What is still code, for when you want me building again
 
@@ -157,15 +171,18 @@ Nothing below needs you present once the above is done:
 
 ## Accounts — screens built, entry point deliberately absent
 
-- 🚧 **Nothing links to `/account`, because nothing is deployed.** The screens are written and
-  wired to Cognito — sign up, the emailed confirmation code, sign in, refresh, global sign-out and
-  account deletion, with every Cognito error mapped to something a person can act on. They run
-  against a **development stub that signs nobody up**: it records an email on the device and hands back an id, with no
-  server, no verification, no password checked. Shipping a route to that would be shipping a login
-  that logs nobody in, so the Settings row goes in when the backend does — the screen is reachable
-  by URL for development only. **The switch is one constant**: `backendConfig` in
-  `apps/mobile/src/services/backendConfig.ts` is `null`, and filling it in from the CDK outputs
-  turns the whole thing on.
+- 🚧 **Nothing links to `/account`, and the reason has changed.** The screens are written and wired
+  to Cognito — sign up, the emailed confirmation code, sign in, refresh, global sign-out and account
+  deletion, with every Cognito error mapped to something a person can act on. **There is now a real
+  backend to point them at**: `DEV_BACKEND` in `apps/mobile/src/services/backendConfig.ts` holds
+  the live dev user pool, and sign-up/confirm/sign-in have been run against it from a script.
+  - What is *not* done is running them **from the app** — flip `backendConfig` to `DEV_BACKEND`
+    locally, open `pokerkit://account`, and walk sign-up → emailed code → sign-in → sign-out →
+    delete on a simulator. No dev-client rebuild is needed; nothing native changed.
+  - `backendConfig` stays `null` in git deliberately. It is no longer "there is nothing to point
+    at" — it is that a shipped 1.2.0 build must not put real accounts in a development pool that
+    exists to be thrown away, and `/account` is reachable by URL. It goes to `PROD_BACKEND` when
+    prod is deployed and the Settings row lands with it.
   - **No client library.** Cognito's user-pool API is JSON over HTTPS and the calls an app needs
     are unauthenticated in the SigV4 sense, so the request shaping lives in `@poker/core` with
     tests and the app supplies `fetch`. The alternative, `aws-amplify`, brings native modules —
@@ -207,6 +224,11 @@ Actions over OIDC, and **accounts end-to-end as the first deployable slice**.
 
 ## Backend: before anything connects to it
 
+- ⬜ **No route creates a table.** A table is created by a game starting and the app side of that is
+  unbuilt, so `POST /tables/{id}/actions` answers `404 no such table` until a row exists. Not a bug
+  — it is the next thing to build in D — but it is why `apps/infra/scripts/smoke.ts` seeds a table
+  into DynamoDB directly, and why nothing can exercise the table from the app yet.
+
 - ✅ **The shared `table` channel is authorized on subscribe.** A Lambda reads the table's
   membership and refuses anybody not at it; the private `/player/…` channels keep their APPSYNC_JS
   guard, which needs no I/O. Every other branch refuses too — a malformed channel, a table that
@@ -216,6 +238,34 @@ Actions over OIDC, and **accounts end-to-end as the first deployable slice**.
 - ✅ **The action handler stores and publishes.** Reads the table, runs the rules, writes back on a
   version check, then publishes — in that order, because publishing first announces a hand that
   might not be stored. **Delete this line when 1.2.0 is cut.**
+- ⬜ **Cognito's built-in email cannot go to production, and confirmation codes land in spam.**
+  Both test sign-ups delivered, and **both went to the spam folder** — `no-reply@verificationemail.com`
+  is AWS's shared sender, so nothing authenticates the mail as coming from this app. A confirmation
+  code in spam is a sign-up that silently fails: the person is told to check their email, the email
+  is not in their inbox, and there is nothing in the app that can tell them why.
+  - The harder limit is separate and absolute: **Cognito's default email is capped at 50 messages a
+    day**, per account, with no way to raise it. That is a cap on *sign-ups per day* across the
+    whole app, so it blocks launch on its own rather than merely degrading.
+  - The fix for both is the same — `UserPoolEmail.withSES()` against a verified domain with SPF,
+    DKIM and DMARC, which is what makes the mail authenticate and land in an inbox. It needs a
+    domain and DNS records, so it is a credential-bearing step like Apple and Google below.
+  - **Worth doing before any real user signs up, and it costs nothing to defer until then**: dev is
+    fine on the built-in sender now that it is known where the mail goes.
+- ⬜ **Account deletion has to become server-side, and the ordering is the whole problem.** Today
+  the app calls Cognito's `DeleteUser` directly with its own access token, and that is *correct for
+  now*: the only thing this backend writes is one `TABLE#<id>/STATE` item carrying `members: [sub]`,
+  on a 24-hour TTL, so a deleted account leaves behind something that deletes itself by tomorrow.
+  Nothing durable is keyed by an account yet.
+  - **It stops being correct the moment groups, players and results land** (section C below), which
+    is the first durable per-account data. Deletion must land **in the same pull request**, because
+    the alternative is a period where the store requirement is live and unmet.
+  - **The trap: once the Cognito user is gone, the client has no valid token**, so it cannot
+    authenticate a cleanup call afterwards. That makes this a *replacement* of the current seam
+    rather than an addition — a `DELETE /me` route that removes the data first and the user second,
+    server-side, with `AdminDeleteUser`. Getting it the other way round leaves orphaned rows nobody
+    holds a credential for.
+  - Make the data half idempotent and retryable: if the user delete fails after the data is gone,
+    the account has to be deletable again on a second attempt rather than wedged.
 - ⬜ **Sign in with Apple and Google.** Both need real client ids and secrets, and App Store
   guideline 4.8 requires Sign in with Apple alongside any other third-party provider — so they are
   a credential-bearing decision rather than something to scaffold with placeholders.

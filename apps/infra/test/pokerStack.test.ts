@@ -51,6 +51,31 @@ describe("the stack synthesises", () => {
       Template.fromStack(new PokerStack(new App({ context }), "WithContext")),
     ).not.toThrow();
   });
+
+  it("carries the operational settings in cdk.json, not on a command line", () => {
+    // These were `-c` flags, and the workflow did not pass them — so the first
+    // `cdk deploy` from CI would have DELETED the alarm email subscription and
+    // the budget. Not failed: deleted, and reported success, because a template
+    // without them is a perfectly valid template. This PR's own `cdk diff` job
+    // printed `[-] AWS::SNS::Subscription … destroy` before anybody noticed.
+    //
+    // `cdk.json` is read by the CLI on every invocation, local or CI, which is
+    // what makes the two agree without anybody remembering a flag.
+    const context = (cdkJson as { context?: Record<string, unknown> }).context;
+    expect(typeof context?.alertEmail).toBe("string");
+    expect(typeof context?.monthlyBudgetUsd).toBe("number");
+
+    // And that those two keys are the ones that matter: `bin/app.ts` reads them
+    // and passes them as props, so a rename on either side is a silent loss.
+    const configured = Template.fromStack(
+      new PokerStack(new App(), "Operational", {
+        alertEmail: context?.alertEmail as string,
+        monthlyBudgetUsd: context?.monthlyBudgetUsd as number,
+      }),
+    );
+    configured.resourceCountIs("AWS::SNS::Subscription", 1);
+    configured.resourceCountIs("AWS::Budgets::Budget", 1);
+  });
 });
 
 describe("accounts", () => {
@@ -167,6 +192,25 @@ describe("the realtime bus", () => {
     });
     const names = Object.values(guarded).map((ns) => ns.Properties.Name);
     expect(names).toEqual([channel.split("/")[1]]);
+  });
+
+  it("creates the subscribe authorizer's data source before the namespace", () => {
+    // The first deploy failed here, and nothing before it could have caught
+    // that: `DataSourceName` is a plain string, not a `Ref`, so CloudFormation
+    // sees no dependency and creates both in parallel — the namespace loses the
+    // race and the stack rolls back with `DataSource not found`.
+    //
+    // Invisible in a synth, and invisible on every deploy after the first,
+    // because by then the data source is already there. So the assertion is on
+    // the explicit `DependsOn` rather than on any observable behaviour.
+    const namespaces = template().findResources("AWS::AppSync::ChannelNamespace", {
+      Properties: { HandlerConfigs: Match.anyValue() },
+    });
+    const [guarded] = Object.values(namespaces);
+    const sources = Object.keys(
+      template().findResources("AWS::AppSync::DataSource"),
+    );
+    expect(guarded.DependsOn).toEqual(expect.arrayContaining(sources));
   });
 
   it("reads the player id from where the shared path builder puts it", () => {

@@ -118,6 +118,7 @@ export class DeploymentStack extends Stack {
         description: `Put this in the ${stage} workflow's role-to-assume`,
       });
     }
+
   }
 }
 
@@ -127,14 +128,36 @@ const titleCase = (value: string): string =>
   value.charAt(0).toUpperCase() + value.slice(1);
 
 /**
+ * The GitHub Environment that gates a production deploy.
+ *
+ * **Not `production`, and that is not a style choice.** GitHub environment
+ * names are case-insensitive, and this repository already has a `Production`
+ * environment — created by the Vercel integration, which deploys the website on
+ * every push to `main`. Two things follow, and both were found by looking
+ * rather than by a deploy failing:
+ *
+ * 1. A required reviewer added to it would gate **the website**, which is
+ *    supposed to ship continuously. The approval meant for a backend deploy
+ *    would start holding up a typo fix on a landing page.
+ * 2. The OIDC subject carries the environment's *stored* name, so it would read
+ *    `…:environment:Production` while the trust policy below asks for
+ *    `…:environment:production` — and IAM string conditions are case-sensitive.
+ *    The gate would not have failed closed; it would have failed to
+ *    authenticate at all, which is a confusing way to discover this.
+ *
+ * A name of its own avoids both, and says what it gates.
+ */
+export const PRODUCTION_ENVIRONMENT = "backend-production";
+
+/**
  * Which GitHub identities may assume the role for a stage.
  *
  * Dev: any ref of this repository, so a branch can be deployed and tried.
- * Prod: **only** the `production` GitHub Environment, which is a gate a person
- * opens — an approval that lives in GitHub rather than a branch name anybody
- * with push access can create.
+ * Prod: **only** the {@link PRODUCTION_ENVIRONMENT} GitHub Environment, which
+ * is a gate a person opens — an approval that lives in GitHub rather than a
+ * branch name anybody with push access can create.
  */
 export const subjectFor = (repository: string, stage: Stage): string =>
   stage === "prod"
-    ? `repo:${repository}:environment:production`
+    ? `repo:${repository}:environment:${PRODUCTION_ENVIRONMENT}`
     : `repo:${repository}:*`;

@@ -2,10 +2,55 @@
 
 AWS CDK. Accounts, groups, cloud sync, the shared clock and the multiplayer table.
 
-**Nothing here has ever been deployed.** `cdk synth` and the tests run with no credentials, which is
-what lets CI check the whole stack without anybody holding a key — and also why every gap below is
-still a gap: the parts that cannot be exercised without a deployment were deliberately not written
-blind.
+**`PokerBackend-dev` is deployed and has been exercised end to end** — account `096695166445`,
+region `us-east-1`. Sign-up with a real emailed code, sign-in, `GET /me`, a hand seeded and acted
+on, events arriving on both channels, and a non-member refused: 19 checks, run by
+[`scripts/smoke.ts`](./scripts/smoke.ts). Prod has still never been deployed.
+
+`cdk synth` and the tests still run with no credentials, which is what lets CI check the whole stack
+without anybody holding a key. What the first deploy proved is that this is necessary and not
+sufficient — see *What only a deploy could tell us*, below.
+
+## Where dev is
+
+| Output             | Value                                                             |
+| ------------------ | ----------------------------------------------------------------- |
+| `ApiUrl`           | `https://hv0qrcgmt4.execute-api.us-east-1.amazonaws.com`          |
+| `UserPoolId`       | `us-east-1_6iwLdpBIy`                                             |
+| `UserPoolClientId` | `2lahhup3m7il6iqusctitu6lbc`                                      |
+| `EventApiDns`      | `55bempvj4fh2fcvzcy7x26vgy4.appsync-realtime-api.us-east-1.amazonaws.com` |
+| `TableName`        | `PokerBackend-dev-TableCD117FA1-FLOO5GQYD00E`                     |
+
+None of these are secrets — a user pool id and a public app client id are public by design. They are
+mirrored in `DEV_BACKEND` in
+[`apps/mobile/src/services/backendConfig.ts`](../mobile/src/services/backendConfig.ts), where
+`backendConfig` is still `null` on purpose so a 1.2.0 build cannot ship pointing at a development
+stack.
+
+## What only a deploy could tell us
+
+Four things, none of which a synth, a unit test or a review had any way to catch. They are the
+argument for standing dev up before writing anything else against it.
+
+1. **`TableNamespace` failed with `DataSource not found`, and rolled the whole stack back.** The
+   channel namespace names its data source with a plain string — that is the shape AppSync's API
+   takes — so CloudFormation saw no dependency and created both in parallel. An explicit
+   `addDependency` fixes it. **Invisible in `cdk synth` and invisible on every deploy after the
+   first**, because by then the data source exists; only a create-from-nothing shows it. There is
+   now a test asserting the `DependsOn`.
+2. **The production gate pointed at an environment Vercel owns.** GitHub environment names are
+   case-insensitive, and `production` resolves to the `Production` environment the website's Vercel
+   integration created. A required reviewer there would have gated every web deploy — and the OIDC
+   subject carries the stored casing, so it would not have matched the trust policy anyway. The gate
+   is now `backend-production`.
+3. **The account already had a GitHub OIDC provider**, so `PokerDeployment` needs
+   `-c existingProviderArn=…`. The documented path worked; it just is not optional here. The
+   `deploy:roles` script carries the flag.
+4. **`cdk deploy` does not undo an out-of-band change.** After breaking the action handler's
+   `TABLE_NAME` by hand to test an alarm, a redeploy answered `✅ no changes` and left it broken:
+   CloudFormation compares templates, not live resources. **Anything changed with
+   `aws lambda update-function-configuration` has to be changed back the same way** — or the stack
+   forced with `cdk deploy --force`. A green deploy is not evidence the resource matches the code.
 
 ---
 
@@ -20,9 +65,9 @@ blind.
 | **Publishing**     | Signed with the Lambda's own IAM credentials (SigV4 by hand, `node:crypto`, checked against AWS's published vectors). The shared channel gets a hand with every hole card stripped; each player's own cards go to a channel only they can subscribe to |
 | **HTTP API**       | `GET /me` and `POST /tables/{tableId}/actions`, both behind a Cognito JWT authorizer that is the API's **default** — a route added later is authenticated because nobody did anything. Access logs, throttled                                          |
 | **Environments**   | `PokerBackend-dev` and `PokerBackend-prod`, plus `PokerDeployment` for the GitHub OIDC roles                                                                                                                                                           |
-| **Telemetry**      | ADOT layer on both functions, exporting OTLP to Grafana Cloud through a bundled collector config; credential from Secrets Manager by dynamic reference                                                                                                 |
-| **Alarms**         | Seven, into an SNS topic, each carrying what it means; a forecast budget alarm alongside                                                                                                                                                               |
-| **Tests**          | 166, covering the synthesised template and the handlers' decision-making                                                                                                                                                                               |
+| **Telemetry**      | X-Ray `Tracing.ACTIVE` on all three functions, CloudWatch metrics and structured logs, and a `poker-<stage>` dashboard built in CDK from the alarm definitions. No third-party export — see decision 2                                                 |
+| **Alarms**         | Ten, into an SNS topic, each carrying what it means; a forecast budget alarm alongside. One has been seen to fire                                                                                                                                     |
+| **Tests**          | 171, covering the synthesised template and the handlers' decision-making                                                                                                                                                                               |
 
 **Hole cards are private because of where they are published**, not because a client declines to
 draw them. Both sides build channel paths from `playerChannel` in `@poker/core`, because the two
@@ -31,24 +76,66 @@ sitting on a namespace those channels never touch.
 
 ## What does not exist
 
-1. **Nothing has been deployed.** Every item below follows from that, and the four steps under
-   "Standing it up" are what changes it.
-2. The action handler **throws on purpose** — no DynamoDB read/write, no publish. `POST
-/tables/{id}/actions` therefore reaches a function that fails, which is a deliberate step up
-   from a route that did not exist.
+1. **Prod has never been deployed.** Dev has, and everything below is written from that side of the
+   line now.
+2. **No third-party telemetry, deliberately.** This exported OpenTelemetry to Grafana Cloud, it
+   worked, and it was removed once there was a number attached to it. Measured, n=6 per function,
+   forced parallel cold starts:
+
+   | Function             | No telemetry | ADOT → Grafana | X-Ray (now)  |
+   | -------------------- | ------------ | -------------- | ------------ |
+   | Identity             | 142.9 ms     | 1889.2 ms      | **127.0 ms** |
+   | TableAction          | 302.0 ms     | 2267.5 ms      | **310.2 ms** |
+   | SubscribeAuthorizer  | 277.4 ms     | 2160.9 ms      | **315.0 ms** |
+
+   The figure everyone quotes for that layer is 50–200 ms. It was **~1.9 seconds**, and this app is
+   the worst case for it: a table plays one evening a week, so almost every invocation is a cold
+   start rather than a rounding error on a warm fleet — and `SubscribeAuthorizer` runs before a
+   player can see a table, on a three-second timeout that ~2.2 s of init nearly exhausts.
+
+   `Tracing.ACTIVE` costs within noise of nothing, because the X-Ray daemon is part of the execution
+   environment rather than a Go binary each function has to start.
+
+   **The other half of the bill was the scrape.** Grafana cannot see API Gateway 5xx, DynamoDB
+   throttles or AppSync connection errors on its own — those are CloudWatch metrics — so the plan
+   was its CloudWatch scrape, at roughly **$3–9/month against an account that spends $0.64**. That
+   is paying to copy metrics out of the place they already are, in order to look at them.
+
+   What was given up is vendor neutrality, which was the original argument and the weakest one
+   here: the backend is Cognito, AppSync Events, DynamoDB and CDK. Telemetry was the one portable
+   piece of something entirely AWS-specific.
+
 3. **The throttle protects the bill, not availability.** It is per route and shared by everybody,
    so one account hammering a route returns 429 to every player at every table. HTTP APIs have no
    per-caller quota — usage plans are a REST API feature — so the fix, when somebody is actually
    connected, is a WAF rate rule at roughly $5 a month for a web ACL.
-4. **No dashboards.** Alarms are code and the export is wired, but a Grafana dashboard is console
-   work against a live stack — and there is nothing to point one at yet. The CloudWatch metrics
-   scrape that fills in what OTel cannot see (API Gateway 5xx, DynamoDB throttles, cold starts) is
-   also console work, and is the half of the picture worth doing first.
+4. **No considered dashboard.** There is one — `poker-<stage>`, in CDK, an alarm status row over a
+   graph per alarm — but it was generated from the alarm definitions rather than designed. One of
+   those alarms has been seen to fire: the action handler was pointed at a table it had no
+   permission to read, and `ActionErrors` reached `ALARM` about a minute later and emailed.
 5. **No custom domain.** The API answers on its generated `execute-api` hostname, which is fine
    until the day the stack is replaced and the hostname changes with it.
 6. **No federated sign-in.** Apple and Google need real client ids and secrets, and App Store
    guideline 4.8 requires Sign in with Apple alongside any other third-party provider.
-7. Nothing in the app points at any of it.
+6a. **No dashboard beyond the one in code.** `poker-<stage>` is built by CDK from the same `watch`
+   calls that declare the alarms, so the two cannot drift. It is a starting point, not a considered
+   layout.
+6b. **`UserPoolEmail.withCognito()` is a development setting.** It delivers — both test sign-ups
+   arrived — but **into the spam folder**, because `no-reply@verificationemail.com` is AWS's shared
+   sender and nothing authenticates it as this app. It is also capped at **50 messages a day** with
+   no way to raise it, which is a cap on sign-ups per day for the whole app. Production wants
+   `withSES()` against a verified domain with SPF/DKIM/DMARC. Fine for dev; not a launch
+   configuration.
+7. **Nothing in the app points at it yet** — `backendConfig` is `null` deliberately, not for want of
+   somewhere to point.
+8. **No route creates a table.** A table is created by a game starting, and the app side of that is
+   unbuilt, so `POST /tables/{id}/actions` answers `404 no such table` until a row exists. This is
+   why the smoke script seeds one directly.
+9. **The budget is account-wide, despite being named `poker-dev`.** `CfnBudget` is created with no
+   `CostFilters`, so it forecasts the whole account — which here also runs `sailor-prod` and
+   `investments-tracker-prod`. At $0.64/month across everything it will not misfire, and it will
+   still catch a runaway loop, so it is left alone. Filtering it properly means activating the
+   `aws:cloudformation:stack-name` cost allocation tag in Billing and waiting ~24h for it to apply.
 
 ---
 
@@ -80,50 +167,77 @@ response — it learns it from the event, the same way every other player does. 
 rather than two that can disagree, and it is what makes optimistic prediction on the client safe:
 the phone runs `@poker/core` locally, and the authoritative event either confirms it or replaces it.
 
-### 2. OpenTelemetry to Grafana Cloud, with CloudWatch for what OTel cannot see
+### 2. CloudWatch, X-Ray and a dashboard in code — after trying the other thing
 
-**App telemetry** — traces, spans, custom metrics, structured logs from the Lambda — is emitted as
-OTLP and shipped to Grafana Cloud. Vendor-neutral instrumentation, one place for all three signals,
-and nothing that ties the next decision to AWS.
+**This decision was made twice.** It read *"OpenTelemetry to Grafana Cloud, with CloudWatch for what
+OTel cannot see"*, on the argument that vendor-neutral instrumentation keeps all three signals in one
+place and ties nothing to AWS. It was built, it was deployed, it worked — traces reached Grafana —
+and it was then removed. The original text is in the history; what replaced it is below, and the
+reason is a number.
 
-**Infrastructure metrics are a separate path, and this is the part that is easy to get wrong.** OTel
-runs _inside_ the Lambda, so it cannot see API Gateway 5xx, DynamoDB throttles, AppSync connection
-errors, or Lambda concurrency and cold starts. Those are CloudWatch service metrics. Grafana Cloud
-pulls them with its **CloudWatch metrics scrape** (or a metric stream via Firehose, which is
-lower-latency and costs more). Both signals then sit in one place.
+**The collector layer cost ~1.9 s of cold start**, against a published 50–200 ms (measured table at
+the top of this file). This app is the worst possible case for that: a table plays one evening a
+week, so cold starts are the *common* case rather than a rounding error on a warm fleet, and
+`SubscribeAuthorizer` runs before a player can see a table on a three-second timeout.
 
-On the Lambda side there is a real trade to make, not a free lunch:
+**And the infrastructure half would have cost more than the whole backend.** OTel runs _inside_ a
+Lambda, so it cannot see API Gateway 5xx, DynamoDB throttles, AppSync connection errors or cold
+starts — those happen outside the function and are CloudWatch metrics. Reaching them from Grafana
+means its CloudWatch scrape, at roughly **$3–9/month against an account that spends $0.64** — to
+copy metrics out of the place they already were so they could be looked at elsewhere.
 
-- The **collector layer** (ADOT or the upstream OpenTelemetry Lambda layer) batches and exports out
-  of band, and adds roughly **50–200 ms to a cold start**. AWS's newer collector-free layers are
-  faster and export only to X-Ray and CloudWatch, so they cannot reach Grafana.
-- **In-process OTLP export** avoids the layer but has to flush before the invocation returns, which
-  puts the export latency in the request path.
+So:
 
-For a table that plays one evening a week, cold starts are the common case, so this matters more
-here than it would under steady traffic. **Start with the collector layer, measure a cold start
-before and after, and write the number down.** If it is unacceptable, fall back to exporting
-metrics and logs only and leave tracing to X-Ray.
+- **Traces:** Lambda `Tracing.ACTIVE`. The X-Ray daemon is part of the execution environment rather
+  than a Go binary each function starts, and it costs within noise of nothing.
+- **Metrics:** CloudWatch, where they already are, with no export step to break.
+- **Logs:** CloudWatch, structured JSON from `lib/lambda/logging.ts`, queryable with Logs Insights.
+- **Dashboard:** `poker-<stage>`, built in CDK from the same `watch()` calls that declare the
+  alarms — so a metric worth alarming on is automatically a metric worth looking at, and the two
+  cannot drift.
 
-Grafana Cloud's free tier is 10,000 active series, 50 GB of logs, 50 GB of traces and 14-day
-retention, with no card required — comfortably above this project's volume, and worth re-checking at
-sign-up rather than trusting a number written down here.
+**What this gives up is vendor neutrality**, and it is worth being honest that this was the whole
+original argument. It is also the weakest one here: the backend is Cognito, AppSync Events, DynamoDB
+and CDK. Telemetry was the single portable piece of something otherwise welded to AWS, and it was
+being paid for in cold-start latency on every invocation. If this project ever spans two clouds, the
+instrumentation is one layer and one config file away from going back — **and the footer in
+`handlerBundling` has to come back with it**, or ADOT's handler wrap throws `Cannot redefine
+property: handler` and fails every invocation.
 
 **What to alert on** (an alert nobody acts on is worse than no alert):
 
-| Alarm                                       | Why it is worth waking up for                                                      |
-| ------------------------------------------- | ---------------------------------------------------------------------------------- |
-| Action Lambda error rate > 1% over 5 min    | The rules are rejecting real actions, or something is throwing                     |
-| Action Lambda p99 > 2 s                     | A table is waiting on a turn that will not land                                    |
-| DynamoDB conditional-check failures spiking | Optimistic concurrency thrashing — two clients fighting                            |
-| DynamoDB throttles > 0                      | On-demand should not throttle; if it does, something is very wrong                 |
-| AppSync connection errors / 5xx             | Players silently disconnected mid-hand — the failure nobody reports                |
-| Cognito sign-in failure rate                | An expired Apple key or a broken client config, which looks like "the app is down" |
-| Monthly spend > a threshold                 | The only alarm that catches a loop nobody noticed                                  |
+| Alarm                        | Metric                                    | Why it is worth waking up for                                       |
+| ---------------------------- | ----------------------------------------- | ------------------------------------------------------------------- |
+| `ActionErrors`               | Lambda `Errors`                           | The rules are rejecting real actions, or something is throwing      |
+| `ActionSlow`                 | Lambda `Duration` p99                     | A table is waiting on a turn that will not land                     |
+| `IdentityErrors`             | Lambda `Errors`                           | Sign-in is broken from the app's point of view                      |
+| `ApiServerErrors`            | API Gateway `5xx`                         | The API is failing before a handler runs                            |
+| `ApiClientErrors`            | API Gateway `4xx`                         | Sustained 4xx — a client version that no longer agrees with the API |
+| `TableThrottled`             | DynamoDB `ThrottledRequests`              | On-demand should not throttle; if it does, something is very wrong  |
+| `TableSystemErrors`          | DynamoDB `SystemErrors`                   | DynamoDB itself is erroring                                         |
+| `TableContention`            | DynamoDB `ConditionalCheckFailedRequests` | Optimistic concurrency thrashing — two clients fighting             |
+| `RealtimeConnectFailures`    | AppSync `ConnectServerError`              | Players cannot connect — **the failure nobody reports**             |
+| `RealtimeSubscribeFailures`  | AppSync `SubscribeServerError`            | The subscribe authorizer is erroring rather than refusing           |
+| Monthly spend > a threshold  | Budgets, forecast                         | The only alarm that catches a loop nobody noticed                   |
 
-Alerts are declared in Grafana (so they live beside the dashboards) and delivered by email; a
-CloudWatch billing alarm into SNS is the one exception, because it has to work even when the
-telemetry pipeline is the thing that broke.
+**This table used to be a design and is now a description.** Three of the alarms it once listed did
+not exist — and the gap survived a review, because a documented alarm reads exactly like a real one.
+Two of them are now built. The third is not, and cannot be as written:
+
+- **Cognito sign-in failure rate is not buildable from a metric.** `AWS/Cognito` publishes
+  `SignInSuccesses` and `SignInThrottles`, and nothing for failures. It needs user-pool logging plus
+  a metric filter, which is a different piece of work; it is listed here as absent rather than
+  implied by a table.
+
+**Client errors are deliberately not alarmed on the realtime API.** `ConnectClientError` and
+`SubscribeClientError` are what a refused non-member looks like — the subscribe guard working — so
+paging on them would mean an email every time the security boundary did its job.
+
+All ten are CloudWatch alarms into an SNS topic, delivered by email, and **one of them has been
+seen to fire** — the action handler was pointed at a table it could not read, and `ActionErrors`
+alarmed about a minute later. They were always going to be CloudWatch rather than declared in the
+telemetry backend, for a reason that survived the rewrite: **an alert defined in the telemetry
+pipeline stops working when the telemetry pipeline is what broke.**
 
 ### 3. Two stacks in one account, deployed by GitHub Actions over OIDC
 
@@ -160,65 +274,61 @@ boundary in the system, all at once, on a first deployment.
 
 ## Standing it up
 
-Four steps, in order. **All of them need credentials, so all of them are yours.** After the last
-one, nothing in this repository ever needs an AWS key again.
+**Steps 1–3 and 5 are done for `096695166445` / `us-east-1`.** They are kept because they are what
+a second account, or a rebuild of this one, would need — and because step 4 has not been done.
 
 ```bash
-# 1. Bootstrap the account. Once per account+region, and CDK will tell you to
-#    do this if you forget.
+# 1. Bootstrap the account. Once per account+region. [done]
 cd apps/infra
-npx cdk bootstrap aws://<account>/<region>
+npx cdk bootstrap aws://096695166445/us-east-1
 
-# 2. Deploy the roles GitHub Actions will assume. A role that deploys a stack
-#    cannot be created by the stack it deploys, so this one goes by hand.
-npx cdk deploy PokerDeployment -c account=<account> -c region=<region>
+# 2. The roles GitHub Actions assumes. A role that deploys a stack cannot be
+#    created by the stack it deploys, so this one goes by hand. [done]
+npm run deploy:roles
 
-#    If the account already has a GitHub OIDC provider — there can only be one —
-#    reuse it instead of failing on EntityAlreadyExists:
-#    -c existingProviderArn=arn:aws:iam::<account>:oidc-provider/token.actions.githubusercontent.com
+#    That script carries `-c existingProviderArn=…` because this account
+#    already had a GitHub OIDC provider and there can only be one. Without it
+#    the deploy fails on EntityAlreadyExists.
 
-# 3. Deploy dev once by hand, to see it work before CI does it.
-npx cdk deploy PokerBackend-dev -c account=<account> -c region=<region> \
-  -c alertEmail=you@example.com -c monthlyBudgetUsd=25
+# 3. Dev, by hand, to see it work before CI does. [done]
+npm run deploy:dev
 ```
 
-**Every one of those context values is optional and every one of them degrades to something safe
-and useless rather than to something wrong**: no email means alarms fire into a topic nobody reads,
-no budget means no budget, no `-c telemetry=true` means nothing is exported. Which is fine for a
-first deploy and worth turning on straight afterwards.
+**`alertEmail` and `monthlyBudgetUsd` live in `cdk.json`'s `context` block, not on a command line,
+and that is load-bearing.** CDK context is not sticky: a deploy *without* them does not leave the
+existing alarm subscription and budget alone, it **deletes** them — and reports success, because a
+template without them is a perfectly valid template. Every setting here degrades to something safe
+and useless rather than to something wrong (alarms firing into a topic nobody reads, no budget,
+nothing exported), which is exactly why losing one is quiet.
 
-**4. Then in Grafana Cloud** — free tier, no card:
+They were `-c` flags at first, and the workflow did not pass them, so the first CI deploy would have
+destroyed both. The PR's own `cdk diff` printed `[-] AWS::SNS::Subscription … destroy` and that is
+how it was caught. `cdk.json` is read by the CLI on **every** invocation, local or CI, which is what
+makes the two agree without anybody remembering anything. A test asserts both keys are there.
 
-- Create a stack, open the **OpenTelemetry** tile, and generate a token. It gives you an OTLP
-  endpoint (`https://otlp-gateway-prod-<zone>.grafana.net/otlp`) and an `Authorization: Basic …`
-  header built from the instance id and the token.
-- Create the secret **yourself** — CDK imports it by name and never writes to it, so a deploy can
-  never overwrite the value:
+Only account and region are still flags, because they legitimately differ between a laptop and CI —
+the workflow passes them from repository variables.
 
-  ```bash
-  aws secretsmanager create-secret --name poker/grafana-otlp --secret-string \
-    '{"otlpEndpoint":"https://otlp-gateway-prod-<zone>.grafana.net/otlp","otlpAuth":"Basic <base64 of instanceId:token>"}'
-  ```
+**4. There is no step 4 any more.** It used to be *"then in Grafana Cloud"* — create a stack,
+generate an OTLP token, put it in Secrets Manager, redeploy with `-c telemetry=true`, add the
+CloudWatch metrics scrape. All of that was done, and then undone; see decision 2 for the numbers.
+Telemetry now needs no account, no credential and no step: `Tracing.ACTIVE` and CloudWatch are on
+from the first deploy.
 
-- **Then** redeploy with telemetry on: `npx cdk deploy PokerBackend-dev -c telemetry=true …`.
-
-  Telemetry is off until asked for, and the order matters: the collector refuses to start without
-  an endpoint, so turning it on before the secret exists would take every route down with it and
-  the cause would look like anything but a missing telemetry credential.
-
-- Add the **CloudWatch metrics scrape** for this account. OTel cannot see API Gateway 5xx, DynamoDB
-  throttles, AppSync connection errors or cold starts, because all of those happen outside the
-  function it lives in. Without the scrape, half the dashboard is empty for reasons nobody can see.
-  Log lines come this way too — a `console.log` is not OTLP, so the collector never sees one.
-
-**5. Then in GitHub**, under Settings:
+**5. Then in GitHub**, under Settings — **done**:
 
 - **Variables** (not secrets — neither is sensitive, and a variable is visible in the log, which is
-  what you want when a deploy goes to the wrong place): `AWS_ACCOUNT_ID` and `AWS_REGION`.
-- **Environments → `production`**, with a required reviewer. That environment is not decoration:
-  the prod role's trust policy only accepts a token whose subject is
-  `repo:<owner>/<repo>:environment:production`, so **the approval is what makes the credentials
-  issuable at all**. Without the environment, the prod deploy cannot authenticate, gate or no gate.
+  what you want when a deploy goes to the wrong place): `AWS_ACCOUNT_ID` = `096695166445`,
+  `AWS_REGION` = `us-east-1`.
+- **Environments → `backend-production`**, with a required reviewer. That environment is not
+  decoration: the prod role's trust policy only accepts a token whose subject is
+  `repo:<owner>/<repo>:environment:backend-production`, so **the approval is what makes the
+  credentials issuable at all**. Without the environment, the prod deploy cannot authenticate, gate
+  or no gate.
+  - **Not `production`.** GitHub environment names are case-insensitive and `Production` in this
+    repository belongs to Vercel, which deploys the website on every push to `main`. A required
+    reviewer there would gate the website, and the OIDC subject would carry the stored casing and
+    not match the policy anyway. See `PRODUCTION_ENVIRONMENT` in `lib/deploymentStack.ts`.
 
 Until `AWS_ACCOUNT_ID` is set, the workflow's AWS steps skip themselves and only `cdk synth` runs.
 That is deliberate: a workflow that tried anyway would fail every run on credentials and teach
@@ -234,6 +344,30 @@ everybody to ignore a red tick.
 
 Prod is never automatic. It holds the leaderboards.
 
+**Deploy-on-merge does not fire yet**, and not for a broken reason: every `apps/infra` commit is on
+`release/1.2.0`, and `main` has none of them. It starts working when that branch merges. Until then
+dev is deployed by hand with `npm run deploy:dev`, and the `cdk diff` job on a pull request is the
+part that already runs — which is also the thing that proves the OIDC round trip works.
+
+## Checking it still works
+
+```bash
+export SMOKE_EMAIL=poker.blinds.buzzer.smoke2@gmail.com SMOKE_PASSWORD='…'
+npm run smoke -w @poker/infra
+
+# The authorization check, which needs a second signed-in account:
+export SMOKE_STRANGER_EMAIL=poker.blinds.buzzer.smoke1@gmail.com SMOKE_STRANGER_PASSWORD='…'
+npm run smoke -w @poker/infra -- --as-stranger
+```
+
+19 checks against the live stack: sign-in, `/me` three ways, a seeded hand acted on, the shared
+event with every hole card stripped, the private event with exactly two, a replay refused as stale,
+acting as another player refused, and a non-member refused on both channels. It reads the stack's
+own outputs, refuses to run against anything named `-prod`, and deletes the table it seeded.
+
+**It signs in; it never signs up.** Both accounts must exist and be confirmed, which keeps the pool
+free of accounts nobody meant to create.
+
 ---
 
 ## Build order
@@ -246,8 +380,8 @@ Each step is a PR, CI-checked, and each is deployable on its own.
 2. GitHub OIDC role + `cdk diff` on PRs, deploy-to-dev on merge, prod behind approval.
 3. `cdk bootstrap` — **needs credentials, so this is yours to run.**
 
-**B. Accounts** 4. HTTP API + Cognito JWT authorizer, with one trivial authenticated route to prove the chain. 5. OTel wiring: collector layer, OTLP export to Grafana, structured logs, a first dashboard, the
-alarms above. Cold-start measured and recorded. 6. Replace `stubAuthProvider` with Cognito in the app; environment configuration for dev vs prod. 7. Link the account screens into Settings — the entry point that has been deliberately absent. 8. Account deletion actually deletes server-side data (App Store 5.1.1(v) — the screen exists, the
+**B. Accounts** 4. HTTP API + Cognito JWT authorizer, with one trivial authenticated route to prove the chain. 5. Telemetry: X-Ray tracing, structured logs, the dashboard and the alarms above. Cold-start
+measured and recorded — which is what ended the OpenTelemetry export. 6. Replace `stubAuthProvider` with Cognito in the app; environment configuration for dev vs prod. 7. Link the account screens into Settings — the entry point that has been deliberately absent. 8. Account deletion actually deletes server-side data (App Store 5.1.1(v) — the screen exists, the
 deletion does not).
 
 **C. Sync** 9. The DynamoDB access patterns for groups, players and results; the read/write loop in the Lambda. 10. Groups and leaderboards sync across devices, guest players linkable to accounts.
@@ -264,7 +398,9 @@ back at a machine that has them.
 
 At around 1,000 monthly actives with a tenth of them hosting, measured against published pricing:
 **$10–28/month**, of which the server side is roughly $0.30–0.40 per hosting user — about 2% of any
-plausible subscription price. Grafana Cloud is $0 on the free tier at this volume.
+plausible subscription price. Observability adds about **$1/month** — seven alarms at $0.10 and a
+dashboard — with X-Ray free at this volume. Exporting to Grafana Cloud instead would have added
+$3-9/month for the CloudWatch scrape alone, which is what settled it.
 
 The one unresolved number: **Cognito bills users arriving through a SAML/OIDC identity provider on a
 separate 50-MAU free tier**, then $0.015/MAU, against 10,000 free on Essentials. Whether Sign in
@@ -272,13 +408,15 @@ with Apple and Google land in the normal tier or that one is the difference betw
 $14/month at 1,000 users, and the pricing page names neither provider. **Confirm it against the docs
 or a throwaway pool before step E**, not after.
 
-## What cannot be done from here
+## What still cannot be done from here
 
-- **Deploying anything.** No credentials, and standing up billable cloud resources is not something
-  to do on somebody's behalf.
-- **`cdk bootstrap`**, the OIDC provider, and the Grafana Cloud account.
+The bootstrap, the OIDC provider and the first deploys are done, so that list is shorter than it
+was. What is left needs an account somebody has to create or a console somebody has to open:
+
 - **Apple and Google sign-in credentials**, and the RevenueCat/App Store/Play console work.
 - **Anything needing two physical devices**, which is most of what D is for.
+- **Prod.** One `workflow_dispatch` away, and there is no reason to reach for it before the app is
+  actually talking to dev.
 
-What _can_ be done from here is everything else: the CDK, the handler, the app wiring, the tests,
-and the dashboards-as-code. That is most of the work, and none of it needs a key.
+Everything else — the CDK, the handlers, the app wiring, the tests, the dashboards-as-code — needs
+no key, and dev can now be checked against with `npm run smoke`.

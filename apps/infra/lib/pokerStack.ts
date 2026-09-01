@@ -29,6 +29,7 @@ import {
   Fn,
   RemovalPolicy,
   Stack,
+  Tags,
   type StackProps,
 } from "aws-cdk-lib";
 import {
@@ -53,12 +54,7 @@ import {
   Role,
   ServicePrincipal,
 } from "aws-cdk-lib/aws-iam";
-import {
-  AdotLambdaExecWrapper,
-  AdotLambdaLayerJavaScriptSdkVersion,
-  AdotLayerVersion,
-  Runtime,
-} from "aws-cdk-lib/aws-lambda";
+import { Runtime, Tracing } from "aws-cdk-lib/aws-lambda";
 import { NodejsFunction } from "aws-cdk-lib/aws-lambda-nodejs";
 import { LogGroup } from "aws-cdk-lib/aws-logs";
 import { HttpApi, HttpMethod, type CfnStage } from "aws-cdk-lib/aws-apigatewayv2";
@@ -122,16 +118,6 @@ export type PokerStackProps = StackProps & {
   /** Dollars a month before somebody is warned. Needs an `alertEmail`. */
   monthlyBudgetUsd?: number;
   /**
-   * Export telemetry to Grafana. **Off by default.**
-   *
-   * The collector will not start without an endpoint, so turning this on before
-   * the credential exists takes every route down with it. Deploy, create the
-   * secret, then redeploy with this on.
-   */
-  telemetry?: boolean;
-  /** Where the Grafana OTLP credential lives. Created by hand; never by CDK. */
-  grafanaSecretName?: string;
-  /**
    * Which backend this is.
    *
    * Optional so the tests and a bare `cdk synth` still work — they default to
@@ -167,6 +153,18 @@ export class PokerStack extends Stack {
     const settings = props?.settings ?? settingsFor("prod");
 
     /**
+     * Tags on everything in this stack.
+     *
+     * What a budget would need to filter on. The `poker-dev`
+     * budget currently forecasts the *whole account*, because `CfnBudget` has no
+     * cost filter and this account runs other projects; filtering it means
+     * activating `project` as a cost allocation tag in Billing and waiting for
+     * AWS to backfill it.
+     */
+    Tags.of(this).add("project", "poker");
+    Tags.of(this).add("stage", settings.stage);
+
+    /**
      * Telemetry and the alarms that read it — set up first, because every
      * resource below wants to hand it something.
      */
@@ -174,72 +172,55 @@ export class PokerStack extends Stack {
       settings,
       alertEmail: props?.alertEmail,
       monthlyBudgetUsd: props?.monthlyBudgetUsd,
-      grafanaSecretName: props?.grafanaSecretName,
     });
 
     /**
-     * What every function needs to reach Grafana.
+     * Traces, the AWS-native way.
      *
-     * The ADOT layer ships a collector whose default configuration exports to
-     * X-Ray and nothing else, so the config file bundled beside the handler is
-     * what actually points it at Grafana. The credential is a CloudFormation
-     * dynamic reference: resolved at deploy, so the token is in neither the
-     * repository nor the synthesised template.
+     * **This replaced an OpenTelemetry collector layer, and the reason is a
+     * measurement.** The ADOT layer worked — traces reached Grafana Cloud — and
+     * it cost **~1.9 seconds of cold start** on every function: Identity
+     * 142.9 → 1889.2 ms, TableAction 302.0 → 2267.5 ms, SubscribeAuthorizer
+     * 277.4 → 2160.9 ms, n=6 each. The figure everybody quotes for that layer,
+     * including an earlier version of this comment, is 50-200 ms.
+     *
+     * That is the wrong trade for this app specifically. A table plays one
+     * evening a week, so **most invocations are cold starts** rather than a
+     * rounding error on a warm fleet — and `SubscribeAuthorizer` runs before a
+     * player can see a table, on a three-second timeout, which ~2.2 s of init
+     * very nearly exhausts.
+     *
+     * `Tracing.ACTIVE` costs single-digit milliseconds because the X-Ray daemon
+     * is part of the execution environment rather than a Go binary this
+     * function has to start. What it gives up is vendor neutrality — and that
+     * was always the weakest argument here, in a backend welded to Cognito,
+     * AppSync Events, DynamoDB and CDK. The telemetry was the one portable
+     * piece of something entirely AWS-specific.
+     *
+     * The infrastructure half needs no export at all: API Gateway 5xx, DynamoDB
+     * throttles and AppSync connection errors are already CloudWatch metrics,
+     * which is what the alarms read and what the dashboard draws. Shipping them
+     * to a third party meant paying to copy data out of the place it already
+     * was.
      */
-    const telemetryEnabled = props?.telemetry ?? false;
-    const telemetryEnvironment = {
-      NODE_OPTIONS: "--enable-source-maps",
-      ...(telemetryEnabled
-        ? {
-            OPENTELEMETRY_COLLECTOR_CONFIG_URI: "/var/task/collector.yaml",
-            GRAFANA_OTLP_ENDPOINT: observability.grafanaCredential
-              .secretValueFromJson("otlpEndpoint")
-              .unsafeUnwrap(),
-            GRAFANA_OTLP_AUTH: observability.grafanaCredential
-              .secretValueFromJson("otlpAuth")
-              .unsafeUnwrap(),
-            OTEL_RESOURCE_ATTRIBUTES: `deployment.environment=${settings.stage},service.namespace=poker`,
-          }
-        : {}),
-    };
+    const functionEnvironment = { NODE_OPTIONS: "--enable-source-maps" };
 
     /**
-     * The layer, the wrapper that starts it, and the switch that keeps a
-     * missing credential from taking the API down with it.
+     * How every handler in this stack is bundled. One object, three functions.
      *
-     * **`REGULAR_HANDLER`, not `INSTRUMENT_HANDLER`.** The names invite the
-     * wrong one: `INSTRUMENT_HANDLER` is `/opt/otel-instrument`, which is the
-     * *Python* layer's wrapper. Node wants `/opt/otel-handler`, and the wrong
-     * one fails at init on every single invocation.
-     *
-     * **Off unless asked for**, because the collector refuses to start when its
-     * exporter has no endpoint — which is the state of a fresh account, and
-     * would mean the first deploy of the API returns 502 to everything until
-     * somebody notices the telemetry credential was the cause. Deploy once
-     * without, create the secret, then redeploy with `-c telemetry=true`.
-     *
-     * It costs roughly 50-200 ms on a cold start — which matters here more than
-     * under steady traffic, because a table plays one evening a week and most
-     * invocations *are* cold starts. **Measure it after the first deploy and
-     * write the number down**; if it is bad, the fallback is dropping the layer
-     * and exporting metrics and logs only.
+     * Nothing is copied in beside the bundle any more: the collector
+     * configuration this used to carry went with the collector. Nor is there a
+     * `footer` re-exporting the handler — that existed because esbuild compiles
+     * `export const handler` into a **non-configurable** getter, which made
+     * ADOT's `shimmer` wrap throw `Cannot redefine property: handler` and fail
+     * every invocation. Nothing wraps the handler now. **If an OpenTelemetry
+     * layer is ever added back, that footer has to come back with it**; see the
+     * README.
      */
-    const adotInstrumentation = telemetryEnabled
-      ? {
-          layerVersion: AdotLayerVersion.fromJavaScriptSdkLayerVersion(
-            AdotLambdaLayerJavaScriptSdkVersion.LATEST,
-          ),
-          execWrapper: AdotLambdaExecWrapper.REGULAR_HANDLER,
-        }
-      : undefined;
-
-    /** Copies the collector's configuration in beside the bundled handler. */
-    const bundleCollectorConfig = {
-      beforeBundling: () => [],
-      beforeInstall: () => [],
-      afterBundling: (inputDir: string, outputDir: string) => [
-        `cp ${path.join(inputDir, "apps", "infra", "lib", "lambda", "collector.yaml")} ${outputDir}`,
-      ],
+    const handlerBundling = {
+      minify: true,
+      sourceMap: true,
+      target: "node22",
     };
 
     /**
@@ -383,18 +364,13 @@ export class PokerStack extends Stack {
       // latency is felt. A read that has not answered in three seconds is not
       // going to.
       timeout: Duration.seconds(3),
-      environment: { ...telemetryEnvironment, TABLE_NAME: table.tableName },
-      adotInstrumentation,
+      environment: { ...functionEnvironment, TABLE_NAME: table.tableName },
+      tracing: Tracing.ACTIVE,
       logGroup: new LogGroup(this, "SubscribeAuthorizerLogs", {
         retention: settings.logRetention,
         removalPolicy: RemovalPolicy.DESTROY,
       }),
-      bundling: {
-        minify: true,
-        sourceMap: true,
-        target: "node22",
-        commandHooks: bundleCollectorConfig,
-      },
+      bundling: handlerBundling,
     });
     // Read only. An authorizer has no business writing to the thing it is
     // deciding about.
@@ -416,7 +392,7 @@ export class PokerStack extends Stack {
 
     // What everyone at a table sees: the board, the bets, whose turn it is —
     // and now only if they are at it.
-    new CfnChannelNamespace(this, "TableNamespace", {
+    const tableNamespace = new CfnChannelNamespace(this, "TableNamespace", {
       apiId: eventApi.attrApiId,
       name: TABLE_NAMESPACE,
       handlerConfigs: {
@@ -429,6 +405,22 @@ export class PokerStack extends Stack {
         },
       },
     });
+
+    /**
+     * Build the data source first. **CloudFormation cannot work this out.**
+     *
+     * `dataSourceName` above is a plain string — `"SubscribeAuthorizer"`, not a
+     * `Ref` or a `GetAtt` — because that is the shape AppSync's API takes. A
+     * string carries no dependency, so CloudFormation is free to create the
+     * namespace and the data source in parallel, and on a first deploy it does:
+     * the namespace goes first and fails with `DataSource not found`, rolling
+     * the whole stack back.
+     *
+     * It is invisible in `cdk synth` and invisible on every *subsequent* deploy,
+     * because by then the data source already exists. Only a create from
+     * nothing shows it, which is exactly what a first deploy is — and was.
+     */
+    tableNamespace.addResourceDependency(authorizerSource);
 
     // What only one player sees. The handler is the entire secrecy mechanism.
     new CfnChannelNamespace(this, "PlayerNamespace", {
@@ -452,11 +444,11 @@ export class PokerStack extends Stack {
       memorySize: 512,
       timeout: Duration.seconds(10),
       environment: {
-        ...telemetryEnvironment,
+        ...functionEnvironment,
         TABLE_NAME: table.tableName,
         EVENT_API_HTTP: Fn.getAtt(eventApi.logicalId, "Dns.Http").toString(),
       },
-      adotInstrumentation,
+      tracing: Tracing.ACTIVE,
       // An explicit log group rather than `logRetention`, which is deprecated
       // and, more to the point, deploys a second Lambda whose only job is to
       // call PutRetentionPolicy on the first one's log group.
@@ -467,15 +459,10 @@ export class PokerStack extends Stack {
         // what decides how long that lasts.
         removalPolicy: RemovalPolicy.DESTROY,
       }),
-      bundling: {
-        // `@poker/core` is a private workspace package, so it is bundled rather
-        // than installed. esbuild follows the workspace link and inlines it,
-        // which is why the same rules can run here and on the phone.
-        minify: true,
-        sourceMap: true,
-        target: "node22",
-        commandHooks: bundleCollectorConfig,
-      },
+      // `@poker/core` is a private workspace package, so it is bundled rather
+      // than installed. esbuild follows the workspace link and inlines it,
+      // which is why the same rules can run here and on the phone.
+      bundling: handlerBundling,
     });
 
     table.grantReadWriteData(actionHandler);
@@ -518,14 +505,9 @@ export class PokerStack extends Stack {
       // Bundling a source map does nothing on its own — Node ignores it unless
       // told to load it, so without this every stack trace reads
       // `index.js:1:24310` and the map is dead weight in the artefact.
-      environment: telemetryEnvironment,
-      adotInstrumentation,
-      bundling: {
-        minify: true,
-        sourceMap: true,
-        target: "node22",
-        commandHooks: bundleCollectorConfig,
-      },
+      environment: functionEnvironment,
+      tracing: Tracing.ACTIVE,
+      bundling: handlerBundling,
     });
 
     /**
@@ -631,7 +613,7 @@ export class PokerStack extends Stack {
       threshold: 2_000,
       evaluationPeriods: 2,
       meaning:
-        "A table is waiting on a turn that will not land. Usually DynamoDB contention or a cold start behind the ADOT layer.",
+        "A table is waiting on a turn that will not land. Usually DynamoDB contention, or a cold start on a function nobody has invoked all week.",
     });
     observability.watch("IdentityErrors", {
       metric: identityHandler.metricErrors({ period: Duration.minutes(5) }),
@@ -699,10 +681,72 @@ export class PokerStack extends Stack {
         "DynamoDB itself is erroring. Nothing to fix here; worth knowing before a player reports it.",
     });
 
+    /**
+     * Two players acting on the same instant, repeatedly.
+     *
+     * A single failed conditional write is **not** a fault — it is optimistic
+     * concurrency doing its job, and the client is told `stale` and decides
+     * again. A sustained rate of them is two clients fighting, or a client
+     * retrying against a version it will never win against.
+     *
+     * Hence a threshold well above zero and two periods: the alarm is about a
+     * *pattern*, and one at zero would fire on an ordinary busy hand.
+     */
+    observability.watch("TableContention", {
+      metric: dynamoMetric(
+        table.tableName,
+        "ConditionalCheckFailedRequests",
+        Operation.PUT_ITEM,
+      ),
+      threshold: 20,
+      evaluationPeriods: 2,
+      meaning:
+        "Conditional writes are failing repeatedly. One is normal — the client is told the table moved and decides again — but a sustained rate means two clients are fighting or one is retrying a decision it cannot win.",
+    });
+
+    /**
+     * The failure nobody reports.
+     *
+     * **This is the one thing a Lambda cannot see about itself.** A player whose
+     * subscription drops mid-hand does not get an error; the table simply stops
+     * updating on their phone, and they put it down to the wifi. Nothing in the
+     * handler logs, and no request fails — the connection is what broke, and it
+     * broke in AppSync rather than in any code here.
+     *
+     * Server errors only. `ConnectClientError` and `SubscribeClientError` are
+     * the guard doing its job — a refused subscribe is a *success* for the
+     * thing that refuses non-members — so alarming on them would page somebody
+     * every time the security boundary worked.
+     */
+    observability.watch("RealtimeConnectFailures", {
+      metric: serviceMetric({
+        namespace: "AWS/AppSync",
+        metricName: "ConnectServerError",
+        dimensions: { EventAPIId: eventApi.attrApiId },
+      }),
+      threshold: 0,
+      meaning:
+        "Players cannot connect to the realtime API. Nobody will report this — a table that stops updating looks like a bad connection from the phone.",
+    });
+    observability.watch("RealtimeSubscribeFailures", {
+      metric: serviceMetric({
+        namespace: "AWS/AppSync",
+        metricName: "SubscribeServerError",
+        dimensions: { EventAPIId: eventApi.attrApiId },
+      }),
+      threshold: 0,
+      meaning:
+        "Subscriptions to a table are failing server-side — which is the subscribe authorizer erroring, not refusing. A refusal is a client error and is the guard working.",
+    });
+
+    // Everything watched above, laid out. After the last `watch`, or the
+    // dashboard is missing whatever came later.
+    observability.summarise();
+
     new CfnOutput(this, "AlarmTopicArn", { value: observability.alarms.topicArn });
-    new CfnOutput(this, "GrafanaSecretArn", {
-      value: observability.grafanaCredential.secretArn,
-      description: "Put the Grafana Cloud OTLP endpoint and auth header here",
+    new CfnOutput(this, "DashboardName", {
+      value: observability.dashboard.dashboardName,
+      description: "CloudWatch > Dashboards",
     });
     new CfnOutput(this, "ApiUrl", { value: api.apiEndpoint });
     new CfnOutput(this, "Stage", { value: settings.stage });

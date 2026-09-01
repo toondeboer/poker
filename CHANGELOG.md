@@ -121,6 +121,22 @@ platform-tagged heading (e.g. `## [1.1.3] - 2026-07-20 — Android`) when you cu
   rules once — the same rules the phone runs, which is what stops the two disagreeing. The channel
   names both sides use are defined once and shared, because the app and the server disagreeing
   about them is the kind of mistake that is silent rather than obvious.
+- That backend now actually runs. A development environment is deployed and has been exercised end
+  to end: an account created from a real emailed code, signed in, a hand dealt and acted on, and the
+  cards arriving on the right screens — including the part that matters, which is that a player's
+  hole cards never travel to anybody else's phone and somebody not at the table cannot watch it at
+  all. **Nothing in the app points at it**, deliberately: this release still ships with accounts
+  switched off, because a development server is a thing that gets deleted and rebuilt, and nobody's
+  account should live there. Two faults were found by deploying that no amount of testing beforehand
+  could have: one that would only ever appear on the very first deploy of a fresh environment, and
+  one that would have put an approval step in front of every website update.
+- The server watches itself, and can say so: traces of every request, the numbers behind them, and
+  seven alarms that email when something is actually wrong — one of which has been deliberately set
+  off to check the email arrives. This was first built on an outside monitoring service and then
+  moved onto Amazon's own, because measuring it showed the outside route was adding nearly two
+  seconds to the first request after an idle period — on an app whose whole traffic pattern is one
+  evening a week, so almost every request is that first one. Nobody would have seen a bug; they
+  would have seen the app feeling slow to wake up.
 
 ### Removed
 - The Maestro end-to-end suite (26 flows) is gone. It had rotted while nothing referenced it: a
