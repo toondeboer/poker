@@ -1,18 +1,13 @@
 import { describe, expect, it, vi } from "vitest";
-import {
-  claimParts,
-  deleteAccount,
-  groupIdOf,
-  succession,
-} from "../lib/lambda/deleteAccount";
-import { membershipItem, type MembershipItem } from "../lib/lambda/groupKeys";
+import { claimGroupOf, deleteAccount, groupIdOf } from "../lib/lambda/deleteAccount";
+import { anotherAdmin, heirTo, memberItem, type MemberItem } from "../lib/lambda/groupKeys";
 import type { GroupStore, WriteOutcome } from "../lib/lambda/groupStore";
 
 const member = (
   accountId: string,
   role: "admin" | "member",
   joinedAt: number,
-): MembershipItem => membershipItem(accountId, "g1", role, joinedAt);
+): MemberItem => memberItem("g1", accountId, role, joinedAt);
 
 const ok: WriteOutcome = { status: "ok" };
 
@@ -20,8 +15,8 @@ const store = (overrides: Partial<GroupStore> = {}) => {
   const calls: string[] = [];
   const base = {
     belongings: async () => [
-      { pk: "ACCOUNT#me", sk: "GROUP#g1" },
-      { pk: "ACCOUNT#me", sk: "CLAIM#g1#p1" },
+      { pk: "ACCOUNT#me", sk: "GROUP#g1", role: "member" },
+      { pk: "ACCOUNT#me", sk: "CLAIM#g1", playerId: "p1" },
     ],
     members: async () => [member("me", "member", 1)],
     releaseClaim: async () => {
@@ -32,12 +27,8 @@ const store = (overrides: Partial<GroupStore> = {}) => {
       calls.push("setRole");
       return ok;
     },
-    promoteHeir: async () => {
-      calls.push("promoteHeir");
-      return ok;
-    },
-    adjustAdminCount: async (_g: string, delta: number) => {
-      calls.push(`adminCount${delta > 0 ? "+" : ""}${delta}`);
+    leave: async (_a: string, _g: string, guarantor: string | null) => {
+      calls.push(guarantor ? `leave(guaranteed by ${guarantor})` : "leave");
       return ok;
     },
     forget: async () => {
@@ -49,56 +40,40 @@ const store = (overrides: Partial<GroupStore> = {}) => {
 };
 
 describe("reading the account's own rows", () => {
-  it("splits a claim back into its group and player", () => {
-    expect(claimParts("CLAIM#g1#p1")).toEqual({ groupId: "g1", playerId: "p1" });
+  it("reads a claim's group from its key", () => {
+    // One seat per board means the key names the group and the *item* names the
+    // player — so there is nothing to parse out of the middle of a key.
+    expect(claimGroupOf("CLAIM#g1")).toBe("g1");
+    expect(claimGroupOf("GROUP#g1")).toBeNull();
+    expect(claimGroupOf("CLAIM#")).toBeNull();
   });
 
   it("is not confused by a membership", () => {
-    expect(claimParts("GROUP#g1")).toBeNull();
-    expect(groupIdOf("CLAIM#g1#p1")).toBeNull();
+    expect(groupIdOf("CLAIM#g1")).toBeNull();
     expect(groupIdOf("GROUP#g1")).toBe("g1");
-  });
-
-  it("refuses a malformed claim rather than guessing half of it", () => {
-    expect(claimParts("CLAIM#g1")).toBeNull();
-    expect(claimParts("CLAIM#")).toBeNull();
   });
 });
 
-describe("what happens to a group somebody leaves", () => {
-  it("does nothing when another admin remains", () => {
-    // The common case, and the reason several admins was worth having.
+describe("who guarantees a group still has an admin", () => {
+  it("names another admin rather than counting them", () => {
+    // **Named, not counted.** A number is a read somebody can invalidate before
+    // the write lands; a name becomes a `ConditionCheck` in the same
+    // transaction, which cannot be raced.
     const members = [member("me", "admin", 1), member("you", "admin", 2)];
-    expect(succession(members, "me")).toEqual({ action: "none" });
+    expect(anotherAdmin(members, "me")?.accountId).toBe("you");
   });
 
-  it("does nothing when the leaver was only a member", () => {
-    const members = [member("me", "member", 1), member("you", "admin", 2)];
-    expect(succession(members, "me")).toEqual({ action: "none" });
+  it("finds nobody when the leaver is the only admin", () => {
+    expect(anotherAdmin([member("me", "admin", 1), member("you", "member", 2)], "me")).toBeNull();
   });
 
-  it("promotes the longest-standing member when the last admin goes", () => {
-    // A group with nobody who can manage it can never be renamed or have a
-    // player removed, and there is no support channel to fix that.
+  it("hands an orphaned group to the longest-standing member", () => {
     const members = [
       member("me", "admin", 1),
       member("late", "member", 30),
       member("early", "member", 20),
     ];
-    expect(succession(members, "me")).toEqual({
-      action: "promote",
-      accountId: "early",
-    });
-  });
-
-  it("does not destroy a group even when nobody else is in it", () => {
-    // **It used to.** The decision came from the eventually consistent index,
-    // and a stale read there destroys a group that still has people in it. An
-    // irreversible action on a maybe-stale read is the wrong trade against
-    // leaving a few rows behind.
-    expect(succession([member("me", "admin", 1)], "me")).toEqual({
-      action: "none",
-    });
+    expect(heirTo(members, "me")?.accountId).toBe("early");
   });
 });
 
@@ -138,35 +113,23 @@ describe("the sequence", () => {
     expect(report.claimsReleased).toBe(1);
   });
 
-  it("brings the admin count down when an admin leaves and nobody replaces them", async () => {
-    // **The path that was missing.** With two admins and one deleting their
-    // account, the count stayed at two while one admin remained — and
-    // `setRole`'s `adminCount > 1` guard then permitted demoting the last real
-    // admin, because it was reading a number that no longer described the
-    // group.
+  it("names the remaining admin when leaving a group that has one", async () => {
+    // **This is what replaced a counter.** Departing asserts, in the same
+    // transaction, that a specific other admin still is one — so a concurrent
+    // demotion of that person cannot slip between the decision and the write.
     const { store: s, calls } = store({
       members: async () => [member("me", "admin", 1), member("you", "admin", 2)],
     });
     await deleteAccount("me", s, async () => {});
-    expect(calls).toContain("adminCount-1");
+    expect(calls).toContain("leave(guaranteed by you)");
   });
 
-  it("leaves the count alone when an heir takes over", async () => {
-    // One admin leaves, one arrives. Decrementing here would strand the group
-    // just as surely as never decrementing strands it elsewhere.
-    const { store: s, calls } = store({
-      members: async () => [member("me", "admin", 1), member("you", "member", 2)],
-    });
-    await deleteAccount("me", s, async () => {});
-    expect(calls).not.toContain("adminCount-1");
-  });
-
-  it("leaves the count alone when a plain member leaves", async () => {
+  it("leaves without a guarantor when it was never an admin", async () => {
     const { store: s, calls } = store({
       members: async () => [member("me", "member", 1), member("you", "admin", 2)],
     });
     await deleteAccount("me", s, async () => {});
-    expect(calls).not.toContain("adminCount-1");
+    expect(calls).toContain("leave");
   });
 
   it("promotes an heir when the leaver was the last admin", async () => {
@@ -174,18 +137,16 @@ describe("the sequence", () => {
       members: async () => [member("me", "admin", 1), member("you", "member", 2)],
     });
     const report = await deleteAccount("me", s, async () => {});
-    expect(calls).toContain("promoteHeir");
+    expect(calls).toContain("setRole");
     expect(report.groupsInherited).toEqual(["g1"]);
   });
 
   it("does not claim an inheritance the write refused", async () => {
-    // A stale index can name an heir who has since left. The write is
-    // conditional so it fails rather than inventing a membership — and
-    // reporting it as inherited anyway would tell somebody a group is looked
-    // after when it is not.
+    // Reporting it as inherited anyway would tell somebody a group is looked
+    // after when it is not — and the account leaves either way.
     const { store: s } = store({
       members: async () => [member("me", "admin", 1), member("gone", "member", 2)],
-      promoteHeir: async () => ({ status: "conflict", reason: "heir is no longer a member" }),
+      setRole: async () => ({ status: "conflict", reason: "not a member" }),
     });
     const report = await deleteAccount("me", s, async () => {});
     expect(report.groupsInherited).toEqual([]);

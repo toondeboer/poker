@@ -26,37 +26,44 @@ and are what the app persists locally today. The schema serves those rather than
 
 ## The keys
 
-| Item       | `pk`              | `sk`                         | Holds                               |
-| ---------- | ----------------- | ---------------------------- | ----------------------------------- |
-| Group      | `GROUP#<groupId>` | `META`                       | `name`, `createdAt`, `version`      |
-| Player     | `GROUP#<groupId>` | `PLAYER#<playerId>`          | `name`, `accountId?`, `deletedAt?`  |
-| Result     | `GROUP#<groupId>` | `RESULT#<playedAt>#<id>`     | the `GameResult`, or a tombstone    |
-| Membership | `ACCOUNT#<sub>`   | `GROUP#<groupId>`            | `role: admin \| member`, `joinedAt` |
-| Claim      | `ACCOUNT#<sub>`   | `CLAIM#<groupId>#<playerId>` | `claimedAt`                         |
+| Item       | `pk`              | `sk`                     | Holds                                          |
+| ---------- | ----------------- | ------------------------ | ---------------------------------------------- |
+| Group      | `GROUP#<groupId>` | `META`                   | `name`, `createdAt`, `version`, `inviteToken?` |
+| Player     | `GROUP#<groupId>` | `PLAYER#<playerId>`      | `name`, `accountId?`, `deletedAt?`             |
+| Result     | `GROUP#<groupId>` | `RESULT#<playedAt>#<id>` | the `GameResult`, or a tombstone               |
+| **Member** | `GROUP#<groupId>` | `MEMBER#<accountId>`     | `role`, `joinedAt`                             |
+| Membership | `ACCOUNT#<sub>`   | `GROUP#<groupId>`        | `role`, `joinedAt`                             |
+| Claim      | `ACCOUNT#<sub>`   | `CLAIM#<groupId>`        | `playerId`, `claimedAt`                        |
 
-**One inverted index**, `GSI1PK = sk`, `GSI1SK = pk`, for exactly one question: _who is in this
-group?_ Querying `GSI1PK = GROUP#<id>` returns every `ACCOUNT#…` membership pointing at it.
+**No index.** Two partitions answer everything: a group's own partition holds the board _and_ its
+members, and an account's holds its boards and its claims.
 
-The first draft of this design had no index and I would rather it still did not. It is earned now:
-multiple admins means a group has to know its own members — to list them, and to notice when the
-last admin is leaving — and the alternative is writing every membership twice and keeping the two
-copies honest forever.
+### This is the second schema, and the first one is why
 
-**Authorization never reads the index.** GSI reads are eventually consistent, so a permission check
-against one can pass on a role revoked a second earlier. Every check is a strongly consistent
-`GetItem` on `ACCOUNT#<sub>` / `GROUP#<id>` on the base table. The index is for _listing_, which
-tolerates being a moment stale.
+The first had one membership row plus an inverted index, a separate `SEAT#` item to stop an account
+holding two players, and an `adminCount` on the group. Three review rounds found the same class of
+bug repeatedly, because each of those is an invariant kept in step **by hand** — and fixing one kept
+breaking another. Two of the three fix rounds introduced defects of their own.
 
-Two more things follow from the shape:
+What changed, and what each change makes impossible rather than merely guarded:
 
-**A board is one query.** `pk = GROUP#<id>` returns the group, its players and its results together,
-already ordered — `RESULT#<playedAt>#<id>` sorts by time because `playedAt` leads, and the id only
-breaks ties between two games recorded in the same millisecond.
-
-**Deletion is a query, not a scan.** `pk = ACCOUNT#<sub>` returns every group the account belongs to
-and every player it has claimed. Without the claim items, finding what to unclaim would mean
-scanning every group in the table — and a `Scan` in a deletion path is how deletion quietly stops
-working once there is real data in it.
+- **One seat per board is the shape of a key.** `CLAIM#<groupId>` holds the player, so a second
+  claim collides with the first. The old `CLAIM#<groupId>#<playerId>` could not express the rule at
+  all and needed a second row that had to be created, deleted and remembered everywhere — and was
+  forgotten in two places.
+- **Membership is written twice**, under the group and under the account. That is the duplication
+  the first design rejected as "keeping the copies honest forever", and it was the wrong call: two
+  rows in one transaction are less to keep honest than a counter, a sparse index attribute and a
+  read that might be stale. It also makes _who is in this group_ a **strongly consistent** query, so
+  the decisions resting on it stop being races.
+- **There is no `adminCount`.** "Is there another admin?" is answered by **naming one** and asserting
+  inside the same transaction that they still are — a `ConditionCheck`, which cannot be raced. A
+  count is a read somebody can invalidate before the write lands, and it needed four separate paths
+  to remember to move it. One of them didn't.
+- **There is no index**, which removes a hot partition with it. The obvious inverted index
+  partitions on `sk` — and every poker table row carries the constant `sk: "STATE"`, so every table
+  action in the system would have landed in one index partition, around 1000 WCU/s and not
+  splittable by adaptive capacity.
 
 ## Who may do what
 
@@ -224,18 +231,6 @@ One invite per group rather than many, so "the link" is a thing with one answer.
 and "joined myself" are different states, and the first has no membership item — so today that
 board is invisible to them entirely, which may be right or may be the missing half of joining.
 
-## Changing the index, once it exists
-
-DynamoDB refuses both halves of the obvious approach, and CloudFormation reports each separately:
-
-- _"Cannot update a GSI's KeySchema or Projection. You can create a new GSI with a different name."_
-  The key cannot be altered in place, so a change of shape is a change of **name**.
-- _"Cannot perform more than one GSI creation or deletion in a single update."_ So swapping one for
-  another is **two deploys**: remove, then add.
-
-A fresh environment builds the table and its index in one go and meets neither. This is only the
-migration path, and it is written down because the first attempt at it failed twice in a row.
-
 ## Known gaps
 
 - **An empty group is never deleted.** Account deletion used to tombstone a group whose last member
@@ -244,11 +239,14 @@ migration path, and it is written down because the first attempt at it failed tw
   gone and an emptied group survives with its players and results. Cleaning them up wants a
   deliberate path (a scheduled sweep, or a consistent member count on the group's own item), not a
   guess made during somebody's deletion.
-- **Two admins demoting each other are ordered by a counter, not a lock.** `adminCount` on the
-  group's `META` makes "would this leave nobody in charge?" a _condition on a write_, so only one of
-  two simultaneous demotions can win. What it does not do is survive the count drifting — every
-  path that changes a role has to move it, in the same transaction, or the guard eventually permits
-  what it exists to refuse.
+- **Promotion and departure are two writes, not one.** When the last admin leaves, the heir is
+  promoted and _then_ the leaver departs asserting that heir is an admin. Both orders have a window;
+  this one's leaves the group with **two** admins rather than none, which is the survivable
+  direction.
+- **An emptied group is never deleted.** Deletion used to tombstone a group whose last member was
+  leaving, decided from an eventually consistent read — and a stale one there destroys a group that
+  still has people in it. Cleaning up an empty group wants a deliberate sweep rather than a guess
+  made during somebody else's deletion.
 
 ## Not covered here
 

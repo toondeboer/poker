@@ -16,10 +16,11 @@ import {
   playerKey,
   resultItem,
   resultKey,
+  MAX_STAMP,
   stampSegment,
   tombstone,
-  wouldStrandGroup,
-  type MembershipItem,
+  anotherAdmin,
+  type MemberItem,
 } from "../lib/lambda/groupKeys";
 
 const result = (id: string, playedAt: number): GameResult => ({
@@ -35,7 +36,7 @@ const member = (
   accountId: string,
   role: "admin" | "member",
   joinedAt: number,
-): MembershipItem => membershipItem(accountId, "g1", role, joinedAt);
+): MemberItem => membershipItem(accountId, "g1", role, joinedAt);
 
 describe("keys", () => {
   it("puts a whole board in one partition", () => {
@@ -53,9 +54,16 @@ describe("keys", () => {
     // What makes account deletion a query instead of a scan over every group.
     const partitions = new Set([
       membershipKey("acc", "g1").pk,
-      claimKey("acc", "g1", "p1").pk,
+      claimKey("acc", "g1").pk,
     ]);
     expect([...partitions]).toEqual(["ACCOUNT#acc"]);
+  });
+
+  it("makes one seat per board the shape of the key", () => {
+    // The previous shape carried the player id here and needed a separate
+    // `SEAT#` row to enforce the same rule — a second item to create, delete
+    // and remember everywhere a claim was touched.
+    expect(claimKey("acc", "g1").sk).toBe("CLAIM#g1");
   });
 
   it("looks an invite up by its token alone", () => {
@@ -251,20 +259,17 @@ describe("who may do what", () => {
 });
 
 describe("a group whose last admin leaves", () => {
-  it("notices when nobody would be left to manage it", () => {
-    const members = [member("a", "admin", 1), member("b", "member", 2)];
-    expect(wouldStrandGroup(members, "a")).toBe(true);
-  });
-
-  it("does not fire when another admin remains", () => {
-    // The common case now that groups have several admins: nothing happens.
+  it("names another admin rather than counting them", () => {
+    // **Named, not counted.** A count is a read somebody can invalidate before
+    // the write lands; a name becomes a `ConditionCheck` in the same
+    // transaction and cannot be raced.
     const members = [member("a", "admin", 1), member("b", "admin", 2)];
-    expect(wouldStrandGroup(members, "a")).toBe(false);
+    expect(anotherAdmin(members, "a")?.accountId).toBe("b");
   });
 
-  it("does not fire for a member leaving", () => {
+  it("finds nobody when the leaver is the only admin", () => {
     const members = [member("a", "admin", 1), member("b", "member", 2)];
-    expect(wouldStrandGroup(members, "b")).toBe(false);
+    expect(anotherAdmin(members, "a")).toBeNull();
   });
 
   it("hands the group to the longest-standing member", () => {
@@ -287,6 +292,16 @@ describe("a group whose last admin leaves", () => {
   it("has no heir when the leaver is alone", () => {
     // Caller tombstones the group: nobody else's history is in it.
     expect(heirTo([member("a", "admin", 1)], "a")).toBeNull();
+  });
+});
+
+describe("stamps at the edges", () => {
+  it("does not fall off the end into exponent notation", () => {
+    // `String(1e21)` is `"1e+21"` — not a number, sorts nowhere sensible, and
+    // defeats the padding this whole key rests on.
+    expect(stampSegment(1e21)).toBe(String(MAX_STAMP));
+    expect(stampSegment(Number.POSITIVE_INFINITY)).toHaveLength(13);
+    expect(stampSegment(Number.NaN)).toBe("0".repeat(13));
   });
 });
 

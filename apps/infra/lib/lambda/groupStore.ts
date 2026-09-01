@@ -1,15 +1,20 @@
 /**
  * The I/O half of the group store.
  *
- * Every write here is **conditional on the state it expects**, and that is not
- * defensive habit — it is what makes the whole thing re-runnable. Account
- * deletion is a sequence of writes that can fail halfway, and a step that
- * cannot be repeated safely turns a half-finished deletion into an account
- * nobody can delete *because* it is half deleted.
+ * Every write is **conditional on the state it expects**, which is what makes
+ * the whole thing re-runnable: account deletion is a sequence that can fail
+ * halfway, and a step that cannot be repeated safely turns a half-finished
+ * deletion into an account nobody can delete *because* it is half deleted.
  *
- * Design and reasoning in [SYNC.md](../../SYNC.md); the keys, permissions and
- * tombstones are next door in `groupKeys.ts`, which has no I/O so it can be
- * tested exhaustively.
+ * Two habits carry most of the correctness here, both learned the hard way:
+ *
+ * - **Decisions read the group's own partition, consistently.** Nothing
+ *   important is decided from a read that might be stale.
+ * - **A rule that spans two rows is a transaction with a `ConditionCheck`**,
+ *   not a read followed by a write. The second thing two people can both pass;
+ *   the first only one of them can.
+ *
+ * Keys and permissions are in `groupKeys.ts`, which has no I/O.
  */
 
 import {
@@ -28,123 +33,91 @@ import {
 } from "@aws-sdk/lib-dynamodb";
 import type { GameResult, GroupState, Player } from "@poker/core";
 import {
-  GROUP_REF,
-  MEMBERS_INDEX,
   boardFrom,
   claimKey,
   groupItem,
-  seatKey,
   groupKey,
   inviteKey,
   memberFrom,
+  memberItem,
+  memberKey,
+  membersFrom,
   membershipItem,
   membershipKey,
-  playerItem,
   playerKey,
   resultItem,
   resultKey,
   tombstone,
-  type MembershipItem,
+  type MemberItem,
   type Role,
 } from "./groupKeys";
 
 /** Why a write did not happen. Never an exception for an ordinary refusal. */
 export type WriteOutcome =
   | { status: "ok" }
-  /** Somebody else got there first, or the row this expected is not there. */
   | { status: "conflict"; reason: string };
 
 const OK: WriteOutcome = { status: "ok" };
+const conflict = (reason: string): WriteOutcome => ({ status: "conflict", reason });
 
 export type GroupStore = {
-  /** The whole board in one query, tombstones already dropped. */
   board(groupId: string): Promise<GroupState | null>;
-  /** What this account may do here, or `null` if it is not a member. */
-  membership(accountId: string, groupId: string): Promise<MembershipItem | null>;
-  /** Everyone in a group. Reads the index, so may be a moment stale. */
-  members(groupId: string): Promise<MembershipItem[]>;
+  /** What this account may do here. **Strongly consistent.** */
+  membership(accountId: string, groupId: string): Promise<MemberItem | null>;
+  /** Everyone in a group, from the group's own partition. Consistent. */
+  members(groupId: string): Promise<MemberItem[]>;
   /** Every row under an account — memberships and claims. */
-  belongings(accountId: string): Promise<{ pk: string; sk: string }[]>;
+  belongings(accountId: string): Promise<AccountRow[]>;
+  createGroup(groupId: string, name: string, founder: string, now: number): Promise<WriteOutcome>;
   addPlayer(groupId: string, player: Player): Promise<WriteOutcome>;
   recordGame(groupId: string, result: GameResult): Promise<WriteOutcome>;
   removePlayer(groupId: string, playerId: string, now: number): Promise<WriteOutcome>;
   removeGame(groupId: string, result: GameResult, now: number): Promise<WriteOutcome>;
-  claimPlayer(
+  claimPlayer(accountId: string, groupId: string, playerId: string, now: number): Promise<WriteOutcome>;
+  releaseClaim(accountId: string, groupId: string, playerId: string): Promise<WriteOutcome>;
+  /** Change a role, asserting `guarantor` is still an admin if one is named. */
+  setRole(
     accountId: string,
     groupId: string,
-    playerId: string,
-    now: number,
+    role: Role,
+    guarantor: string | null,
   ): Promise<WriteOutcome>;
-  releaseClaim(
-    accountId: string,
-    groupId: string,
-    playerId: string,
-  ): Promise<WriteOutcome>;
-  setRole(accountId: string, groupId: string, role: Role): Promise<WriteOutcome>;
-  /** Make somebody admin without moving the count — one leaves, one arrives. */
-  promoteHeir(accountId: string, groupId: string): Promise<WriteOutcome>;
-  /**
-   * Move a group's admin count without touching a role.
-   *
-   * For the one path that removes an admin without demoting them: deleting an
-   * account. Leaving the count untouched leaves it claiming an admin who is
-   * gone, and the `adminCount > 1` guard then cheerfully permits demoting the
-   * last real one.
-   */
-  adjustAdminCount(groupId: string, delta: number): Promise<WriteOutcome>;
-  createGroup(
-    groupId: string,
-    name: string,
-    founder: string,
-    now: number,
-  ): Promise<WriteOutcome>;
-  removeGroup(groupId: string, now: number): Promise<WriteOutcome>;
-  /** Replaces whatever invite the group had. Rotating is how one is revoked. */
-  setInvite(groupId: string, token: string, now: number): Promise<WriteOutcome>;
-  /** The group a token opens, or `null`. */
-  groupForInvite(token: string): Promise<string | null>;
-  /** Join a group you were invited to. A no-op if already on it. */
   join(accountId: string, groupId: string, role: Role, now: number): Promise<WriteOutcome>;
+  /** Remove a membership, asserting `guarantor` is still an admin if named. */
+  leave(accountId: string, groupId: string, guarantor: string | null): Promise<WriteOutcome>;
+  setInvite(groupId: string, token: string, previous: string | null, now: number): Promise<WriteOutcome>;
+  groupForInvite(token: string): Promise<string | null>;
+  inviteTokenOf(groupId: string): Promise<string | null>;
   forget(accountId: string, keys: readonly { pk: string; sk: string }[]): Promise<void>;
 };
 
-const conflict = (reason: string): WriteOutcome => ({ status: "conflict", reason });
+export type AccountRow = { pk: string; sk: string; playerId?: string; role?: string };
 
 /**
- * Run a conditional write, turning the *expected* failure into an answer.
- *
- * A failed condition is an ordinary event here — two people claiming the same
- * player, a tombstone for a row somebody already deleted — and an exception
- * would make every caller wrap it. Anything else still throws, because a
- * throttle or a permissions error is not a conflict and must not be reported as
- * one.
+ * `TransactionCanceledException` is **not** a synonym for "somebody got there
+ * first". DynamoDB also cancels for `TransactionConflict` and for throttling,
+ * both retryable, and telling the caller 409 sends them to resolve a conflict
+ * that does not exist.
  */
-/**
- * Did this transaction fail a *condition*, or fail for some other reason?
- *
- * **`TransactionCanceledException` is not a synonym for "somebody got there
- * first".** DynamoDB also cancels a transaction for `TransactionConflict`
- * (another transaction touched the same item), `ProvisionedThroughputExceeded`
- * and `ThrottlingError` — all of which are retryable, and none of which mean
- * what a 409 tells the caller. Reporting a throttle as "already claimed" sends
- * somebody off to resolve a conflict that does not exist.
- */
-const isConditionFailure = (error: TransactionCanceledException): boolean =>
-  (error.CancellationReasons ?? []).some(
+const failedConditionAt = (error: TransactionCanceledException): number =>
+  (error.CancellationReasons ?? []).findIndex(
     (reason) => reason.Code === "ConditionalCheckFailed",
   );
 
 const conditional = async (
   run: () => Promise<unknown>,
-  reason: string,
+  reasons: string | readonly string[],
 ): Promise<WriteOutcome> => {
+  const at = (index: number): string =>
+    typeof reasons === "string" ? reasons : (reasons[index] ?? reasons[0] ?? "refused");
   try {
     await run();
     return OK;
   } catch (error) {
-    if (error instanceof ConditionalCheckFailedException) return conflict(reason);
-    if (error instanceof TransactionCanceledException && isConditionFailure(error)) {
-      return conflict(reason);
+    if (error instanceof ConditionalCheckFailedException) return conflict(at(0));
+    if (error instanceof TransactionCanceledException) {
+      const index = failedConditionAt(error);
+      if (index >= 0) return conflict(at(index));
     }
     throw error;
   }
@@ -153,10 +126,10 @@ const conditional = async (
 /**
  * Read every page.
  *
- * A `Query` stops at 1 MB and hands back a cursor. Ignoring it silently
- * truncates — and the place that hurt most is `DELETE /me`, where the rows this
- * did not return are rows nobody deletes, *after* the Cognito user is gone and
- * no token exists to ask again with.
+ * A `Query` stops at 1 MB and hands back a cursor. Ignoring it truncates
+ * silently — and the place that hurts is `DELETE /me`, where the rows a
+ * truncated query missed are rows nobody deletes, *after* the Cognito user is
+ * gone and no token exists to ask again with.
  */
 const allPages = async (
   send: (start?: Record<string, unknown>) => Promise<{
@@ -174,558 +147,444 @@ const allPages = async (
   return items;
 };
 
+/** Assert somebody is still an admin, as part of somebody else's transaction. */
+const stillAdmin = (tableName: string, groupId: string, accountId: string) => ({
+  ConditionCheck: {
+    TableName: tableName,
+    Key: memberKey(groupId, accountId),
+    ConditionExpression: "#role = :admin",
+    ExpressionAttributeNames: { "#role": "role" },
+    ExpressionAttributeValues: { ":admin": "admin" },
+  },
+});
+
 export const createGroupStore = (
   tableName: string,
   client: DynamoDBDocumentClient = DynamoDBDocumentClient.from(
     new DynamoDBClient({}),
     { marshallOptions: { removeUndefinedValues: true } },
   ),
-): GroupStore => ({
-  async board(groupId) {
-    const items = await allPages((start) =>
+): GroupStore => {
+  const groupPartition = (groupId: string) =>
+    allPages((start) =>
       client.send(
         new QueryCommand({
           TableName: tableName,
           KeyConditionExpression: "pk = :pk",
           ExpressionAttributeValues: { ":pk": groupKey(groupId).pk },
-          // The board is what the caller is about to act on, so an eventually
-          // consistent read could hand back a player somebody just removed.
           ConsistentRead: true,
           ExclusiveStartKey: start,
         }),
       ),
     );
-    return boardFrom(groupId, items);
-  },
 
-  async membership(accountId, groupId) {
-    const result = await client.send(
-      new GetCommand({
-        TableName: tableName,
-        Key: membershipKey(accountId, groupId),
-        // **Strongly consistent, always.** This is the permission check. An
-        // eventually consistent read can carry a role that was revoked a
-        // second ago, which is a demoted admin still being able to delete.
-        ConsistentRead: true,
-      }),
-    );
-    return memberFrom(result.Item);
-  },
+  return {
+    async board(groupId) {
+      return boardFrom(groupId, await groupPartition(groupId));
+    },
 
-  async members(groupId) {
-    // The index, and the only thing that reads it. Listing tolerates being a
-    // moment stale; authorization does not, which is why it is above and not
-    // built on top of this.
-    const items = await allPages((start) =>
-      client.send(
-        new QueryCommand({
+    async membership(accountId, groupId) {
+      // **Strongly consistent, always.** This is the permission check, and an
+      // eventually consistent read can carry a role revoked a second ago.
+      const result = await client.send(
+        new GetCommand({
           TableName: tableName,
-          IndexName: MEMBERS_INDEX,
-          KeyConditionExpression: "#ref = :ref",
-          ExpressionAttributeNames: { "#ref": GROUP_REF },
-          ExpressionAttributeValues: { ":ref": `GROUP#${groupId}` },
-          ExclusiveStartKey: start,
-        }),
-      ),
-    );
-    return items.map(memberFrom).filter((m): m is MembershipItem => m !== null);
-  },
-
-  async belongings(accountId) {
-    const items = await allPages((start) =>
-      client.send(
-        new QueryCommand({
-          TableName: tableName,
-          KeyConditionExpression: "pk = :pk",
-          ExpressionAttributeValues: { ":pk": `ACCOUNT#${accountId}` },
-          ProjectionExpression: "pk, sk",
+          Key: memberKey(groupId, accountId),
           ConsistentRead: true,
-          ExclusiveStartKey: start,
         }),
-      ),
-    );
-    return items as { pk: string; sk: string }[];
-  },
-
-  addPlayer(groupId, player) {
-    /**
-     * **An `Update`, not a `Put`, and not over a tombstone.**
-     *
-     * Two failures, one line. A `Put` replaces the whole row, so a replayed
-     * offline add — the exact thing this is written to tolerate — wipes the
-     * `accountId` of whoever had claimed that player, orphaning their `SEAT#`
-     * row and locking them out of ever claiming again. An `Update` touches only
-     * the name.
-     *
-     * And the condition is on `deletedAt` rather than existence: a replay
-     * landing on a row somebody has since deleted would otherwise resurrect it,
-     * which is what the whole tombstone scheme exists to prevent.
-     */
-    return conditional(
-      () =>
-        client.send(
-          new UpdateCommand({
-            TableName: tableName,
-            Key: playerKey(groupId, player.id),
-            UpdateExpression: "SET #name = :name, playerId = :id",
-            ExpressionAttributeNames: { "#name": "name" },
-            ExpressionAttributeValues: { ":name": player.name, ":id": player.id },
-            ConditionExpression: "attribute_not_exists(deletedAt)",
-          }),
-        ),
-      "that player was removed",
-    );
-  },
-
-  recordGame(groupId, result) {
-    /**
-     * **Create only.** A `Put` conditional merely on the tombstone lets any
-     * member re-POST an `id` and `playedAt` they were handed by
-     * `GET /groups/{groupId}` and overwrite a recorded game with an emptier
-     * one — deleting it in all but name, and routing straight around the
-     * admin-only removal rule.
-     *
-     * `attribute_not_exists(pk)` also covers the tombstone, since a tombstone
-     * is a row. A genuine offline replay gets a conflict, which is the honest
-     * answer: the game is already recorded.
-     */
-    return conditional(
-      () =>
-        client.send(
-          new PutCommand({
-            TableName: tableName,
-            Item: resultItem(groupId, result),
-            ConditionExpression: "attribute_not_exists(pk)",
-          }),
-        ),
-      "already recorded",
-    );
-  },
-
-  async removePlayer(groupId, playerId, now) {
-    const key = playerKey(groupId, playerId);
-    // Who held this player, so their claim and seat go with it. Without this
-    // the seat outlives the player, and — now that a seat is one per board —
-    // that account can never claim a replacement, short of deleting itself.
-    const existing = await client.send(
-      new GetCommand({ TableName: tableName, Key: key, ConsistentRead: true }),
-    );
-    const holder = (existing.Item as { accountId?: unknown } | undefined)?.accountId;
-    const claimer = typeof holder === "string" ? holder : null;
-
-    return conditional(
-      () =>
-        client.send(
-          new TransactWriteCommand({
-            TransactItems: [
-              {
-                Put: {
-                  TableName: tableName,
-                  Item: tombstone(key, now),
-                  // The row has to be there. Without this a tombstone for a
-                  // mistyped id creates a row that means "a thing that never
-                  // existed is deleted", and the real one carries on.
-                  ConditionExpression: "attribute_exists(pk)",
-                },
-              },
-              ...(claimer
-                ? [
-                    { Delete: { TableName: tableName, Key: claimKey(claimer, groupId, playerId) } },
-                    { Delete: { TableName: tableName, Key: seatKey(claimer, groupId) } },
-                  ]
-                : []),
-            ],
-          }),
-        ),
-      "no such player",
-    );
-  },
-
-  removeGame(groupId, result, now) {
-    // Rebuilt from the result the caller holds, because the sort key carries
-    // `playedAt` and the app deletes by id alone. Safe only while a recorded
-    // game is immutable — see SYNC.md. The condition is what makes a wrong key
-    // fail loudly rather than orphan a tombstone.
-    const key = resultKey(groupId, result.playedAt, result.id);
-    return conditional(
-      () =>
-        client.send(
-          new PutCommand({
-            TableName: tableName,
-            Item: tombstone(key, now),
-            ConditionExpression: "attribute_exists(pk)",
-          }),
-        ),
-      "no such game",
-    );
-  },
-
-  async claimPlayer(accountId, groupId, playerId, now) {
-    /**
-     * The one contended write, and the only transaction here.
-     *
-     * Three items, all or none. A claim without the player update would show
-     * an account a board it is not on; the player updated without the claim
-     * would be invisible to account deletion, which finds what to release by
-     * reading the account's own partition.
-     */
-    /**
-     * Which of these failed decides what the caller is told.
-     *
-     * All four cancellations used to collapse into "already claimed", so "you
-     * already hold a seat on this board" and "there is no such player" both
-     * read as *somebody else took this person* — which is a different problem
-     * with a different fix, and sends people looking for the wrong one.
-     */
-    const REASONS = [
-      "you have already claimed this player",
-      "you already hold a seat on this board",
-      "somebody else has claimed that player",
-      "could not join the board",
-    ];
-    try {
-      await client.send(
-          new TransactWriteCommand({
-            TransactItems: [
-              {
-                Put: {
-                  TableName: tableName,
-                  Item: { ...claimKey(accountId, groupId, playerId), claimedAt: now },
-                  ConditionExpression: "attribute_not_exists(pk)",
-                },
-              },
-              {
-                /**
-                 * One seat per board.
-                 *
-                 * The claim key carries the *player*, so on its own it stops
-                 * two accounts holding one person and does nothing about one
-                 * account holding two people. `@poker/core` enforces one seat
-                 * locally and SYNC.md says the server does; without this it did
-                 * not, and one account could occupy half a leaderboard and
-                 * double-count its own nights.
-                 */
-                Put: {
-                  TableName: tableName,
-                  Item: { ...seatKey(accountId, groupId), playerId, claimedAt: now },
-                  ConditionExpression: "attribute_not_exists(pk)",
-                },
-              },
-              {
-                Update: {
-                  TableName: tableName,
-                  Key: playerKey(groupId, playerId),
-                  UpdateExpression: "SET accountId = :account",
-                  ExpressionAttributeValues: { ":account": accountId },
-                  // Nobody else has this player, and the player exists. One
-                  // person is one seat; a second claim is refused rather than
-                  // overwriting somebody.
-                  ConditionExpression:
-                    "attribute_exists(pk) AND attribute_not_exists(accountId)",
-                },
-              },
-              {
-                /**
-                 * Join the board, unless already on it.
-                 *
-                 * **An upsert, not a conditional `Put`**, and the difference is
-                 * not stylistic. A `Put` guarded by `attribute_not_exists(pk)`
-                 * fails for anybody who is already a member — which is almost
-                 * everybody claiming a player — and because a transaction is
-                 * all-or-nothing that cancelled the entire claim. Claiming on a
-                 * board you were already on could never succeed.
-                 *
-                 * `if_not_exists` gives both halves at once: the row appears
-                 * for somebody joining by claiming, and an existing admin keeps
-                 * the role and the `joinedAt` that decides who inherits the
-                 * group. No condition, so it cannot fail the transaction.
-                 */
-                Update: {
-                  TableName: tableName,
-                  Key: membershipKey(accountId, groupId),
-                  UpdateExpression:
-                    "SET #role = if_not_exists(#role, :member), joinedAt = if_not_exists(joinedAt, :now), accountId = :account, groupId = :group",
-                  ExpressionAttributeNames: { "#role": "role" },
-                  ExpressionAttributeValues: {
-                    ":member": "member",
-                    ":now": now,
-                    ":account": accountId,
-                    ":group": groupId,
-                  },
-                },
-              },
-            ],
-          }),
       );
-      return OK;
-    } catch (error) {
-      if (error instanceof TransactionCanceledException) {
-        // Positional: `CancellationReasons` comes back in the order the items
-        // were sent, so the first failed one names the rule that refused.
-        const failed = (error.CancellationReasons ?? []).findIndex(
-          (reason) => reason.Code === "ConditionalCheckFailed",
-        );
-        if (failed >= 0) return conflict(REASONS[failed] ?? "already claimed");
-      }
-      throw error;
-    }
-  },
+      return memberFrom(result.Item);
+    },
 
-  releaseClaim(accountId, groupId, playerId) {
-    // Used by account deletion. The player and every game they played stay —
-    // the board refers to the person, not the account, so nobody else loses
-    // anything when somebody leaves.
-    return conditional(
-      () =>
+    async members(groupId) {
+      // The group's own partition, so this is consistent too — which is the
+      // whole reason membership is written twice. The previous design read an
+      // index here and every decision resting on it was a race.
+      return membersFrom(await groupPartition(groupId));
+    },
+
+    async belongings(accountId) {
+      const items = await allPages((start) =>
         client.send(
-          new UpdateCommand({
+          new QueryCommand({
             TableName: tableName,
-            Key: playerKey(groupId, playerId),
-            UpdateExpression: "REMOVE accountId",
-            // Only if it is still this account's. Between reading the claim and
-            // writing this, the player may have been released and re-claimed by
-            // somebody else, and clearing that would unclaim the wrong person.
-            ConditionExpression: "accountId = :account",
-            ExpressionAttributeValues: { ":account": accountId },
-          }),
-        ),
-      "claim already released",
-    );
-  },
-
-  setRole(accountId, groupId, role) {
-    /**
-     * A role and the group's admin count, in one transaction.
-     *
-     * **The count is what makes "would this leave nobody in charge?" safe to
-     * ask.** Reading the members and then writing is a check that two people
-     * can both pass: two admins demoting each other at the same moment each see
-     * another admin, each proceed, and the group is left unmanageable — with no
-     * support channel to undo it. As a condition on the write, only one of them
-     * can win.
-     *
-     * The role condition also keeps the count honest: promoting somebody who is
-     * already an admin would increment it for nothing, and a count that drifts
-     * above the truth eventually permits the demotion it exists to refuse.
-     */
-    const demoting = role === "member";
-    return conditional(
-      () =>
-        client.send(
-          new TransactWriteCommand({
-            TransactItems: [
-              {
-                Update: {
-                  TableName: tableName,
-                  Key: membershipKey(accountId, groupId),
-                  UpdateExpression: "SET #role = :role",
-                  ExpressionAttributeNames: { "#role": "role" },
-                  ExpressionAttributeValues: {
-                    ":role": role,
-                    ":other": demoting ? "member" : "admin",
-                  },
-                  // Exists, and is not already the role being set — otherwise
-                  // the counter below moves without the role moving.
-                  ConditionExpression:
-                    "attribute_exists(pk) AND #role <> :other",
-                },
-              },
-              {
-                Update: {
-                  TableName: tableName,
-                  Key: groupKey(groupId),
-                  UpdateExpression: "SET adminCount = adminCount + :delta",
-                  ExpressionAttributeValues: demoting
-                    ? { ":delta": -1, ":floor": 1 }
-                    : { ":delta": 1 },
-                  // Never below one. This is the whole guard.
-                  ConditionExpression: demoting
-                    ? "adminCount > :floor"
-                    : "attribute_exists(pk)",
-                },
-              },
-            ],
-          }),
-        ),
-      demoting ? "a group needs at least one admin" : "already an admin",
-    );
-  },
-
-  /**
-   * Promote an heir when the last admin is leaving.
-   *
-   * Separate from `setRole` because the count does **not** move: one admin is
-   * going and one is arriving. Conditional on the heir still being a member, so
-   * a stale index that named somebody who has since left fails loudly rather
-   * than creating a membership out of nothing.
-   */
-  promoteHeir(accountId, groupId) {
-    return conditional(
-      () =>
-        client.send(
-          new UpdateCommand({
-            TableName: tableName,
-            Key: membershipKey(accountId, groupId),
-            UpdateExpression: "SET #role = :admin",
+            KeyConditionExpression: "pk = :pk",
+            ExpressionAttributeValues: { ":pk": `ACCOUNT#${accountId}` },
+            // `playerId` and `role` come too: deletion needs to know which
+            // player a claim held and whether this account was an admin, and
+            // re-reading each row to find out is a read per row.
+            ProjectionExpression: "pk, sk, playerId, #role",
             ExpressionAttributeNames: { "#role": "role" },
-            ExpressionAttributeValues: { ":admin": "admin" },
-            ConditionExpression: "attribute_exists(pk)",
+            ConsistentRead: true,
+            ExclusiveStartKey: start,
           }),
         ),
-      "heir is no longer a member",
-    );
-  },
-
-  createGroup(groupId, name, founder, now) {
-    /**
-     * A group and its first admin, together or not at all.
-     *
-     * A group with no membership is invisible to the person who made it — they
-     * would create a board and immediately be a stranger to it, because
-     * membership is what authorization reads. And **`admin`**, because a group
-     * whose creator is a member could never have a player removed from it by
-     * anybody.
-     */
-    return conditional(
-      () =>
-        client.send(
-          new TransactWriteCommand({
-            TransactItems: [
-              {
-                Put: {
-                  TableName: tableName,
-                  Item: { ...groupItem(groupId, { name, createdAt: now }, 1) },
-                  ConditionExpression: "attribute_not_exists(pk)",
-                },
-              },
-              {
-                Put: {
-                  TableName: tableName,
-                  Item: membershipItem(founder, groupId, "admin", now),
-                  ConditionExpression: "attribute_not_exists(pk)",
-                },
-              },
-            ],
-          }),
-        ),
-      "group exists",
-    );
-  },
-
-  removeGroup(groupId, now) {
-    // Only reached when the last member of a group deletes their account:
-    // nobody else's history is in it. The players and results are left to their
-    // own TTL rather than deleted one by one — the group row is what every read
-    // starts from, so without it the board is already gone.
-    return conditional(
-      () =>
-        client.send(
-          new PutCommand({
-            TableName: tableName,
-            Item: tombstone(groupKey(groupId), now),
-            ConditionExpression: "attribute_exists(pk)",
-          }),
-        ),
-      "no such group",
-    );
-  },
-
-  async setInvite(groupId, token, now) {
-    // Rotation is the only revocation there is: a link that does not expire can
-    // be undone only by making the old token stop resolving. The old row is
-    // deleted first, so a crash between the two leaves a group with no working
-    // invite rather than two working ones.
-    // Consistent: two rotations in quick succession off a stale read would each
-    // delete a token the other had already replaced, and leave two links
-    // working — the one state the design says a group cannot be in, given
-    // rotation is the only revocation an invite that never expires has.
-    const previous = await client.send(
-      new GetCommand({
-        TableName: tableName,
-        Key: groupKey(groupId),
-        ConsistentRead: true,
-      }),
-    );
-    const old = (previous.Item as { inviteToken?: string } | undefined)?.inviteToken;
-    if (old && old !== token) {
-      await client.send(
-        new DeleteCommand({ TableName: tableName, Key: inviteKey(old) }),
       );
-    }
-    return conditional(
-      () =>
-        client.send(
-          new TransactWriteCommand({
-            TransactItems: [
-              {
-                Put: {
-                  TableName: tableName,
-                  Item: { ...inviteKey(token), groupId, createdAt: now },
+      return items as AccountRow[];
+    },
+
+    createGroup(groupId, name, founder, now) {
+      // The group and its first admin — both copies of the membership — or
+      // nothing. A group whose creator is only a member is one nobody could
+      // ever remove a player from.
+      return conditional(
+        () =>
+          client.send(
+            new TransactWriteCommand({
+              TransactItems: [
+                {
+                  Put: {
+                    TableName: tableName,
+                    Item: groupItem(groupId, { name, createdAt: now }),
+                    ConditionExpression: "attribute_not_exists(pk)",
+                  },
                 },
-              },
-              {
-                Update: {
-                  TableName: tableName,
-                  Key: groupKey(groupId),
-                  UpdateExpression: "SET inviteToken = :token",
-                  ExpressionAttributeValues: { ":token": token },
-                  ConditionExpression: "attribute_exists(pk)",
+                { Put: { TableName: tableName, Item: memberItem(groupId, founder, "admin", now) } },
+                { Put: { TableName: tableName, Item: membershipItem(founder, groupId, "admin", now) } },
+              ],
+            }),
+          ),
+        "group exists",
+      );
+    },
+
+    addPlayer(groupId, player) {
+      /**
+       * An `Update`, not a `Put`, and not over a tombstone.
+       *
+       * A `Put` replaces the whole row, so a replayed offline add — the thing
+       * this is written to tolerate — wipes the `accountId` of whoever claimed
+       * that player. And the condition is on `deletedAt` rather than existence,
+       * because a replay landing on a deleted row would otherwise resurrect it.
+       */
+      return conditional(
+        () =>
+          client.send(
+            new UpdateCommand({
+              TableName: tableName,
+              Key: playerKey(groupId, player.id),
+              UpdateExpression: "SET #name = :name, playerId = :id",
+              ExpressionAttributeNames: { "#name": "name" },
+              ExpressionAttributeValues: { ":name": player.name, ":id": player.id },
+              ConditionExpression: "attribute_not_exists(deletedAt)",
+            }),
+          ),
+        "that player was removed",
+      );
+    },
+
+    recordGame(groupId, result) {
+      /**
+       * **Create only.** A condition merely on the tombstone lets any member
+       * re-POST an `id` and `playedAt` the board just handed them and overwrite
+       * a recorded game with an emptier one — deleting it in all but name, and
+       * routing straight around the admin-only removal rule.
+       */
+      return conditional(
+        () =>
+          client.send(
+            new PutCommand({
+              TableName: tableName,
+              Item: resultItem(groupId, result),
+              ConditionExpression: "attribute_not_exists(pk)",
+            }),
+          ),
+        "already recorded",
+      );
+    },
+
+    async removePlayer(groupId, playerId, now) {
+      const key = playerKey(groupId, playerId);
+      const existing = await client.send(
+        new GetCommand({ TableName: tableName, Key: key, ConsistentRead: true }),
+      );
+      const holder = (existing.Item as { accountId?: unknown } | undefined)?.accountId;
+      const claimer = typeof holder === "string" ? holder : null;
+
+      // The claim goes with the player. Conditional on the holder *still* being
+      // who we read, so a claim landing in between is not silently discarded —
+      // the whole thing fails and the caller tries again against the truth.
+      return conditional(
+        () =>
+          client.send(
+            new TransactWriteCommand({
+              TransactItems: [
+                {
+                  Put: {
+                    TableName: tableName,
+                    Item: tombstone(key, now),
+                    ConditionExpression: claimer
+                      ? "attribute_exists(pk) AND accountId = :holder"
+                      : "attribute_exists(pk) AND attribute_not_exists(accountId)",
+                    ExpressionAttributeValues: claimer ? { ":holder": claimer } : undefined,
+                  },
                 },
-              },
-            ],
-          }),
-        ),
-      "no such group",
-    );
-  },
+                ...(claimer
+                  ? [{ Delete: { TableName: tableName, Key: claimKey(claimer, groupId) } }]
+                  : []),
+              ],
+            }),
+          ),
+        "the player changed while it was being removed",
+      );
+    },
 
-  async groupForInvite(token) {
-    const result = await client.send(
-      new GetCommand({ TableName: tableName, Key: inviteKey(token), ConsistentRead: true }),
-    );
-    const groupId = (result.Item as { groupId?: unknown } | undefined)?.groupId;
-    return typeof groupId === "string" && groupId.length > 0 ? groupId : null;
-  },
+    removeGame(groupId, result, now) {
+      // Rebuilt from the result the caller holds, because the sort key carries
+      // `playedAt` and the app deletes by id alone. Safe only while a recorded
+      // game is immutable. The condition makes a wrong key fail loudly rather
+      // than orphan a tombstone.
+      return conditional(
+        () =>
+          client.send(
+            new PutCommand({
+              TableName: tableName,
+              Item: tombstone(resultKey(groupId, result.playedAt, result.id), now),
+              ConditionExpression: "attribute_exists(pk)",
+            }),
+          ),
+        "no such game",
+      );
+    },
 
-  join(accountId, groupId, role, now) {
-    // Conditional so redeeming a link twice does not reset an admin who
-    // already belongs back down to `member`. A second redemption is a no-op,
-    // which is what somebody tapping a pinned link again expects.
-    return conditional(
-      () =>
-        client.send(
-          new PutCommand({
-            TableName: tableName,
-            Item: membershipItem(accountId, groupId, role, now),
-            ConditionExpression: "attribute_not_exists(pk)",
-          }),
-        ),
-      "already a member",
-    );
-  },
+    claimPlayer(accountId, groupId, playerId, now) {
+      /**
+       * One transaction, and **one seat per board falls out of the key**: the
+       * claim is `CLAIM#<groupId>`, so a second claim on the same board
+       * collides with the first. There is no separate seat row to create,
+       * delete, or forget about.
+       *
+       * The membership is an upsert rather than a conditional `Put`: guarded by
+       * `attribute_not_exists`, it fails for anybody already a member — almost
+       * everybody claiming — and cancels the whole transaction.
+       */
+      const membershipUpsert = (key: { pk: string; sk: string }) => ({
+        Update: {
+          TableName: tableName,
+          Key: key,
+          UpdateExpression:
+            "SET #role = if_not_exists(#role, :member), joinedAt = if_not_exists(joinedAt, :now), accountId = :account, groupId = :group",
+          ExpressionAttributeNames: { "#role": "role" },
+          ExpressionAttributeValues: {
+            ":member": "member",
+            ":now": now,
+            ":account": accountId,
+            ":group": groupId,
+          },
+        },
+      });
 
-  adjustAdminCount(groupId, delta) {
-    return conditional(
-      () =>
-        client.send(
-          new UpdateCommand({
-            TableName: tableName,
-            Key: groupKey(groupId),
-            UpdateExpression: "SET adminCount = adminCount + :delta",
-            ExpressionAttributeValues: { ":delta": delta },
-            ConditionExpression: "attribute_exists(pk)",
-          }),
-        ),
-      "no such group",
-    );
-  },
+      return conditional(
+        () =>
+          client.send(
+            new TransactWriteCommand({
+              TransactItems: [
+                {
+                  Put: {
+                    TableName: tableName,
+                    Item: { ...claimKey(accountId, groupId), playerId, claimedAt: now },
+                    ConditionExpression: "attribute_not_exists(pk)",
+                  },
+                },
+                {
+                  Update: {
+                    TableName: tableName,
+                    Key: playerKey(groupId, playerId),
+                    UpdateExpression: "SET accountId = :account",
+                    ExpressionAttributeValues: { ":account": accountId },
+                    ConditionExpression:
+                      "attribute_exists(pk) AND attribute_not_exists(accountId) AND attribute_not_exists(deletedAt)",
+                  },
+                },
+                membershipUpsert(memberKey(groupId, accountId)),
+                membershipUpsert(membershipKey(accountId, groupId)),
+              ],
+            }),
+          ),
+        [
+          "you already hold a seat on this board",
+          "somebody else has claimed that player",
+        ],
+      );
+    },
 
-  async forget(accountId, keys) {
-    // Unconditional deletes, and deliberately: this runs last in account
-    // deletion, and a delete of something already deleted has to be a success
-    // or the whole sequence stops being re-runnable.
-    for (const key of keys) {
-      await client.send(new DeleteCommand({ TableName: tableName, Key: key }));
-    }
-  },
-});
+    releaseClaim(accountId, groupId, playerId) {
+      // The player and every game they played stay: a board refers to the
+      // person, not the account. Conditional on it still being this account's,
+      // because in between the player may have been released and re-claimed.
+      return conditional(
+        () =>
+          client.send(
+            new UpdateCommand({
+              TableName: tableName,
+              Key: playerKey(groupId, playerId),
+              UpdateExpression: "REMOVE accountId",
+              ConditionExpression: "accountId = :account",
+              ExpressionAttributeValues: { ":account": accountId },
+            }),
+          ),
+        "claim already released",
+      );
+    },
+
+    setRole(accountId, groupId, role, guarantor) {
+      /**
+       * Both copies of the membership, and — when demoting — an assertion that
+       * a **named** other admin is still an admin.
+       *
+       * That assertion is the whole guard, and it is why there is no counter.
+       * Reading "is there another admin?" and then writing is something two
+       * people can both pass: two admins demoting each other each see the
+       * other, each proceed, and the group is left unmanageable. As a
+       * `ConditionCheck` in the same transaction, exactly one of them wins.
+       */
+      const update = (key: { pk: string; sk: string }) => ({
+        Update: {
+          TableName: tableName,
+          Key: key,
+          UpdateExpression: "SET #role = :role",
+          ExpressionAttributeNames: { "#role": "role" },
+          ExpressionAttributeValues: { ":role": role },
+          ConditionExpression: "attribute_exists(pk)",
+        },
+      });
+      return conditional(
+        () =>
+          client.send(
+            new TransactWriteCommand({
+              TransactItems: [
+                update(memberKey(groupId, accountId)),
+                update(membershipKey(accountId, groupId)),
+                ...(guarantor ? [stillAdmin(tableName, groupId, guarantor)] : []),
+              ],
+            }),
+          ),
+        ["not a member", "not a member", "a group needs at least one admin"],
+      );
+    },
+
+    join(accountId, groupId, role, now) {
+      // Conditional so redeeming a pinned link twice does not reset an admin
+      // back to member. A second redemption is a no-op, which is what somebody
+      // tapping the link again expects.
+      return conditional(
+        () =>
+          client.send(
+            new TransactWriteCommand({
+              TransactItems: [
+                {
+                  Put: {
+                    TableName: tableName,
+                    Item: memberItem(groupId, accountId, role, now),
+                    ConditionExpression: "attribute_not_exists(pk)",
+                  },
+                },
+                {
+                  Put: {
+                    TableName: tableName,
+                    Item: membershipItem(accountId, groupId, role, now),
+                    ConditionExpression: "attribute_not_exists(pk)",
+                  },
+                },
+              ],
+            }),
+          ),
+        "already a member",
+      );
+    },
+
+    leave(accountId, groupId, guarantor) {
+      // Both copies go together, and if this account was the last admin the
+      // caller has already named who is taking over — asserted here so a
+      // concurrent change cannot slip between the decision and the write.
+      return conditional(
+        () =>
+          client.send(
+            new TransactWriteCommand({
+              TransactItems: [
+                { Delete: { TableName: tableName, Key: memberKey(groupId, accountId) } },
+                { Delete: { TableName: tableName, Key: membershipKey(accountId, groupId) } },
+                ...(guarantor ? [stillAdmin(tableName, groupId, guarantor)] : []),
+              ],
+            }),
+          ),
+        ["could not leave", "could not leave", "the group would be left with no admin"],
+      );
+    },
+
+    setInvite(groupId, token, previous, now) {
+      /**
+       * Rotation is the only revocation an invite that never expires has, so a
+       * group must never end up with two working links. The old token's row is
+       * deleted in the **same transaction** that writes the new one, and the
+       * group's own row is updated conditional on still carrying the token the
+       * caller read — so two concurrent rotations cannot both succeed.
+       */
+      return conditional(
+        () =>
+          client.send(
+            new TransactWriteCommand({
+              TransactItems: [
+                {
+                  Put: {
+                    TableName: tableName,
+                    Item: { ...inviteKey(token), groupId, createdAt: now },
+                  },
+                },
+                {
+                  Update: {
+                    TableName: tableName,
+                    Key: groupKey(groupId),
+                    UpdateExpression: "SET inviteToken = :token",
+                    ExpressionAttributeValues: previous
+                      ? { ":token": token, ":previous": previous }
+                      : { ":token": token },
+                    ConditionExpression: previous
+                      ? "inviteToken = :previous"
+                      : "attribute_exists(pk) AND attribute_not_exists(inviteToken)",
+                  },
+                },
+                ...(previous
+                  ? [{ Delete: { TableName: tableName, Key: inviteKey(previous) } }]
+                  : []),
+              ],
+            }),
+          ),
+        ["could not write the invite", "the link changed while it was being rotated"],
+      );
+    },
+
+    async groupForInvite(token) {
+      const result = await client.send(
+        new GetCommand({
+          TableName: tableName,
+          Key: inviteKey(token),
+          ConsistentRead: true,
+        }),
+      );
+      const groupId = (result.Item as { groupId?: unknown } | undefined)?.groupId;
+      return typeof groupId === "string" && groupId.length > 0 ? groupId : null;
+    },
+
+    async inviteTokenOf(groupId) {
+      const result = await client.send(
+        new GetCommand({
+          TableName: tableName,
+          Key: groupKey(groupId),
+          ConsistentRead: true,
+        }),
+      );
+      const token = (result.Item as { inviteToken?: unknown } | undefined)?.inviteToken;
+      return typeof token === "string" && token.length > 0 ? token : null;
+    },
+
+    async forget(accountId, keys) {
+      // Unconditional, deliberately: this runs last in account deletion, and a
+      // delete of something a previous attempt already removed has to succeed
+      // or the sequence stops being re-runnable.
+      for (const key of keys) {
+        await client.send(new DeleteCommand({ TableName: tableName, Key: key }));
+      }
+    },
+  };
+};

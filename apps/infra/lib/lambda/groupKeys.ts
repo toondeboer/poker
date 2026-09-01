@@ -3,39 +3,40 @@
  *
  * The pure half of the group store: keys, item shapes, the parsing that decides
  * whether a stored row is believed, and the permission rules. **No I/O**, which
- * is what lets every branch be tested without a DynamoDB — and these are the
- * branches worth testing, because a mis-built key is a row nobody can find
- * again and a mis-read role is a permission check that passes.
+ * is what lets every branch be tested without a DynamoDB.
  *
- * The design this implements is in [SYNC.md](../../SYNC.md).
+ * ## This is the second schema, and the first one is why
+ *
+ * The first had a single membership row plus an inverted index, a `SEAT#` item
+ * to stop one account holding two players, and an `adminCount` on the group.
+ * Three review rounds found the same class of bug over and over, because every
+ * one of those is an invariant held together **by hand** — across a counter, a
+ * second item and an eventually consistent index — and fixing one kept breaking
+ * another.
+ *
+ * They are structural now:
+ *
+ * - **One seat per board is the shape of a key.** `CLAIM#<groupId>` holds the
+ *   player, instead of `CLAIM#<groupId>#<playerId>` needing a separate `SEAT#`
+ *   row to enforce what the key could enforce by itself.
+ * - **Membership is written twice**, under the account and under the group.
+ *   That is the duplication the first design rejected, and it was the wrong
+ *   call: two rows in one transaction are less to keep honest than a counter, a
+ *   sparse index attribute and a read that might be stale. It also makes "who is
+ *   in this group" a **strongly consistent** query, so the decisions resting on
+ *   it stop being races.
+ * - **There is no `adminCount`.** "Is there another admin?" is answered by
+ *   naming one and asserting inside the same transaction that they still are —
+ *   a `ConditionCheck`, which cannot be raced, rather than a number four
+ *   separate paths had to remember to move.
+ * - **There is no index**, which also removes a hot partition: the obvious
+ *   inverted one partitioned on `sk`, and every poker table row carries the
+ *   constant `sk: "STATE"`.
+ *
+ * The design is in [SYNC.md](../../SYNC.md).
  */
 
 import type { GameResult, Group, GroupState, Player } from "@poker/core";
-
-/**
- * The index, and the one question it answers: who is in this group?
- *
- * **Sparse, on an attribute only membership items carry.** The obvious shape is
- * to invert the table — partition the index on `sk` — and it is quietly awful
- * here: every poker table row is written with the constant `sk: "STATE"`, so
- * *every table action in the system* would land in a single index partition,
- * which caps around 1000 WCU/s and cannot be split by adaptive capacity.
- * `"META"` would collect every group and every invite the same way.
- *
- * `groupRef` is written by nothing else, so the index holds memberships and
- * nothing else, and partitions by group.
- *
- * **The name changed with the key, because DynamoDB gives no choice**: a GSI's
- * key schema cannot be altered in place, and CloudFormation refuses with
- * *"Cannot update a GSI's KeySchema or Projection. You can create a new GSI
- * with a different name."* The old `MembersByGroup` partitioned on `sk`.
- *
- * **Nothing authorizes against it** — see the note in `pokerStack.ts`.
- */
-export const MEMBERS_INDEX = "MembersByGroupRef";
-
-/** The attribute the index partitions on. Only memberships have it. */
-export const GROUP_REF = "groupRef";
 
 /** Roles a membership can hold. Adding is open; removing is not. */
 export type Role = "admin" | "member";
@@ -43,24 +44,31 @@ export type Role = "admin" | "member";
 /**
  * How long a tombstone is kept.
  *
- * A deletion has to outlive every phone that might still be holding the thing
- * it deleted, or that phone syncs the row back — see SYNC.md. Ninety days is
- * "longer than a season"; a phone that has been away longer full-resyncs
- * instead of merging.
+ * A deletion has to outlive every phone that might still hold the thing it
+ * deleted, or that phone syncs the row back. Ninety days is "longer than a
+ * season"; a phone away longer than that full-resyncs instead of merging.
  */
 export const TOMBSTONE_TTL_SECONDS = 90 * 24 * 60 * 60;
 
+/** Past this, `String()` starts producing `"1e+21"`, which sorts nowhere. */
+export const MAX_STAMP = 9_999_999_999_999;
+
 /**
- * Epoch milliseconds are 13 digits until the year 2286 — **and 12 or fewer
- * before September 2001**, which is reachable: a result carries the date the
- * game was *played*, and that is a field somebody can set.
+ * Epoch milliseconds are 13 digits until 2286 — **and 12 or fewer before
+ * September 2001**, which is reachable: a result carries the date the game was
+ * *played*, and that is a field somebody can set.
  *
  * Unpadded, a backdated game sorts as though it happened last, because
- * `"999999999999" > "1788180000000"` lexicographically. Padding costs nothing
- * and removes a bug whose only symptom is a board in the wrong order.
+ * `"999999999999" > "1788180000000"` lexicographically. Clamped at both ends:
+ * a negative epoch sorts before everything forever, and anything past 13 digits
+ * is where `String()` gives `"1e+21"` and defeats the padding entirely.
  */
-export const stampSegment = (playedAt: number): string =>
-  String(Math.max(0, Math.trunc(playedAt))).padStart(13, "0");
+export const stampSegment = (playedAt: number): string => {
+  const clamped = Number.isFinite(playedAt)
+    ? Math.min(MAX_STAMP, Math.max(0, Math.trunc(playedAt)))
+    : 0;
+  return String(clamped).padStart(13, "0");
+};
 
 export const groupKey = (groupId: string) => ({
   pk: `GROUP#${groupId}`,
@@ -78,53 +86,44 @@ export const resultKey = (groupId: string, playedAt: number, id: string) => ({
 });
 
 /**
- * What an account may do with a group. **The authorization item**, and the only
- * thing a permission check reads — never the index, which is eventually
- * consistent and can therefore still be carrying a role that was revoked.
+ * A membership, seen from the group. **The consistent one.**
+ *
+ * Every decision about who may do what, and about whether a group is about to
+ * be left with nobody in charge, is answered from this side — a query on the
+ * group's own partition, strongly consistent. The account-side copy answers "my
+ * boards" and nothing that matters.
  */
+export const memberKey = (groupId: string, accountId: string) => ({
+  pk: `GROUP#${groupId}`,
+  sk: `MEMBER#${accountId}`,
+});
+
+/** The same membership, seen from the account. Answers "my boards". */
 export const membershipKey = (accountId: string, groupId: string) => ({
   pk: `ACCOUNT#${accountId}`,
   sk: `GROUP#${groupId}`,
 });
 
 /**
- * That this account claimed this player. Its **existence** is the fact; the
- * timestamp only decides who inherits a group when its last admin leaves.
+ * The one player this account holds on this board.
  *
- * Under the account rather than the group so that "everything about this
- * person" is one query. Without it, deletion would have to scan every group in
- * the table, and a `Scan` in a deletion path stops working the moment there is
- * real data.
+ * **Keyed by the group, not the group and the player.** One seat per board is
+ * then the shape of the key: a second claim collides with the first and is
+ * refused by `attribute_not_exists`, with nothing to keep in step. The previous
+ * shape carried the player id here and needed a separate `SEAT#` row to enforce
+ * the same rule — which then had to be created, deleted and reasoned about
+ * everywhere a claim was.
  */
-export const claimKey = (
-  accountId: string,
-  groupId: string,
-  playerId: string,
-) => ({
+export const claimKey = (accountId: string, groupId: string) => ({
   pk: `ACCOUNT#${accountId}`,
-  sk: `CLAIM#${groupId}#${playerId}`,
-});
-
-/**
- * That this account holds a seat on this board — **one, at most**.
- *
- * Separate from the claim, whose key carries the player and therefore cannot
- * stop somebody claiming a second person in the same group. `@poker/core`'s
- * `claimPlayer` enforces one seat locally and SYNC.md says the server does too;
- * without this item it did not, and one account could quietly occupy half a
- * leaderboard.
- */
-export const seatKey = (accountId: string, groupId: string) => ({
-  pk: `ACCOUNT#${accountId}`,
-  sk: `SEAT#${groupId}`,
+  sk: `CLAIM#${groupId}`,
 });
 
 /**
  * An invite, keyed by its own token so redeeming it is a `GetItem`.
  *
- * **Its own partition, not a row under the group**, because the person
- * redeeming it does not know the group id yet — that is the entire point of
- * being invited. Looking it up any other way would be a scan.
+ * Its own partition because whoever is redeeming it does not know the group id
+ * yet — that is the entire point of being invited.
  */
 export const inviteKey = (token: string) => ({
   pk: `INVITE#${token}`,
@@ -140,99 +139,77 @@ type Keyed = { pk: string; sk: string };
 export type GroupItem = Keyed & {
   name: string;
   createdAt: number;
-  /** Guards rename and role changes. Results and players do not need one. */
+  /** Guards a rename. Players and results do not need one. */
   version: number;
-  /**
-   * How many admins this group has.
-   *
-   * **A counter rather than a count of what a query returned**, because the
-   * question it answers — "would demoting this person leave nobody in charge?"
-   * — has to be settled by a *condition on a write*, not by a read followed by
-   * a write. Two admins demoting each other at the same moment both read "there
-   * is another admin", both proceed, and the group is left unmanageable with no
-   * support channel to fix it.
-   *
-   * Kept on the group's own item so it is read consistently and updated in the
-   * same transaction as the role it counts.
-   */
-  adminCount: number;
+  inviteToken?: string;
   deletedAt?: number;
   expiresAt?: number;
 };
 
-export type PlayerItem = Keyed & {
-  playerId: string;
-  name: string;
-  accountId?: string;
-  deletedAt?: number;
-  expiresAt?: number;
-};
-
-export type ResultItem = Keyed & {
-  result?: GameResult;
-  playedAt: number;
-  deletedAt?: number;
-  expiresAt?: number;
-};
-
-export type MembershipItem = Keyed & {
+export type MemberItem = Keyed & {
   groupId: string;
   accountId: string;
   role: Role;
   joinedAt: number;
-  /** What {@link MEMBERS_INDEX} partitions on. Memberships only. */
-  groupRef: string;
 };
 
 export const groupItem = (
   groupId: string,
   group: Omit<Group, "id">,
-  version: number,
-  adminCount = 1,
+  version = 1,
 ): GroupItem => ({
   ...groupKey(groupId),
   name: group.name,
   createdAt: group.createdAt,
   version,
-  adminCount,
 });
 
-export const playerItem = (groupId: string, player: Player): PlayerItem => ({
+export const playerItem = (groupId: string, player: Player) => ({
   ...playerKey(groupId, player.id),
   playerId: player.id,
   name: player.name,
-  // Spread rather than always-present: `removeUndefinedValues` would drop it
-  // anyway, and an explicit `undefined` here reads as "unclaimed" in a way an
-  // absent attribute does not.
   ...(player.accountId ? { accountId: player.accountId } : {}),
 });
 
-export const resultItem = (groupId: string, result: GameResult): ResultItem => ({
+export const resultItem = (groupId: string, result: GameResult) => ({
   ...resultKey(groupId, result.playedAt, result.id),
   result,
   playedAt: result.playedAt,
 });
 
+/** The group-side copy — the one every decision reads. */
+export const memberItem = (
+  groupId: string,
+  accountId: string,
+  role: Role,
+  joinedAt: number,
+): MemberItem => ({
+  ...memberKey(groupId, accountId),
+  groupId,
+  accountId,
+  role,
+  joinedAt,
+});
+
+/** The account-side copy — the one that answers "my boards". */
 export const membershipItem = (
   accountId: string,
   groupId: string,
   role: Role,
   joinedAt: number,
-): MembershipItem => ({
+): MemberItem => ({
   ...membershipKey(accountId, groupId),
   groupId,
   accountId,
   role,
   joinedAt,
-  groupRef: `GROUP#${groupId}`,
 });
 
 /**
  * What a deleted row becomes.
  *
- * **The payload is stripped, and that is deliberate.** A tombstone exists to
- * say "this is gone", and a tombstone that still carries the game it deleted is
- * a deleted game somebody can still read out of the table.
+ * **The payload is stripped**, because a tombstone still carrying the game it
+ * deleted is a deleted game somebody can read out of the table.
  */
 export const tombstone = <T extends Keyed>(
   key: T,
@@ -262,35 +239,50 @@ const num = (value: unknown): number | null =>
 export const isRole = (value: unknown): value is Role =>
   value === "admin" || value === "member";
 
-export const memberFrom = (item: unknown): MembershipItem | null => {
+/**
+ * A name or an id somebody could actually find again.
+ *
+ * An empty string passes `typeof value === "string"`, is written happily, and
+ * is then dropped on every read — a row that exists, answered 200, never
+ * appears, and cannot be deleted through an API that addresses it by the id it
+ * does not have. A `#` would break the key it lands in.
+ */
+export const isUsableId = (value: unknown): value is string =>
+  typeof value === "string" && value.trim().length > 0 && !value.includes("#");
+
+export const memberFrom = (item: unknown): MemberItem | null => {
   if (typeof item !== "object" || item === null) return null;
   const row = item as Record<string, unknown>;
   const accountId = str(row.accountId);
   const groupId = str(row.groupId);
   const joinedAt = num(row.joinedAt);
-  // A membership with an unreadable role is not a member with no powers — it
-  // is a row this code does not understand, and treating it as a `member`
-  // would be inventing a permission from a parse failure.
-  if (!accountId || !groupId || joinedAt === null || !isRole(row.role)) {
-    return null;
-  }
-  return {
-    ...membershipKey(accountId, groupId),
-    accountId,
-    groupId,
-    role: row.role,
-    joinedAt,
-    groupRef: `GROUP#${groupId}`,
-  };
+  // A membership with an unreadable role is not a member with no powers — it is
+  // a row this code does not understand, and treating it as a `member` would be
+  // inventing a permission from a parse failure.
+  if (!accountId || !groupId || joinedAt === null || !isRole(row.role)) return null;
+  return memberItem(groupId, accountId, row.role, joinedAt);
 };
+
+/** Everyone in a group, from a query of its own partition. */
+export const membersFrom = (items: readonly unknown[]): MemberItem[] =>
+  items
+    .filter(
+      (item) =>
+        typeof item === "object" &&
+        item !== null &&
+        typeof (item as { sk?: unknown }).sk === "string" &&
+        (item as { sk: string }).sk.startsWith("MEMBER#"),
+    )
+    .map(memberFrom)
+    .filter((m): m is MemberItem => m !== null);
 
 /**
  * The board, assembled from one partition query.
  *
- * Tombstones are dropped here rather than by the caller, so there is exactly
- * one place that decides what "deleted" means. A caller that forgot would show
- * a deleted game, which is the failure this whole tombstone scheme exists to
- * avoid in the first place.
+ * Tombstones are dropped here rather than by the caller, so exactly one place
+ * decides what "deleted" means — and `MEMBER#` rows are dropped too: who is in
+ * the group is a different question from what is on the board, and they share a
+ * partition only because that is what makes both consistent.
  */
 export const boardFrom = (
   groupId: string,
@@ -304,8 +296,7 @@ export const boardFrom = (
     if (typeof item !== "object" || item === null) continue;
     const row = item as Record<string, unknown>;
     const sk = str(row.sk);
-    if (!sk) continue;
-    if (isTombstone(row)) continue;
+    if (!sk || isTombstone(row)) continue;
 
     if (sk === "META") {
       const name = str(row.name);
@@ -324,9 +315,8 @@ export const boardFrom = (
     }
   }
 
-  // No group row means no group. Returning players and results without it would
-  // be handing back a board with no identity, which every caller would then
-  // have to special-case.
+  // No group row means no group. Players and results without it are a board
+  // with no identity that every caller would have to special-case.
   return group ? { group, players, results } : null;
 };
 
@@ -334,14 +324,6 @@ export const boardFrom = (
 // Permission
 // ---------------------------------------------------------------------------
 
-/**
- * Everything an account can be allowed to do to a group.
- *
- * **Adding is open and removing is not.** Anybody at the table can write down a
- * name; only somebody trusted can make a season's history disappear. It also
- * keeps the permission read on the rare path — recording a game is the weekly
- * action, and it needs only membership.
- */
 export type GroupAction =
   | "read"
   | "addPlayer"
@@ -362,9 +344,14 @@ const ADMIN_ONLY: ReadonlySet<GroupAction> = new Set<GroupAction>([
 /**
  * May this membership do this?
  *
- * `null` is "not a member", and it is refused for everything including `read` —
- * a shared board is readable by the people on it, which is the whole difference
- * between this and a board that is public to anybody holding an id.
+ * **Adding is open and removing is not.** Anybody at the table can write down a
+ * name; only somebody trusted can make a season's history disappear. It also
+ * keeps the permission read on the rare path — recording a game is the weekly
+ * action.
+ *
+ * `null` is "not a member", refused for everything including `read`: a shared
+ * board readable by anybody holding an id makes the id the only thing
+ * protecting it, and ids travel.
  */
 export const may = (
   membership: { role: Role } | null,
@@ -375,30 +362,31 @@ export const may = (
 };
 
 /**
+ * Another admin, if there is one — the one a write will assert is still there.
+ *
+ * **Named rather than counted.** "Is there another admin?" answered as a number
+ * is a read somebody can invalidate before the write lands. Answered as a
+ * *specific account*, it becomes a `ConditionCheck` in the same transaction,
+ * which cannot be raced: two admins demoting each other at the same instant
+ * each assert the other is still an admin, and exactly one wins.
+ */
+export const anotherAdmin = (
+  members: readonly MemberItem[],
+  besides: string,
+): MemberItem | null =>
+  members.find((m) => m.accountId !== besides && m.role === "admin") ?? null;
+
+/**
  * Who inherits a group whose last admin is leaving.
  *
  * Longest-standing member by `joinedAt`, with the account id breaking a tie so
- * that two people who joined in the same millisecond do not make this depend on
- * what order DynamoDB happened to return.
- *
- * `null` means nobody is left, and the caller tombstones the group — there is
- * no history belonging to anybody else in it.
+ * two people who joined in the same millisecond do not make this depend on what
+ * order DynamoDB happened to return them in.
  */
-/**
- * A name or an id somebody could actually find again.
- *
- * An empty string passes `typeof value === "string"` and is written happily,
- * and then `boardFrom` drops it on every read — a row that exists, answers 200,
- * never appears, and cannot be deleted through an API that addresses it by the
- * id it does not have.
- */
-export const isUsableId = (value: unknown): value is string =>
-  typeof value === "string" && value.trim().length > 0 && !value.includes("#");
-
 export const heirTo = (
-  members: readonly MembershipItem[],
+  members: readonly MemberItem[],
   leaving: string,
-): MembershipItem | null => {
+): MemberItem | null => {
   const remaining = members.filter((m) => m.accountId !== leaving);
   if (remaining.length === 0) return null;
   return remaining.reduce((best, candidate) =>
@@ -408,17 +396,3 @@ export const heirTo = (
       : best,
   );
 };
-
-/**
- * Is this group about to be left with nobody who can manage it?
- *
- * Asked before an admin leaves or is demoted, and the reason the answer matters
- * is that there is no support channel: a group with no admin cannot be renamed,
- * cannot have a player removed, and cannot be fixed by anybody.
- */
-export const wouldStrandGroup = (
-  members: readonly MembershipItem[],
-  leaving: string,
-): boolean =>
-  members.some((m) => m.accountId === leaving && m.role === "admin") &&
-  !members.some((m) => m.accountId !== leaving && m.role === "admin");

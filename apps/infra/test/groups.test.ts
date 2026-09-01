@@ -8,7 +8,7 @@ import {
   type VerifiedRequest,
 } from "../lib/lambda/groups";
 import type { GroupStore, WriteOutcome } from "../lib/lambda/groupStore";
-import { membershipItem, type MembershipItem, type Role } from "../lib/lambda/groupKeys";
+import { memberItem, type MemberItem, type Role } from "../lib/lambda/groupKeys";
 
 const game = (id = "r1"): GameResult => ({
   id,
@@ -33,9 +33,9 @@ const calls: string[] = [];
 
 const store = (role: Role | null, overrides: Partial<GroupStore> = {}): GroupStore =>
   ({
-    membership: async (): Promise<MembershipItem | null> =>
-      role ? membershipItem("me", "g1", role, 1) : null,
-    members: async () => [],
+    membership: async (): Promise<MemberItem | null> =>
+      role ? memberItem("g1", "me", role, 1) : null,
+    members: async () => [memberItem("g1", "me", role ?? "member", 1), memberItem("g1", "other", "admin", 2)],
     belongings: async () => [
       { pk: "ACCOUNT#me", sk: "GROUP#g1" },
       { pk: "ACCOUNT#me", sk: "CLAIM#g1#p1" },
@@ -66,7 +66,8 @@ const store = (role: Role | null, overrides: Partial<GroupStore> = {}): GroupSto
       calls.push("setRole");
       return { status: "ok" } as WriteOutcome;
     },
-    promoteHeir: async () => ({ status: "ok" }) as WriteOutcome,
+    leave: async () => ({ status: "ok" }) as WriteOutcome,
+    inviteTokenOf: async () => null,
     createGroup: async () => ({ status: "ok" }) as WriteOutcome,
     setInvite: async () => ({ status: "ok" }) as WriteOutcome,
     groupForInvite: async () => "g1",

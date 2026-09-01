@@ -13,7 +13,7 @@
 
 import type { GameResult, GroupState, Placing, Player } from "@poker/core";
 import { log } from "./logging";
-import { isUsableId, may, type GroupAction } from "./groupKeys";
+import { anotherAdmin, isUsableId, may, type GroupAction } from "./groupKeys";
 import { createGroupStore, type GroupStore } from "./groupStore";
 import { deleteAccount } from "./deleteAccount";
 import { randomBytes, randomUUID } from "node:crypto";
@@ -331,7 +331,10 @@ export const handler = async (request: VerifiedRequest): Promise<Response> => {
       // creating and revoking are deliberately the same operation: there is no
       // state where a group has two working links.
       const token = createInviteToken();
-      const outcome = await store.setInvite(groupId, token, now);
+      // The token this replaces, asserted by the write so two people rotating
+      // at once cannot both succeed and leave two working links.
+      const previous = await store.inviteTokenOf(groupId);
+      const outcome = await store.setInvite(groupId, token, previous, now);
       if (outcome.status !== "ok") {
         return json(409, { status: "conflict", reason: outcome.reason });
       }
@@ -347,13 +350,26 @@ export const handler = async (request: VerifiedRequest): Promise<Response> => {
       if (!subject || (role !== "admin" && role !== "member")) {
         return json(400, { error: "no role" });
       }
-      // **The last-admin guard is a condition on the write, not a check here.**
-      // Reading the members and then writing is something two people can both
-      // pass: two admins demoting each other at the same instant each see
-      // another admin, each proceed, and the group is left unmanageable. The
-      // store decrements a counter conditional on it staying above one, so only
-      // one of them can win. See `setRole`.
-      const outcome = await store.setRole(subject, groupId, role);
+      /**
+       * **The last-admin guard is an assertion inside the write, not a check
+       * out here.** Reading "is there another admin?" and then writing is
+       * something two people can both pass — two admins demoting each other
+       * each see the other and each proceed, leaving the group unmanageable.
+       *
+       * So the *name* of another admin goes into the transaction, which asserts
+       * they are still one. Exactly one of two simultaneous demotions wins.
+       */
+      const guarantor =
+        role === "member"
+          ? (anotherAdmin(await store.members(groupId), subject)?.accountId ?? null)
+          : null;
+      if (role === "member" && !guarantor) {
+        return json(409, {
+          status: "conflict",
+          reason: "a group needs at least one admin",
+        });
+      }
+      const outcome = await store.setRole(subject, groupId, role, guarantor);
       return answer(outcome, requestId, { groupId, caller });
     }
 

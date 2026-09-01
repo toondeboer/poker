@@ -8,9 +8,8 @@ import type { DynamoDBDocumentClient } from "@aws-sdk/lib-dynamodb";
 import type { GameResult } from "@poker/core";
 import { createGroupStore } from "../lib/lambda/groupStore";
 import {
-  MEMBERS_INDEX,
   groupItem,
-  membershipItem,
+  memberItem,
   playerItem,
   resultItem,
 } from "../lib/lambda/groupKeys";
@@ -80,7 +79,7 @@ describe("the permission read", () => {
     // eventually consistent, so authorizing against one lets a demoted admin
     // keep deleting for as long as the index lags.
     const { client, sent } = fakeClient([
-      { Item: membershipItem("acc", "g1", "admin", 1) },
+      { Item: memberItem("g1", "acc", "admin", 1) },
     ]);
     const store = createGroupStore("T", client);
     expect(await store.membership("acc", "g1")).toMatchObject({ role: "admin" });
@@ -95,18 +94,22 @@ describe("the permission read", () => {
 });
 
 describe("listing members", () => {
-  it("is the only thing that reads the index", async () => {
+  it("reads the group's own partition, consistently and with no index", async () => {
+    // **The reason membership is written twice.** The previous design read an
+    // eventually consistent index here, and every decision resting on it — who
+    // inherits a group, whether demoting somebody strands it — was a race.
     const { client, sent } = fakeClient([
-      { Items: [membershipItem("a", "g1", "admin", 1)] },
+      { Items: [memberItem("g1", "a", "admin", 1)] },
     ]);
     const members = await createGroupStore("T", client).members("g1");
-    expect(sent[0].IndexName).toBe(MEMBERS_INDEX);
+    expect(sent[0].IndexName).toBeUndefined();
+    expect(sent[0].ConsistentRead).toBe(true);
     expect(members).toHaveLength(1);
   });
 
   it("drops rows it cannot read rather than guessing a role", async () => {
     const { client } = fakeClient([
-      { Items: [membershipItem("a", "g1", "admin", 1), { role: "wat" }] },
+      { Items: [memberItem("g1", "a", "admin", 1), { role: "wat" }] },
     ]);
     expect(await createGroupStore("T", client).members("g1")).toHaveLength(1);
   });
@@ -125,19 +128,34 @@ describe("removing things", () => {
       }),
     ]);
     const outcome = await createGroupStore("T", client).removePlayer("g1", "nope", 1);
-    expect(outcome).toEqual({ status: "conflict", reason: "no such player" });
+    expect(outcome).toEqual({
+      status: "conflict",
+      reason: "the player changed while it was being removed",
+    });
     const ops = sent[1].TransactItems as { Put?: { ConditionExpression?: string } }[];
-    expect(ops[0].Put?.ConditionExpression).toBe("attribute_exists(pk)");
+    expect(ops[0].Put?.ConditionExpression).toBe(
+      "attribute_exists(pk) AND attribute_not_exists(accountId)",
+    );
   });
 
-  it("takes the claim and the seat with a removed player", async () => {
-    // The seat is one per board now, so a seat outliving its player locks that
-    // account out of ever claiming a replacement short of deleting itself.
+  it("takes the claim with a removed player", async () => {
+    // A claim outliving its player locks that account out of ever claiming a
+    // replacement, since one seat per board is now the key.
     const { client, sent } = fakeClient([{ Item: { accountId: "acc" } }, {}]);
     await createGroupStore("T", client).removePlayer("g1", "p1", 1);
     const ops = sent[1].TransactItems as { Delete?: { Key: { sk: string } } }[];
-    const deleted = ops.filter((o) => o.Delete).map((o) => o.Delete!.Key.sk);
-    expect(deleted).toEqual(["CLAIM#g1#p1", "SEAT#g1"]);
+    expect(ops.filter((o) => o.Delete).map((o) => o.Delete!.Key.sk)).toEqual(["CLAIM#g1"]);
+  });
+
+  it("refuses if the player was claimed between the read and the write", async () => {
+    // Otherwise a claim landing in that window is silently discarded: the
+    // player is tombstoned and the claimer keeps a seat pointing at nothing.
+    const { client, sent } = fakeClient([{ Item: { playerId: "p1" } }, {}]);
+    await createGroupStore("T", client).removePlayer("g1", "p1", 1);
+    const ops = sent[1].TransactItems as { Put?: { ConditionExpression?: string } }[];
+    expect(ops[0].Put?.ConditionExpression).toBe(
+      "attribute_exists(pk) AND attribute_not_exists(accountId)",
+    );
   });
 
   it("removes an unclaimed player without deleting anything else", async () => {
@@ -145,6 +163,23 @@ describe("removing things", () => {
     await createGroupStore("T", client).removePlayer("g1", "p1", 1);
     const ops = sent[1].TransactItems as { Delete?: unknown }[];
     expect(ops.filter((o) => o.Delete)).toHaveLength(0);
+  });
+
+  it("rotates an invite so two cannot be live at once", async () => {
+    // Rotation is the only revocation a link that never expires has. The old
+    // token is deleted in the same transaction, and the group row is updated
+    // conditional on still carrying the token the caller read — so two
+    // concurrent rotations cannot both win.
+    const { client, sent } = fakeClient([{}]);
+    await createGroupStore("T", client).setInvite("g1", "new", "old", 1);
+    const ops = sent[0].TransactItems as {
+      Update?: { ConditionExpression?: string };
+      Delete?: { Key: { pk: string } };
+    }[];
+    expect(ops.find((o) => o.Update)?.Update?.ConditionExpression).toBe(
+      "inviteToken = :previous",
+    );
+    expect(ops.find((o) => o.Delete)?.Delete?.Key.pk).toBe("INVITE#old");
   });
 
   it("rebuilds a game's key from the result it is given", async () => {
@@ -185,29 +220,28 @@ describe("claiming a player", () => {
     return { outcome, items: (sent[0].TransactItems ?? []) as Op[] };
   };
 
-  it("writes claim, seat, player and membership in one transaction", async () => {
+  it("writes the claim, the player and both memberships in one transaction", async () => {
     // A claim without the player update shows an account a board it is not on;
     // the player without the claim is invisible to account deletion.
     const { items } = await claim();
     expect(items).toHaveLength(4);
   });
 
-  it("refuses a second seat on the same board", async () => {
-    // The claim key carries the *player*, so on its own it stops two accounts
-    // holding one person and does nothing about one account holding two.
-    // `@poker/core` enforces one seat locally and SYNC.md says the server does
-    // — without this item it did not, and one account could occupy half a
-    // leaderboard and double-count its own nights.
+  it("makes a second seat on the same board collide with the first", async () => {
+    // **The rule is the key now.** It used to need a separate `SEAT#` row, which
+    // then had to be created, deleted and remembered everywhere a claim was
+    // touched — and was forgotten in two places.
     const { items } = await claim();
-    const seat = items.find((i) => i.Put?.Item.sk === "SEAT#g1")?.Put;
+    const seat = items.find((i) => i.Put?.Item.sk === "CLAIM#g1")?.Put;
     expect(seat?.ConditionExpression).toBe("attribute_not_exists(pk)");
+    expect(seat?.Item.playerId).toBe("p1");
   });
 
-  it("refuses a player somebody already holds", async () => {
+  it("refuses a player somebody already holds, or one that was removed", async () => {
     const { items } = await claim();
-    const update = items.find((i) => i.Update)?.Update;
+    const update = items.find((i) => i.Update?.ConditionExpression)?.Update;
     expect(update?.ConditionExpression).toBe(
-      "attribute_exists(pk) AND attribute_not_exists(accountId)",
+      "attribute_exists(pk) AND attribute_not_exists(accountId) AND attribute_not_exists(deletedAt)",
     );
   });
 
@@ -246,8 +280,8 @@ describe("claiming a player", () => {
       );
       return outcome.status === "conflict" ? outcome.reason : "";
     };
-    expect(await at(1)).toBe("you already hold a seat on this board");
-    expect(await at(2)).toBe("somebody else has claimed that player");
+    expect(await at(0)).toBe("you already hold a seat on this board");
+    expect(await at(1)).toBe("somebody else has claimed that player");
   });
 
   it("does not call a throttled transaction a conflict", async () => {
@@ -316,50 +350,35 @@ describe("what account deletion needs", () => {
 });
 
 describe("changing a role", () => {
-  const ops = (sent: Record<string, unknown>[]) =>
-    (sent[0].TransactItems ?? []) as {
-      Update?: { ConditionExpression?: string; UpdateExpression?: string };
-    }[];
-
-  it("refuses to demote the last admin, as a condition rather than a check", async () => {
-    // **Reading the members and then writing is something two people can both
-    // pass.** Two admins demoting each other at the same instant each see
-    // another admin, each proceed, and the group is left unmanageable with no
-    // support channel to undo it. As a condition on a counter, only one wins.
+  it("asserts a named admin is still one, rather than counting them", async () => {
+    // **This is what replaced `adminCount`.** Reading "is there another admin?"
+    // and then writing is something two people can both pass — two admins
+    // demoting each other each see the other and each proceed. Naming one and
+    // asserting it inside the transaction means exactly one of them wins, and
+    // there is no counter for four separate paths to keep in step.
     const { client, sent } = fakeClient([{}]);
-    await createGroupStore("T", client).setRole("acc", "g1", "member");
-    const counter = ops(sent).find((o) =>
-      o.Update?.UpdateExpression?.includes("adminCount"),
-    );
-    expect(counter?.Update?.ConditionExpression).toBe("adminCount > :floor");
+    await createGroupStore("T", client).setRole("acc", "g1", "member", "keeper");
+    const check = (sent[0].TransactItems as { ConditionCheck?: { Key: { sk: string }; ConditionExpression: string } }[])
+      .find((o) => o.ConditionCheck);
+    expect(check?.ConditionCheck?.Key.sk).toBe("MEMBER#keeper");
+    expect(check?.ConditionCheck?.ConditionExpression).toBe("#role = :admin");
   });
 
-  it("moves the count the other way when promoting", async () => {
+  it("writes both copies of a membership together", async () => {
+    // Two rows in one transaction is what replaced a counter, a sparse index
+    // attribute and a read that might be stale. They cannot drift.
     const { client, sent } = fakeClient([{}]);
-    await createGroupStore("T", client).setRole("acc", "g1", "admin");
-    const counter = ops(sent).find((o) =>
-      o.Update?.UpdateExpression?.includes("adminCount"),
-    );
-    expect(counter?.Update?.ConditionExpression).toBe("attribute_exists(pk)");
+    await createGroupStore("T", client).setRole("acc", "g1", "admin", null);
+    const keys = (sent[0].TransactItems as { Update?: { Key: { pk: string } } }[])
+      .filter((o) => o.Update)
+      .map((o) => o.Update!.Key.pk);
+    expect(keys).toEqual(["GROUP#g1", "ACCOUNT#acc"]);
   });
 
-  it("will not count a role change that is not a change", async () => {
-    // Promoting an existing admin would increment the counter for nothing, and
-    // a count that drifts above the truth eventually permits the demotion it
-    // exists to refuse.
+  it("needs no guarantor to promote", async () => {
     const { client, sent } = fakeClient([{}]);
-    await createGroupStore("T", client).setRole("acc", "g1", "admin");
-    const role = ops(sent).find((o) => o.Update?.UpdateExpression?.includes("#role"));
-    expect(role?.Update?.ConditionExpression).toContain("#role <> :other");
-  });
-
-  it("promotes an heir without moving the count", async () => {
-    // One admin leaving and one arriving is a net zero, and it is conditional
-    // on the heir still being a member so a stale index fails loudly.
-    const { client, sent } = fakeClient([{}]);
-    await createGroupStore("T", client).promoteHeir("acc", "g1");
-    expect(sent[0].ConditionExpression).toBe("attribute_exists(pk)");
-    expect(JSON.stringify(sent[0])).not.toContain("adminCount");
+    await createGroupStore("T", client).setRole("acc", "g1", "admin", null);
+    expect(JSON.stringify(sent[0])).not.toContain("ConditionCheck");
   });
 });
 
