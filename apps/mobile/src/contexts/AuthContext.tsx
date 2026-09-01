@@ -29,6 +29,19 @@ const auth = backendConfig
 /** Whether accounts are real. The screens read this to know what to say. */
 export const accountsAreReal = backendConfig !== null;
 
+/**
+ * A valid ID token for the API, or `null` when nobody is signed in.
+ *
+ * Exported from here rather than built again elsewhere, because a second
+ * `createCognitoAuthProvider` would be a second thing deciding when to refresh
+ * — and two refreshes racing is how a session ends for no reason. `null` covers
+ * the stub, which has no tokens because it has no server.
+ */
+export const apiToken = (): Promise<string | null> =>
+  "idToken" in auth && typeof auth.idToken === "function"
+    ? auth.idToken()
+    : Promise.resolve(null);
+
 /** What went wrong, in words a form can show. */
 export type AuthError =
   | CredentialError
