@@ -10,14 +10,7 @@
  * `apps/infra/SYNC.md` for the design.
  */
 
-import {
-  markSending,
-  refuse,
-  release,
-  settle,
-  type QueuedWrite,
-  type SyncQueue,
-} from "./pendingWrites";
+import { refuse, settle, type QueuedWrite, type SyncQueue } from "./pendingWrites";
 
 /** What came back. */
 export type SendResult =
@@ -38,12 +31,44 @@ export type SendResult =
 
 export type Sender = (write: QueuedWrite) => Promise<SendResult>;
 
+/**
+ * What happened, as **things to apply** rather than as a finished queue.
+ *
+ * The obvious shape is to hand back a replacement queue, and it silently loses
+ * writes: draining takes as long as the network does, somebody adds a player
+ * while it runs, and a caller doing `setQueue(report.queue)` overwrites them
+ * with a queue built from a snapshot taken before they existed. Naming what
+ * settled and what was refused lets the caller apply it to whatever the queue
+ * has become.
+ */
 export type DrainReport = {
-  queue: SyncQueue;
-  sent: number;
-  refused: number;
+  /** Ids the server took. */
+  settled: string[];
+  /** Ids the server refused, with what to tell somebody. */
+  refused: { id: string; reason: string }[];
   /** True when it gave up early because the server could not be reached. */
   stopped: boolean;
+};
+
+/** Fold a drain's outcome into whatever the queue is *now*. */
+export const applyReport = (
+  queue: SyncQueue,
+  report: DrainReport,
+  now: number,
+): SyncQueue => {
+  let current = queue;
+  for (const id of report.settled) current = settle(current, id);
+  for (const { id, reason } of report.refused) {
+    current = refuse(current, id, reason, now);
+  }
+  // Anything left flagged in flight was flagged by this pass and never
+  // answered, so it is not in flight any more.
+  return {
+    ...current,
+    pending: current.pending.map((write) =>
+      write.sentAt === undefined ? write : { ...write, sentAt: undefined },
+    ),
+  };
 };
 
 /**
@@ -65,41 +90,54 @@ export type DrainReport = {
 export const drain = async (
   queue: SyncQueue,
   send: Sender,
-  now: () => number,
 ): Promise<DrainReport> => {
-  let current = queue;
-  let sent = 0;
-  let refused = 0;
+  const settled: string[] = [];
+  const refusedIds: { id: string; reason: string }[] = [];
+  const gone = new Set<string>();
 
-  // A copy, because `current` is rebuilt as writes settle and a refusal can
-  // take dependants out of it. Skipping anything already gone is what keeps
-  // those two facts from disagreeing.
-  const toSend = [...queue.pending];
+  for (const write of queue.pending) {
+    // A refusal takes whatever depended on it out too, so those are never sent.
+    if (gone.has(write.id)) continue;
 
-  for (const write of toSend) {
-    if (!current.pending.some((w) => w.id === write.id)) continue;
-
-    current = markSending(current, write.id, now());
-    const result = await send(write);
+    let result: SendResult;
+    try {
+      result = await send(write);
+    } catch {
+      /**
+       * **A sender that throws is silence, not a refusal.** React Native's
+       * `fetch` rejects on a network failure rather than resolving, and letting
+       * that propagate would discard the whole report — including refusals
+       * already recorded in this pass, which are answers nobody would get
+       * again.
+       */
+      result = { status: "unreachable" };
+    }
 
     if (result.status === "ok") {
-      current = settle(current, write.id);
-      sent += 1;
+      settled.push(write.id);
       continue;
     }
     if (result.status === "refused") {
-      const before = current.refused.length;
-      current = refuse(current, write.id, result.reason, now());
-      // Counted from the queue rather than as one, because a refusal takes
-      // whatever depended on it down too.
-      refused += current.refused.length - before;
+      refusedIds.push({ id: write.id, reason: result.reason });
+      gone.add(write.id);
+      // Mirrors `refuse`: a game naming a player the server just refused is not
+      // a partial success, it is a worse outcome than sending neither.
+      for (const other of queue.pending) {
+        if (dependsOn(other, write)) gone.add(other.id);
+      }
       continue;
     }
 
-    // Unreachable. Put it back so it does not look like it is still in flight,
-    // and stop: everything behind it may depend on it.
-    return { queue: release(current, write.id), sent, refused, stopped: true };
+    // Unreachable, so stop: everything behind this may depend on it.
+    return { settled, refused: refusedIds, stopped: true };
   }
 
-  return { queue: current, sent, refused, stopped: false };
+  return { settled, refused: refusedIds, stopped: false };
 };
+
+/** Does this write need that one to have landed first? */
+const dependsOn = (write: QueuedWrite, other: QueuedWrite): boolean =>
+  write.kind === "recordGame" &&
+  other.kind === "addPlayer" &&
+  write.groupId === other.groupId &&
+  write.result.playerIds.includes(other.player.id);

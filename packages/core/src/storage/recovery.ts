@@ -1,4 +1,5 @@
 import { StorageAdapter } from "./StorageAdapter";
+import { SYNC_QUEUE_KEY } from "./syncQueueStorage";
 import { TIMER_KEYS } from "./timerStorage";
 import { BLINDS_KEYS } from "./blindsStorage";
 import { REVIEW_KEYS } from "./reviewStorage";
@@ -33,6 +34,12 @@ export const RECOVERY_CLEARS: readonly string[] = [
   PAYOUT_KEY,
   PRESETS_KEY,
   SOUND_PACK_KEY,
+  // Writes this phone has not managed to send. **Cleared, not kept**, and it is
+  // the one store where that is the whole point: the recovery screen exists for
+  // something saved that the app can no longer read and reloads on every
+  // launch, and a queue is read on every launch by definition. Keeping it would
+  // leave the button unable to fix the case it was built for.
+  SYNC_QUEUE_KEY,
 ];
 
 /**

@@ -41,10 +41,31 @@ const isQueuedWrite = (value: unknown): value is QueuedWrite => {
     );
   }
   if (write.kind === "recordGame") {
+    const result = write.result;
+    /**
+     * **Every field the board will touch, not just the ones that identify it.**
+     *
+     * A stored result with no `placings` passed a looser check, loaded happily,
+     * got merged into the board by `withPending`, and then `computeStandings`
+     * threw `placings is not iterable` — on **every launch**, because the queue
+     * is loaded every launch. That is the crash-loop-from-saved-data the app's
+     * recovery screen exists for, arriving from a store that was not in the
+     * recovery list either.
+     */
     return (
-      typeof write.result?.id === "string" &&
-      typeof write.result?.playedAt === "number" &&
-      Array.isArray(write.result?.playerIds)
+      typeof result?.id === "string" &&
+      typeof result?.playedAt === "number" &&
+      Array.isArray(result?.playerIds) &&
+      result.playerIds.every((id) => typeof id === "string") &&
+      Array.isArray(result?.placings) &&
+      result.placings.every(
+        (placing) =>
+          typeof placing?.playerId === "string" &&
+          typeof placing?.place === "number" &&
+          typeof placing?.winnings === "number",
+      ) &&
+      typeof result?.buyIn === "number" &&
+      typeof result?.bounty === "number"
     );
   }
   return false;
