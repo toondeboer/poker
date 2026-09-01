@@ -18,6 +18,8 @@ platform-tagged heading (e.g. `## [1.1.3] - 2026-07-20 — Android`) when you cu
   A write the server *refuses* — a board somebody removed you from between Tuesday and Thursday —
   is kept aside to be shown rather than dropped or silently applied, and anything that depended on
   it is held back with it, so a game can never be recorded naming a player who was never added.
+  The leaderboard says so plainly when that happens — what was not saved, why, and the part that
+  matters: it is on your phone and the other players will not see it.
 - **Claim yourself on a leaderboard.** Signed in, a player on the board can be linked to your
   account — and because every game ever recorded refers to the person rather than to an account,
   the whole season becomes yours with nothing rewritten. It can be undone, so a mis-tap costs

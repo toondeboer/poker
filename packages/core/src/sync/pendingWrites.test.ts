@@ -4,6 +4,7 @@ import type { GroupState } from "../leaderboard/groups";
 import {
   EMPTY_QUEUE,
   MAX_REFUSALS,
+  describeWrite,
   dismiss,
   enqueue,
   hasPendingFor,
@@ -226,6 +227,21 @@ describe("settling and refusing", () => {
     const q = queueOf({ kind: "recordGame", groupId: "g1", result: game("r2") });
     const after = refuse(q, q.pending[0].id, "nope", 5);
     expect(dismiss(after, after.refused[0].write.id).refused).toEqual([]);
+  });
+});
+
+describe("saying what a write was", () => {
+  it("names the person, the board, or the game", () => {
+    // The only part of showing a refusal that can be wrong, and a screen is the
+    // one thing this repo cannot test — so the wording lives here.
+    expect(describeWrite({ kind: "addPlayer", groupId: "g1", player: player("p2", "Ann") }))
+      .toBe("Ann was not added");
+    expect(
+      describeWrite({ kind: "createGroup", groupId: "g1", name: "Thursday", createdAt: 1 }),
+    ).toBe("The board “Thursday” was not created");
+    expect(describeWrite({ kind: "recordGame", groupId: "g1", result: game("r1") })).toBe(
+      "A game was not recorded",
+    );
   });
 });
 

@@ -287,3 +287,22 @@ export const withPending = (
 /** Is there anything to send for this board? */
 export const hasPendingFor = (queue: SyncQueue, groupId: string): boolean =>
   queue.pending.some((write) => write.groupId === groupId);
+
+/**
+ * What a write was, in words somebody who is not a programmer can read.
+ *
+ * Here rather than in a component because it is the only part of showing a
+ * refusal that can be wrong, and a screen is the one place this repo cannot
+ * test. Present tense and no leading capital, so it reads inside a sentence:
+ * "Ann was not added."
+ */
+export const describeWrite = (write: PendingWrite): string => {
+  switch (write.kind) {
+    case "createGroup":
+      return `The board “${write.name}” was not created`;
+    case "addPlayer":
+      return `${write.player.name} was not added`;
+    case "recordGame":
+      return "A game was not recorded";
+  }
+};

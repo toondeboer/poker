@@ -129,8 +129,6 @@ type LeaderboardContextValue = {
    */
   refusedWrites: RefusedWrite[];
   acknowledgeRefusal: (id: string) => void;
-  /** How much this phone still owes the server. Zero when there is nothing. */
-  unsyncedCount: number;
 };
 
 const LeaderboardContext = createContext<LeaderboardContextValue | null>(null);
@@ -475,7 +473,6 @@ export function LeaderboardProvider({
         releaseAllFor,
         refusedWrites: sync.queue.refused,
         acknowledgeRefusal: sync.acknowledge,
-        unsyncedCount: sync.queue.pending.length,
       }}
     >
       {children}
