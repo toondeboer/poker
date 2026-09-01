@@ -68,7 +68,18 @@ const isQueuedWrite = (value: unknown): value is QueuedWrite => {
           typeof placing?.winnings === "number",
       ) &&
       typeof result?.buyIn === "number" &&
-      typeof result?.bounty === "number"
+      typeof result?.bounty === "number" &&
+      // Optional — only a game the app dealt knows who knocked whom out — but
+      // checked when present, for the same reason `placings` is: the board
+      // reads it, and an unreadable one is a crash on every launch.
+      (result.knockouts === undefined ||
+        (Array.isArray(result.knockouts) &&
+          result.knockouts.every(
+            (knockout) =>
+              typeof knockout?.playerId === "string" &&
+              typeof knockout?.count === "number" &&
+              typeof knockout?.bounty === "number",
+          )))
     );
   }
   return false;

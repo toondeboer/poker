@@ -13,7 +13,7 @@ import {
 import { createSyncQueueStorage } from "@poker/core";
 import { asyncStorageAdapter } from "@/src/services/storageAdapter";
 import { createGroupApi } from "@/src/services/groupApi";
-import { apiToken } from "@/src/contexts/AuthContext";
+import { apiToken, onSignedIn } from "@/src/contexts/AuthContext";
 import { backendConfig } from "@/src/services/backendConfig";
 import { generateId } from "@/src/utils/id";
 import { logger } from "@/src/utils/logger";
@@ -36,6 +36,15 @@ export type GroupSync = {
   syncNow: () => void;
   /** Somebody has read a refusal. */
   acknowledge: (id: string) => void;
+  /**
+   * Tell the server about boards it may not know.
+   *
+   * **Needed for every group that already existed on the device.** Only newly
+   * created ones were announced, so an upgrader's boards — and the default
+   * group the app makes on its own — would have been refused "no such group" on
+   * every write, forever, with nothing that would ever fix it.
+   */
+  announce: (groups: readonly { id: string; name: string; createdAt: number }[]) => void;
 };
 
 export const useGroupSync = (): GroupSync => {
@@ -52,16 +61,25 @@ export const useGroupSync = (): GroupSync => {
   const draining = useRef(false);
 
   const update = useCallback((next: (current: SyncQueue) => SyncQueue) => {
-    setQueue((current) => {
-      const value = next(current);
-      latest.current = value;
-      // Persisted on every change rather than on a timer: the writes worth
-      // queueing are the ones made when the app is about to be put in a pocket.
-      QueueStorage.saveQueue(value).catch((error) =>
-        logger.error("Failed to save the sync queue:", error),
-      );
-      return value;
-    });
+    /**
+     * **The ref is computed here, not inside the `setQueue` updater.**
+     *
+     * React defers an updater to the render pass, so assigning the ref inside
+     * one leaves it stale for the rest of the current tick — and `record` calls
+     * `syncNow` on the very next line. It read `pending.length === 0` and
+     * returned, so nothing was ever sent at the moment it was recorded and the
+     * outbox ran a write behind, catching up only on the next foreground.
+     *
+     * The ref is the live value; state is what renders.
+     */
+    const value = next(latest.current);
+    latest.current = value;
+    setQueue(value);
+    // Persisted on every change rather than on a timer: the writes worth
+    // queueing are the ones made when the app is about to be put in a pocket.
+    QueueStorage.saveQueue(value).catch((error) =>
+      logger.error("Failed to save the sync queue:", error),
+    );
   }, []);
 
   const syncNow = useCallback(() => {
@@ -73,12 +91,26 @@ export const useGroupSync = (): GroupSync => {
     if (latest.current.pending.length === 0) return;
 
     draining.current = true;
-    void drain(latest.current, api.send)
-      .then((report) => {
+    void (async () => {
+      /**
+       * Round again while writes keep arriving.
+       *
+       * Anything recorded *during* a drain hits the guard above and is skipped,
+       * so without this it would wait for the next foreground — which for a
+       * weekly game is a week. The loop ends: every pass either sends or
+       * refuses everything it found, so it only goes round for writes made
+       * since it started.
+       */
+      while (latest.current.pending.length > 0) {
+        const report = await drain(latest.current, api.send);
         if (report.settled.length > 0 || report.refused.length > 0) {
           update((current) => applyReport(current, report, Date.now()));
         }
-      })
+        // Unreachable. Going round again just fails the same way; the
+        // foreground and sign-in listeners are what try next.
+        if (report.stopped) break;
+      }
+    })()
       .catch((error) => logger.error("Sync failed unexpectedly:", error))
       .finally(() => {
         draining.current = false;
@@ -96,6 +128,24 @@ export const useGroupSync = (): GroupSync => {
       syncNow();
     },
     [update, syncNow],
+  );
+
+  const announce = useCallback(
+    (groups: readonly { id: string; name: string; createdAt: number }[]) => {
+      if (!backendConfig) return;
+      // Safe to repeat: `enqueue` ignores a board already queued, and the server
+      // answers *ok* to a group it already has — so this can run on every load
+      // without piling up.
+      for (const group of groups) {
+        record({
+          kind: "createGroup",
+          groupId: group.id,
+          name: group.name,
+          createdAt: group.createdAt,
+        });
+      }
+    },
+    [record],
   );
 
   const acknowledge = useCallback(
@@ -117,6 +167,15 @@ export const useGroupSync = (): GroupSync => {
     });
     return () => subscription.remove();
   }, [syncNow]);
+
+  /**
+   * And whenever somebody signs in.
+   *
+   * Every write made while signed out came back *unreachable* — `send` has no
+   * token to use — so the queue after a sign-in is exactly the backlog that
+   * could not have gone before it.
+   */
+  useEffect(() => onSignedIn(syncNow), [syncNow]);
 
   useEffect(() => {
     let active = true;
@@ -140,7 +199,7 @@ export const useGroupSync = (): GroupSync => {
   // Memoised so consumers can depend on the whole thing without re-running on
   // every render of the provider that holds it.
   return useMemo(
-    () => ({ queue, record, syncNow, acknowledge }),
-    [queue, record, syncNow, acknowledge],
+    () => ({ queue, record, syncNow, acknowledge, announce }),
+    [queue, record, syncNow, acknowledge, announce],
   );
 };

@@ -86,6 +86,15 @@ export type RefusedWrite = {
   refusedAt: number;
 };
 
+/**
+ * How many refusals are kept.
+ *
+ * They are only useful for telling somebody, and nobody reads a hundred. Left
+ * uncapped this grows forever in storage for writes nobody will ever act on —
+ * the oldest go first, because the newest are the ones still worth explaining.
+ */
+export const MAX_REFUSALS = 20;
+
 export type SyncQueue = {
   pending: QueuedWrite[];
   /**
@@ -202,12 +211,16 @@ export const refuse = (
         reason:
           casualty.id === id
             ? reason
-            : `not sent, because the player it names was refused: ${reason}`,
+            : `not sent, because ${describe(write)} was refused: ${reason}`,
         refusedAt: now,
       })),
-    ],
+    ].slice(-MAX_REFUSALS),
   };
 };
+
+/** What a write was about, for explaining why something else did not go. */
+const describe = (write: QueuedWrite): string =>
+  write.kind === "createGroup" ? "the board it belongs to" : "the player it names";
 
 /** Somebody has read the bad news. */
 export const dismiss = (queue: SyncQueue, id: string): SyncQueue => ({

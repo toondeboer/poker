@@ -64,6 +64,65 @@ describe("reading back something it does not recognise", () => {
     expect((await createSyncQueueStorage(adapter).loadQueue()).pending).toEqual([]);
   });
 
+  it("drops a game whose knockouts are unreadable", async () => {
+    // The same crash-at-launch class `placings` is checked for: the board reads
+    // knockouts to award bounties, and a row it cannot read takes the app down
+    // on every start — with the queue in storage, so it never recovers.
+    const adapter = createMemoryAdapter();
+    await adapter.setItem(
+      SYNC_QUEUE_KEY,
+      JSON.stringify({
+        pending: [
+          {
+            kind: "recordGame",
+            groupId: "g1",
+            result: {
+              id: "r1",
+              playedAt: 1,
+              playerIds: ["p1"],
+              placings: [],
+              buyIn: 10,
+              bounty: 5,
+              knockouts: [{ playerId: "p1" }],
+            },
+            id: "w-r1",
+            queuedAt: 1,
+          },
+        ],
+        refused: [],
+      }),
+    );
+    expect((await createSyncQueueStorage(adapter).loadQueue()).pending).toEqual([]);
+  });
+
+  it("keeps a game that simply has no knockouts", async () => {
+    // Optional: only a game the app dealt knows who knocked whom out.
+    const adapter = createMemoryAdapter();
+    await adapter.setItem(
+      SYNC_QUEUE_KEY,
+      JSON.stringify({
+        pending: [
+          {
+            kind: "recordGame",
+            groupId: "g1",
+            result: {
+              id: "r1",
+              playedAt: 1,
+              playerIds: ["p1"],
+              placings: [],
+              buyIn: 10,
+              bounty: 0,
+            },
+            id: "w-r1",
+            queuedAt: 1,
+          },
+        ],
+        refused: [],
+      }),
+    );
+    expect((await createSyncQueueStorage(adapter).loadQueue()).pending).toHaveLength(1);
+  });
+
   it("is empty rather than throwing on unreadable JSON", async () => {
     const adapter = createMemoryAdapter();
     await adapter.setItem(SYNC_QUEUE_KEY, "{not json");

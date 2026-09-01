@@ -3,6 +3,7 @@ import type { GameResult, Player } from "../leaderboard/gameResult";
 import type { GroupState } from "../leaderboard/groups";
 import {
   EMPTY_QUEUE,
+  MAX_REFUSALS,
   dismiss,
   enqueue,
   hasPendingFor,
@@ -225,6 +226,35 @@ describe("settling and refusing", () => {
     const q = queueOf({ kind: "recordGame", groupId: "g1", result: game("r2") });
     const after = refuse(q, q.pending[0].id, "nope", 5);
     expect(dismiss(after, after.refused[0].write.id).refused).toEqual([]);
+  });
+});
+
+describe("explaining a cascade", () => {
+  it("names the board when it was the board that was refused", () => {
+    // Every casualty used to be told "the player it names was refused", which
+    // for a refused *board* is simply untrue — and this is the message somebody
+    // reads to work out what happened to their evening.
+    const q = queueOf(
+      { kind: "createGroup", groupId: "g1", name: "Thursday", createdAt: 1 },
+      { kind: "addPlayer", groupId: "g1", player: player("p2") },
+    );
+    const after = refuse(q, q.pending[0].id, "that name is taken", 5);
+    expect(after.refused[1].reason).toContain("the board it belongs to was refused");
+  });
+});
+
+describe("how many refusals are kept", () => {
+  it("keeps the newest and lets the oldest go", () => {
+    // Unbounded, this is a list that only ever grows — in storage, forever, for
+    // writes nobody is going to act on. The newest are the ones still worth
+    // explaining.
+    let q = EMPTY_QUEUE;
+    for (let i = 0; i < MAX_REFUSALS + 5; i += 1) {
+      q = enqueue(q, write({ kind: "recordGame", groupId: "g1", result: game(`r${i}`) }));
+      q = refuse(q, q.pending[0].id, `nope ${i}`, i);
+    }
+    expect(q.refused).toHaveLength(MAX_REFUSALS);
+    expect(q.refused[q.refused.length - 1].reason).toBe(`nope ${MAX_REFUSALS + 4}`);
   });
 });
 

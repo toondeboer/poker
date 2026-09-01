@@ -173,6 +173,7 @@ export function LeaderboardProvider({
   // The stable half of it. `sync` itself changes whenever the queue does, and a
   // callback that depended on the object would be rebuilt on every write.
   const recordWrite = sync.record;
+  const announceGroups = sync.announce;
 
   useEffect(() => {
     let active = true;
@@ -180,6 +181,25 @@ export function LeaderboardProvider({
       .then((loaded) => {
         if (!active) return;
         setState(loaded);
+        /**
+         * **Every board, not only the ones made from now on.**
+         *
+         * Only newly created groups were announced, so a board that existed
+         * before any of this — including the implicit first one the app makes
+         * on its own, which nobody ever "creates" — was unknown to the server,
+         * and every player and game recorded on it would have been refused *no
+         * such group*, permanently, with nothing that would ever have fixed it.
+         *
+         * Cheap to repeat: the server answers *ok* to a board this account is
+         * already on, and the queue ignores one it is already carrying.
+         */
+        announceGroups(
+          loaded.groups.map((entry) => ({
+            id: entry.group.id,
+            name: entry.group.name,
+            createdAt: entry.group.createdAt,
+          })),
+        );
       })
       .catch((error) => logger.error("Failed to load leaderboard:", error))
       .finally(() => {
@@ -188,6 +208,9 @@ export function LeaderboardProvider({
     return () => {
       active = false;
     };
+    // Once, on mount: `announce` is stable, and the board is read here exactly
+    // once. Re-running would re-read storage over live state.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const persist = useCallback((next: GroupedLeaderboard) => {

@@ -422,6 +422,39 @@ describe("changing a role", () => {
   });
 });
 
+describe("creating a board twice", () => {
+  it("is a success when this account is already on it", async () => {
+    // The client retries a write whose answer it never received, and announces
+    // boards it already has. Answering 409 would be a permanent refusal that
+    // cascades to every player and game queued behind the group.
+    const { client } = fakeClient([
+      new TransactionCanceledException({
+        $metadata: {},
+        message: "no",
+        CancellationReasons: [{ Code: "ConditionalCheckFailed" }],
+      }),
+      { Item: memberItem("g1", "me", "admin", 1) },
+    ]);
+    expect(await createGroupStore("T", client).createGroup("g1", "T", "me", 1)).toEqual(
+      { status: "ok" },
+    );
+  });
+
+  it("is still a conflict when the id belongs to somebody else", async () => {
+    const { client } = fakeClient([
+      new TransactionCanceledException({
+        $metadata: {},
+        message: "no",
+        CancellationReasons: [{ Code: "ConditionalCheckFailed" }],
+      }),
+      { Item: undefined },
+    ]);
+    expect(await createGroupStore("T", client).createGroup("g1", "T", "me", 1)).toEqual(
+      { status: "conflict", reason: "group exists" },
+    );
+  });
+});
+
 describe("not resurrecting what somebody deleted", () => {
   it("refuses an add that lands on a tombstone", async () => {
     // The app queues writes offline and replays them, and a replayed add on a
