@@ -126,6 +126,24 @@ reads filter it out.
 - Ninety days is the starting number: a phone that has not opened the app in a season wants a clean
   board anyway.
 
+### A recorded game is immutable, and the key depends on it
+
+`RESULT#<playedAt>#<id>` puts the date in the sort key, and `removeGameResult`
+deletes **by id alone** — so removing a game means rebuilding its key from a
+`GameResult` the client still holds. That works only because nothing in the app
+edits a recorded game: `playedAt` cannot drift away from the key it was written
+under.
+
+**If a game ever becomes editable this breaks silently**: the tombstone lands at
+a key nothing lives at, and the real row survives to be synced back. Every
+tombstone write is therefore conditional on the row existing, so a wrong key
+fails loudly instead of creating an orphan.
+
+The stamp is also zero-padded to 13 digits. Epoch milliseconds are 13 digits now
+and 12 before September 2001, and `playedAt` is a field somebody can set when
+recording a game played earlier — unpadded, a backdated game sorts as the most
+recent one on the board.
+
 ## Version, and where it is not needed
 
 `version` sits on the group's `META` item only, guarding genuine read-modify-write: renaming,
@@ -177,10 +195,21 @@ thing that needs one.
 
 ## Open, and worth settling before code
 
-**How does somebody join a group?** Claiming happens on the host's phone today — you sign in on
-their device and claim yourself. A shared board implies joining from your own: an invite link, a
-code read across the table, or a scan. This is a product decision before it is a key, and it is the
-gap between this design and a feature somebody can use.
+**Joining is by invite link** — decided. The host shares a URL, tapping it opens the app on a join
+screen, and redeeming it writes the membership. The token is its own partition (`INVITE#<token>`)
+because whoever is redeeming it does not know the group id yet; any other keying is a scan.
+
+Two things it needs that do not exist:
+
+- **A long random token, not the six-character join code.** That code is built to be read across a
+  table and deliberately drops `O`/`0`, `I`/`1` and `S`/`5` — it is short because it is spoken, and
+  short means guessable. A link is not spoken, so it should carry something with real entropy.
+- **Universal links.** `pokerkit://` is owned by the Expo dev launcher in development, so a
+  cold-launch deep link cannot be tested from a dev client at all — this is already a known trap in
+  CLAUDE.md and would need a real build to verify.
+
+Still open: **whether an invite expires, and whether it is single-use.** A link in a group chat
+outlives the evening it was shared in.
 
 **What does a person see of a group they were added to but never joined?** "Added by somebody else"
 and "joined myself" are different states, and the first has no membership item — so today that
