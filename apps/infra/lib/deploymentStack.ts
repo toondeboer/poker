@@ -27,7 +27,6 @@
 
 import { Stack, type StackProps } from "aws-cdk-lib";
 import {
-  AccountPrincipal,
   OpenIdConnectProvider,
   Role,
   WebIdentityPrincipal,
@@ -50,44 +49,9 @@ const GITHUB_ISSUER = "https://token.actions.githubusercontent.com";
  */
 const BOOTSTRAP_QUALIFIER = "hnb659fds";
 
-/**
- * Grafana Cloud's own AWS account, which assumes the scrape role below.
- *
- * Fixed by Grafana and the same for every customer — which is exactly why the
- * external ID matters: without it, any Grafana Cloud tenant could assume a role
- * that trusts this account. See {@link GrafanaScrapeProps.externalId}.
- */
-const GRAFANA_CLOUD_ACCOUNT = "008923505280";
-
-/** What Grafana's CloudWatch scrape needs to read, and nothing more. */
-const GRAFANA_SCRAPE_ACTIONS = [
-  // The metrics themselves.
-  "cloudwatch:ListMetrics",
-  "cloudwatch:GetMetricData",
-  // How Grafana discovers what exists. **This is why the stacks are tagged**:
-  // discovery runs through the Resource Groups Tagging API, and a resource with
-  // no tags is invisible to it — no error, just permanently absent data.
-  "tag:GetResources",
-  // Resource metadata for the services this account actually runs. Grafana's
-  // documented policy lists a dozen more (`dms:`, `shield:`, `storagegateway:`,
-  // `autoscaling:`, …) for services nothing here uses; they are left out rather
-  // than pasted in, because a read-only role is still a role somebody else can
-  // assume.
-  "apigateway:GET",
-];
-
 export type DeploymentStackProps = StackProps & {
   /** `owner/repo`, the only repository these roles will ever trust. */
   repository: string;
-  /**
-   * The external ID from Grafana Cloud's *Add new account* page.
-   *
-   * **Without it, no role is created at all.** That is the safe degradation:
-   * a scrape role trusting Grafana's shared account with no external ID
-   * condition is assumable by any Grafana Cloud tenant, so a missing value must
-   * mean "no role" rather than "a role with the condition left off".
-   */
-  grafanaExternalId?: string;
   /**
    * An existing OIDC provider to reuse.
    *
@@ -155,46 +119,6 @@ export class DeploymentStack extends Stack {
       });
     }
 
-    /**
-     * What Grafana Cloud assumes to scrape CloudWatch.
-     *
-     * **This account, not the stacks.** The role reads CloudWatch for the whole
-     * account, so creating it per backend stack would make two identical roles
-     * that grant the same thing — and it belongs beside the other cross-account
-     * trust rather than beside a DynamoDB table.
-     *
-     * OTel runs *inside* a Lambda and therefore cannot see API Gateway 5xx,
-     * DynamoDB throttles, AppSync connection errors or cold starts: all of those
-     * happen outside the function. This is the half of the picture that fills
-     * those in, and without it a dashboard is empty in places for reasons nobody
-     * can see from the dashboard.
-     */
-    if (props.grafanaExternalId) {
-      const scrape = new Role(this, "GrafanaCloudWatchScrape", {
-        roleName: "poker-grafana-cloudwatch-scrape",
-        description: "Grafana Cloud reads CloudWatch metrics for dashboards",
-        assumedBy: new AccountPrincipal(GRAFANA_CLOUD_ACCOUNT).withConditions({
-          // The whole security of this role. Grafana's account is shared by
-          // every one of its customers, so trusting it alone would let any of
-          // them assume this. The external ID is the part that is only yours.
-          StringEquals: { "sts:ExternalId": props.grafanaExternalId },
-        }),
-      });
-      scrape.addToPolicy(
-        new PolicyStatement({
-          effect: Effect.ALLOW,
-          actions: GRAFANA_SCRAPE_ACTIONS,
-          // CloudWatch's read APIs do not take resource ARNs — a metric is not
-          // a resource — so this cannot be narrowed. It is read-only, and it is
-          // why the action list above is trimmed to what is actually used.
-          resources: ["*"],
-        }),
-      );
-      new CfnOutput(this, "GrafanaScrapeRoleArn", {
-        value: scrape.roleArn,
-        description: "Paste this into Grafana Cloud's AWS account configuration",
-      });
-    }
   }
 }
 

@@ -66,7 +66,7 @@ argument for standing dev up before writing anything else against it.
 | **HTTP API**       | `GET /me` and `POST /tables/{tableId}/actions`, both behind a Cognito JWT authorizer that is the API's **default** — a route added later is authenticated because nobody did anything. Access logs, throttled                                          |
 | **Environments**   | `PokerBackend-dev` and `PokerBackend-prod`, plus `PokerDeployment` for the GitHub OIDC roles                                                                                                                                                           |
 | **Telemetry**      | X-Ray `Tracing.ACTIVE` on all three functions, CloudWatch metrics and structured logs, and a `poker-<stage>` dashboard built in CDK from the alarm definitions. No third-party export — see decision 2                                                 |
-| **Alarms**         | Seven, into an SNS topic, each carrying what it means; a forecast budget alarm alongside                                                                                                                                                               |
+| **Alarms**         | Ten, into an SNS topic, each carrying what it means; a forecast budget alarm alongside. One has been seen to fire                                                                                                                                     |
 | **Tests**          | 171, covering the synthesised template and the handlers' decision-making                                                                                                                                                                               |
 
 **Hole cards are private because of where they are published**, not because a client declines to
@@ -206,17 +206,34 @@ property: handler` and fails every invocation.
 
 **What to alert on** (an alert nobody acts on is worse than no alert):
 
-| Alarm                                       | Why it is worth waking up for                                                      |
-| ------------------------------------------- | ---------------------------------------------------------------------------------- |
-| Action Lambda error rate > 1% over 5 min    | The rules are rejecting real actions, or something is throwing                     |
-| Action Lambda p99 > 2 s                     | A table is waiting on a turn that will not land                                    |
-| DynamoDB conditional-check failures spiking | Optimistic concurrency thrashing — two clients fighting                            |
-| DynamoDB throttles > 0                      | On-demand should not throttle; if it does, something is very wrong                 |
-| AppSync connection errors / 5xx             | Players silently disconnected mid-hand — the failure nobody reports                |
-| Cognito sign-in failure rate                | An expired Apple key or a broken client config, which looks like "the app is down" |
-| Monthly spend > a threshold                 | The only alarm that catches a loop nobody noticed                                  |
+| Alarm                        | Metric                                    | Why it is worth waking up for                                       |
+| ---------------------------- | ----------------------------------------- | ------------------------------------------------------------------- |
+| `ActionErrors`               | Lambda `Errors`                           | The rules are rejecting real actions, or something is throwing      |
+| `ActionSlow`                 | Lambda `Duration` p99                     | A table is waiting on a turn that will not land                     |
+| `IdentityErrors`             | Lambda `Errors`                           | Sign-in is broken from the app's point of view                      |
+| `ApiServerErrors`            | API Gateway `5xx`                         | The API is failing before a handler runs                            |
+| `ApiClientErrors`            | API Gateway `4xx`                         | Sustained 4xx — a client version that no longer agrees with the API |
+| `TableThrottled`             | DynamoDB `ThrottledRequests`              | On-demand should not throttle; if it does, something is very wrong  |
+| `TableSystemErrors`          | DynamoDB `SystemErrors`                   | DynamoDB itself is erroring                                         |
+| `TableContention`            | DynamoDB `ConditionalCheckFailedRequests` | Optimistic concurrency thrashing — two clients fighting             |
+| `RealtimeConnectFailures`    | AppSync `ConnectServerError`              | Players cannot connect — **the failure nobody reports**             |
+| `RealtimeSubscribeFailures`  | AppSync `SubscribeServerError`            | The subscribe authorizer is erroring rather than refusing           |
+| Monthly spend > a threshold  | Budgets, forecast                         | The only alarm that catches a loop nobody noticed                   |
 
-All seven are CloudWatch alarms into an SNS topic, delivered by email, and **one of them has been
+**This table used to be a design and is now a description.** Three of the alarms it once listed did
+not exist — and the gap survived a review, because a documented alarm reads exactly like a real one.
+Two of them are now built. The third is not, and cannot be as written:
+
+- **Cognito sign-in failure rate is not buildable from a metric.** `AWS/Cognito` publishes
+  `SignInSuccesses` and `SignInThrottles`, and nothing for failures. It needs user-pool logging plus
+  a metric filter, which is a different piece of work; it is listed here as absent rather than
+  implied by a table.
+
+**Client errors are deliberately not alarmed on the realtime API.** `ConnectClientError` and
+`SubscribeClientError` are what a refused non-member looks like — the subscribe guard working — so
+paging on them would mean an email every time the security boundary did its job.
+
+All ten are CloudWatch alarms into an SNS topic, delivered by email, and **one of them has been
 seen to fire** — the action handler was pointed at a table it could not read, and `ActionErrors`
 alarmed about a minute later. They were always going to be CloudWatch rather than declared in the
 telemetry backend, for a reason that survived the rewrite: **an alert defined in the telemetry

@@ -28,10 +28,32 @@ const alarms = () =>
   );
 
 describe("being told when it stops", () => {
+  it("watches the one thing a function cannot see about itself", () => {
+    // A player whose subscription drops mid-hand gets no error and reports
+    // nothing — the table just stops updating and they blame the wifi. It
+    // happens in AppSync, so no handler logs and no request fails.
+    const realtime = alarms().filter((alarm) =>
+      ["ConnectServerError", "SubscribeServerError"].includes(
+        alarm.MetricName ?? "",
+      ),
+    );
+    expect(realtime).toHaveLength(2);
+  });
+
+  it("does not alarm on the guard refusing somebody", () => {
+    // `ConnectClientError` and `SubscribeClientError` are what a refused
+    // non-member looks like. Alarming on those would page somebody every time
+    // the security boundary did its job.
+    const clientSide = alarms().filter((alarm) =>
+      (alarm.MetricName ?? "").endsWith("ClientError"),
+    );
+    expect(clientSide).toEqual([]);
+  });
+
   it("watches the handful of things worth being woken for", () => {
     // Deliberately few. An alarm nobody acts on trains everybody to ignore the
     // next one.
-    expect(alarms()).toHaveLength(7);
+    expect(alarms()).toHaveLength(10);
   });
 
   it("says what each one means, because that is what arrives in the email", () => {
@@ -92,7 +114,7 @@ describe("a stack nobody gave an address", () => {
     );
 
   it("still has the alarms, so turning them on is one property", () => {
-    quiet().resourceCountIs("AWS::CloudWatch::Alarm", 7);
+    quiet().resourceCountIs("AWS::CloudWatch::Alarm", 10);
   });
 
   it("subscribes nobody rather than inventing a destination", () => {
@@ -167,6 +189,6 @@ describe("the dashboard", () => {
         .length;
     // The status row first, then one graph per alarm.
     expect(widgets("alarm")).toBe(1);
-    expect(widgets("metric")).toBe(7);
+    expect(widgets("metric")).toBe(10);
   });
 });

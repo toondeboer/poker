@@ -613,7 +613,7 @@ export class PokerStack extends Stack {
       threshold: 2_000,
       evaluationPeriods: 2,
       meaning:
-        "A table is waiting on a turn that will not land. Usually DynamoDB contention or a cold start behind the ADOT layer.",
+        "A table is waiting on a turn that will not land. Usually DynamoDB contention, or a cold start on a function nobody has invoked all week.",
     });
     observability.watch("IdentityErrors", {
       metric: identityHandler.metricErrors({ period: Duration.minutes(5) }),
@@ -679,6 +679,64 @@ export class PokerStack extends Stack {
       threshold: 0,
       meaning:
         "DynamoDB itself is erroring. Nothing to fix here; worth knowing before a player reports it.",
+    });
+
+    /**
+     * Two players acting on the same instant, repeatedly.
+     *
+     * A single failed conditional write is **not** a fault — it is optimistic
+     * concurrency doing its job, and the client is told `stale` and decides
+     * again. A sustained rate of them is two clients fighting, or a client
+     * retrying against a version it will never win against.
+     *
+     * Hence a threshold well above zero and two periods: the alarm is about a
+     * *pattern*, and one at zero would fire on an ordinary busy hand.
+     */
+    observability.watch("TableContention", {
+      metric: dynamoMetric(
+        table.tableName,
+        "ConditionalCheckFailedRequests",
+        Operation.PUT_ITEM,
+      ),
+      threshold: 20,
+      evaluationPeriods: 2,
+      meaning:
+        "Conditional writes are failing repeatedly. One is normal — the client is told the table moved and decides again — but a sustained rate means two clients are fighting or one is retrying a decision it cannot win.",
+    });
+
+    /**
+     * The failure nobody reports.
+     *
+     * **This is the one thing a Lambda cannot see about itself.** A player whose
+     * subscription drops mid-hand does not get an error; the table simply stops
+     * updating on their phone, and they put it down to the wifi. Nothing in the
+     * handler logs, and no request fails — the connection is what broke, and it
+     * broke in AppSync rather than in any code here.
+     *
+     * Server errors only. `ConnectClientError` and `SubscribeClientError` are
+     * the guard doing its job — a refused subscribe is a *success* for the
+     * thing that refuses non-members — so alarming on them would page somebody
+     * every time the security boundary worked.
+     */
+    observability.watch("RealtimeConnectFailures", {
+      metric: serviceMetric({
+        namespace: "AWS/AppSync",
+        metricName: "ConnectServerError",
+        dimensions: { EventAPIId: eventApi.attrApiId },
+      }),
+      threshold: 0,
+      meaning:
+        "Players cannot connect to the realtime API. Nobody will report this — a table that stops updating looks like a bad connection from the phone.",
+    });
+    observability.watch("RealtimeSubscribeFailures", {
+      metric: serviceMetric({
+        namespace: "AWS/AppSync",
+        metricName: "SubscribeServerError",
+        dimensions: { EventAPIId: eventApi.attrApiId },
+      }),
+      threshold: 0,
+      meaning:
+        "Subscriptions to a table are failing server-side — which is the subscribe authorizer erroring, not refusing. A refusal is a client error and is the guard working.",
     });
 
     // Everything watched above, laid out. After the last `watch`, or the

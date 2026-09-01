@@ -1,10 +1,10 @@
 /**
  * One log line, structured, with the things you actually search by.
  *
- * CloudWatch Logs Insights and Grafana both parse JSON out of a log line for
- * free and neither can do anything useful with a sentence. The difference
- * shows up at exactly the wrong moment: "something is erroring" is a shrug,
- * and `filter accountId = "..."` is an answer.
+ * CloudWatch Logs Insights parses JSON out of a log line for free and can do
+ * nothing useful with a sentence. The difference shows up at exactly the wrong
+ * moment: "something is erroring" is a shrug, and `filter accountId = "..."` is
+ * an answer.
  *
  * **Nothing here ever logs a request body, a header or a token.** The fields
  * are the ones that identify *which* request went wrong, not what was in it —
@@ -105,17 +105,15 @@ const redact = (value: unknown, depth = 0): unknown => {
   return safe;
 };
 
-/** Write it. One line, one JSON object, which is all either tool needs. */
+/** Write it. One line, one JSON object, which is all Logs Insights needs. */
 export const log = (
   level: LogLevel,
   message: string,
   fields?: LogFields,
 ): void => {
-  // `console` is the only transport a Lambda has to CloudWatch. Grafana gets
-  // these through the CloudWatch integration rather than through the collector
-  // — the ADOT layer's collector receives OTLP, and a `console.log` is not
-  // OTLP. Two paths for two signals, which is worth knowing before wondering
-  // why a log line is in one place and a span in the other.
+  // `console` is the only transport a Lambda has to CloudWatch, and CloudWatch
+  // is where these are read: Logs Insights parses JSON out of a line for free,
+  // so `filter accountId = "..."` is an answer where a sentence is a shrug.
   // eslint-disable-next-line no-console
   console.log(JSON.stringify(logLine(level, message, fields)));
 };
