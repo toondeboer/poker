@@ -5,12 +5,12 @@ full-featured web timer, an iOS/Android app, and the shared logic both build on.
 
 ## Overview
 
-| Workspace | Name | Stack | Purpose |
-|---|---|---|---|
-| `apps/web` | `@poker/web` | Next.js 16 (App Router), React 19, Tailwind CSS 4 | Marketing landing page (`/`) + the full-screen web timer (`/timer`) + privacy policy |
-| `apps/mobile` | `@poker/mobile` | Expo SDK 56 (bare), React Native 0.85, expo-router | The iOS/Android app (App Store / Play Store) |
-| `packages/core` | `@poker/core` | Plain TypeScript | Framework-agnostic poker logic shared by the apps **and by the backend** |
-| `apps/infra` | `@poker/infra` | AWS CDK | The backend for accounts, groups and online play. Defined, not deployed |
+| Workspace       | Name            | Stack                                              | Purpose                                                                                                      |
+| --------------- | --------------- | -------------------------------------------------- | ------------------------------------------------------------------------------------------------------------ |
+| `apps/web`      | `@poker/web`    | Next.js 16 (App Router), React 19, Tailwind CSS 4  | Marketing landing page (`/`) + the full-screen web timer (`/timer`) + privacy policy                         |
+| `apps/mobile`   | `@poker/mobile` | Expo SDK 56 (bare), React Native 0.85, expo-router | The iOS/Android app (App Store / Play Store)                                                                 |
+| `packages/core` | `@poker/core`   | Plain TypeScript                                   | Framework-agnostic poker logic shared by the apps **and by the backend**                                     |
+| `apps/infra`    | `@poker/infra`  | AWS CDK                                            | The backend for accounts, groups and online play. Deployed to a dev environment; nothing in the app calls it |
 
 The web and mobile UIs are **deliberately separate** — desktop and phone have different
 needs (the phone manages sleep, background timers, Live Activities and push notifications;
@@ -74,7 +74,7 @@ contexts/       Blinds, Timer, Premium, SoundPack, Payout, Leaderboard, AppState
 
 **Blind levels use a draft/active split.** `BlindsContext` holds `customBlindLevels` (what the
 `/blinds` editor mutates) separately from `blindLevels` (what the timer plays); the editor's Apply
-button is what promotes one to the other. Applying *clamps* the current level into the new schedule
+button is what promotes one to the other. Applying _clamps_ the current level into the new schedule
 rather than resetting it, so editing mid-tournament doesn't restart the game — whereas loading a
 preset or resetting to defaults does restart, since those swap in a different tournament entirely.
 
@@ -95,10 +95,10 @@ preset or resetting to defaults does restart, since those swap in a different to
 store on top of it — `createTimerStorage`, `createBlindsStorage`, and the preset, review,
 sound-pack, payout and leaderboard stores. Each app supplies its own backend:
 
-| | Adapter | Backend |
-|---|---|---|
-| `apps/mobile` | `src/services/storageAdapter.ts` | `@react-native-async-storage/async-storage` |
-| `apps/web` | `src/lib/storageAdapter.ts` | `window.localStorage` (SSR-safe no-ops on the server) |
+|               | Adapter                          | Backend                                               |
+| ------------- | -------------------------------- | ----------------------------------------------------- |
+| `apps/mobile` | `src/services/storageAdapter.ts` | `@react-native-async-storage/async-storage`           |
+| `apps/web`    | `src/lib/storageAdapter.ts`      | `window.localStorage` (SSR-safe no-ops on the server) |
 
 This is what gives the web timer persistence (custom blinds, round length, current level
 survive a reload) using the exact same serialization the app uses.
@@ -110,8 +110,15 @@ leaderboard yet — but they are built on the same seam and gated in the app rat
 ## The backend, and what it is not
 
 `apps/infra` is an AWS CDK stack: Cognito for identity, one DynamoDB table, AppSync Events for
-realtime, and a single Lambda that is the only thing allowed to change a table. **It is defined
-and tested, and it has never been deployed** — nothing in the app talks to it.
+realtime, a Lambda that is the only thing allowed to change a poker table, and another behind the
+shared leaderboard. **It is deployed to a development environment and every route has been
+exercised by hand — and nothing in the app calls any of it.** `backendConfig` is `null` on purpose,
+so a shipped build cannot put real accounts in a stack that exists to be thrown away.
+
+That gap is the thing to hold on to when reading the rest: what is proven is that the routes answer
+correctly to a person with `curl`. What is unproven is everything about a _phone_ using them — a
+queue replaying writes after a bad evening's signal, a merge against local state, two people at one
+table acting at once.
 
 Two decisions in it are structural rather than incidental:
 
@@ -119,7 +126,7 @@ Two decisions in it are structural rather than incidental:
   draw them. Each player subscribes to `/table/{tableId}` and to
   `/player/{their own id}/table/{tableId}`, and a subscribe handler rejects a private channel whose
   player segment is not the caller's own. Both sides build those paths from `playerChannel` in
-  `@poker/core`, because the app and the backend disagreeing about a path is a *silent* security
+  `@poker/core`, because the app and the backend disagreeing about a path is a _silent_ security
   bug — and was one, until a review caught the guard sitting on a namespace those channels never
   touched.
 - **Only the server publishes.** Clients connect and subscribe with their token; publishing is
@@ -127,21 +134,30 @@ Two decisions in it are structural rather than incidental:
 
 The action handler stores and publishes, and both channel namespaces are guarded on subscribe — the
 private ones by comparing a path segment to the caller's own subject, the shared one by a Lambda
-that reads the table's membership. `ROADMAP.md` carries what is still open, and nothing has been
-deployed.
-[`apps/infra/README.md`](./apps/infra/README.md) is the plan for the rest: how the app will call it,
-what observability is built on, how environments and deploys work, and the order it gets built in.
+that reads the table's membership.
+
+The shared leaderboard follows the same instinct in a different shape, and
+[`apps/infra/SYNC.md`](./apps/infra/SYNC.md) is the reasoning: **a rule is better as the shape of a
+key than as something code has to remember.** One seat per board is `CLAIM#<groupId>`, so a second
+claim collides rather than being caught; membership is written under both the group and the account
+so "who is here" is a consistent read rather than a race; "is there another admin?" is a condition
+on a _named_ account inside the transaction rather than a counter four paths had to maintain. That
+document is worth reading before changing any of it, because it also records the first schema and
+why it was replaced.
+
+[`apps/infra/README.md`](./apps/infra/README.md) covers observability, environments and deploys, and
+`ROADMAP.md` carries what is still open.
 
 ## Platform-coupling map
 
-| Concern | `apps/mobile` | `apps/web` |
-|---|---|---|
-| Sound | `expo-audio` (`useSounds`) | Web Audio API (`useWebAudio`) |
-| Notifications | `expo-notifications` (`useTimerNotification`) | `Notification` API + speech synthesis (`useWebNotifications`) |
-| Background timer | iOS Live Activities + Android foreground service (`LiveActivityService`, native `ios/`/`android/`) | none — the tab stays open; no background needed |
-| Haptics | React Native `Vibration` API (`TimerExpirationAlert`) + native Android `Vibrator` | none |
-| Storage | AsyncStorage adapter | localStorage adapter |
-| UI | React Native `StyleSheet` components | Next.js + Tailwind components |
+| Concern          | `apps/mobile`                                                                                      | `apps/web`                                                    |
+| ---------------- | -------------------------------------------------------------------------------------------------- | ------------------------------------------------------------- |
+| Sound            | `expo-audio` (`useSounds`)                                                                         | Web Audio API (`useWebAudio`)                                 |
+| Notifications    | `expo-notifications` (`useTimerNotification`)                                                      | `Notification` API + speech synthesis (`useWebNotifications`) |
+| Background timer | iOS Live Activities + Android foreground service (`LiveActivityService`, native `ios/`/`android/`) | none — the tab stays open; no background needed               |
+| Haptics          | React Native `Vibration` API (`TimerExpirationAlert`) + native Android `Vibrator`                  | none                                                          |
+| Storage          | AsyncStorage adapter                                                                               | localStorage adapter                                          |
+| UI               | React Native `StyleSheet` components                                                               | Next.js + Tailwind components                                 |
 
 See [CLAUDE.md](./CLAUDE.md) for monorepo conventions and gotchas, and [README.md](./README.md)
 for setup, run, and deploy commands.
