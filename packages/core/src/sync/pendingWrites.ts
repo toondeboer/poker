@@ -42,6 +42,14 @@ import type { GroupState } from "../leaderboard/groups";
  * moved on; a queue of "I added Ann" can.
  */
 export type PendingWrite =
+  /**
+   * **First, or nothing else can land.** A player or a game names a group, and
+   * the server refuses both for a group it has never heard of — so a board made
+   * at a table with no signal has to be able to announce itself later. That
+   * works only because the client picks the group id, the way it already does
+   * for players and games.
+   */
+  | { kind: "createGroup"; groupId: string; name: string; createdAt: number }
   | { kind: "addPlayer"; groupId: string; player: Player }
   | { kind: "recordGame"; groupId: string; result: GameResult };
 
@@ -102,10 +110,16 @@ export const EMPTY_QUEUE: SyncQueue = Object.freeze({
 });
 
 /** What a write is about. Two writes about the same thing are one write. */
-const subjectOf = (write: PendingWrite): string =>
-  write.kind === "addPlayer"
-    ? `player:${write.groupId}:${write.player.id}`
-    : `game:${write.groupId}:${write.result.id}`;
+const subjectOf = (write: PendingWrite): string => {
+  switch (write.kind) {
+    case "createGroup":
+      return `group:${write.groupId}`;
+    case "addPlayer":
+      return `player:${write.groupId}:${write.player.id}`;
+    case "recordGame":
+      return `game:${write.groupId}:${write.result.id}`;
+  }
+};
 
 /**
  * Does this write depend on that one having landed first?
@@ -113,11 +127,18 @@ const subjectOf = (write: PendingWrite): string =>
  * Exported because `drain` needs the same answer, and a second copy that drifted
  * would silently send a game naming a player whose add was refused.
  */
-export const dependsOn = (write: QueuedWrite, other: QueuedWrite): boolean =>
-  write.kind === "recordGame" &&
-  other.kind === "addPlayer" &&
-  write.groupId === other.groupId &&
-  write.result.playerIds.includes(other.player.id);
+export const dependsOn = (write: QueuedWrite, other: QueuedWrite): boolean => {
+  if (write.groupId !== other.groupId) return false;
+  // Everything about a group needs the group. A refused `createGroup` means
+  // every player and game queued for it would be refused too, one at a time,
+  // for the same reason.
+  if (other.kind === "createGroup") return write.kind !== "createGroup";
+  return (
+    write.kind === "recordGame" &&
+    other.kind === "addPlayer" &&
+    write.result.playerIds.includes(other.player.id)
+  );
+};
 
 /**
  * Add a write, unless the queue already says the same thing.
@@ -214,6 +235,10 @@ export const withPending = (
   for (const write of queue.pending) {
     if (write.groupId !== board.group.id) continue;
     switch (write.kind) {
+      case "createGroup":
+        // Nothing to show: the board being drawn *is* the group, and a pending
+        // creation is only about telling the server it exists.
+        break;
       case "addPlayer":
         // Not if the server already has them: a replayed add would otherwise
         // show the same person twice until the next fetch.

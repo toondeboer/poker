@@ -35,6 +35,9 @@ const isQueuedWrite = (value: unknown): value is QueuedWrite => {
   // dropped rather than guessed at: a queue is replayed against a live server,
   // and a write this version does not understand is one it cannot send
   // correctly either.
+  if (write.kind === "createGroup") {
+    return typeof write.name === "string" && typeof write.createdAt === "number";
+  }
   if (write.kind === "addPlayer") {
     return (
       typeof write.player?.id === "string" && typeof write.player?.name === "string"

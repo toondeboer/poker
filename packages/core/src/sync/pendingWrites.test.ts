@@ -88,6 +88,55 @@ describe("collapsing", () => {
   });
 });
 
+describe("a board made with no signal", () => {
+  it("can announce itself later", () => {
+    // A player or a game names a group, and the server refuses both for a group
+    // it has never heard of — so without this, a board created at a table with
+    // no signal could never sync anything. It works only because the client
+    // picks the group id.
+    const q = queueOf({
+      kind: "createGroup",
+      groupId: "g1",
+      name: "Thursday",
+      createdAt: 1,
+    });
+    expect(q.pending[0].kind).toBe("createGroup");
+  });
+
+  it("takes everything queued for it down if it is refused", () => {
+    // Otherwise every player and game for that group is refused separately, for
+    // the same reason, one at a time.
+    const q = queueOf(
+      { kind: "createGroup", groupId: "g1", name: "Thursday", createdAt: 1 },
+      { kind: "addPlayer", groupId: "g1", player: player("p2") },
+      { kind: "recordGame", groupId: "g1", result: game("r2") },
+    );
+    const after = refuse(q, q.pending[0].id, "group exists", 5);
+    expect(after.pending).toEqual([]);
+    expect(after.refused).toHaveLength(3);
+  });
+
+  it("does not take another board down with it", () => {
+    const q = queueOf(
+      { kind: "createGroup", groupId: "g1", name: "Thursday", createdAt: 1 },
+      { kind: "addPlayer", groupId: "g2", player: player("p2") },
+    );
+    expect(refuse(q, q.pending[0].id, "nope", 5).pending).toHaveLength(1);
+  });
+
+  it("shows nothing extra on the board it creates", () => {
+    // The board being drawn *is* the group; a pending creation is only about
+    // telling the server it exists.
+    const q = queueOf({
+      kind: "createGroup",
+      groupId: "g1",
+      name: "Thursday",
+      createdAt: 1,
+    });
+    expect(withPending(board(), q)).toEqual(board());
+  });
+});
+
 describe("what cannot be queued", () => {
   it("has no way to express a claim", () => {
     // **Claiming needs a connection**, and an earlier version of this file

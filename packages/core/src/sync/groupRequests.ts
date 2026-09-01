@@ -34,6 +34,14 @@ export type GroupCall = {
 export const requestFor = (write: QueuedWrite, baseUrl: string): GroupCall => {
   const base = baseUrl.replace(/\/$/, "");
   switch (write.kind) {
+    case "createGroup":
+      return {
+        url: `${base}/groups`,
+        method: "POST",
+        // The id goes with it: a board made offline has to keep the id its
+        // players and games already name.
+        body: JSON.stringify({ groupId: write.groupId, name: write.name }),
+      };
     case "addPlayer":
       return {
         url: `${base}/groups/${encodeURIComponent(write.groupId)}/players`,

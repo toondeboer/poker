@@ -64,6 +64,23 @@ describe("where a write goes", () => {
   });
 });
 
+describe("creating a board", () => {
+  it("posts to groups with the id the phone already used", () => {
+    // The players and games queued behind it already name that id.
+    const create: QueuedWrite = {
+      kind: "createGroup",
+      groupId: "g1",
+      name: "Thursday",
+      createdAt: 5,
+      id: "w0",
+      queuedAt: 0,
+    };
+    const call = requestFor(create, "https://api");
+    expect(call.url).toBe("https://api/groups");
+    expect(JSON.parse(call.body)).toEqual({ groupId: "g1", name: "Thursday" });
+  });
+});
+
 describe("what an answer means", () => {
   it("takes 2xx as landed", () => {
     expect(resultForStatus(200, "")).toEqual({ status: "ok" });
