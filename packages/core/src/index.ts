@@ -358,6 +358,13 @@ export { applyReport, drain } from "./sync/drain";
 export { createSyncQueueStorage, SYNC_QUEUE_KEY } from "./storage/syncQueueStorage";
 export type { SyncQueueStorage } from "./storage/syncQueueStorage";
 export type { DrainReport, SendResult, Sender } from "./sync/drain";
+export {
+  RETRYABLE_STATUSES,
+  reasonFrom as reasonForRefusal,
+  requestFor,
+  resultForStatus,
+} from "./sync/groupRequests";
+export type { GroupCall } from "./sync/groupRequests";
 
 // Realtime channels (shared with the backend, deliberately)
 export {
