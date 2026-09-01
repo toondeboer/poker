@@ -568,6 +568,43 @@ export class PokerStack extends Stack {
       integration: new HttpLambdaIntegration("IdentityRoute", identityHandler),
     });
 
+    /**
+     * The shared leaderboard.
+     *
+     * One function behind every group route, because they share the thing that
+     * matters — each authorizes before it acts, and one entry point is how that
+     * stays true of a route somebody adds later. Its own function rather than a
+     * branch inside the action handler: a leaderboard write must not be able to
+     * fail because a poker hand was slow.
+     */
+    const groupsHandler = new NodejsFunction(this, "Groups", {
+      entry: path.join(__dirname, "lambda", "groups.ts"),
+      runtime: Runtime.NODEJS_22_X,
+      memorySize: 512,
+      timeout: Duration.seconds(10),
+      environment: { ...functionEnvironment, TABLE_NAME: table.tableName },
+      tracing: Tracing.ACTIVE,
+      logGroup: new LogGroup(this, "GroupsLogs", {
+        retention: settings.logRetention,
+        removalPolicy: RemovalPolicy.DESTROY,
+      }),
+      bundling: handlerBundling,
+    });
+    table.grantReadWriteData(groupsHandler);
+
+    const groupsRoute = new HttpLambdaIntegration("GroupsRoute", groupsHandler);
+    for (const [path_, methods] of [
+      ["/groups", [HttpMethod.GET]],
+      ["/groups/{groupId}", [HttpMethod.GET]],
+      ["/groups/{groupId}/players", [HttpMethod.POST]],
+      ["/groups/{groupId}/players/{playerId}", [HttpMethod.DELETE]],
+      ["/groups/{groupId}/games", [HttpMethod.POST]],
+      ["/groups/{groupId}/games/{gameId}", [HttpMethod.DELETE]],
+      ["/groups/{groupId}/claims", [HttpMethod.POST]],
+    ] as [string, HttpMethod[]][]) {
+      api.addRoutes({ path: path_, methods, integration: groupsRoute });
+    }
+
     api.addRoutes({
       path: "/tables/{tableId}/actions",
       methods: [HttpMethod.POST],

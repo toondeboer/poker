@@ -234,10 +234,10 @@ describe("the action handler", () => {
     // call PutRetentionPolicy on another function's log group; an explicit log
     // group does that with no function at all.
     template().resourceCountIs("Custom::LogRetention", 0);
-    // Three: the action handler, the identity route that proves the API chain
-    // works, and the subscribe authorizer. Update this deliberately when a
-    // fourth is written.
-    template().resourceCountIs("AWS::Lambda::Function", 3);
+    // Four: the action handler, the identity route that proves the API chain
+    // works, the subscribe authorizer, and the group routes. Update this
+    // deliberately when a fifth is written.
+    template().resourceCountIs("AWS::Lambda::Function", 4);
   });
 
   it("is the only thing that can publish an event", () => {
