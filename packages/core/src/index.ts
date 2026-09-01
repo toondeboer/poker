@@ -344,6 +344,7 @@ export {
   hasPendingFor,
   markSending,
   refuse,
+  release,
   settle,
   withPending,
 } from "./sync/pendingWrites";

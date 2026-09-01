@@ -101,6 +101,13 @@ bars. The split is by whether an action needs anybody else:
 | Recording a game you just played   | Claiming a player — it must not double-claim    |
 | Adding a player                    | Removing a player or a game — it is destructive |
 
+**The queue that implements this carries additive writes only** — `addPlayer` and `recordGame`, and
+nothing else (`packages/core/src/sync/pendingWrites.ts`). Two earlier versions of it were wider,
+each contradicting the table above, and each brought its own class of bug: a queued claim let two
+offline phones both believe they had the same player, and a queued removal hid something on one
+phone that the server might refuse days later. Narrowing it to the safe direction also deleted the
+collapse rules and the dependency guards they needed.
+
 The rule behind that table: **an offline action is allowed when the worst case is that it merges
 late, and refused when the worst case is that it merges wrongly.** Claiming is the clear example —
 two people claiming the same player on two offline phones cannot both be right, and resolving it

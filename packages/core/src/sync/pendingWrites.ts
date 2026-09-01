@@ -30,21 +30,28 @@ import type { GroupState } from "../leaderboard/groups";
  */
 export type PendingWrite =
   | { kind: "addPlayer"; groupId: string; player: Player }
-  | { kind: "removePlayer"; groupId: string; playerId: string }
-  | { kind: "recordGame"; groupId: string; result: GameResult }
-  | { kind: "removeGame"; groupId: string; gameId: string };
+  | { kind: "recordGame"; groupId: string; result: GameResult };
 
 /**
- * **Claiming is deliberately not in that list**, and an earlier version of this
- * file had it — contradicting its own header two paragraphs up.
+ * **Only additive writes, and that is the whole of it.**
  *
- * Two people claiming the same player on two offline phones cannot both be
- * right, and the queue would let them try: both would show the player as theirs
- * until one came back refused, and the refusal would arrive long after somebody
- * had been shown an answer. It is the one action where merging late and merging
- * wrongly are the same thing, so it needs a connection.
+ * Two earlier versions of this file were wider, and both contradicted the
+ * design in `apps/infra/SYNC.md` that its own header cites:
+ *
+ * - **Claiming a player** was queueable. Two people claiming the same person on
+ *   two offline phones cannot both be right; both would have been shown the
+ *   player as theirs until one came back refused, long after somebody was given
+ *   an answer. Merging late and merging wrongly are the same thing here.
+ * - **Removing a player or a game** was queueable. Removal is destructive and
+ *   admin-only, so an offline removal hides something immediately on one phone
+ *   and may be refused days later — and until then that phone is the only place
+ *   where the board looks like that.
+ *
+ * Adding is the safe direction: the worst case is that a player or a game turns
+ * up on everybody else's board later than it did on yours. Keeping the queue to
+ * that removed the collapse rules, the dependency guard they needed, and both
+ * classes of bug the wider versions had.
  */
-
 export type QueuedWrite = PendingWrite & {
   /** Stable across retries, so a resend is recognisably the same write. */
   id: string;
@@ -91,77 +98,43 @@ export const EMPTY_QUEUE: SyncQueue = Object.freeze({
   refused: Object.freeze([]) as readonly RefusedWrite[] as RefusedWrite[],
 });
 
-/** What a write is about, for collapsing a queue. */
-const subjectOf = (write: PendingWrite): string => {
-  switch (write.kind) {
-    case "addPlayer":
-      return `player:${write.groupId}:${write.player.id}`;
-    case "removePlayer":
-      return `player:${write.groupId}:${write.playerId}`;
-    case "recordGame":
-      return `game:${write.groupId}:${write.result.id}`;
-    case "removeGame":
-      return `game:${write.groupId}:${write.gameId}`;
-  }
-};
+/** What a write is about. Two writes about the same thing are one write. */
+const subjectOf = (write: PendingWrite): string =>
+  write.kind === "addPlayer"
+    ? `player:${write.groupId}:${write.player.id}`
+    : `game:${write.groupId}:${write.result.id}`;
+
+/** Does this write depend on that one having landed first? */
+const dependsOn = (write: QueuedWrite, other: QueuedWrite): boolean =>
+  write.kind === "recordGame" &&
+  other.kind === "addPlayer" &&
+  write.groupId === other.groupId &&
+  write.result.playerIds.includes(other.player.id);
 
 /**
- * Add a write, collapsing what the queue already holds about the same thing.
+ * Add a write, unless the queue already says the same thing.
  *
- * A phone offline for an evening can queue "add Ann", "record a game", "remove
- * Ann" — and sending all three is three round trips to reach a state the server
- * could have been told once. Worse, it is three chances to fail.
+ * **The only rule left is idempotence**, and it is here rather than left to the
+ * caller because a phone that queues the same add twice sends it twice, and the
+ * second one comes back as a refusal about a player who is perfectly fine.
  *
- * The rules are narrow on purpose:
- *
- * - **Adding then removing the same player cancels both**, but only if the add
- *   is still pending. If the add already reached the server, the removal is
- *   real work and has to go.
- * - **A later claim or release replaces an earlier one** for the same player —
- *   only the last one means anything.
- * - Everything else is appended. Collapsing more would mean reasoning about
- *   what the server has seen, which is exactly the reasoning this queue exists
- *   to avoid.
+ * Earlier versions collapsed an add against a later removal, which needed a
+ * guard against orphaning a game that named the player, and another against
+ * cancelling a write already on its way. Narrowing the queue to additive writes
+ * deleted all of it: there is no removal to collapse against.
  */
 export const enqueue = (queue: SyncQueue, write: QueuedWrite): SyncQueue => {
   const subject = subjectOf(write);
-
-  /** The un-sent creation this write would undo, if there is one. */
-  const cancellable = queue.pending.find(
-    (q) =>
-      subjectOf(q) === subject &&
-      q.sentAt === undefined &&
-      ((write.kind === "removePlayer" && q.kind === "addPlayer") ||
-        (write.kind === "removeGame" && q.kind === "recordGame")),
-  );
-
-  // **Nothing else may still depend on it.** Add Bo, record the game he played,
-  // then remove him — cancelling the add would leave a game naming a player the
-  // server is never told about. Removing a player deliberately keeps their
-  // games, so this is an ordinary sequence rather than a contrived one.
-  const dependedOn =
-    write.kind === "removePlayer" &&
-    queue.pending.some(
-      (q) => q.kind === "recordGame" && q.result.playerIds.includes(write.playerId),
-    );
-
-  if (cancellable && !dependedOn) {
-    // Only the one write it undoes — filtering everything about the subject
-    // would silently discard an earlier genuine removal if an id ever recurs.
-    return {
-      ...queue,
-      pending: queue.pending.filter((q) => q.id !== cancellable.id),
-    };
-  }
-
+  if (queue.pending.some((q) => subjectOf(q) === subject)) return queue;
   return { ...queue, pending: [...queue.pending, write] };
 };
 
 /**
  * This one is on its way to the server.
  *
- * Marked rather than removed, because it has not arrived yet and a phone that
- * dies mid-request has to find it again on the next launch.
+ * Marked rather than removed, because it has not arrived yet: a phone that dies
+ * mid-request has to find it again on the next launch. {@link release} is what
+ * puts it back when the request fails.
  */
 export const markSending = (
   queue: SyncQueue,
@@ -171,6 +144,23 @@ export const markSending = (
   ...queue,
   pending: queue.pending.map((write) =>
     write.id === id ? { ...write, sentAt: now } : write,
+  ),
+});
+
+/**
+ * The request failed without an answer — a timeout, a dropped connection, a
+ * process that died.
+ *
+ * **Something has to clear `sentAt` or the write is stranded.** `settle` and
+ * `refuse` both remove the write entirely, so neither runs when there is simply
+ * no answer, and a write left flagged as in-flight is one every sender skips
+ * forever. Clearing it is also what makes the crash story true: on the next
+ * launch it looks exactly like a write that was never sent.
+ */
+export const release = (queue: SyncQueue, id: string): SyncQueue => ({
+  ...queue,
+  pending: queue.pending.map((write) =>
+    write.id === id ? { ...write, sentAt: undefined } : write,
   ),
 });
 
@@ -195,9 +185,33 @@ export const refuse = (
 ): SyncQueue => {
   const write = queue.pending.find((w) => w.id === id);
   if (!write) return queue;
+
+  /**
+   * Anything that needed it takes the refusal with it.
+   *
+   * A refused `addPlayer` leaves a queued game naming somebody the server has
+   * never heard of — nothing validates `playerIds`, and `computeStandings`
+   * skips ids it does not know, so the board would keep a game whose winner is
+   * nobody. Sending the game after its player was refused is not a partial
+   * success; it is a worse outcome than sending neither.
+   */
+  const orphaned = queue.pending.filter((w) => dependsOn(w, write));
+  const casualties = [write, ...orphaned];
+  const ids = new Set(casualties.map((w) => w.id));
+
   return {
-    pending: queue.pending.filter((w) => w.id !== id),
-    refused: [...queue.refused, { write, reason, refusedAt: now }],
+    pending: queue.pending.filter((w) => !ids.has(w.id)),
+    refused: [
+      ...queue.refused,
+      ...casualties.map((casualty) => ({
+        write: casualty,
+        reason:
+          casualty.id === id
+            ? reason
+            : `not sent, because the player it names was refused: ${reason}`,
+        refusedAt: now,
+      })),
+    ],
   };
 };
 
@@ -231,16 +245,10 @@ export const withPending = (board: GroupState, queue: SyncQueue): GroupState => 
           players = [...players, write.player];
         }
         break;
-      case "removePlayer":
-        players = players.filter((p) => p.id !== write.playerId);
-        break;
       case "recordGame":
         if (!results.some((r) => r.id === write.result.id)) {
           results = [...results, write.result];
         }
-        break;
-      case "removeGame":
-        results = results.filter((r) => r.id !== write.gameId);
         break;
     }
   }

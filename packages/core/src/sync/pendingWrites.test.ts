@@ -8,6 +8,7 @@ import {
   hasPendingFor,
   markSending,
   refuse,
+  release,
   settle,
   withPending,
   type PendingWrite,
@@ -61,60 +62,26 @@ describe("what the queue holds", () => {
 });
 
 describe("collapsing", () => {
-  it("cancels an add and a remove that never left the phone", () => {
-    // Offline for an evening: add Ann, change your mind. Sending both is two
-    // round trips to reach a state the server was never told about, and two
-    // chances to fail.
+  it("ignores a write the queue already holds", () => {
+    // A phone that queues the same add twice sends it twice, and the second
+    // comes back as a refusal about a player who is perfectly fine.
     const q = queueOf(
       { kind: "addPlayer", groupId: "g1", player: player("p2") },
-      { kind: "removePlayer", groupId: "g1", playerId: "p2" },
+      { kind: "addPlayer", groupId: "g1", player: player("p2") },
     );
-    expect(q.pending).toEqual([]);
-  });
-
-  it("keeps a removal of somebody the server already knows about", () => {
-    // **The distinction that matters.** With no pending add, the removal is
-    // real work: the player exists server-side and somebody wants them gone.
-    const q = queueOf({ kind: "removePlayer", groupId: "g1", playerId: "p1" });
     expect(q.pending).toHaveLength(1);
   });
 
-  it("keeps an add whose player a pending game still names", () => {
-    // Add Bo, record the game he played, then remove him — removing a player
-    // deliberately keeps their games, so this is ordinary. Cancelling the add
-    // would leave a game naming somebody the server is never told about.
-    const q = queueOf(
-      { kind: "addPlayer", groupId: "g1", player: player("p2") },
-      {
-        kind: "recordGame",
-        groupId: "g1",
-        result: { ...game("r2"), playerIds: ["p2"] },
-      },
-      { kind: "removePlayer", groupId: "g1", playerId: "p2" },
-    );
-    expect(q.pending).toHaveLength(3);
-  });
-
-  it("cancels a recorded game deleted before it synced", () => {
-    const q = queueOf(
-      { kind: "recordGame", groupId: "g1", result: game("r2") },
-      { kind: "removeGame", groupId: "g1", gameId: "r2" },
-    );
-    expect(q.pending).toEqual([]);
-  });
-
-  it("does not collapse across different boards", () => {
+  it("keeps the same id in two different boards apart", () => {
     // Same player id in two groups is two different people.
     const q = queueOf(
       { kind: "addPlayer", groupId: "g1", player: player("p2") },
-      { kind: "removePlayer", groupId: "g2", playerId: "p2" },
+      { kind: "addPlayer", groupId: "g2", player: player("p2") },
     );
     expect(q.pending).toHaveLength(2);
   });
 
-  it("leaves recorded games alone", () => {
-    // Two games are two games. Collapsing them would need to know which the
-    // server has seen, which is the reasoning this queue exists to avoid.
+  it("keeps two different games", () => {
     const q = queueOf(
       { kind: "recordGame", groupId: "g1", result: game("r2") },
       { kind: "recordGame", groupId: "g1", result: game("r3") },
@@ -130,29 +97,31 @@ describe("what cannot be queued", () => {
     // same player on two offline phones cannot both be right, and both would
     // have been shown the player as theirs until one came back refused, long
     // after somebody had been given an answer.
-    const kinds: PendingWrite["kind"][] = [
-      "addPlayer",
-      "removePlayer",
-      "recordGame",
-      "removeGame",
-    ];
+    const kinds: PendingWrite["kind"][] = ["addPlayer", "recordGame"];
     expect(kinds).not.toContain("claimPlayer");
+  });
+
+  it("has no way to express a removal either", () => {
+    // Removal is destructive and admin-only, so an offline one hides something
+    // on this phone and may be refused days later — with this phone the only
+    // place the board ever looked like that. `SYNC.md` always said so; the code
+    // did not, twice.
+    const kinds: PendingWrite["kind"][] = ["addPlayer", "recordGame"];
+    expect(kinds).not.toContain("removePlayer");
+    expect(kinds).not.toContain("removeGame");
   });
 });
 
 describe("a write that is already on its way", () => {
-  it("cannot be collapsed away", () => {
-    // Without this, queuing a removal while the add is mid-request cancels
-    // both — the server accepts the add anyway, `settle` finds nothing, and no
-    // removal is ever sent. The player is stuck on a shared board with nothing
-    // left that intends to take them off.
-    const added = queueOf({ kind: "addPlayer", groupId: "g1", player: player("p2") });
-    const sending = markSending(added, added.pending[0].id, 5);
-    const after = enqueue(
-      sending,
-      write({ kind: "removePlayer", groupId: "g1", playerId: "p2" }),
-    );
-    expect(after.pending).toHaveLength(2);
+  it("can be put back when the request never answered", () => {
+    // **Something has to clear `sentAt`.** `settle` and `refuse` both remove
+    // the write, so neither runs on a timeout or a dropped connection — and a
+    // write left flagged in-flight is one every sender skips forever.
+    const q = queueOf({ kind: "addPlayer", groupId: "g1", player: player("p2") });
+    const id = q.pending[0].id;
+    const stuck = markSending(q, id, 5);
+    expect(stuck.pending[0].sentAt).toBe(5);
+    expect(release(stuck, id).pending[0].sentAt).toBeUndefined();
   });
 
   it("is still there after a restart, because it may never have arrived", () => {
@@ -177,6 +146,33 @@ describe("settling and refusing", () => {
     expect(after.pending).toEqual([]);
     expect(after.refused).toHaveLength(1);
     expect(after.refused[0].reason).toBe("you are not on this board");
+  });
+
+  it("takes the games that named a refused player down with it", () => {
+    // Nothing validates `playerIds`, and `computeStandings` skips ids it does
+    // not know — so sending the game after its player was refused leaves a
+    // board with a game whose winner is nobody. Worse than sending neither.
+    const q = queueOf(
+      { kind: "addPlayer", groupId: "g1", player: player("p2") },
+      {
+        kind: "recordGame",
+        groupId: "g1",
+        result: { ...game("r2"), playerIds: ["p2"] },
+      },
+    );
+    const after = refuse(q, q.pending[0].id, "you are not on this board", 5);
+    expect(after.pending).toEqual([]);
+    expect(after.refused).toHaveLength(2);
+    expect(after.refused[1].reason).toContain("the player it names was refused");
+  });
+
+  it("leaves a game that does not name the refused player", () => {
+    const q = queueOf(
+      { kind: "addPlayer", groupId: "g1", player: player("p2") },
+      { kind: "recordGame", groupId: "g1", result: game("r2") },
+    );
+    const after = refuse(q, q.pending[0].id, "nope", 5);
+    expect(after.pending).toHaveLength(1);
   });
 
   it("takes a refusal off the queue so the ones behind it can go", () => {
@@ -219,11 +215,6 @@ describe("the board as this phone should draw it", () => {
     expect(withPending(board(), q).players).toHaveLength(1);
   });
 
-  it("hides a player this phone removed", () => {
-    const q = queueOf({ kind: "removePlayer", groupId: "g1", playerId: "p1" });
-    expect(withPending(board(), q).players).toEqual([]);
-  });
-
   it("puts the newest game first, like the rest of the app", () => {
     // **`addGameResult` prepends** and `playedAt` is documented as
     // "newest-first ordering". Sorting the other way reversed the whole history
@@ -237,17 +228,12 @@ describe("the board as this phone should draw it", () => {
     ]);
   });
 
-  it("ignores writes meant for another board", () => {
-    const q = queueOf({ kind: "removePlayer", groupId: "g2", playerId: "p1" });
-    expect(withPending(board(), q).players).toHaveLength(1);
-  });
-
   it("leaves the board it was given alone", () => {
     // Applied on read, never written into the cache — so a refused write is
     // just a queue entry that stops being applied, rather than something that
     // has to be unpicked from state somebody has since changed.
     const original = board();
-    const q = queueOf({ kind: "removePlayer", groupId: "g1", playerId: "p1" });
+    const q = queueOf({ kind: "addPlayer", groupId: "g1", player: player("p2") });
     withPending(original, q);
     expect(original.players).toHaveLength(1);
   });
