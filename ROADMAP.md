@@ -251,6 +251,21 @@ Actions over OIDC, and **accounts end-to-end as the first deployable slice**.
     domain and DNS records, so it is a credential-bearing step like Apple and Google below.
   - **Worth doing before any real user signs up, and it costs nothing to defer until then**: dev is
     fine on the built-in sender now that it is known where the mail goes.
+- ⬜ **Account deletion has to become server-side, and the ordering is the whole problem.** Today
+  the app calls Cognito's `DeleteUser` directly with its own access token, and that is *correct for
+  now*: the only thing this backend writes is one `TABLE#<id>/STATE` item carrying `members: [sub]`,
+  on a 24-hour TTL, so a deleted account leaves behind something that deletes itself by tomorrow.
+  Nothing durable is keyed by an account yet.
+  - **It stops being correct the moment groups, players and results land** (section C below), which
+    is the first durable per-account data. Deletion must land **in the same pull request**, because
+    the alternative is a period where the store requirement is live and unmet.
+  - **The trap: once the Cognito user is gone, the client has no valid token**, so it cannot
+    authenticate a cleanup call afterwards. That makes this a *replacement* of the current seam
+    rather than an addition — a `DELETE /me` route that removes the data first and the user second,
+    server-side, with `AdminDeleteUser`. Getting it the other way round leaves orphaned rows nobody
+    holds a credential for.
+  - Make the data half idempotent and retryable: if the user delete fails after the data is gone,
+    the account has to be deletable again on a second attempt rather than wedged.
 - ⬜ **Sign in with Apple and Google.** Both need real client ids and secrets, and App Store
   guideline 4.8 requires Sign in with Apple alongside any other third-party provider — so they are
   a credential-bearing decision rather than something to scaffold with placeholders.
