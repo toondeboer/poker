@@ -341,10 +341,9 @@ export {
   EMPTY_QUEUE,
   dismiss,
   enqueue,
+  dependsOn,
   hasPendingFor,
-  markSending,
   refuse,
-  release,
   settle,
   withPending,
 } from "./sync/pendingWrites";

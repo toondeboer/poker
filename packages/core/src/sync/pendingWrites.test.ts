@@ -6,9 +6,7 @@ import {
   dismiss,
   enqueue,
   hasPendingFor,
-  markSending,
   refuse,
-  release,
   settle,
   withPending,
   type PendingWrite,
@@ -109,24 +107,6 @@ describe("what cannot be queued", () => {
     const kinds: PendingWrite["kind"][] = ["addPlayer", "recordGame"];
     expect(kinds).not.toContain("removePlayer");
     expect(kinds).not.toContain("removeGame");
-  });
-});
-
-describe("a write that is already on its way", () => {
-  it("can be put back when the request never answered", () => {
-    // **Something has to clear `sentAt`.** `settle` and `refuse` both remove
-    // the write, so neither runs on a timeout or a dropped connection — and a
-    // write left flagged in-flight is one every sender skips forever.
-    const q = queueOf({ kind: "addPlayer", groupId: "g1", player: player("p2") });
-    const id = q.pending[0].id;
-    const stuck = markSending(q, id, 5);
-    expect(stuck.pending[0].sentAt).toBe(5);
-    expect(release(stuck, id).pending[0].sentAt).toBeUndefined();
-  });
-
-  it("is still there after a restart, because it may never have arrived", () => {
-    const added = queueOf({ kind: "addPlayer", groupId: "g1", player: player("p2") });
-    expect(markSending(added, added.pending[0].id, 5).pending).toHaveLength(1);
   });
 });
 

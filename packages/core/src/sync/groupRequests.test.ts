@@ -92,6 +92,22 @@ describe("what an answer means", () => {
     expect(resultForStatus(408, "slow")).toEqual({ status: "unreachable" });
     expect(resultForStatus(429, "too many")).toEqual({ status: "unreachable" });
   });
+
+  it("retries a 401 rather than refusing everything at once", () => {
+    // **The dangerous one.** `drain` carries on past refusals, so one stale
+    // token would refuse every pending write in a single pass and move the lot
+    // somewhere nothing retries — an expired session eating an evening's work.
+    expect(resultForStatus(401, "Unauthorized")).toEqual({ status: "unreachable" });
+  });
+
+  it("still refuses a 403, because that is an answer", () => {
+    // 401 is "I do not know who you are", which a fresh token fixes. 403 is "I
+    // know, and no" — retrying cannot change it.
+    expect(resultForStatus(403, "an admin has to do that")).toEqual({
+      status: "refused",
+      reason: "an admin has to do that",
+    });
+  });
 });
 
 describe("what somebody is told", () => {

@@ -13,6 +13,19 @@
  * right, and resolving it afterwards means telling somebody they are not who
  * they said they were. See `apps/infra/SYNC.md`.
  *
+ * ## The queue is an outbox, not the only copy
+ *
+ * **A write goes into the local board *and* into this queue**, and that
+ * ordering matters more than it looks. If the queue were the only record of an
+ * offline write, it would be storing somebody's evening — and the recovery
+ * screen, which clears the queue and promises the leaderboard survives, would
+ * be quietly lying. Writing the board first makes the queue purely "and tell
+ * the server", so losing it costs the *news*, never the night.
+ *
+ * That is also what {@link withPending} is for: after a fetch, the server's copy
+ * does not yet contain what has not been sent, so the two are combined on read
+ * rather than the fetch overwriting local state.
+ *
  * **No I/O here.** The app sends these; this decides what is in the queue, what
  * a board looks like with them applied, and what happens when one comes back
  * refused.
@@ -56,16 +69,6 @@ export type QueuedWrite = PendingWrite & {
   /** Stable across retries, so a resend is recognisably the same write. */
   id: string;
   queuedAt: number;
-  /**
-   * When this was handed to the server, if it has been.
-   *
-   * **A write in flight cannot be collapsed away.** Without this, queuing a
-   * removal while the matching add is mid-request cancels both — the server
-   * accepts the add anyway, `settle` finds nothing to remove, and no removal is
-   * ever sent. The player is then stuck on a shared board with nothing left
-   * that intends to take them off it.
-   */
-  sentAt?: number;
 };
 
 /** Why the server would not take a write, in words a person can act on. */
@@ -104,8 +107,13 @@ const subjectOf = (write: PendingWrite): string =>
     ? `player:${write.groupId}:${write.player.id}`
     : `game:${write.groupId}:${write.result.id}`;
 
-/** Does this write depend on that one having landed first? */
-const dependsOn = (write: QueuedWrite, other: QueuedWrite): boolean =>
+/**
+ * Does this write depend on that one having landed first?
+ *
+ * Exported because `drain` needs the same answer, and a second copy that drifted
+ * would silently send a game naming a player whose add was refused.
+ */
+export const dependsOn = (write: QueuedWrite, other: QueuedWrite): boolean =>
   write.kind === "recordGame" &&
   other.kind === "addPlayer" &&
   write.groupId === other.groupId &&
@@ -128,41 +136,6 @@ export const enqueue = (queue: SyncQueue, write: QueuedWrite): SyncQueue => {
   if (queue.pending.some((q) => subjectOf(q) === subject)) return queue;
   return { ...queue, pending: [...queue.pending, write] };
 };
-
-/**
- * This one is on its way to the server.
- *
- * Marked rather than removed, because it has not arrived yet: a phone that dies
- * mid-request has to find it again on the next launch. {@link release} is what
- * puts it back when the request fails.
- */
-export const markSending = (
-  queue: SyncQueue,
-  id: string,
-  now: number,
-): SyncQueue => ({
-  ...queue,
-  pending: queue.pending.map((write) =>
-    write.id === id ? { ...write, sentAt: now } : write,
-  ),
-});
-
-/**
- * The request failed without an answer — a timeout, a dropped connection, a
- * process that died.
- *
- * **Something has to clear `sentAt` or the write is stranded.** `settle` and
- * `refuse` both remove the write entirely, so neither runs when there is simply
- * no answer, and a write left flagged as in-flight is one every sender skips
- * forever. Clearing it is also what makes the crash story true: on the next
- * launch it looks exactly like a write that was never sent.
- */
-export const release = (queue: SyncQueue, id: string): SyncQueue => ({
-  ...queue,
-  pending: queue.pending.map((write) =>
-    write.id === id ? { ...write, sentAt: undefined } : write,
-  ),
-});
 
 /** It reached the server. */
 export const settle = (queue: SyncQueue, id: string): SyncQueue => ({
@@ -231,7 +204,10 @@ export const dismiss = (queue: SyncQueue, id: string): SyncQueue => ({
  * changed. Kept separate, a refusal is just a queue entry that stops being
  * applied.
  */
-export const withPending = (board: GroupState, queue: SyncQueue): GroupState => {
+export const withPending = (
+  board: GroupState,
+  queue: SyncQueue,
+): GroupState => {
   let players = [...board.players];
   let results = [...board.results];
 
@@ -264,7 +240,8 @@ export const withPending = (board: GroupState, queue: SyncQueue): GroupState => 
    * claiming an order that does not exist.
    */
   results.sort(
-    (a, b) => b.playedAt - a.playedAt || (a.id === b.id ? 0 : a.id < b.id ? -1 : 1),
+    (a, b) =>
+      b.playedAt - a.playedAt || (a.id === b.id ? 0 : a.id < b.id ? -1 : 1),
   );
   return { ...board, players, results };
 };

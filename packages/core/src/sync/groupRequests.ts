@@ -63,12 +63,22 @@ export const requestFor = (write: QueuedWrite, baseUrl: string): GroupCall => {
  * - **5xx** — the server fell over. It never considered the request, so calling
  *   this a refusal would tell somebody their game was rejected when nothing
  *   ever read it. Retried.
- * - **408 and 429 are the exceptions inside 4xx**: a timeout and a rate limit
- *   are both "ask again", not "no". Recording them as refusals would throw away
- *   a write because the server was busy, which is the failure a queue exists to
- *   prevent.
+ * - **401, 408 and 429 are the exceptions inside 4xx**, all of them "ask
+ *   again" rather than "no":
+ *   - a **timeout** and a **rate limit** would otherwise throw away a write
+ *     because the server was busy, which is the failure a queue exists to
+ *     prevent;
+ *   - a **401** is a token problem, and it is the dangerous one. `drain`
+ *     carries on past refusals, so one stale token would refuse *every*
+ *     pending write in a single pass and move the lot somewhere nothing
+ *     retries — an expired session silently eating an evening's work.
+ *
+ * A **403** stays a refusal, and the difference is worth being deliberate
+ * about: 401 is "I do not know who you are", which a fresh token fixes, and 403
+ * is "I know, and no" — `an admin has to do that`, which retrying cannot
+ * change.
  */
-export const RETRYABLE_STATUSES: readonly number[] = [408, 429];
+export const RETRYABLE_STATUSES: readonly number[] = [401, 408, 429];
 
 export const resultForStatus = (status: number, reason: string): SendResult => {
   if (status >= 200 && status < 300) return { status: "ok" };

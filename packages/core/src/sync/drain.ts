@@ -10,7 +10,13 @@
  * `apps/infra/SYNC.md` for the design.
  */
 
-import { refuse, settle, type QueuedWrite, type SyncQueue } from "./pendingWrites";
+import {
+  dependsOn,
+  refuse,
+  settle,
+  type QueuedWrite,
+  type SyncQueue,
+} from "./pendingWrites";
 
 /** What came back. */
 export type SendResult =
@@ -61,14 +67,7 @@ export const applyReport = (
   for (const { id, reason } of report.refused) {
     current = refuse(current, id, reason, now);
   }
-  // Anything left flagged in flight was flagged by this pass and never
-  // answered, so it is not in flight any more.
-  return {
-    ...current,
-    pending: current.pending.map((write) =>
-      write.sentAt === undefined ? write : { ...write, sentAt: undefined },
-    ),
-  };
+  return current;
 };
 
 /**
@@ -135,9 +134,3 @@ export const drain = async (
   return { settled, refused: refusedIds, stopped: false };
 };
 
-/** Does this write need that one to have landed first? */
-const dependsOn = (write: QueuedWrite, other: QueuedWrite): boolean =>
-  write.kind === "recordGame" &&
-  other.kind === "addPlayer" &&
-  write.groupId === other.groupId &&
-  write.result.playerIds.includes(other.player.id);

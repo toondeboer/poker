@@ -24,14 +24,6 @@ describe("keeping what has not been sent", () => {
     expect(loaded.pending[0].id).toBe("w-p1");
   });
 
-  it("does not persist that a request was in the air", async () => {
-    // Nothing is in flight across a launch. Restoring the flag would describe a
-    // request made by a process that no longer exists.
-    const store = createSyncQueueStorage(createMemoryAdapter());
-    await store.saveQueue(queue({ ...add("p1"), sentAt: 12345 }));
-    expect((await store.loadQueue()).pending[0].sentAt).toBeUndefined();
-  });
-
   it("keeps refusals, so somebody can still be told", async () => {
     const store = createSyncQueueStorage(createMemoryAdapter());
     await store.saveQueue({

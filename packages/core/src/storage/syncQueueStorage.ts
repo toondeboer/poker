@@ -111,24 +111,7 @@ export function createSyncQueueStorage(storage: StorageAdapter): SyncQueueStorag
     },
 
     async saveQueue(queue: SyncQueue): Promise<void> {
-      /**
-       * `sentAt` is deliberately **not** persisted.
-       *
-       * It means "a request for this is in the air right now", and nothing is
-       * in the air across a launch. Writing it out would restore a queue full
-       * of writes flagged as in-flight by a process that no longer exists —
-       * and the drain loop retries those anyway, so the flag would be a lie
-       * that costs nothing but confuses everything that reads it.
-       */
-      const pending = queue.pending.map((write) => {
-        const stored: Record<string, unknown> = { ...write };
-        delete stored.sentAt;
-        return stored;
-      });
-      await storage.setItem(
-        SYNC_QUEUE_KEY,
-        JSON.stringify({ pending, refused: queue.refused }),
-      );
+      await storage.setItem(SYNC_QUEUE_KEY, JSON.stringify(queue));
     },
 
     async clearQueue(): Promise<void> {
