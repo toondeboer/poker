@@ -123,10 +123,53 @@ describe("reading back something it does not recognise", () => {
     expect((await createSyncQueueStorage(adapter).loadQueue()).pending).toHaveLength(1);
   });
 
+  it("drops a write that does not say which board it is for", () => {
+    // Without a board there is no route to send it to, and guessing the active
+    // one would post somebody's game to the wrong leaderboard.
+    const adapter = createMemoryAdapter();
+    return (async () => {
+      await adapter.setItem(
+        SYNC_QUEUE_KEY,
+        JSON.stringify({ pending: [{ ...add("p1"), groupId: "" }], refused: [] }),
+      );
+      expect((await createSyncQueueStorage(adapter).loadQueue()).pending).toEqual([]);
+    })();
+  });
+
+  it("drops a board whose name did not survive", () => {
+    const adapter = createMemoryAdapter();
+    return (async () => {
+      await adapter.setItem(
+        SYNC_QUEUE_KEY,
+        JSON.stringify({
+          pending: [
+            { kind: "createGroup", groupId: "g1", createdAt: 1, id: "w1", queuedAt: 1 },
+            { kind: "createGroup", groupId: "g2", name: "Sunday", createdAt: 1, id: "w2", queuedAt: 1 },
+          ],
+          refused: [],
+        }),
+      );
+      const loaded = await createSyncQueueStorage(adapter).loadQueue();
+      expect(loaded.pending.map((w) => w.groupId)).toEqual(["g2"]);
+    })();
+  });
+
   it("is empty rather than throwing on unreadable JSON", async () => {
     const adapter = createMemoryAdapter();
     await adapter.setItem(SYNC_QUEUE_KEY, "{not json");
     expect(await createSyncQueueStorage(adapter).loadQueue()).toEqual(EMPTY_QUEUE);
+  });
+
+  it("can be cleared, for the recovery path", () => {
+    // `SYNC_QUEUE_KEY` is in `RECOVERY_CLEARS` because an unreadable queue used
+    // to crash the app on every launch with no way back.
+    const adapter = createMemoryAdapter();
+    return (async () => {
+      const store = createSyncQueueStorage(adapter);
+      await store.saveQueue(queue(add("p1")));
+      await store.clearQueue();
+      expect((await store.loadQueue()).pending).toEqual([]);
+    })();
   });
 
   it("is empty when nothing was ever saved", async () => {

@@ -397,6 +397,44 @@ describe("the board as this phone should draw it", () => {
     ]);
   });
 
+  it("ignores writes queued for a different board", () => {
+    // The queue is one outbox for every board, so this is the ordinary case,
+    // not an edge: a player added to Thursday must not appear on Sunday.
+    const q = queueOf({ kind: "addPlayer", groupId: "g2", player: player("p9", "Zoe") });
+    expect(withPending(board(), q).players.map((p) => p.id)).toEqual(["p1"]);
+  });
+
+  it("does not show a game twice once the server has it", () => {
+    // A write is settled by a report, not by the board arriving, so there is a
+    // window where the game is in both — and showing it twice double-counts
+    // somebody's night in the standings.
+    const q = queueOf({ kind: "recordGame", groupId: "g1", result: game("r1", 100) });
+    expect(withPending(board(), q).results.map((r) => r.id)).toEqual(["r1"]);
+  });
+
+  it("keeps two games in the same millisecond in a stable order", () => {
+    // Without the id tie-break the sort is unstable and the two swap places
+    // between renders, which looks like the list flickering for no reason.
+    const same = { ...board(), results: [game("b", 500), game("a", 500)] };
+    const drawn = withPending(same, EMPTY_QUEUE).results.map((r) => r.id);
+    expect(drawn).toEqual(["a", "b"]);
+    // And the same answer whichever way round they arrive.
+    const flipped = { ...board(), results: [game("a", 500), game("b", 500)] };
+    expect(withPending(flipped, EMPTY_QUEUE).results.map((r) => r.id)).toEqual(drawn);
+  });
+
+  it("does not fall over on a board holding the same game twice", () => {
+    // Storage validates each stored result but does not dedupe ids, so this is
+    // reachable from a file somebody's phone actually has. The comparator has
+    // to be total: returning a made-up order for two equal keys is what makes a
+    // sort unstable, and the list then flickers between renders.
+    const twice = { ...board(), results: [game("r9", 500), game("r9", 500)] };
+    expect(withPending(twice, EMPTY_QUEUE).results.map((r) => r.id)).toEqual([
+      "r9",
+      "r9",
+    ]);
+  });
+
   it("leaves the board it was given alone", () => {
     // Applied on read, never written into the cache — so a refused write is
     // just a queue entry that stops being applied, rather than something that
