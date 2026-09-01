@@ -85,6 +85,8 @@ export type GroupStore = {
   join(accountId: string, groupId: string, role: Role, now: number): Promise<WriteOutcome>;
   /** Remove a membership, asserting `guarantor` is still an admin if named. */
   leave(accountId: string, groupId: string, guarantor: string | null): Promise<WriteOutcome>;
+  /** What an account holds on a board, if anything — the seat and the player. */
+  seatOf(accountId: string, groupId: string): Promise<string | null>;
   setInvite(groupId: string, token: string, previous: string | null, now: number): Promise<WriteOutcome>;
   groupForInvite(token: string): Promise<string | null>;
   inviteTokenOf(groupId: string): Promise<string | null>;
@@ -299,14 +301,20 @@ export const createGroupStore = (
       );
     },
 
-    recordGame(groupId, result) {
+    async recordGame(groupId, result) {
       /**
-       * **Create only.** A condition merely on the tombstone lets any member
-       * re-POST an `id` and `playedAt` the board just handed them and overwrite
-       * a recorded game with an emptier one — deleting it in all but name, and
-       * routing straight around the admin-only removal rule.
+       * **Create only** — a condition merely on the tombstone would let any
+       * member re-POST an id the board just handed them and overwrite a
+       * recorded game with an emptier one, deleting it in all but name and
+       * routing around the admin-only removal rule.
+       *
+       * **But a replay of the *same* game is a success.** The app queues writes
+       * offline and retries them, so the ordinary case for hitting this
+       * condition is a phone sending again what it already sent — and answering
+       * 409 to that tells somebody their game did not save when it did. Only a
+       * *different* game under the same id is a real conflict.
        */
-      return conditional(
+      const outcome = await conditional(
         () =>
           client.send(
             new PutCommand({
@@ -317,6 +325,16 @@ export const createGroupStore = (
           ),
         "already recorded",
       );
+      if (outcome.status === "ok") return outcome;
+      const existing = await client.send(
+        new GetCommand({
+          TableName: tableName,
+          Key: resultKey(groupId, result.id),
+          ConsistentRead: true,
+        }),
+      );
+      const stored = (existing.Item as { result?: GameResult } | undefined)?.result;
+      return stored && stored.playedAt === result.playedAt ? OK : outcome;
     },
 
     async removePlayer(groupId, playerId, now) {
@@ -373,7 +391,7 @@ export const createGroupStore = (
       );
     },
 
-    claimPlayer(accountId, groupId, playerId, now) {
+    async claimPlayer(accountId, groupId, playerId, now) {
       /**
        * One transaction, and **one seat per board falls out of the key**: the
        * claim is `CLAIM#<groupId>`, so a second claim on the same board
@@ -400,7 +418,8 @@ export const createGroupStore = (
         },
       });
 
-      return conditional(
+      const attempt = () =>
+        conditional(
         () =>
           client.send(
             new TransactWriteCommand({
@@ -432,6 +451,21 @@ export const createGroupStore = (
           "somebody else has claimed that player",
         ],
       );
+
+      const outcome = await attempt();
+      if (outcome.status === "ok") return outcome;
+      // Replayed from an offline queue, most likely. Holding *this* player
+      // already is the thing the caller asked for, so it is a success — where
+      // holding a different one is the refusal the message describes.
+      const seat = await client.send(
+        new GetCommand({
+          TableName: tableName,
+          Key: claimKey(accountId, groupId),
+          ConsistentRead: true,
+        }),
+      );
+      const held = (seat.Item as { playerId?: unknown } | undefined)?.playerId;
+      return held === playerId ? OK : outcome;
     },
 
     releaseClaim(accountId, groupId, playerId) {
@@ -602,6 +636,18 @@ export const createGroupStore = (
       );
       const token = (result.Item as { inviteToken?: unknown } | undefined)?.inviteToken;
       return typeof token === "string" && token.length > 0 ? token : null;
+    },
+
+    async seatOf(accountId, groupId) {
+      const seat = await client.send(
+        new GetCommand({
+          TableName: tableName,
+          Key: claimKey(accountId, groupId),
+          ConsistentRead: true,
+        }),
+      );
+      const playerId = (seat.Item as { playerId?: unknown } | undefined)?.playerId;
+      return typeof playerId === "string" ? playerId : null;
     },
 
     async forget(accountId, keys) {

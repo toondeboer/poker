@@ -221,6 +221,20 @@ export class PokerStack extends Stack {
       minify: true,
       sourceMap: true,
       target: "node22",
+      /**
+       * **Bundle the Cognito client rather than trusting the runtime to have
+       * it.** CDK leaves every `@aws-sdk/*` external by default, which is right
+       * for DynamoDB — the runtime certainly ships that — and a gamble for
+       * anything else. `DELETE /me` calls Cognito at the **last** step, after
+       * every row is already gone, so a missing module there fails in the one
+       * place from which no retry can recover.
+       *
+       * It does work unbundled today; that was verified twice against the
+       * deployed stack. It is not a thing to depend on: what the runtime
+       * includes is AWS's to change, and bundling costs a few hundred kilobytes
+       * to stop it being a question.
+       */
+      externalModules: ["@aws-sdk/client-dynamodb", "@aws-sdk/lib-dynamodb"],
     };
 
     /**
@@ -594,7 +608,7 @@ export class PokerStack extends Stack {
       ["/groups/{groupId}/claims", [HttpMethod.POST]],
       ["/groups/{groupId}/members", [HttpMethod.GET]],
       ["/groups/{groupId}/invite", [HttpMethod.POST]],
-      ["/groups/{groupId}/members/{accountId}", [HttpMethod.PUT]],
+      ["/groups/{groupId}/members/{accountId}", [HttpMethod.PUT, HttpMethod.DELETE]],
       ["/invites/{token}", [HttpMethod.POST]],
       // The account's own deletion. `GET /me` stays on the identity handler —
       // one says who you are, the other unpicks everything you touched.

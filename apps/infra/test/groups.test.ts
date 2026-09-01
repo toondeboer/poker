@@ -66,7 +66,11 @@ const store = (role: Role | null, overrides: Partial<GroupStore> = {}): GroupSto
       calls.push("setRole");
       return { status: "ok" } as WriteOutcome;
     },
-    leave: async () => ({ status: "ok" }) as WriteOutcome,
+    leave: async () => {
+      calls.push("leave");
+      return { status: "ok" } as WriteOutcome;
+    },
+    seatOf: async () => "p1",
     inviteTokenOf: async () => null,
     createGroup: async () => ({ status: "ok" }) as WriteOutcome,
     setInvite: async () => ({ status: "ok" }) as WriteOutcome,
@@ -356,6 +360,75 @@ describe("what a shared board will accept", () => {
       }),
     );
     expect(response.statusCode).toBe(400);
+  });
+});
+
+describe("removing a member", () => {
+  it("is what makes rotating an invite actually revocation", async () => {
+    // Rotating a leaked link only stops the *next* person. Without this there
+    // was no way at all to remove somebody already on the board, so "rotation
+    // is the only revocation" was not revocation.
+    useGroupStore(store("admin"));
+    const response = await handler(
+      request("DELETE /groups/{groupId}/members/{accountId}", {
+        pathParameters: { groupId: "g1", accountId: "them" },
+      }),
+    );
+    expect(response.statusCode).toBe(200);
+    expect(calls).toContain("leave");
+  });
+
+  it("gives their player back to the board", async () => {
+    // Otherwise the player they held stays pointing at somebody who is no
+    // longer here, and nobody else can ever claim them.
+    const released: string[] = [];
+    useGroupStore(
+      store("admin", {
+        releaseClaim: async (_a, _g, playerId) => {
+          released.push(playerId);
+          return { status: "ok" };
+        },
+      }),
+    );
+    await handler(
+      request("DELETE /groups/{groupId}/members/{accountId}", {
+        pathParameters: { groupId: "g1", accountId: "them" },
+      }),
+    );
+    expect(released).toEqual(["p1"]);
+  });
+
+  it("is admin-only", async () => {
+    useGroupStore(store("member"));
+    const response = await handler(
+      request("DELETE /groups/{groupId}/members/{accountId}", {
+        pathParameters: { groupId: "g1", accountId: "them" },
+      }),
+    );
+    expect(response.statusCode).toBe(403);
+  });
+});
+
+describe("what is stored of a game", () => {
+  it("keeps only the fields the board knows about", async () => {
+    // **Validating is not enough when the object is served to every member.**
+    // Unknown keys would ride along into everybody else's app.
+    let stored: Record<string, unknown> | null = null;
+    useGroupStore(
+      store("member", {
+        recordGame: async (_g, result) => {
+          stored = result as unknown as Record<string, unknown>;
+          return { status: "ok" };
+        },
+      }),
+    );
+    await handler(
+      request("POST /groups/{groupId}/games", {
+        body: { result: { ...game("r5"), sneaky: "payload", placings: [] } },
+      }),
+    );
+    expect(stored).not.toBeNull();
+    expect(Object.keys(stored!)).not.toContain("sneaky");
   });
 });
 

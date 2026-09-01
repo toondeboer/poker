@@ -11,12 +11,16 @@
  * changed and the client merges it. See [SYNC.md](../../SYNC.md).
  */
 
-import type { GameResult, GroupState, Placing, Player } from "@poker/core";
+import { MAX_PLAYERS, type GameResult, type GroupState, type Placing, type Player } from "@poker/core";
 import { log } from "./logging";
 import { anotherAdmin, isUsableId, may, type GroupAction } from "./groupKeys";
 import { createGroupStore, type GroupStore } from "./groupStore";
 import { deleteAccount } from "./deleteAccount";
 import { randomBytes, randomUUID } from "node:crypto";
+import {
+  AdminDeleteUserCommand,
+  CognitoIdentityProviderClient,
+} from "@aws-sdk/client-cognito-identity-provider";
 
 /**
  * An invite token.
@@ -108,6 +112,39 @@ const isPlayer = (value: unknown): value is Player => {
   return isUsableId(player.id) && typeof player.name === "string" &&
     player.name.trim().length > 0;
 };
+
+/**
+ * The game, rebuilt from the fields we know.
+ *
+ * **Validating is not enough when the object is stored verbatim and served to
+ * every member.** Unknown keys ride along into everybody else's app, and an
+ * unbounded array is somebody else's rendering problem. The player route has
+ * always rebuilt `{id, name}`; this is the same idea, and it is why a result is
+ * checked field by field above rather than waved through.
+ */
+export const cleanResult = (result: GameResult): GameResult => ({
+  id: result.id,
+  playedAt: result.playedAt,
+  playerIds: result.playerIds.slice(0, MAX_PLAYERS),
+  placings: result.placings.slice(0, MAX_PLAYERS).map((placing) => ({
+    playerId: placing.playerId,
+    place: placing.place,
+    winnings: placing.winnings,
+  })),
+  buyIn: result.buyIn,
+  bounty: result.bounty,
+  // Optional, and only for a game the app dealt — a game written down by hand
+  // cannot say who knocked whom out.
+  ...(Array.isArray(result.knockouts)
+    ? {
+        knockouts: result.knockouts.slice(0, MAX_PLAYERS).map((k) => ({
+          playerId: k.playerId,
+          count: k.count,
+          bounty: k.bounty,
+        })),
+      }
+    : {}),
+});
 
 const isPlacing = (value: unknown): boolean => {
   if (typeof value !== "object" || value === null) return false;
@@ -283,7 +320,7 @@ export const handler = async (request: VerifiedRequest): Promise<Response> => {
       const allowed = await authorize(store, caller, groupId, "recordGame");
       if (!allowed.ok) return allowed.response;
       if (!isResult(body.result)) return json(400, { error: "no result" });
-      const outcome = await store.recordGame(groupId, body.result);
+      const outcome = await store.recordGame(groupId, cleanResult(body.result));
       return answer(outcome, requestId, { groupId, caller });
     }
 
@@ -307,7 +344,7 @@ export const handler = async (request: VerifiedRequest): Promise<Response> => {
       const allowed = await authorize(store, caller, groupId, "removePlayer");
       if (!allowed.ok) return allowed.response;
       const playerId = request.pathParameters?.playerId;
-      if (!playerId) return json(400, { error: "no player" });
+      if (!isUsableId(playerId)) return json(400, { error: "no player" });
       const outcome = await store.removePlayer(groupId, playerId, now);
       return answer(outcome, requestId, { groupId, caller });
     }
@@ -361,6 +398,27 @@ export const handler = async (request: VerifiedRequest): Promise<Response> => {
       }
       log("info", "invite rotated", { requestId, accountId: caller, groupId });
       return json(200, { token });
+    }
+
+    case "DELETE /groups/{groupId}/members/{accountId}": {
+      const allowed = await authorize(store, caller, groupId, "manageAdmins");
+      if (!allowed.ok) return allowed.response;
+      const subject = request.pathParameters?.accountId;
+      if (!isUsableId(subject)) return json(400, { error: "no account" });
+      /**
+       * **Without this, rotating an invite was not revocation.** A leaked link
+       * lets somebody join; rotating it only stops the *next* person, and there
+       * was no way at all to remove the one already on the board.
+       *
+       * Their claim goes too, so the player they held returns to the board
+       * unclaimed rather than pointing at somebody who is no longer here.
+       */
+      const guarantor =
+        anotherAdmin(await store.members(groupId), subject)?.accountId ?? null;
+      const seat = await store.seatOf(subject, groupId);
+      if (seat) await store.releaseClaim(subject, groupId, seat);
+      const outcome = await store.leave(subject, groupId, guarantor);
+      return answer(outcome, requestId, { groupId, caller });
     }
 
     case "PUT /groups/{groupId}/members/{accountId}": {
@@ -443,9 +501,6 @@ const deleteUser = (): ((accountId: string) => Promise<void>) => {
   const userPoolId = process.env.USER_POOL_ID;
   if (!userPoolId) throw new Error("USER_POOL_ID is not set");
   cognito = async (accountId: string) => {
-    const { CognitoIdentityProviderClient, AdminDeleteUserCommand } = await import(
-      "@aws-sdk/client-cognito-identity-provider"
-    );
     const client = new CognitoIdentityProviderClient({});
     await client.send(
       new AdminDeleteUserCommand({ UserPoolId: userPoolId, Username: accountId }),

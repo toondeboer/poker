@@ -26,14 +26,14 @@ and are what the app persists locally today. The schema serves those rather than
 
 ## The keys
 
-| Item       | `pk`              | `sk`                     | Holds                                          |
-| ---------- | ----------------- | ------------------------ | ---------------------------------------------- |
-| Group      | `GROUP#<groupId>` | `META`                   | `name`, `createdAt`, `version`, `inviteToken?` |
-| Player     | `GROUP#<groupId>` | `PLAYER#<playerId>`      | `name`, `accountId?`, `deletedAt?`             |
-| Result     | `GROUP#<groupId>` | `RESULT#<playedAt>#<id>` | the `GameResult`, or a tombstone               |
-| **Member** | `GROUP#<groupId>` | `MEMBER#<accountId>`     | `role`, `joinedAt`                             |
-| Membership | `ACCOUNT#<sub>`   | `GROUP#<groupId>`        | `role`, `joinedAt`                             |
-| Claim      | `ACCOUNT#<sub>`   | `CLAIM#<groupId>`        | `playerId`, `claimedAt`                        |
+| Item       | `pk`              | `sk`                 | Holds                                          |
+| ---------- | ----------------- | -------------------- | ---------------------------------------------- |
+| Group      | `GROUP#<groupId>` | `META`               | `name`, `createdAt`, `version`, `inviteToken?` |
+| Player     | `GROUP#<groupId>` | `PLAYER#<playerId>`  | `name`, `accountId?`, `deletedAt?`             |
+| Result     | `GROUP#<groupId>` | `RESULT#<id>`        | the `GameResult`, or a tombstone               |
+| **Member** | `GROUP#<groupId>` | `MEMBER#<accountId>` | `role`, `joinedAt`                             |
+| Membership | `ACCOUNT#<sub>`   | `GROUP#<groupId>`    | `role`, `joinedAt`                             |
+| Claim      | `ACCOUNT#<sub>`   | `CLAIM#<groupId>`    | `playerId`, `claimedAt`                        |
 
 **No index.** Two partitions answer everything: a group's own partition holds the board _and_ its
 members, and an account's holds its boards and its claims.
@@ -133,23 +133,14 @@ reads filter it out.
 - Ninety days is the starting number: a phone that has not opened the app in a season wants a clean
   board anyway.
 
-### A recorded game is immutable, and the key depends on it
+### A recorded game is immutable
 
-`RESULT#<playedAt>#<id>` puts the date in the sort key, and `removeGameResult`
-deletes **by id alone** — so removing a game means rebuilding its key from a
-`GameResult` the client still holds. That works only because nothing in the app
-edits a recorded game: `playedAt` cannot drift away from the key it was written
-under.
+Nothing in the app edits a recorded game — it is added and removed, never changed. The engine's own
+`removeGameResult` deletes by id, which is now also how the API does it.
 
-**If a game ever becomes editable this breaks silently**: the tombstone lands at
-a key nothing lives at, and the real row survives to be synced back. Every
-tombstone write is therefore conditional on the row existing, so a wrong key
-fails loudly instead of creating an orphan.
-
-The stamp is also zero-padded to 13 digits. Epoch milliseconds are 13 digits now
-and 12 before September 2001, and `playedAt` is a field somebody can set when
-recording a game played earlier — unpadded, a backdated game sorts as the most
-recent one on the board.
+The stamp helper survives for ordering, clamped at 13 digits: epoch milliseconds are 13 digits now
+and 12 before September 2001, `playedAt` is a field somebody can set, and past 13 digits `String()`
+starts producing `"1e+21"`.
 
 ## Version, and where it is not needed
 

@@ -145,8 +145,10 @@ export const deleteAccount = async (
       await store.leave(accountId, groupId, null);
       continue;
     }
-    report.groupsInherited.push(groupId);
     const left = await store.leave(accountId, groupId, heir.accountId);
+    // Recorded only once the departure lands. Otherwise a group appears in both
+    // `groupsInherited` and `groupsStranded`, which cannot both be true.
+    if (left.status === "ok") report.groupsInherited.push(groupId);
     // Checked, unlike before. An unreported failure here leaves the group-side
     // `MEMBER#` row behind while everything else about the account goes — a
     // ghost admin that `anotherAdmin` and `heirTo` keep naming forever.

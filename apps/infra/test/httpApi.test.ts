@@ -29,6 +29,7 @@ describe("something can finally call the backend", () => {
   it("takes an action for a table, says who you are, and keeps a board", () => {
     expect(routes().map((route) => route.RouteKey).sort()).toEqual([
       "DELETE /groups/{groupId}/games/{gameId}",
+      "DELETE /groups/{groupId}/members/{accountId}",
       "DELETE /groups/{groupId}/players/{playerId}",
       "DELETE /me",
       "GET /groups",
