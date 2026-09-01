@@ -11,7 +11,14 @@
  * changed and the client merges it. See [SYNC.md](../../SYNC.md).
  */
 
-import { MAX_PLAYERS, type GameResult, type GroupState, type Placing, type Player } from "@poker/core";
+import {
+  MAX_PLAYERS,
+  type GameResult,
+  type GroupState,
+  type KnockoutCount,
+  type Placing,
+  type Player,
+} from "@poker/core";
 import { log } from "./logging";
 import { anotherAdmin, isUsableId, may, type GroupAction } from "./groupKeys";
 import { createGroupStore, type GroupStore } from "./groupStore";
@@ -146,6 +153,18 @@ export const cleanResult = (result: GameResult): GameResult => ({
     : {}),
 });
 
+const isKnockout = (value: unknown): boolean => {
+  if (typeof value !== "object" || value === null) return false;
+  const knockout = value as KnockoutCount;
+  return (
+    isUsableId(knockout.playerId) &&
+    Number.isInteger(knockout.count) &&
+    knockout.count >= 0 &&
+    typeof knockout.bounty === "number" &&
+    Number.isFinite(knockout.bounty)
+  );
+};
+
 const isPlacing = (value: unknown): boolean => {
   if (typeof value !== "object" || value === null) return false;
   const placing = value as Placing;
@@ -180,6 +199,11 @@ const isResult = (value: unknown): value is GameResult => {
     result.playerIds.every(isUsableId) &&
     Array.isArray(result.placings) &&
     result.placings.every(isPlacing) &&
+    // Optional — only a game the app dealt knows who knocked whom out — but
+    // checked when present. `cleanResult` copies these fields through, so
+    // waiving them here would put arbitrary client types on a shared board.
+    (result.knockouts === undefined ||
+      (Array.isArray(result.knockouts) && result.knockouts.every(isKnockout))) &&
     typeof result.buyIn === "number" &&
     Number.isFinite(result.buyIn) &&
     typeof result.bounty === "number" &&
@@ -409,14 +433,33 @@ export const handler = async (request: VerifiedRequest): Promise<Response> => {
        * **Without this, rotating an invite was not revocation.** A leaked link
        * lets somebody join; rotating it only stops the *next* person, and there
        * was no way at all to remove the one already on the board.
-       *
-       * Their claim goes too, so the player they held returns to the board
-       * unclaimed rather than pointing at somebody who is no longer here.
        */
-      const guarantor =
-        anotherAdmin(await store.members(groupId), subject)?.accountId ?? null;
+      const members = await store.members(groupId);
+      const guarantor = anotherAdmin(members, subject)?.accountId ?? null;
+      // **The same invariant the demotion route enforces.** Removing the last
+      // admin — including yourself — leaves a board with members and nobody who
+      // can manage it, which is exactly what `PUT` and account deletion both go
+      // to lengths to prevent. Skipping it here was a hole in the same rule.
+      const subjectIsAdmin = members.some(
+        (m) => m.accountId === subject && m.role === "admin",
+      );
+      if (subjectIsAdmin && !guarantor) {
+        return json(409, {
+          status: "conflict",
+          reason: "a group needs at least one admin",
+        });
+      }
+      // Their claim goes first, so the player they held returns to the board
+      // rather than pointing at somebody who is no longer on it — and if that
+      // fails, nothing else happens: a member removed while their claim
+      // survives leaves a player nobody can release or claim, ever.
       const seat = await store.seatOf(subject, groupId);
-      if (seat) await store.releaseClaim(subject, groupId, seat);
+      if (seat) {
+        const released = await store.releaseClaim(subject, groupId, seat);
+        if (released.status !== "ok") {
+          return answer(released, requestId, { groupId, caller });
+        }
+      }
       const outcome = await store.leave(subject, groupId, guarantor);
       return answer(outcome, requestId, { groupId, caller });
     }

@@ -16,8 +16,6 @@ import {
   playerKey,
   resultItem,
   resultKey,
-  MAX_STAMP,
-  stampSegment,
   tombstone,
   anotherAdmin,
   type MemberItem,
@@ -94,17 +92,6 @@ describe("result ordering", () => {
     expect(board?.results.map((r) => r.id)).toEqual(["old", "recent"]);
   });
 
-  it("keeps every stamp the same width", () => {
-    expect(stampSegment(0)).toHaveLength(13);
-    expect(stampSegment(1_788_180_000_000)).toHaveLength(13);
-  });
-
-  it("refuses to build a negative stamp", () => {
-    // A negative epoch would produce a leading "-" and sort before everything
-    // forever. Clamped rather than thrown: a bad date is not worth failing a
-    // write that is otherwise fine.
-    expect(stampSegment(-1)).toBe("0".repeat(13));
-  });
 });
 
 describe("tombstones", () => {
@@ -294,16 +281,6 @@ describe("a group whose last admin leaves", () => {
   it("has no heir when the leaver is alone", () => {
     // Caller tombstones the group: nobody else's history is in it.
     expect(heirTo([member("a", "admin", 1)], "a")).toBeNull();
-  });
-});
-
-describe("stamps at the edges", () => {
-  it("does not fall off the end into exponent notation", () => {
-    // `String(1e21)` is `"1e+21"` — not a number, sorts nowhere sensible, and
-    // defeats the padding this whole key rests on.
-    expect(stampSegment(1e21)).toBe(String(MAX_STAMP));
-    expect(stampSegment(Number.POSITIVE_INFINITY)).toHaveLength(13);
-    expect(stampSegment(Number.NaN)).toBe("0".repeat(13));
   });
 });
 

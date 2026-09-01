@@ -216,7 +216,13 @@ describe("removing things", () => {
 
 describe("claiming a player", () => {
   const claim = async (reply?: unknown) => {
-    const { client, sent } = fakeClient(reply ? [reply] : [{}]);
+    // The membership read comes first now: claiming only *also* joins for
+    // somebody already on the board, or a claim landing just after an admin
+    // removed them would silently undo the removal.
+    const { client, sent } = fakeClient([
+      { Item: memberItem("g1", "acc", "member", 1) },
+      reply ?? {},
+    ]);
     const outcome = await createGroupStore("T", client).claimPlayer(
       "acc",
       "g1",
@@ -227,7 +233,7 @@ describe("claiming a player", () => {
       Put?: { Item: Record<string, unknown>; ConditionExpression?: string };
       Update?: { ConditionExpression?: string; UpdateExpression?: string };
     };
-    return { outcome, items: (sent[0].TransactItems ?? []) as Op[] };
+    return { outcome, items: (sent[1]?.TransactItems ?? []) as Op[] };
   };
 
   it("writes the claim, the player and both memberships in one transaction", async () => {
@@ -294,12 +300,22 @@ describe("claiming a player", () => {
     expect(await at(1)).toBe("somebody else has claimed that player");
   });
 
+  it("refuses to claim on a board this account is not on", async () => {
+    // Without this, a claim arriving just after an admin removed somebody
+    // re-creates their membership through the upsert and undoes the removal.
+    const { client } = fakeClient([{ Item: undefined }]);
+    expect(await createGroupStore("T", client).claimPlayer("acc", "g1", "p1", 1)).toEqual(
+      { status: "conflict", reason: "you are not on this board" },
+    );
+  });
+
   it("does not call a throttled transaction a conflict", async () => {
     // **`TransactionCanceledException` is not a synonym for "somebody got there
     // first".** DynamoDB also cancels for `TransactionConflict` and throttling,
     // all retryable — and telling the caller "already claimed" sends them to
     // resolve a conflict that does not exist.
     const { client } = fakeClient([
+      { Item: memberItem("g1", "acc", "member", 1) },
       new TransactionCanceledException({
         $metadata: {},
         message: "slow down",
@@ -319,8 +335,22 @@ describe("releasing a claim", () => {
     // unclaim the wrong person.
     const { client, sent } = fakeClient([{}]);
     await createGroupStore("T", client).releaseClaim("acc", "g1", "p1");
-    expect(sent[0].ConditionExpression).toBe("accountId = :account");
-    expect(sent[0].UpdateExpression).toBe("REMOVE accountId");
+    const ops = sent[0].TransactItems as {
+      Update?: { ConditionExpression?: string; UpdateExpression?: string };
+    }[];
+    expect(ops[0].Update?.ConditionExpression).toBe("accountId = :account");
+    expect(ops[0].Update?.UpdateExpression).toBe("REMOVE accountId");
+  });
+
+  it("takes the seat with it", async () => {
+    // Clearing only `accountId` leaves the `CLAIM#<groupId>` row — and since
+    // one seat per board is that key, the account is then permanently unable to
+    // claim anybody: the same player answers 200 while the board stays
+    // unclaimed, and anybody else is a forever 409.
+    const { client, sent } = fakeClient([{}]);
+    await createGroupStore("T", client).releaseClaim("acc", "g1", "p1");
+    const ops = sent[0].TransactItems as { Delete?: { Key: { sk: string } } }[];
+    expect(ops.find((o) => o.Delete)?.Delete?.Key.sk).toBe("CLAIM#g1");
   });
 
   it("is a conflict, not a crash, when it was already released", async () => {

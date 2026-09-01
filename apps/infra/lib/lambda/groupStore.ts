@@ -334,7 +334,12 @@ export const createGroupStore = (
         }),
       );
       const stored = (existing.Item as { result?: GameResult } | undefined)?.result;
-      return stored && stored.playedAt === result.playedAt ? OK : outcome;
+      // The **whole** game, not just its date. Comparing `playedAt` alone
+      // answers 200 to a genuinely different game recorded under an id already
+      // used — and the client, told it succeeded, drops it from its queue.
+      return stored && JSON.stringify(stored) === JSON.stringify(result)
+        ? OK
+        : outcome;
     },
 
     async removePlayer(groupId, playerId, now) {
@@ -418,6 +423,18 @@ export const createGroupStore = (
         },
       });
 
+      // Claiming is only *also* joining for somebody who is already on the
+      // board — otherwise a claim landing just after an admin removed the
+      // caller would re-create the membership and silently undo the removal.
+      const alreadyAMember = await client.send(
+        new GetCommand({
+          TableName: tableName,
+          Key: memberKey(groupId, accountId),
+          ConsistentRead: true,
+        }),
+      );
+      if (!alreadyAMember.Item) return conflict("you are not on this board");
+
       const attempt = () =>
         conditional(
         () =>
@@ -469,18 +486,35 @@ export const createGroupStore = (
     },
 
     releaseClaim(accountId, groupId, playerId) {
-      // The player and every game they played stay: a board refers to the
-      // person, not the account. Conditional on it still being this account's,
-      // because in between the player may have been released and re-claimed.
+      /**
+       * The player and every game they played stay: a board refers to the
+       * person, not the account.
+       *
+       * **The seat goes with it.** Clearing only `accountId` leaves the
+       * `CLAIM#<groupId>` row behind, and since one seat per board is the shape
+       * of that key, the account is then permanently unable to claim anybody:
+       * re-claiming the same player answers 200 while the board stays
+       * unclaimed, and claiming anybody else is a forever 409. `removePlayer`
+       * always deleted both; this path did not.
+       */
       return conditional(
         () =>
           client.send(
-            new UpdateCommand({
-              TableName: tableName,
-              Key: playerKey(groupId, playerId),
-              UpdateExpression: "REMOVE accountId",
-              ConditionExpression: "accountId = :account",
-              ExpressionAttributeValues: { ":account": accountId },
+            new TransactWriteCommand({
+              TransactItems: [
+                {
+                  Update: {
+                    TableName: tableName,
+                    Key: playerKey(groupId, playerId),
+                    UpdateExpression: "REMOVE accountId",
+                    // Only if it is still this account's: in between, the player
+                    // may have been released and re-claimed by somebody else.
+                    ConditionExpression: "accountId = :account",
+                    ExpressionAttributeValues: { ":account": accountId },
+                  },
+                },
+                { Delete: { TableName: tableName, Key: claimKey(accountId, groupId) } },
+              ],
             }),
           ),
         "claim already released",

@@ -364,6 +364,55 @@ describe("what a shared board will accept", () => {
 });
 
 describe("removing a member", () => {
+  it("refuses to remove the last admin", async () => {
+    // The same invariant the demotion route enforces. Removing the last admin
+    // leaves a board with members and nobody who can manage it — and this route
+    // was skipping the check that `PUT` and account deletion both make.
+    useGroupStore(
+      store("admin", {
+        members: async () => [
+          memberItem("g1", "them", "admin", 1),
+          memberItem("g1", "someone", "member", 2),
+        ],
+      }),
+    );
+    const response = await handler(
+      request("DELETE /groups/{groupId}/members/{accountId}", {
+        pathParameters: { groupId: "g1", accountId: "them" },
+      }),
+    );
+    expect(response.statusCode).toBe(409);
+    expect(calls).not.toContain("leave");
+  });
+
+  it("does not remove somebody whose claim could not be released", async () => {
+    // A member removed while their claim survives leaves a player pointing at
+    // an account no longer on the board — which nobody can then release or
+    // claim, ever.
+    useGroupStore(
+      store("admin", {
+        releaseClaim: async () => ({ status: "conflict", reason: "claim already released" }),
+      }),
+    );
+    const response = await handler(
+      request("DELETE /groups/{groupId}/members/{accountId}", {
+        pathParameters: { groupId: "g1", accountId: "them" },
+      }),
+    );
+    expect(response.statusCode).toBe(409);
+    expect(calls).not.toContain("leave");
+  });
+
+  it("refuses a malformed account id like every other route", async () => {
+    useGroupStore(store("admin"));
+    const response = await handler(
+      request("DELETE /groups/{groupId}/members/{accountId}", {
+        pathParameters: { groupId: "g1", accountId: "a#b" },
+      }),
+    );
+    expect(response.statusCode).toBe(400);
+  });
+
   it("is what makes rotating an invite actually revocation", async () => {
     // Rotating a leaked link only stops the *next* person. Without this there
     // was no way at all to remove somebody already on the board, so "rotation
@@ -410,6 +459,18 @@ describe("removing a member", () => {
 });
 
 describe("what is stored of a game", () => {
+  it("refuses knockouts it cannot read", async () => {
+    // `cleanResult` copies these through, so waiving them in validation would
+    // put arbitrary client types on a shared board.
+    useGroupStore(store("member"));
+    const response = await handler(
+      request("POST /groups/{groupId}/games", {
+        body: { result: { ...game("r6"), knockouts: [{ playerId: "p1", count: "lots" }] } },
+      }),
+    );
+    expect(response.statusCode).toBe(400);
+  });
+
   it("keeps only the fields the board knows about", async () => {
     // **Validating is not enough when the object is served to every member.**
     // Unknown keys would ride along into everybody else's app.

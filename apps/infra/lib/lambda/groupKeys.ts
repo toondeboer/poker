@@ -50,26 +50,6 @@ export type Role = "admin" | "member";
  */
 export const TOMBSTONE_TTL_SECONDS = 90 * 24 * 60 * 60;
 
-/** Past this, `String()` starts producing `"1e+21"`, which sorts nowhere. */
-export const MAX_STAMP = 9_999_999_999_999;
-
-/**
- * Epoch milliseconds are 13 digits until 2286 — **and 12 or fewer before
- * September 2001**, which is reachable: a result carries the date the game was
- * *played*, and that is a field somebody can set.
- *
- * Unpadded, a backdated game sorts as though it happened last, because
- * `"999999999999" > "1788180000000"` lexicographically. Clamped at both ends:
- * a negative epoch sorts before everything forever, and anything past 13 digits
- * is where `String()` gives `"1e+21"` and defeats the padding entirely.
- */
-export const stampSegment = (playedAt: number): string => {
-  const clamped = Number.isFinite(playedAt)
-    ? Math.min(MAX_STAMP, Math.max(0, Math.trunc(playedAt)))
-    : 0;
-  return String(clamped).padStart(13, "0");
-};
-
 export const groupKey = (groupId: string) => ({
   pk: `GROUP#${groupId}`,
   sk: "META",
