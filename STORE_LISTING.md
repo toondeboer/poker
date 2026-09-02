@@ -199,12 +199,21 @@ the Pro feature lists in both stores need updating too, not just these notes —
 was found still selling the 1.1.4 feature set during this cycle, and the store copy has exactly the
 same failure mode one level out. See `ROADMAP.md`'s Play listing item.
 
-**Two things are in the binary and deliberately unreachable**: the account screens and the shared
-clock, both of which need a backend that has never been deployed. Neither is mentioned here, because
-neither is something anybody can use.
+**A good deal is in the binary and deliberately unreachable**, and none of it is mentioned here,
+because none of it is something anybody can use: the account screens, the shared clock, and the
+whole of shared boards — syncing, invite codes, joining, and the Club subscription. Two separate
+switches keep them off, and both are deliberate: `backendConfig` is `null` in
+`apps/mobile/src/services/backendConfig.ts`, and nothing grants the `club` entitlement because the
+subscription does not exist in either store yet.
 
-The **website** has not been updated for these features yet. Keep store copy and landing-page copy
-describing the same app, so do that before or alongside submission.
+**The backend itself is deployed now** — this section used to say it never had been. It is real, in
+`096695166445`/`us-east-1`, and 1.2.0 simply does not point at it. That distinction matters when
+somebody reads this while writing a submission: nothing here is waiting on infrastructure, it is
+waiting on a deliberate switch that belongs to a later release.
+
+The **website already describes this feature set** (PR #155, merged), so store copy and landing-page
+copy are in step. Check it still reads true before submitting rather than assuming — it describes
+the app that ships, not the one in the repository.
 
 ### iOS — "What's New in This Version" (App Store Connect)
 
