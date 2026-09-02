@@ -1,5 +1,5 @@
 // src/components/leaderboard/GroupsSheet.tsx
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { Alert, Keyboard, Share, StyleSheet, Text, View } from "react-native";
 import { MAX_GROUPS, inviteUrlFor } from "@poker/core";
 import { useLeaderboard } from "@/src/contexts/LeaderboardContext";
@@ -55,6 +55,7 @@ export function GroupsSheet({
   } = useLeaderboard();
   const { account } = useAuth();
   const [sharingId, setSharingId] = useState<string | null>(null);
+  const sharing = useRef(false);
 
   const [newName, setNewName] = useState("");
   const [renamingId, setRenamingId] = useState<string | null>(null);
@@ -135,7 +136,14 @@ export function GroupsSheet({
    * the wrong person; it is worth saying out loud rather than surprising them.
    */
   const share = async (id: string, name: string) => {
-    if (sharingId) return;
+    /**
+     * **A ref, because state is not set until the next render.** Two taps in
+     * the same frame both pass a state-based guard, and minting is *also*
+     * revoking — so the second link would quietly kill the first, which is the
+     * one already on its way into somebody's chat app.
+     */
+    if (sharing.current) return;
+    sharing.current = true;
     setSharingId(id);
     try {
       const token = await inviteToBoard(id);
@@ -162,6 +170,7 @@ export function GroupsSheet({
         Alert.alert("Here is the link", link);
       }
     } finally {
+      sharing.current = false;
       setSharingId(null);
     }
   };

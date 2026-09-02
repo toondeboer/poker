@@ -356,7 +356,13 @@ export type {
 } from "./sync/pendingWrites";
 export { cancel, cancelBoard, describeWrite } from "./sync/pendingWrites";
 export type { WriteSubject } from "./sync/pendingWrites";
-export { addBoard, noteDeleted, replaceBoard } from "./leaderboard/groups";
+export {
+  addBoard,
+  noteDeleted,
+  replaceBoard,
+  undismiss,
+  wasDismissed,
+} from "./leaderboard/groups";
 export { INVITE_PATH, inviteUrlFor, isInviteToken, tokenFromUrl } from "./sync/invites";
 export { NOTHING_DELETED, mergeBoard, readRemoteBoard } from "./sync/mergeBoard";
 export type { Deletions, RemoteBoard } from "./sync/mergeBoard";

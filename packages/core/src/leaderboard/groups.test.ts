@@ -19,6 +19,8 @@ import {
   addBoard,
   noteDeleted,
   replaceBoard,
+  undismiss,
+  wasDismissed,
 } from "./groups";
 
 const group = (id: string, name = id, now = 0) => createGroup({ id, name, now });
@@ -128,7 +130,26 @@ describe("groups", () => {
 
   it("clears the selection when the last group goes", () => {
     const state = addGroup(EMPTY_LEADERBOARD, group("g1"));
-    expect(removeGroup(state, "g1")).toEqual(EMPTY_LEADERBOARD);
+    const after = removeGroup(state, "g1");
+    expect(after.groups).toEqual([]);
+    expect(after.activeGroupId).toBeNull();
+  });
+
+  it("remembers the board it deleted, so a pull does not bring it back", () => {
+    // **The third time this problem has come up**, after players and games.
+    // The membership lives on the server and `GET /groups` keeps listing it,
+    // so without this the whole board reappears on the next foreground.
+    const state = addGroup(EMPTY_LEADERBOARD, group("g1"));
+    expect(removeGroup(state, "g1").dismissed).toEqual(["g1"]);
+    expect(wasDismissed(removeGroup(state, "g1"), "g1")).toBe(true);
+  });
+
+  it("takes a board back when somebody asks for it again", () => {
+    // Tapping a link for a board you deleted is asking for it back.
+    const gone = removeGroup(addGroup(EMPTY_LEADERBOARD, group("g1")), "g1");
+    expect(wasDismissed(undismiss(gone, "g1"), "g1")).toBe(false);
+    // And a no-op for one that was never dismissed.
+    expect(undismiss(gone, "other")).toBe(gone);
   });
 
   it("ignores a delete for a group that isn't there", () => {

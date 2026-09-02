@@ -29,6 +29,8 @@ import {
   replaceBoard,
   renameGroup,
   setActiveGroup,
+  undismiss,
+  wasDismissed,
   unclaimPlayer,
   updateGroup,
   validateGameResult,
@@ -289,9 +291,13 @@ export function LeaderboardProvider({
        */
       const mine = await listBoards();
       if (!active) return;
-      const here = new Set(latestState.current.groups.map((entry) => entry.group.id));
+      const before = latestState.current;
+      const here = new Set(before.groups.map((entry) => entry.group.id));
       for (const id of mine ?? []) {
-        if (here.has(id)) continue;
+        // Already here, or deliberately gone. Deleting a board cannot tell the
+        // server anything, so without the second check the whole board comes
+        // back on every foreground, forever.
+        if (here.has(id) || wasDismissed(before, id)) continue;
         const arrived = await fetchBoard(id);
         if (!active) return;
         // Added without stealing the screen: somebody is looking at a board and
@@ -299,7 +305,10 @@ export function LeaderboardProvider({
         if (arrived) persist(addBoard(latestState.current, arrived.state));
       }
 
-      for (const id of latestState.current.groups.map((entry) => entry.group.id)) {
+      // **The boards that were here when this started**, not what is here now:
+      // anything the loop above just discovered was fetched a moment ago and
+      // would otherwise be fetched a second time in the same pull.
+      for (const id of before.groups.map((entry) => entry.group.id)) {
         const remote = await fetchBoard(id);
         // **Superseded, so stop.** Carrying on would fetch every remaining
         // board alongside its replacement, doubling the requests on exactly the
@@ -630,6 +639,17 @@ export function LeaderboardProvider({
 
   const joinBoard = useCallback(
     async (token: string) => {
+      /**
+       * **Checked before redeeming, not after.** Refusing afterwards leaves the
+       * account on a board server-side that this device will not show and will
+       * re-fetch on every pull — a membership somebody cannot see or get rid of.
+       */
+      if (latestState.current.groups.length >= MAX_GROUPS) {
+        return {
+          ok: false as const,
+          reason: `You already have ${MAX_GROUPS} boards on this device. Delete one to join another.`,
+        };
+      }
       const redeemed = await sync.redeemInvite(token);
       if (!redeemed.ok) return redeemed;
       /**
@@ -655,15 +675,10 @@ export function LeaderboardProvider({
       // Selected here rather than by `addBoard`, which no longer steals the
       // screen — but somebody who has just tapped a link is looking for this
       // board and nothing else.
-      const added = addBoard(current, board);
-      const next = added === current ? current : setActiveGroup(added, board.group.id);
-      if (next === current) {
-        return {
-          ok: false as const,
-          reason: `You can only have ${MAX_GROUPS} boards on this device.`,
-        };
-      }
-      persist(next);
+      // Tapping a link for a board this device once deleted is asking for it
+      // back, so the dismissal goes.
+      const added = addBoard(undismiss(current, redeemed.groupId), board);
+      persist(setActiveGroup(added, board.group.id));
       return { ok: true as const, name: board.group.name };
     },
     [sync, persist],

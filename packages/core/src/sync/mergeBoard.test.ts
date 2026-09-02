@@ -171,6 +171,30 @@ describe("a pull landing mid-write", () => {
   });
 });
 
+describe("the order a board comes back in", () => {
+  it("keeps the roster in the order this phone had it", () => {
+    // Seeding from the server's list put the roster in whatever order DynamoDB
+    // returned the keys in, so the players visibly reshuffled on the first
+    // pull — neither render site sorts.
+    const mine = board({ players: [player("p3"), player("p1"), player("p2")] });
+    const merged = mergeBoard(
+      mine,
+      remote({ players: [player("p1"), player("p2"), player("p3")] }),
+      EMPTY_QUEUE,
+    );
+    expect(merged.players.map((p) => p.id)).toEqual(["p3", "p1", "p2"]);
+  });
+
+  it("puts somebody new on the end rather than in the middle", () => {
+    const merged = mergeBoard(
+      board({ players: [player("p3"), player("p1")] }),
+      remote({ players: [player("p1"), player("p9"), player("p3")] }),
+      EMPTY_QUEUE,
+    );
+    expect(merged.players.map((p) => p.id)).toEqual(["p3", "p1", "p9"]);
+  });
+});
+
 describe("whose answer wins", () => {
   it("keeps the name typed on this phone", () => {
     // The two only disagree about a name, and the phone in somebody's hand is

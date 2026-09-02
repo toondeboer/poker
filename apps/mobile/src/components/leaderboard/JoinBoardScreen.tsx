@@ -55,13 +55,24 @@ export function JoinBoardScreen() {
   const attempt = useCallback(
     (invite: string) => {
       setState({ step: "working" });
-      void joinBoard(invite).then((result) =>
-        setState(
-          result.ok
-            ? { step: "joined", name: result.name }
-            : { step: "failed", reason: result.reason },
-        ),
-      );
+      void joinBoard(invite)
+        .then((result) =>
+          setState(
+            result.ok
+              ? { step: "joined", name: result.name }
+              : { step: "failed", reason: result.reason },
+          ),
+        )
+        // **Without this somebody is stranded on a spinner**: the working state
+        // renders no buttons, and the attempt guard means it never runs again.
+        // `joinBoard` is not supposed to reject; screens do not get to assume
+        // that about a promise they did not write.
+        .catch(() =>
+          setState({
+            step: "failed",
+            reason: "Something went wrong joining that board.",
+          }),
+        );
     },
     [joinBoard],
   );

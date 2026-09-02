@@ -484,3 +484,24 @@ describe("what this phone deleted", () => {
     });
   });
 });
+
+describe("a board this device deleted", () => {
+  it("stays deleted across a relaunch", async () => {
+    // The membership lives on the server and `GET /groups` keeps listing it, so
+    // this list is the only thing stopping the pull from putting the whole
+    // board back on the next foreground.
+    const storage = store(createMemoryAdapter());
+    await storage.saveLeaderboard({
+      groups: [],
+      activeGroupId: null,
+      dismissed: ["g1"],
+    });
+    expect((await storage.loadLeaderboard()).dismissed).toEqual(["g1"]);
+  });
+
+  it("is absent when nothing has been deleted", async () => {
+    const storage = store(createMemoryAdapter());
+    await storage.saveLeaderboard({ groups: [], activeGroupId: null });
+    expect(await storage.loadLeaderboard()).not.toHaveProperty("dismissed");
+  });
+});

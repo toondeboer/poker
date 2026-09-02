@@ -33,13 +33,6 @@ export type GroupApi = {
    */
   board: (groupId: string) => Promise<RemoteBoard | null>;
   /**
-   * Mint the link for a board. Admin only, server-side.
-   *
-   * **Creating and revoking are the same call.** The link never expires, so
-   * rotating it is the only way to take one back — and there is deliberately no
-   * state in which a board has two working links.
-   */
-  /**
    * Every board this account is on.
    *
    * **The only way a board reaches a second device.** Joining writes a
@@ -52,6 +45,13 @@ export type GroupApi = {
    * "do not touch what is already here".
    */
   myBoards: () => Promise<string[] | null>;
+  /**
+   * Mint the link for a board. Admin only, server-side.
+   *
+   * **Creating and revoking are the same call.** The link never expires, so
+   * rotating it is the only way to take one back — and there is deliberately no
+   * state in which a board has two working links.
+   */
   createInvite: (groupId: string) => Promise<string | null>;
   /**
    * Redeem somebody's link.
@@ -117,10 +117,13 @@ export const createGroupApi = (
   async board(groupId) {
     const config = backendConfig;
     if (!config) return null;
-    const token = await idToken();
-    if (!token) return null;
 
     try {
+      // **Inside the try.** `idToken()` can reject — the provider reads storage
+      // before its own error handling — and an escaping rejection breaks the
+      // `null` contract these methods promise, taking the pull loop down with it.
+      const token = await idToken();
+      if (!token) return null;
       const response = await fetcher(
         `${config.apiUrl.replace(/\/$/, "")}/groups/${encodeURIComponent(groupId)}`,
         { headers: { Authorization: token } },
@@ -142,9 +145,9 @@ export const createGroupApi = (
   async myBoards() {
     const config = backendConfig;
     if (!config) return null;
-    const token = await idToken();
-    if (!token) return null;
     try {
+      const token = await idToken();
+      if (!token) return null;
       const response = await fetcher(`${config.apiUrl.replace(/\/$/, "")}/groups`, {
         headers: { Authorization: token },
       });
@@ -165,9 +168,9 @@ export const createGroupApi = (
   async createInvite(groupId) {
     const config = backendConfig;
     if (!config) return null;
-    const token = await idToken();
-    if (!token) return null;
     try {
+      const token = await idToken();
+      if (!token) return null;
       const response = await fetcher(
         `${config.apiUrl.replace(/\/$/, "")}/groups/${encodeURIComponent(groupId)}/invite`,
         { method: "POST", headers: { Authorization: token } },
@@ -187,12 +190,12 @@ export const createGroupApi = (
   async redeemInvite(invite) {
     const config = backendConfig;
     if (!config) return { ok: false, reason: "This build cannot join boards." };
-    const token = await idToken();
-    // The one refusal worth naming precisely: joining is the first thing in the
-    // app that *requires* an account, and "sign in first" is actionable where
-    // "something went wrong" is not.
-    if (!token) return { ok: false, reason: "Sign in to join a board." };
     try {
+      const token = await idToken();
+      // The one refusal worth naming precisely: joining is the first thing in
+      // the app that *requires* an account, and "sign in first" is actionable
+      // where "something went wrong" is not.
+      if (!token) return { ok: false, reason: "Sign in to join a board." };
       const response = await fetcher(
         `${config.apiUrl.replace(/\/$/, "")}/invites/${encodeURIComponent(invite)}`,
         { method: "POST", headers: { Authorization: token } },

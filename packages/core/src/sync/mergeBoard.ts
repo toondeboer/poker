@@ -44,11 +44,20 @@ const byId = <T extends { id: string }>(
   theirs: readonly T[],
 ): T[] => {
   const merged = new Map<string, T>();
-  // **Theirs first, so mine wins a collision.** The two only disagree about a
-  // player's name, and the phone in somebody's hand is the one that was just
-  // typed into. A game is immutable, so for results this never arises.
-  for (const item of theirs) merged.set(item.id, item);
+  /**
+   * **Mine first, and that is about order as much as about winning.**
+   *
+   * Seeding from the server's list put the roster back in whatever order
+   * DynamoDB returned the keys in, so the players visibly reshuffled the first
+   * time a board pulled — neither render site sorts. Going this way round keeps
+   * the order somebody is used to and appends anything new to the end.
+   *
+   * Mine also wins a collision, which is the same call as before: the two only
+   * disagree about a player's name, and the phone in somebody's hand is the one
+   * that was just typed into. A game is immutable, so results never reach this.
+   */
   for (const item of mine) merged.set(item.id, item);
+  for (const item of theirs) if (!merged.has(item.id)) merged.set(item.id, item);
   // `Array.from` rather than spreading the iterator: core targets a lib without
   // downlevel iteration, so spreading a `MapIterator` does not compile.
   return Array.from(merged.values());

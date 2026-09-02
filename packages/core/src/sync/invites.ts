@@ -38,8 +38,14 @@ export const isInviteToken = (value: unknown): value is string =>
  *   nothing at all, which is most of the point of an invite. Passing an https
  *   base is what fixes that, and needs universal links configured either side.
  */
-export const inviteUrlFor = (token: string, base: string): string =>
-  `${base.replace(/\/+$/, "")}/${INVITE_PATH}/${encodeURIComponent(token)}`;
+export const inviteUrlFor = (token: string, base: string): string => {
+  // **`scheme://` is not a trailing slash.** Stripping them blindly turned
+  // `pokerkit://` into `pokerkit:` and produced a single-slash link, which is
+  // why the app's own base had to be written as the odd `"pokerkit:/"`. Now the
+  // natural spelling works and both are handled.
+  const root = /:\/\/$/.test(base) ? base.slice(0, -1) : base.replace(/\/+$/, "");
+  return `${root}/${INVITE_PATH}/${encodeURIComponent(token)}`;
+};
 
 /**
  * Pull the token back out of whatever the phone handed us.

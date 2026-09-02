@@ -15,10 +15,15 @@ describe("building a link to share", () => {
     expect(inviteUrlFor(TOKEN, "https://pokerkit.app/")).not.toContain("//join");
   });
 
-  it("works for the app's own scheme too", () => {
-    // Which only opens for somebody who already has the app — the reason the
-    // https base exists at all.
-    expect(inviteUrlFor(TOKEN, "pokerkit:/")).toBe(`pokerkit:/${INVITE_PATH}/${TOKEN}`);
+  it("keeps the two slashes of a scheme", () => {
+    // **The trap this had.** Stripping trailing slashes blindly turned
+    // `pokerkit://` into `pokerkit:`, so the app's base had to be written as
+    // the odd `"pokerkit:/"` and anybody spelling it naturally got a
+    // single-slash link that nothing would open.
+    expect(inviteUrlFor(TOKEN, "pokerkit://")).toBe(
+      `pokerkit://${INVITE_PATH}/${TOKEN}`,
+    );
+    expect(tokenFromUrl(inviteUrlFor(TOKEN, "pokerkit://"))).toBe(TOKEN);
   });
 });
 

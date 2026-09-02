@@ -223,7 +223,17 @@ export function createLeaderboardStorage(
         // Already grouped: read it back as it was written.
         if (Array.isArray(parsed.groups)) {
           const groups = coerceGroups(parsed.groups, migration.defaultGroupName);
-          if (groups.length === 0) return EMPTY_LEADERBOARD;
+          /**
+           * **Read back, and read back *before* the empty check.** A deleted
+           * board's membership is still on the server and `GET /groups` keeps
+           * listing it, so this list is the only thing stopping the pull from
+           * putting the whole board back — and deleting your *only* board takes
+           * exactly the path below, which is precisely when it matters most.
+           */
+          const dismissed = coerceIds(parsed.dismissed);
+          const withDismissals = <T extends GroupedLeaderboard>(state: T) =>
+            dismissed.length > 0 ? { ...state, dismissed } : state;
+          if (groups.length === 0) return withDismissals(EMPTY_LEADERBOARD);
           // A selection pointing at a group that didn't survive coercion would
           // show an empty board indistinguishable from a real one.
           const stored = parsed.activeGroupId;
@@ -232,7 +242,9 @@ export function createLeaderboardStorage(
             groups.some((entry) => entry.group.id === stored)
               ? stored
               : groups[0].group.id;
-          return { groups, activeGroupId };
+          // Omitted when empty, so a leaderboard that has deleted nothing
+          // round-trips to the shape it had before this existed.
+          return withDismissals({ groups, activeGroupId });
         }
 
         // The single board that shipped first. Migrate it in place: it is

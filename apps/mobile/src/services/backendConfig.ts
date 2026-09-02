@@ -102,4 +102,4 @@ export const backendConfig: BackendConfig | null = null;
  * and a page on the website to serve them, and it is a one-line change here
  * once that exists.
  */
-export const INVITE_BASE = "pokerkit:/";
+export const INVITE_BASE = "pokerkit://";

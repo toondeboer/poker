@@ -260,6 +260,11 @@ board is invisible to them entirely, which may be right or may be the missing ha
     faithfully restores what somebody just deleted, a game included, back into the standings. So a
     local delete is recorded in `GroupState.deleted` and the merge honours both sides' lists. It
     stops a deletion undoing itself; it does not make one propagate.
+  - **The same for a whole board.** Deleting one leaves the membership on the server, `GET /groups`
+    keeps listing it, and the discovery half of a pull would put the entire board back on every
+    foreground. `GroupedLeaderboard.dismissed` holds the ids; redeeming a link for one clears it,
+    because tapping a link is asking for the board back. There is still no route that *leaves* a
+    board, so the membership itself stays.
 - **An empty group is never deleted.** Account deletion used to tombstone a group whose last member
   was leaving, decided from the eventually consistent index — and a stale read there destroys a
   group that still has people in it. That trade is the wrong way round, so the destructive branch is
