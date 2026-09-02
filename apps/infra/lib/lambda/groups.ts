@@ -334,12 +334,16 @@ export const handler = async (request: VerifiedRequest): Promise<Response> => {
     case "GET /groups/{groupId}": {
       const allowed = await authorize(store, caller, groupId, "read");
       if (!allowed.ok) return allowed.response;
-      const board = await store.board(groupId);
+      const snapshot = await store.snapshot(groupId);
       // A membership pointing at a group that is not there is a deleted group
       // whose membership row outlived it. The same answer as never having been
       // a member: there is nothing to show.
-      if (!board) return json(404, { error: "no such group" });
-      return json(200, visibleTo(caller, board));
+      if (!snapshot) return json(404, { error: "no such group" });
+      // `deleted` alongside the board, because a phone merges rather than
+      // replaces — it has to, or a board's local history is wiped the first
+      // time it syncs against a server that was never told about it — and a
+      // merge cannot see an absence.
+      return json(200, { ...visibleTo(caller, snapshot.state), deleted: snapshot.deleted });
     }
 
     case "POST /groups/{groupId}/players": {

@@ -314,3 +314,20 @@ export const migrateToGroups = (
     activeGroupId: group.id,
   };
 };
+
+/**
+ * Put a merged board back where it came from.
+ *
+ * By id, and a board that is no longer there is simply not added: somebody can
+ * delete a group while a pull of it is in flight, and resurrecting it would
+ * undo a deletion they just made.
+ */
+export const replaceBoard = (
+  state: GroupedLeaderboard,
+  board: GroupState,
+): GroupedLeaderboard => ({
+  ...state,
+  groups: state.groups.map((entry) =>
+    entry.group.id === board.group.id ? board : entry,
+  ),
+});

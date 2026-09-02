@@ -16,6 +16,7 @@ import {
   setActiveGroup,
   unclaimPlayer,
   updateGroup,
+  replaceBoard,
 } from "./groups";
 
 const group = (id: string, name = id, now = 0) => createGroup({ id, name, now });
@@ -395,5 +396,32 @@ describe("migrating the board that shipped first", () => {
     };
     const migrated = migrateToGroups(legacy, { id: "g1", name: "x", now: 1 });
     expect(migrated.groups[0].results).toHaveLength(1);
+  });
+});
+
+describe("putting a pulled board back", () => {
+  const boardFor = (id: string, name: string): GroupState => ({
+    group: { id, name, createdAt: 1 },
+    players: [],
+    results: [],
+  });
+
+  it("replaces the board with that id and leaves the others", () => {
+    const state: GroupedLeaderboard = {
+      groups: [boardFor("g1", "Thursday"), boardFor("g2", "Sunday")],
+      activeGroupId: "g1",
+    };
+    const merged = { ...boardFor("g1", "Thursday"), players: [{ id: "p1", name: "Ann" }] };
+    const after = replaceBoard(state, merged);
+    expect(after.groups[0].players).toHaveLength(1);
+    expect(after.groups[1].group.name).toBe("Sunday");
+    expect(after.activeGroupId).toBe("g1");
+  });
+
+  it("does not resurrect a board somebody deleted mid-pull", () => {
+    // A pull takes as long as the network does, and a group can be deleted
+    // while one is in flight. Adding it back would undo a deletion just made.
+    const state: GroupedLeaderboard = { groups: [boardFor("g2", "Sunday")], activeGroupId: "g2" };
+    expect(replaceBoard(state, boardFor("g1", "Thursday")).groups).toHaveLength(1);
   });
 });

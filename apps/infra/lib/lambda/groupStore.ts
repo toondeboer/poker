@@ -34,6 +34,7 @@ import {
 import type { GameResult, GroupState, Player } from "@poker/core";
 import {
   boardFrom,
+  deletionsFrom,
   claimKey,
   groupItem,
   groupKey,
@@ -49,6 +50,7 @@ import {
   resultKey,
   sameGame,
   tombstone,
+  type Deletions,
   type MemberItem,
   type Role,
 } from "./groupKeys";
@@ -63,6 +65,13 @@ const conflict = (reason: string): WriteOutcome => ({ status: "conflict", reason
 
 export type GroupStore = {
   board(groupId: string): Promise<GroupState | null>;
+  /**
+   * The board *and* what has been removed from it.
+   *
+   * What a phone needs to merge: it cannot see an absence in a list, so a
+   * deletion has to be named. See `deletionsFrom`.
+   */
+  snapshot(groupId: string): Promise<{ state: GroupState; deleted: Deletions } | null>;
   /** What this account may do here. **Strongly consistent.** */
   membership(accountId: string, groupId: string): Promise<MemberItem | null>;
   /** Everyone in a group, from the group's own partition. Consistent. */
@@ -184,6 +193,14 @@ export const createGroupStore = (
   return {
     async board(groupId) {
       return boardFrom(groupId, await groupPartition(groupId));
+    },
+
+    async snapshot(groupId) {
+      // One read for both. The board and what has been removed from it come
+      // out of the same partition, and asking twice would let them disagree.
+      const items = await groupPartition(groupId);
+      const state = boardFrom(groupId, items);
+      return state ? { state, deleted: deletionsFrom(items) } : null;
     },
 
     async membership(accountId, groupId) {

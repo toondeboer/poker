@@ -356,6 +356,9 @@ export type {
 } from "./sync/pendingWrites";
 export { cancel, cancelBoard, describeWrite } from "./sync/pendingWrites";
 export type { WriteSubject } from "./sync/pendingWrites";
+export { replaceBoard } from "./leaderboard/groups";
+export { NOTHING_DELETED, mergeBoard, readRemoteBoard } from "./sync/mergeBoard";
+export type { Deletions, RemoteBoard } from "./sync/mergeBoard";
 export { applyReport, drain } from "./sync/drain";
 export { createSyncQueueStorage, SYNC_QUEUE_KEY } from "./storage/syncQueueStorage";
 export type { SyncQueueStorage } from "./storage/syncQueueStorage";

@@ -19,6 +19,7 @@ import {
   tombstone,
   anotherAdmin,
   type MemberItem,
+  deletionsFrom,
   sameGame,
 } from "../lib/lambda/groupKeys";
 
@@ -338,5 +339,45 @@ describe("deciding two games are the same game", () => {
   it("does not confuse null with an object", () => {
     expect(sameGame({ a: null }, { a: {} })).toBe(false);
     expect(sameGame(null, undefined)).toBe(false);
+  });
+});
+
+describe("telling a phone what was removed", () => {
+  const row = (sk: string, extra: Record<string, unknown> = {}) => ({
+    pk: "GROUP#g1",
+    sk,
+    ...extra,
+  });
+
+  it("names the deleted players and games", () => {
+    // **A merge cannot see an absence.** A phone merges what it is given into
+    // what it already has — it has to, or a board's local history is wiped the
+    // first time it syncs against a server that was never told about it — so a
+    // deletion has to be named or it never propagates.
+    const deleted = deletionsFrom([
+      row("PLAYER#p1", { deletedAt: 5 }),
+      row("RESULT#r1", { deletedAt: 5 }),
+      row("PLAYER#p2", { playerId: "p2", name: "Ann" }),
+      row("META", { name: "Thursday", createdAt: 1 }),
+    ]);
+    expect(deleted).toEqual({ players: ["p1"], results: ["r1"] });
+  });
+
+  it("carries ids and nothing else", () => {
+    // A tombstone is stripped on the way in so a deleted game cannot be read
+    // back out of the table. Handing back an id rather than a row is what keeps
+    // that true even if a stripped payload ever survives.
+    const deleted = deletionsFrom([
+      row("RESULT#r1", { deletedAt: 5, result: { id: "r1", buyIn: 10 } }),
+    ]);
+    expect(deleted.results).toEqual(["r1"]);
+    expect(typeof deleted.results[0]).toBe("string");
+  });
+
+  it("ignores rows that are not tombstones and rows that are not rows", () => {
+    expect(deletionsFrom([null, "nonsense", row("MEMBER#a", { deletedAt: 1 })])).toEqual({
+      players: [],
+      results: [],
+    });
   });
 });

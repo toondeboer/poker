@@ -233,6 +233,12 @@ board is invisible to them entirely, which may be right or may be the missing ha
 
 ## Known gaps
 
+- **Local history never reaches the server.** A board announces its *existence* on every launch, but
+  the players and games it already had are never sent — only writes made from now on are queued. So
+  an old board syncs as an empty one, and the merge is what stops that from wiping the phone. It
+  means a board shared today shows the other person nothing before today. A backfill wants to be
+  deliberate — a few hundred queued writes, or a bulk upload route — and belongs with the work that
+  makes sharing a board possible.
 - **A board cannot be renamed on the server.** There is no `PATCH /groups/{groupId}`, so the name a
   board is created with is the name it keeps. The app replaces a *queued* `createGroup` when
   somebody renames a board, which covers a board renamed before it ever synced; a board the server
@@ -261,6 +267,8 @@ board is invisible to them entirely, which may be right or may be the missing ha
 
 ## Not covered here
 
-- **When sync runs.** On foreground, on change, on a pull. The merge is designed; the trigger is not.
+- **When sync runs — settled.** Writes go on change, on foreground, and on sign-in; boards are read
+  back on foreground and again once the outbox has drained, so what you see reflects what you just
+  sent. No timers and no background work: a phone that is not open is a phone nobody is looking at.
 - **Whether guest players are ever merged.** Two groups may hold the same person as two `Player`
   rows with different ids. Nothing here joins them, and probably nothing should.

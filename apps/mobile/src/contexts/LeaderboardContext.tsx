@@ -5,6 +5,7 @@ import {
   useContext,
   useEffect,
   useMemo,
+  useRef,
   useState,
 } from "react";
 import {
@@ -23,6 +24,7 @@ import {
   playerForAccount,
   removeGroup,
   removePlayer,
+  replaceBoard,
   renameGroup,
   setActiveGroup,
   unclaimPlayer,
@@ -174,6 +176,8 @@ export function LeaderboardProvider({
   const announceGroups = sync.announce;
   const cancelWrite = sync.cancel;
   const cancelBoardWrites = sync.cancelBoard;
+  const pullBoard = sync.pull;
+  const { pullsWanted } = sync;
 
   useEffect(() => {
     let active = true;
@@ -219,6 +223,52 @@ export function LeaderboardProvider({
       logger.error("Failed to save leaderboard:", error),
     );
   }, []);
+
+  /**
+   * The board as it is *right now*, for the pull to fold its answer back into.
+   *
+   * A pull takes as long as the network does, and `state` inside the effect is
+   * the snapshot from when it started — so a game recorded while boards were in
+   * flight would be overwritten by a copy that predates it.
+   */
+  const latestState = useRef(state);
+  useEffect(() => {
+    latestState.current = state;
+  }, [state]);
+
+  /**
+   * Read every board back from the server and merge it in.
+   *
+   * **Merged, never replaced** — see `mergeBoard`. A board that predates
+   * syncing has a history nothing has told the server about, so the server's
+   * copy is legitimately emptier and overwriting would delete a season.
+   *
+   * Runs when the app comes forward and again after the outbox drains, which
+   * is what `pullsWanted` counts. Boards are pulled one at a time rather than
+   * in parallel: there are at most a handful, and a phone that has just woken
+   * up on a bad connection should not open five requests at once.
+   */
+  useEffect(() => {
+    if (pullsWanted === 0 || isLoading) return;
+    let active = true;
+    void (async () => {
+      for (const entry of latestState.current.groups) {
+        const merged = await pullBoard(entry);
+        if (!active || !merged) continue;
+        /**
+         * Applied one board at a time against the *current* state rather than
+         * the snapshot this loop started from. Somebody can record a game while
+         * the requests are in flight, and folding a stale copy back over it
+         * would take that game off the screen.
+         */
+        persist(replaceBoard(latestState.current, merged));
+      }
+    })();
+    return () => {
+      active = false;
+    };
+  }, [pullsWanted, isLoading, pullBoard, persist]);
+
 
   const activeEntry = useMemo(
     () => state.groups.find((entry) => entry.group.id === state.activeGroupId),

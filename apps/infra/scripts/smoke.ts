@@ -471,6 +471,38 @@ const checkGroups = async (
     `${drawn.players?.length} players, ${drawn.results?.length} games`,
   );
 
+  /**
+   * **The deletion has to come back as a deletion.** A phone merges a board
+   * into what it already has, so an id that has simply gone missing from the
+   * list changes nothing — only a named tombstone removes anything. If this
+   * check ever fails, every removal silently stops propagating and the only
+   * symptom is a player nobody can get rid of.
+   */
+  step("removing a player and reading the board back");
+  const removed = await fetch(
+    `${apiUrl}/groups/${groupId}/players/${encodeURIComponent(player.id)}`,
+    { method: "DELETE", headers: { Authorization: me.tokens.idToken } },
+  );
+  check("a player can be removed", removed.ok, `${removed.status}`);
+
+  const after = await fetch(`${apiUrl}/groups/${groupId}`, {
+    headers: { Authorization: me.tokens.idToken },
+  });
+  const reread = (await after.json()) as {
+    players?: { id: string }[];
+    deleted?: { players?: string[]; results?: string[] };
+  };
+  check(
+    "the removed player is gone from the board",
+    !reread.players?.some((p) => p.id === player.id),
+    `${reread.players?.length} players`,
+  );
+  check(
+    "and is named as deleted, so a phone can remove it too",
+    reread.deleted?.players?.includes(player.id) === true,
+    JSON.stringify(reread.deleted),
+  );
+
   if (KEEP) {
     console.log(`  keeping board ${groupId}`);
     return;

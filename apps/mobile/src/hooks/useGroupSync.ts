@@ -7,9 +7,11 @@ import {
   applyReport,
   cancel,
   cancelBoard,
+  mergeBoard,
   dismiss,
   drain,
   enqueue,
+  type GroupState,
   type PendingWrite,
   type SyncQueue,
   type WriteSubject,
@@ -58,6 +60,21 @@ export type GroupSync = {
   cancel: (subject: WriteSubject) => void;
   /** The same, for a whole board that has just been deleted. */
   cancelBoard: (groupId: string) => void;
+  /**
+   * Read a board back, merged with what this phone has and has not sent.
+   *
+   * `null` when there is nothing to apply — no backend, no session, no signal,
+   * or a board this account cannot see. The caller keeps what it has.
+   */
+  pull: (local: GroupState) => Promise<GroupState | null>;
+  /**
+   * Somebody should pull, because something changed on the server side of this
+   * phone's world: it came to the foreground, or the outbox just drained.
+   *
+   * A counter rather than a callback, so the board can watch it without this
+   * hook needing to know what a board is.
+   */
+  pullsWanted: number;
 };
 
 export const useGroupSync = (): GroupSync => {
@@ -72,6 +89,14 @@ export const useGroupSync = (): GroupSync => {
    */
   const latest = useRef(queue);
   const draining = useRef(false);
+  /**
+   * Bumped whenever it is worth reading boards back.
+   *
+   * **Not a pull itself**, because this hook holds the outbox and not the
+   * board. It says *when*; `LeaderboardContext` knows *what*.
+   */
+  const [pullsWanted, setPullsWanted] = useState(0);
+  const wantPull = useCallback(() => setPullsWanted((n) => n + 1), []);
 
   const update = useCallback((next: (current: SyncQueue) => SyncQueue) => {
     /**
@@ -123,6 +148,13 @@ export const useGroupSync = (): GroupSync => {
         // foreground and sign-in listeners are what try next.
         if (report.stopped) break;
       }
+      /**
+       * **After the writes, not before.** Pulling first would hand back a board
+       * that does not yet contain what this phone just sent, and the merge
+       * would then have to be trusted to put it back — which it does, but only
+       * for writes still queued. One that settled mid-pull would be in neither.
+       */
+      wantPull();
     })()
       .catch((error) => logger.error("Sync failed unexpectedly:", error))
       .finally(() => {
@@ -177,6 +209,19 @@ export const useGroupSync = (): GroupSync => {
     [update],
   );
 
+  const pull = useCallback(
+    async (local: GroupState): Promise<GroupState | null> => {
+      if (!backendConfig) return null;
+      const remote = await api.board(local.group.id);
+      if (!remote) return null;
+      // **Merged against the queue as it is now**, not as it was when the
+      // request went out: a game recorded while the board was in flight is
+      // still only on this phone, and reading a stale queue would drop it.
+      return mergeBoard(local, remote, latest.current);
+    },
+    [],
+  );
+
   const acknowledge = useCallback(
     (id: string) => update((current) => dismiss(current, id)),
     [update],
@@ -192,7 +237,11 @@ export const useGroupSync = (): GroupSync => {
    */
   useEffect(() => {
     const subscription = AppState.addEventListener("change", (next) => {
-      if (next === "active") syncNow();
+      if (next !== "active") return;
+      syncNow();
+      // Somebody else's phone has had all the time the app was closed to change
+      // a board. This is the moment to find out.
+      wantPull();
     });
     return () => subscription.remove();
   }, [syncNow]);
@@ -256,7 +305,19 @@ export const useGroupSync = (): GroupSync => {
       announce,
       cancel: cancelWrite,
       cancelBoard: cancelWholeBoard,
+      pull,
+      pullsWanted,
     }),
-    [queue, record, syncNow, acknowledge, announce, cancelWrite, cancelWholeBoard],
+    [
+      queue,
+      record,
+      syncNow,
+      acknowledge,
+      announce,
+      cancelWrite,
+      cancelWholeBoard,
+      pull,
+      pullsWanted,
+    ],
   );
 };

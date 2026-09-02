@@ -1,8 +1,10 @@
 // src/services/groupApi.ts
 import {
+  readRemoteBoard,
   reasonForRefusal,
   requestFor,
   resultForStatus,
+  type RemoteBoard,
   type QueuedWrite,
   type SendResult,
 } from "@poker/core";
@@ -18,7 +20,19 @@ import { logger } from "@/src/utils/logger";
  * left here is the `fetch` and the token, which is the same split
  * `cognitoAuthProvider` makes.
  */
-export type GroupApi = { send: (write: QueuedWrite) => Promise<SendResult> };
+export type GroupApi = {
+  send: (write: QueuedWrite) => Promise<SendResult>;
+  /**
+   * Read a board back.
+   *
+   * `null` for every reason a phone should keep what it has: no backend, no
+   * session, no signal, a board this account cannot see. **None of them are
+   * distinguished here on purpose** — the only correct response to all four is
+   * to leave local state alone, and a caller offered four cases would sooner or
+   * later treat one of them as "the board is empty".
+   */
+  board: (groupId: string) => Promise<RemoteBoard | null>;
+};
 
 /**
  * @param idToken Read per request rather than held. It expires and the provider
@@ -67,5 +81,30 @@ export const createGroupApi = (
       logger.warn(`Sync failed with ${response.status}; will retry`);
     }
     return result;
+  },
+
+  async board(groupId) {
+    const config = backendConfig;
+    if (!config) return null;
+    const token = await idToken();
+    if (!token) return null;
+
+    try {
+      const response = await fetcher(
+        `${config.apiUrl.replace(/\/$/, "")}/groups/${encodeURIComponent(groupId)}`,
+        { headers: { Authorization: token } },
+      );
+      if (!response.ok) {
+        // A 404 is the ordinary answer for a board this account is not on —
+        // the API answers that rather than 403, so membership is not something
+        // a stranger can probe for. Nothing to merge either way.
+        logger.warn(`Could not read board ${groupId}: ${response.status}`);
+        return null;
+      }
+      return readRemoteBoard(await response.json());
+    } catch (error) {
+      logger.warn("Could not read board:", error);
+      return null;
+    }
   },
 });

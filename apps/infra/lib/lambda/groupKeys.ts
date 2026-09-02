@@ -279,6 +279,38 @@ export const membersFrom = (items: readonly unknown[]): MemberItem[] =>
  * the group is a different question from what is on the board, and they share a
  * partition only because that is what makes both consistent.
  */
+/**
+ * What a board has had removed, so a phone can remove it too.
+ *
+ * **A pull that only carried what exists could never propagate a deletion.** A
+ * phone merges what it is given into what it already has — it has to, or a
+ * board's local history would be wiped the first time it synced against a
+ * server that had never been told about it — and a merge by definition cannot
+ * see an absence. So the absences are sent explicitly.
+ *
+ * The ids alone: a tombstone has had its payload stripped, deliberately, so a
+ * deleted game cannot be read back out of the table.
+ *
+ * **Bounded by the tombstone TTL** (90 days). A phone that has not synced in
+ * longer than that can miss a deletion, which is the known gap in SYNC.md that
+ * a full resync is the answer to.
+ */
+export type Deletions = { players: string[]; results: string[] };
+
+export const deletionsFrom = (items: readonly unknown[]): Deletions => {
+  const players: string[] = [];
+  const results: string[] = [];
+  for (const item of items) {
+    if (typeof item !== "object" || item === null) continue;
+    const row = item as Record<string, unknown>;
+    const sk = str(row.sk);
+    if (!sk || !isTombstone(row)) continue;
+    if (sk.startsWith("PLAYER#")) players.push(sk.slice("PLAYER#".length));
+    else if (sk.startsWith("RESULT#")) results.push(sk.slice("RESULT#".length));
+  }
+  return { players, results };
+};
+
 export const boardFrom = (
   groupId: string,
   items: readonly unknown[],
