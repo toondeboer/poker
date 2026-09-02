@@ -1,7 +1,8 @@
 // src/components/leaderboard/GroupsSheet.tsx
 import { useRef, useState } from "react";
 import { Alert, Keyboard, Share, StyleSheet, Text, View } from "react-native";
-import { MAX_GROUPS, readInviteCode } from "@poker/core";
+import {
+  hostRefusal, MAX_GROUPS, readInviteCode } from "@poker/core";
 import { useLeaderboard } from "@/src/contexts/LeaderboardContext";
 import { accountsAreReal, useAuth } from "@/src/contexts/AuthContext";
 import { usePremium } from "@/src/contexts/PremiumContext";
@@ -55,17 +56,17 @@ export function GroupsSheet({
     joinBoard,
   } = useLeaderboard();
   const { account } = useAuth();
-  const { hasSharedBoards, entitlementsKnown } = usePremium();
+  const { isPremium, hasClub, entitlementsKnown } = usePremium();
   /**
-   * **Shown while the store has not answered yet**, which is the same call
-   * `joinRefusal` makes and for the same reason: the entitlement starts `false`
-   * and a subscriber would otherwise watch their own share button be absent for
-   * the first seconds of every cold launch — or for the whole session wherever
-   * the fetch fails and `onChange` never corrects it. Tapping it in that window
-   * gets "still checking", which is true and recoverable; a missing button
+   * **Shown while the store has not answered yet**, the same call `hostRefusal`
+   * makes and for the same reason: the entitlement starts `false`, and a
+   * subscriber would otherwise watch their own share button be absent for the
+   * first seconds of every cold launch — or for a whole session wherever the
+   * fetch fails and `onChange` never corrects it. Tapping it in that window
+   * says "still checking", which is true and recoverable; a missing button
    * explains nothing and cannot be retried.
    */
-  const mayShare = hasSharedBoards || !entitlementsKnown;
+  const mayShare = hasClub || !entitlementsKnown;
   const [sharingId, setSharingId] = useState<string | null>(null);
   const sharing = useRef(false);
   const [joinCode, setJoinCode] = useState("");
@@ -163,9 +164,18 @@ export function GroupsSheet({
     try {
       const token = await inviteToBoard(id);
       if (!token) {
+        // The refusal that is somebody's to act on comes first; anything else
+        // here is a board that is not on the server, or no signal.
+        const refusal = hostRefusal({
+          signedIn: account !== null,
+          entitlementsKnown,
+          hasClub,
+          isPremium,
+        });
         Alert.alert(
-          "Could not make a link",
-          "Only an admin of a board can invite people to it, and the board has to have reached the server. Try again when you have signal.",
+          refusal ? "Sharing is part of Club" : "Could not make a link",
+          refusal ??
+            "Only an admin of a board can invite people to it, and the board has to have reached the server. Try again when you have signal.",
         );
         return;
       }
@@ -326,60 +336,69 @@ export function GroupsSheet({
         )}
       </View>
 
-      <TextField
-        label="New group"
-        value={newName}
-        onChangeText={setNewName}
-        onSubmitEditing={handleCreate}
-        placeholder="e.g. Thursday night"
-        returnKeyType="done"
-        maxLength={40}
-        helper={
-          canAddGroup
-            ? undefined
-            : `You can have up to ${MAX_GROUPS} groups. Delete one to add another.`
-        }
-      />
-      {/* **Only when there is a server to join through.** `backendConfig` is
-          `null` in a shipped build, so without this the release carries a
-          visible field that can only ever answer "this build cannot join
-          boards" — a dead feature in the app store. Signed out it is equally
-          pointless: joining is the one thing here that needs an account. */}
-      {/* Sharing is its own purchase — see `ENTITLEMENT_SHARED_BOARDS`. A field
-          that can only answer "you need a subscription" is worse than no field,
-          the same reasoning that hides it with no backend or no account. */}
-      {accountsAreReal && account && mayShare ? (
+      {/* **Making a board of your own is still Pro.** A guest can reach this
+          sheet now, because a board somebody shared with them is visible
+          without Pro — so without this check the leaderboard could be had for
+          nothing by joining anything. */}
+      {isPremium ? (
         <>
-      <TextField
-        label="Join a board"
-        value={joinCode}
-        onChangeText={setJoinCode}
-        placeholder="Paste an invite code"
-        returnKeyType="go"
-        onSubmitEditing={handleJoin}
-        autoCapitalize="none"
-        autoCorrect={false}
-        helper={
-          joinProblem ??
-          "Somebody on the board can send you one from their Groups list."
-        }
-      />
-      <Button
-        label={joining ? "Joining…" : "Join board"}
-        icon="enter-outline"
-        variant="secondary"
-        onPress={() => void handleJoin()}
-        disabled={joining || joinCode.trim().length === 0}
-      />
+          <TextField
+            label="New group"
+            value={newName}
+            onChangeText={setNewName}
+            onSubmitEditing={handleCreate}
+            placeholder="e.g. Thursday night"
+            returnKeyType="done"
+            maxLength={40}
+            helper={
+              canAddGroup
+                ? undefined
+                : `You can have up to ${MAX_GROUPS} groups. Delete one to add another.`
+            }
+          />
+          <Button
+            label="Create group"
+            icon="add"
+            onPress={handleCreate}
+            disabled={!canCreate}
+          />
         </>
       ) : null}
 
-      <Button
-        label="Create group"
-        icon="add"
-        onPress={handleCreate}
-        disabled={!canCreate}
-      />
+      {/* **Joining needs nothing bought — the host pays**, so this sits
+          outside the Pro block above and asks for no entitlement of its own.
+          Requiring anything here would be asking a guest to buy something
+          before they can see a board somebody sent them, which is how the
+          feature ends up unused. See `joinRefusal`.
+
+          Still hidden with no backend or no account: in a shipped build
+          `backendConfig` is `null`, and a field that can only answer "this
+          build cannot join boards" is a dead feature in the app store. */}
+      {accountsAreReal && account ? (
+        <>
+          <TextField
+            label="Join a board"
+            value={joinCode}
+            onChangeText={setJoinCode}
+            placeholder="Paste an invite code"
+            returnKeyType="go"
+            onSubmitEditing={handleJoin}
+            autoCapitalize="none"
+            autoCorrect={false}
+            helper={
+              joinProblem ??
+              "Somebody on the board can send you one from their Groups list. Joining is free."
+            }
+          />
+          <Button
+            label={joining ? "Joining…" : "Join board"}
+            icon="enter-outline"
+            variant="secondary"
+            onPress={() => void handleJoin()}
+            disabled={joining || joinCode.trim().length === 0}
+          />
+        </>
+      ) : null}
     </Sheet>
   );
 }

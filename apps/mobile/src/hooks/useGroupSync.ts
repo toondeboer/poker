@@ -22,7 +22,6 @@ import { asyncStorageAdapter } from "@/src/services/storageAdapter";
 import { createGroupApi, type GroupApi } from "@/src/services/groupApi";
 import { apiToken, onSignedIn } from "@/src/contexts/AuthContext";
 import { backendConfig } from "@/src/services/backendConfig";
-import { usePremium } from "@/src/contexts/PremiumContext";
 import { generateId } from "@/src/utils/id";
 import { logger } from "@/src/utils/logger";
 
@@ -96,21 +95,15 @@ export type GroupSync = {
 
 export const useGroupSync = (): GroupSync => {
   /**
-   * **Nothing reaches the server without the subscription.**
+   * **Whether there is a server at all** — and nothing more.
    *
-   * Gating the join screen and the share button was not enough and was the
-   * more visible half of the job: announcing a board *creates* it server-side,
-   * and every player and game written to it is stored and billed for as long as
-   * it exists. That is the recurring cost the subscription pays for, so it is
-   * the thing that has to be behind it — a gate on the buttons alone leaves the
-   * bill exactly where it was.
-   *
-   * `entitlementsKnown` is not consulted: this only ever *withholds* requests,
-   * and the effect below starts everything the moment the store answers. The
-   * cost of being briefly wrong is a few seconds' delay, not a refusal.
+   * The subscription decides which *boards* belong on the server, which is a
+   * per-board question and is answered by `boardSyncs` where the boards live.
+   * It deliberately does not belong here: a guest with nothing bought still has
+   * to pull the board somebody shared with them and write to it, and gating
+   * this hook would make them a spectator.
    */
-  const { hasSharedBoards } = usePremium();
-  const enabled = backendConfig !== null && hasSharedBoards;
+  const enabled = backendConfig !== null;
   const [queue, setQueue] = useState<SyncQueue>(EMPTY_QUEUE);
   /**
    * The queue as it is *right now*, for the drain to work from.

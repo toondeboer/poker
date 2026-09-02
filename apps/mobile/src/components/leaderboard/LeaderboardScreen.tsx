@@ -13,6 +13,7 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useLocalSearchParams } from "expo-router";
 import {
+  boardIsVisible,
   formatPlace,
   formatStandingsSummary,
   isValidPlayerName,
@@ -80,6 +81,7 @@ export function LeaderboardScreen() {
     claimedPlayer,
     claimPlayerAs,
     releasePlayer,
+    activeBoardIsShared,
     refusedWrites,
     acknowledgeRefusal,
   } = useLeaderboard();
@@ -229,7 +231,15 @@ export function LeaderboardScreen() {
   // persists `{players: [], results: []}` straight over a season of game
   // nights — the arriving load then repairs the *state* and hides it until the
   // next launch. This is the one store here whose contents can't be retyped.
-  const content = isLoading ? null : isPremium ? (
+  /**
+   * **A shared board is readable without Pro.** Pro is for keeping your own
+   * score; a board somebody else keeps is theirs, and they are paying for it.
+   * Without this a guest joins and lands on a paywall looking at the board they
+   * were just invited to — which would make "joining is always free" untrue.
+   */
+  const canView = boardIsVisible({ isPremium, isShared: activeBoardIsShared });
+
+  const content = isLoading ? null : canView ? (
     <>
       {/* Above the standings, because it is about the standings: what is on
           this phone and not on anybody else's. Renders nothing when there is
@@ -467,7 +477,7 @@ export function LeaderboardScreen() {
       {/* Pro-gated here as well as in `content`: this sits outside that
           ternary, and `showRecord` can be seeded from `?record=1`, so without
           the check a deep link opens the record flow with Pro locked. */}
-      {isPremium && !isLoading && (
+      {canView && !isLoading && (
       <RecordResultSheet
         visible={showRecord}
         onClose={() => setShowRecord(false)}
@@ -477,7 +487,7 @@ export function LeaderboardScreen() {
       )}
       {/* Same reasoning as the record sheet: this sits outside the Pro-gated
           `content`, so it needs its own check. */}
-      {isPremium && !isLoading && (
+      {canView && !isLoading && (
         <GroupsSheet
           visible={showGroups}
           onClose={() => setShowGroups(false)}

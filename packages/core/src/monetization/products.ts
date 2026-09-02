@@ -11,7 +11,7 @@ export const ENTITLEMENT_PRO = "pro";
 export const PRODUCT_PRO_LIFETIME = "pro_lifetime";
 
 /**
- * The entitlement for anything that talks to the server.
+ * The entitlement for hosting: **the Club**.
  *
  * **A second entitlement, not a second tier**, and the distinction is the whole
  * design. `pro` is a one-time purchase and everything it grants runs on the
@@ -28,9 +28,18 @@ export const PRODUCT_PRO_LIFETIME = "pro_lifetime";
  *
  * **Named for what it does rather than where it sits.** "Pro+" would say the
  * thing people already bought had been demoted; it has not, and it has not
- * changed at all.
+ * changed at all. "Club" also outlives shared boards specifically — the shared
+ * clock, playing a hand together and anything else needing other people belong
+ * to the same subscription, and none of them will need this renamed.
+ *
+ * **The host pays; guests do not.** Somebody who is sent a board can join it,
+ * read it and record on it having bought nothing at all. That is not
+ * generosity: an invite that asks five friends to subscribe to a poker timer is
+ * a feature nobody ever uses, and a board costs the same whether one person is
+ * on it or eight. The person who organises the game night is the one who gets
+ * the value and the one who pays for it.
  */
-export const ENTITLEMENT_SHARED_BOARDS = "shared_boards";
+export const ENTITLEMENT_CLUB = "club";
 
-/** Store product id for the shared-boards subscription. */
-export const PRODUCT_SHARED_BOARDS = "shared_boards_monthly";
+/** Store product id for the Club subscription. */
+export const PRODUCT_CLUB = "club_monthly";

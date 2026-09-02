@@ -241,56 +241,55 @@ is cut.**
 - ⬜ **Invite links need universal links to work from a phone.** `pokerkit://` is owned by the Expo
   dev launcher, so a cold-launch deep link cannot even be tested from a dev client.
 
-## Monetization: server features are a second entitlement — decided
+## Monetization: Pro keeps the phone, Club buys the hosting — decided
 
-**Pro stays exactly what it is.** The one-time purchase keeps every local feature it grants today —
-leaderboard, payouts, play a hand, no ads, presets, sound packs — forever. None of those cost
-anything per user, so nothing has to be taken away and nobody who has already paid loses a thing.
+**Pro does not change and nobody who bought it loses anything.** Everything it unlocks runs on the
+phone — leaderboard, payouts, dealing a hand, no ads, presets, sound packs — and costs nothing per
+person, so none of it moves. There is nothing to migrate either: `club` is a separate RevenueCat
+entitlement, so it cannot affect `pro`. No restore edge case, no receipt to rewrite.
 
-**Server-backed features get their own entitlement**, because they carry an ongoing cost that a
-one-time purchase cannot fund. Anything that talks to the backend is behind it: sharing a board,
-syncing across devices, joining somebody else's board.
+**The host pays; guests do not.** This is the decision the feature lives or dies on. An invite that
+asks five friends to subscribe to a poker timer is a feature nobody ever uses, and a board costs the
+same whether one person is on it or eight. So:
 
-- **Existing Pro buyers are grandfathered automatically** and there is nothing to migrate: `pro` is
-  a separate entitlement in RevenueCat, so a second one cannot affect it. No restore edge case, no
-  receipt rewriting, no way for an old purchase to break.
-- **Decided: existing Pro buyers do not get server features free.** The line is the cost line, and
-  it is drawn where the cost actually is.
-- **Not named "Pro+"**, which would imply the thing people bought was demoted. Name it for the
-  capability rather than the tier.
-### The seam is built. What is left is entirely store configuration.
+| | Needs |
+| --- | --- |
+| Your own boards, the leaderboard, payouts, dealing a hand | **Pro** (one-time) |
+| Making a board of your own shareable, and inviting people | **Club** (subscription) |
+| Joining a board somebody sent you, reading it, recording on it | **nothing** |
 
-`ENTITLEMENT_SHARED_BOARDS` (`shared_boards`) is read from RevenueCat alongside `pro`, exposed as
-`hasSharedBoards`, and **every request that reaches the server is behind it** — not just the visible
-affordances. That distinction was the whole point and was got wrong first time: gating the join
-screen and the share button left announcing, writing and pulling untouched, so the recurring cost
-the subscription pays for was still being incurred by anybody signed in. It is `useGroupSync` that
-holds the gate now, so nothing can be sent by a path that forgets to ask. `joinRefusal` in `@poker/core` decides what somebody missing one is told, and is
-tested — the order matters, because telling a person to buy what they already own is the kind of
-mistake that only shows up in a store review.
+A guest joining free has to be able to *see* the board, so **a shared board is visible without
+Pro** — `boardIsVisible`. Pro is for keeping your own score; a board somebody else keeps is theirs.
+That is also the better funnel: a guest sees what a season of game nights looks like and then wants
+one of their own.
 
-**Nothing can be bought yet, and until it can, sharing is unreachable.** That is deliberate rather
-than an oversight: `backendConfig` is `null`, so none of it ships anyway, and a paywall wired to a
-product that does not exist cannot be tested at all.
+**The subscription should also grant `pro`** so nobody ever buys twice — one product, several
+entitlements, configured in RevenueCat with no code change.
 
-Still to do, in order:
+**Named for the axis, not the tier.** "Pro+" would say the thing people already bought had been
+demoted. "Club" also outlives shared boards: the shared clock and playing a hand together belong to
+the same subscription and will not need it renamed.
 
-- ⬜ **Decide the price and period.** Nothing below can start without it.
-- ⬜ **Create the subscription product** in App Store Connect and Play Console as
-  `shared_boards_monthly` (`PRODUCT_SHARED_BOARDS`), then the `shared_boards` entitlement in
-  RevenueCat with both products attached. **Both stores or neither** — one platform able to
-  subscribe and the other not is worse than neither.
-- ⬜ **A way to buy it.** There is no purchase flow: `purchasePro` buys the one-time unlock and
-  nothing buys this. The paywall needs a second offering, which cannot be built honestly until the
-  product exists to price it.
-- ⬜ **Billing rows for it in `RELEASE_TESTING.md`** — purchase, restore, cancel, and *expiry*,
-  which the one-time product never had. **Expiry is the new risk**: a lapsed subscriber still has
-  boards on their phone and on the server, and what happens to them is a decision nobody has made.
-- ⬜ **Decide what a lapsed subscriber keeps.** Their local boards clearly stay — they were written
-  locally first. Whether they can still *read* a shared board, and what the other members see, is
-  open.
+### The seam is built. What is left is store configuration and one decision.
+
+`ENTITLEMENT_CLUB` is read alongside `pro`, exposed as `hasClub`, and `clubPolicy` in `@poker/core`
+holds every rule above — tested, because the mistakes are all of the kind that are invisible in
+review and obvious in a store review. **Which boards reach the server is a per-board question**
+(`boardSyncs`): a shared board always syncs because the host is paying for it, a local board only
+if you host. A board that does not sync is never announced *and* never queues writes.
+
+- ⬜ **Decide the price and period.** Nothing else can start.
+- ⬜ **Create the subscription** as `club_monthly` (`PRODUCT_CLUB`) in both stores, then the `club`
+  entitlement in RevenueCat with `pro` attached to the same product. **Both stores or neither.**
+- ⬜ **A way to buy it.** `purchasePro` buys the one-time unlock and nothing buys this. The paywall
+  needs a second offering, which cannot be built honestly until there is a price.
+- ⬜ **Billing rows in `RELEASE_TESTING.md`** — purchase, restore, cancel and **expiry**, which the
+  one-time product never had.
+- ⬜ **Decide what a lapsed subscriber keeps.** Their local boards clearly stay. Whether their
+  *shared* boards keep syncing, stop, or become read-only, and what the other members see, is open.
+  Guests are unaffected either way, since they never paid.
 - **Not before 1.2.0 ships.** §1 billing already blocks submission and can only be exercised from a
-  Play track; adding a second product to that pass makes the long pole longer.
+  Play track; a second product makes that pole longer.
 
 ## Backend: the plan
 

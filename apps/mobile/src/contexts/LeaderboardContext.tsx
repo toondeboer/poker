@@ -25,6 +25,8 @@ import {
   removeGroup,
   addBoard,
   boardFromRemote,
+  boardSyncs,
+  type PendingWrite,
   joinRefusal,
   noteDeleted,
   removePlayer,
@@ -83,6 +85,14 @@ type LeaderboardContextValue = {
   /** The active group's name, or `""` when there is no group yet. */
   activeGroupName: string;
   canAddGroup: boolean;
+  /**
+   * Whether the board on screen is one somebody shared with you.
+   *
+   * The leaderboard is Pro; **a board somebody else keeps is not**, or "guests
+   * join free" would be a lie — they would join and land on a paywall looking
+   * at the board they were invited to. See `boardIsVisible`.
+   */
+  activeBoardIsShared: boolean;
   /** Whether a name is free to use, ignoring the group being renamed. */
   isGroupNameAvailable: (name: string, exceptId?: string) => boolean;
   selectGroup: (id: string) => void;
@@ -205,11 +215,12 @@ export function LeaderboardProvider({
    * sending, so losing it costs the news and never the night.
    */
   // Available because `PremiumProvider` is mounted outside this one.
-  const { isPremium, hasSharedBoards, entitlementsKnown } = usePremium();
+  // Only the hosting entitlement is decided here. Pro decides what is *shown*,
+  // which is the screens' business, and joining needs neither.
+  const { hasClub } = usePremium();
   const sync = useGroupSync();
   // The stable half of it. `sync` itself changes whenever the queue does, and a
   // callback that depended on the object would be rebuilt on every write.
-  const recordWrite = sync.record;
   const announceGroups = sync.announce;
   const cancelWrite = sync.cancel;
   const cancelBoardWrites = sync.cancelBoard;
@@ -259,14 +270,12 @@ export function LeaderboardProvider({
          *
          * Cheap to repeat: the server answers *ok* to a board this account is
          * already on, and the queue ignores one it is already carrying.
+         *
+         * Done in an effect below rather than here, because whether a board
+         * belongs on the server depends on the subscription — which is `false`
+         * at mount and becomes the store's answer a moment later.
          */
-        announceGroups(
-          loaded.groups.map((entry) => ({
-            id: entry.group.id,
-            name: entry.group.name,
-            createdAt: entry.group.createdAt,
-          })),
-        );
+
       })
       .catch((error) => logger.error("Failed to load leaderboard:", error))
       .finally(() => {
@@ -279,6 +288,35 @@ export function LeaderboardProvider({
     // once. Re-running would re-read storage over live state.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  /**
+   * Whether a board belongs on the server.
+   *
+   * **A board somebody shared with you always does** — it is already there and
+   * the host is paying for it, so writing to it costs nothing extra. **A board
+   * of your own only does if you host**, and one that does not must never be
+   * announced *or* written to: a queued write for a board the server has never
+   * heard of is a refusal waiting to happen.
+   */
+  const syncsFor = useCallback(
+    (groupId: string): boolean => {
+      const entry = latestState.current.groups.find(
+        (candidate) => candidate.group.id === groupId,
+      );
+      return boardSyncs({ hasClub, isShared: entry?.role !== undefined });
+    },
+    [hasClub],
+  );
+
+  const record = sync.record;
+  const recordWrite = useCallback(
+    (write: PendingWrite) => {
+      // A board that does not sync must not queue writes either — see
+      // `syncsFor`.
+      if (syncsFor(write.groupId)) record(write);
+    },
+    [record, syncsFor],
+  );
 
 
 
@@ -374,6 +412,26 @@ export function LeaderboardProvider({
     },
     [persist],
   );
+
+  /**
+   * Tell the server about the boards that belong there.
+   *
+   * Keyed on the subscription rather than done once at load, because `hasClub`
+   * is `false` until the store answers — and somebody who subscribes mid-session
+   * should not have to relaunch before their boards appear.
+   */
+  useEffect(() => {
+    if (isLoading) return;
+    announceGroups(
+      latestState.current.groups
+        .filter((entry) => syncsFor(entry.group.id))
+        .map((entry) => ({
+          id: entry.group.id,
+          name: entry.group.name,
+          createdAt: entry.group.createdAt,
+        })),
+    );
+  }, [isLoading, syncsFor, announceGroups]);
 
   const activeEntry = useMemo(
     () => state.groups.find((entry) => entry.group.id === state.activeGroupId),
@@ -667,17 +725,11 @@ export function LeaderboardProvider({
        * re-fetch on every pull — a membership somebody cannot see or get rid of.
        */
       /**
-       * **Decided in core, because the order is what can be wrong.** Telling
-       * somebody to buy what they have already bought, or to pay when what they
-       * need is to sign in, is the kind of mistake nobody catches in review and
-       * everybody catches in a store review. See `joinRefusal`.
+       * **Joining needs nothing bought — the host pays.** Asking a guest to
+       * subscribe before they can see a board somebody sent them is how this
+       * feature ends up unused. See `joinRefusal`.
        */
-      const refusal = joinRefusal({
-        signedIn: (await apiToken()) !== null,
-        entitlementsKnown,
-        hasSharedBoards,
-        isPremium,
-      });
+      const refusal = joinRefusal({ signedIn: (await apiToken()) !== null });
       if (refusal) return { ok: false as const, reason: refusal };
 
       if (latestState.current.groups.length >= MAX_GROUPS) {
@@ -720,7 +772,7 @@ export function LeaderboardProvider({
       persist(setActiveGroup(added, board.group.id));
       return { ok: true as const, name: board.group.name };
     },
-    [sync, persist, isPremium, hasSharedBoards, entitlementsKnown],
+    [sync, persist],
   );
 
   const deleteGroup = useCallback(
@@ -742,6 +794,7 @@ export function LeaderboardProvider({
         activeGroupId: state.activeGroupId,
         activeGroupName: activeEntry?.group.name ?? "",
         canAddGroup: state.groups.length < MAX_GROUPS,
+        activeBoardIsShared: activeEntry?.role !== undefined,
         isGroupNameAvailable,
         selectGroup,
         createNewGroup,

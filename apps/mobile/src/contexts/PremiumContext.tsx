@@ -34,7 +34,7 @@ type PremiumContextValue = {
    * `ENTITLEMENT_SHARED_BOARDS` for the reasoning, and `ROADMAP.md` for what is
    * still needed in the stores before anybody can buy it.
    */
-  hasSharedBoards: boolean;
+  hasClub: boolean;
   /**
    * Whether {@link isPremium} is the store's answer rather than the default.
    *
@@ -72,7 +72,7 @@ export function PremiumProvider({
   const [isPremium, setIsPremium] = useState(FORCE_PRO_IN_DEV);
   // Forced alongside Pro in development, because a dev build with no store
   // products configured could otherwise never reach the server features at all.
-  const [hasSharedBoards, setHasSharedBoards] = useState(FORCE_PRO_IN_DEV);
+  const [hasClub, setHasClub] = useState(FORCE_PRO_IN_DEV);
   /**
    * Whether the entitlement is the store's answer or still the default.
    *
@@ -130,7 +130,7 @@ export function PremiumProvider({
    */
   const applyEntitlements = useCallback((entitlements: Entitlements) => {
     setIsPremium(entitlements.isPremium);
-    setHasSharedBoards(entitlements.hasSharedBoards);
+    setHasClub(entitlements.hasClub);
     setEntitlementsKnown(true);
   }, []);
 
@@ -183,7 +183,7 @@ export function PremiumProvider({
     <PremiumContext.Provider
       value={{
         isPremium,
-        hasSharedBoards,
+        hasClub,
         entitlementsKnown,
         purchasing,
         proPriceString,
