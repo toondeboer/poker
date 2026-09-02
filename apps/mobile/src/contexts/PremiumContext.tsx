@@ -118,6 +118,22 @@ export function PremiumProvider({
       });
   }, []);
 
+  /**
+   * Take **everything** the store just said, not the one field this used to
+   * care about.
+   *
+   * Reading only `isPremium` here was survivable while there was one
+   * entitlement and is not now: somebody reinstalling and tapping "Restore
+   * purchases" would get Pro back and silently not sharing — and the Restore
+   * button only renders while `!isPremium`, so once Pro came back there was no
+   * way left in the app to ask again.
+   */
+  const applyEntitlements = useCallback((entitlements: Entitlements) => {
+    setIsPremium(entitlements.isPremium);
+    setHasSharedBoards(entitlements.hasSharedBoards);
+    setEntitlementsKnown(true);
+  }, []);
+
   useEffect(() => {
     // The price is fetched either way (see refreshProPrice). Only the
     // *entitlement* is forced: the initial state above already reflects
@@ -130,9 +146,7 @@ export function PremiumProvider({
     revenueCatProvider
       .getEntitlements()
       .then((entitlements: Entitlements) => {
-        if (!active) return;
-        setIsPremium(entitlements.isPremium);
-        setHasSharedBoards(entitlements.hasSharedBoards);
+        if (active) applyEntitlements(entitlements);
       })
       // **Known either way.** A store that cannot be reached is not a reason to
       // block somebody out of a decision forever; it answers "not Pro", which
@@ -140,36 +154,30 @@ export function PremiumProvider({
       .finally(() => {
         if (active) setEntitlementsKnown(true);
       });
-    const unsubscribe = revenueCatProvider.onChange((entitlements) => {
-      setIsPremium(entitlements.isPremium);
-      setHasSharedBoards(entitlements.hasSharedBoards);
-      setEntitlementsKnown(true);
-    });
+    const unsubscribe = revenueCatProvider.onChange(applyEntitlements);
     return () => {
       active = false;
       unsubscribe();
     };
-  }, [refreshProPrice]);
+  }, [refreshProPrice, applyEntitlements]);
 
   const purchasePro = useCallback(async () => {
     setPurchasing(true);
     try {
-      const entitlements = await revenueCatProvider.purchasePro();
-      setIsPremium(entitlements.isPremium);
+      applyEntitlements(await revenueCatProvider.purchasePro());
     } finally {
       setPurchasing(false);
     }
-  }, []);
+  }, [applyEntitlements]);
 
   const restore = useCallback(async () => {
     setPurchasing(true);
     try {
-      const entitlements = await revenueCatProvider.restore();
-      setIsPremium(entitlements.isPremium);
+      applyEntitlements(await revenueCatProvider.restore());
     } finally {
       setPurchasing(false);
     }
-  }, []);
+  }, [applyEntitlements]);
 
   return (
     <PremiumContext.Provider

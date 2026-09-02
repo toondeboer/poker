@@ -261,8 +261,11 @@ syncing across devices, joining somebody else's board.
 ### The seam is built. What is left is entirely store configuration.
 
 `ENTITLEMENT_SHARED_BOARDS` (`shared_boards`) is read from RevenueCat alongside `pro`, exposed as
-`hasSharedBoards`, and every server-backed surface is behind it: joining, the join field, and the
-share button. `joinRefusal` in `@poker/core` decides what somebody missing one is told, and is
+`hasSharedBoards`, and **every request that reaches the server is behind it** — not just the visible
+affordances. That distinction was the whole point and was got wrong first time: gating the join
+screen and the share button left announcing, writing and pulling untouched, so the recurring cost
+the subscription pays for was still being incurred by anybody signed in. It is `useGroupSync` that
+holds the gate now, so nothing can be sent by a path that forgets to ask. `joinRefusal` in `@poker/core` decides what somebody missing one is told, and is
 tested — the order matters, because telling a person to buy what they already own is the kind of
 mistake that only shows up in a store review.
 

@@ -22,6 +22,7 @@ import { asyncStorageAdapter } from "@/src/services/storageAdapter";
 import { createGroupApi, type GroupApi } from "@/src/services/groupApi";
 import { apiToken, onSignedIn } from "@/src/contexts/AuthContext";
 import { backendConfig } from "@/src/services/backendConfig";
+import { usePremium } from "@/src/contexts/PremiumContext";
 import { generateId } from "@/src/utils/id";
 import { logger } from "@/src/utils/logger";
 
@@ -94,6 +95,22 @@ export type GroupSync = {
 };
 
 export const useGroupSync = (): GroupSync => {
+  /**
+   * **Nothing reaches the server without the subscription.**
+   *
+   * Gating the join screen and the share button was not enough and was the
+   * more visible half of the job: announcing a board *creates* it server-side,
+   * and every player and game written to it is stored and billed for as long as
+   * it exists. That is the recurring cost the subscription pays for, so it is
+   * the thing that has to be behind it — a gate on the buttons alone leaves the
+   * bill exactly where it was.
+   *
+   * `entitlementsKnown` is not consulted: this only ever *withholds* requests,
+   * and the effect below starts everything the moment the store answers. The
+   * cost of being briefly wrong is a few seconds' delay, not a refusal.
+   */
+  const { hasSharedBoards } = usePremium();
+  const enabled = backendConfig !== null && hasSharedBoards;
   const [queue, setQueue] = useState<SyncQueue>(EMPTY_QUEUE);
   /**
    * The queue as it is *right now*, for the drain to work from.
@@ -141,7 +158,7 @@ export const useGroupSync = (): GroupSync => {
     // on the server, which is idempotent, and confusing here, because both
     // would apply reports built from different snapshots.
     if (draining.current) return;
-    if (!backendConfig) return;
+    if (!enabled) return;
     if (latest.current.pending.length === 0) return;
 
     draining.current = true;
@@ -176,24 +193,25 @@ export const useGroupSync = (): GroupSync => {
       .finally(() => {
         draining.current = false;
       });
-  }, [update]);
+  }, [update, enabled]);
 
   const record = useCallback(
     (write: PendingWrite) => {
-      // Nothing to tell, and nobody to tell it to. A build with no backend
-      // behaves exactly as it did before any of this existed.
-      if (!backendConfig) return;
+      // Nothing to tell, nobody to tell it to, or nothing paid for. A build in
+      // any of those states behaves exactly as it did before any of this
+      // existed — and does not queue writes that will never be sent.
+      if (!enabled) return;
       update((current) =>
         enqueue(current, { ...write, id: generateId(), queuedAt: Date.now() }),
       );
       syncNow();
     },
-    [update, syncNow],
+    [update, syncNow, enabled],
   );
 
   const announce = useCallback(
     (groups: readonly { id: string; name: string; createdAt: number }[]) => {
-      if (!backendConfig) return;
+      if (!enabled) return;
       // Safe to repeat: `enqueue` ignores a board already queued, and the server
       // answers *ok* to a group it already has — so this can run on every load
       // without piling up.
@@ -206,29 +224,30 @@ export const useGroupSync = (): GroupSync => {
         });
       }
     },
-    [record],
+    [record, enabled],
   );
 
   const cancelWrite = useCallback(
     (subject: WriteSubject) => {
-      if (!backendConfig) return;
+      if (!enabled) return;
       update((current) => cancel(current, subject));
     },
-    [update],
+    [update, enabled],
   );
 
   const cancelWholeBoard = useCallback(
     (groupId: string) => {
-      if (!backendConfig) return;
+      if (!enabled) return;
       update((current) => cancelBoard(current, groupId));
     },
-    [update],
+    [update, enabled],
   );
 
-  const fetchBoard = useCallback(async (groupId: string): Promise<RemoteBoard | null> => {
-    if (!backendConfig) return null;
-    return api.board(groupId);
-  }, []);
+  const fetchBoard = useCallback(
+    async (groupId: string): Promise<RemoteBoard | null> =>
+      enabled ? api.board(groupId) : null,
+    [enabled],
+  );
 
   // `latest.current`, so the queue is the one that exists when the merge runs
   // rather than the one that existed when the request went out.
@@ -237,7 +256,10 @@ export const useGroupSync = (): GroupSync => {
     [],
   );
 
-  const myBoards = useCallback(() => api.myBoards(), []);
+  const myBoards = useCallback(
+    () => (enabled ? api.myBoards() : Promise.resolve(null)),
+    [enabled],
+  );
   const createInvite = useCallback((groupId: string) => api.createInvite(groupId), []);
   const redeemInvite = useCallback(
     (token: string) => api.redeemInvite(token),

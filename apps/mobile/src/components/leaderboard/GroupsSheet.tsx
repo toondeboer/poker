@@ -55,7 +55,17 @@ export function GroupsSheet({
     joinBoard,
   } = useLeaderboard();
   const { account } = useAuth();
-  const { hasSharedBoards } = usePremium();
+  const { hasSharedBoards, entitlementsKnown } = usePremium();
+  /**
+   * **Shown while the store has not answered yet**, which is the same call
+   * `joinRefusal` makes and for the same reason: the entitlement starts `false`
+   * and a subscriber would otherwise watch their own share button be absent for
+   * the first seconds of every cold launch — or for the whole session wherever
+   * the fetch fails and `onChange` never corrects it. Tapping it in that window
+   * gets "still checking", which is true and recoverable; a missing button
+   * explains nothing and cannot be retried.
+   */
+  const mayShare = hasSharedBoards || !entitlementsKnown;
   const [sharingId, setSharingId] = useState<string | null>(null);
   const sharing = useRef(false);
   const [joinCode, setJoinCode] = useState("");
@@ -289,7 +299,7 @@ export function GroupsSheet({
                       minting is admin-only, so the button could never do
                       anything but explain itself. Shown while the role is
                       unknown — see `canInvite`. */}
-                  {accountsAreReal && account && hasSharedBoards && group.canInvite ? (
+                  {accountsAreReal && account && mayShare && group.canInvite ? (
                     <IconButton
                       icon={sharingId === group.id ? "hourglass-outline" : "share-outline"}
                       onPress={() => void share(group.id, group.name)}
@@ -338,7 +348,7 @@ export function GroupsSheet({
       {/* Sharing is its own purchase — see `ENTITLEMENT_SHARED_BOARDS`. A field
           that can only answer "you need a subscription" is worse than no field,
           the same reasoning that hides it with no backend or no account. */}
-      {accountsAreReal && account && hasSharedBoards ? (
+      {accountsAreReal && account && mayShare ? (
         <>
       <TextField
         label="Join a board"

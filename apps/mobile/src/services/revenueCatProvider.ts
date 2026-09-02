@@ -9,6 +9,7 @@ import Purchases, {
 import {
   ENTITLEMENT_PRO,
   ENTITLEMENT_SHARED_BOARDS,
+  PRODUCT_PRO_LIFETIME,
   type EntitlementProvider,
   type Entitlements,
 } from "@poker/core";
@@ -59,12 +60,25 @@ const toEntitlements = (info: CustomerInfo): Entitlements => ({
     info.entitlements.active[ENTITLEMENT_SHARED_BOARDS] !== undefined,
 });
 
+/**
+ * The Pro package, **found by its product id rather than by being first**.
+ *
+ * `availablePackages[0]` was fine while the offering held one product and
+ * becomes a live bug the moment it holds two: the shared-boards subscription is
+ * going into the same offering, and whichever RevenueCat happened to order
+ * first would then be what the Pro price showed and what the Pro button bought.
+ * A person tapping "Unlock Pro · one-time" and being charged monthly is not a
+ * mistake that gets a second chance.
+ */
 async function getProPackage(): Promise<PurchasesPackage> {
   const offerings = await Purchases.getOfferings();
-  const pkg = offerings.current?.availablePackages[0];
+  const packages = offerings.current?.availablePackages ?? [];
+  const pkg = packages.find(
+    (candidate) => candidate.product.identifier === PRODUCT_PRO_LIFETIME,
+  );
   if (!pkg) {
     throw new Error(
-      "No Pro package available — check the RevenueCat offering and store product.",
+      `No package for ${PRODUCT_PRO_LIFETIME} in the current offering — check RevenueCat and the store product.`,
     );
   }
   return pkg;
