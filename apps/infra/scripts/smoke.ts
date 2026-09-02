@@ -546,6 +546,26 @@ const checkGroups = async (
         headers: { Authorization: stranger.tokens.idToken },
       });
       check("and can then read the board", theirs.status === 200, `${theirs.status}`);
+
+      /**
+       * **The role, which the app hides the share button on.** Minting is
+       * admin-only, so a member offered the button gets nothing but an
+       * explanation, every time. The client cannot work this out for itself —
+       * it is only ever told — so a server that stopped saying would silently
+       * put the button back.
+       */
+      const asMember = (await theirs.json()) as { role?: string };
+      check(
+        "and is told they are a member, not an admin",
+        asMember.role === "member",
+        `${asMember.role}`,
+      );
+      const asAdmin = (await (
+        await fetch(`${apiUrl}/groups/${groupId}`, {
+          headers: { Authorization: me.tokens.idToken },
+        })
+      ).json()) as { role?: string };
+      check("while the founder is an admin", asAdmin.role === "admin", `${asAdmin.role}`);
     }
   }
 

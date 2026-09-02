@@ -382,7 +382,7 @@ npm run smoke -w @poker/infra -- --as-stranger
 script's own "the stranger is a different account" check, and proves nothing about the guard it
 exists to test.
 
-26 checks against the live stack: sign-in, `/me` three ways, a seeded hand acted on, the shared
+35 checks against the live stack: sign-in, `/me` three ways, a seeded hand acted on, the shared
 event with every hole card stripped, the private event with exactly two, a replay refused as stale,
 acting as another player refused, and a non-member refused on both channels. Then the shared-board
 routes, where **every write is sent twice**: a phone replays anything whose answer went missing, so
