@@ -25,6 +25,7 @@ import {
   removeGroup,
   addBoard,
   boardFromRemote,
+  joinRefusal,
   noteDeleted,
   removePlayer,
   replaceBoard,
@@ -204,7 +205,7 @@ export function LeaderboardProvider({
    * sending, so losing it costs the news and never the night.
    */
   // Available because `PremiumProvider` is mounted outside this one.
-  const { isPremium, entitlementsKnown } = usePremium();
+  const { isPremium, hasSharedBoards, entitlementsKnown } = usePremium();
   const sync = useGroupSync();
   // The stable half of it. `sync` itself changes whenever the queue does, and a
   // callback that depended on the object would be rebuilt on every write.
@@ -666,44 +667,19 @@ export function LeaderboardProvider({
        * re-fetch on every pull — a membership somebody cannot see or get rid of.
        */
       /**
-       * **The session first**, because `redeemInvite` is what detects a
-       * missing one and it runs after the Pro check below. Without this a
-       * signed-out person is told to buy Pro while the screen offers them a
-       * "Sign in" button — the message and the only available action
-       * disagreeing about what is wrong.
+       * **Decided in core, because the order is what can be wrong.** Telling
+       * somebody to buy what they have already bought, or to pay when what they
+       * need is to sign in, is the kind of mistake nobody catches in review and
+       * everybody catches in a store review. See `joinRefusal`.
        */
-      if (!(await apiToken())) {
-        return { ok: false as const, reason: "Sign in to join a board." };
-      }
-      /**
-       * **Waited for, not assumed.** `isPremium` starts `false` and becomes the
-       * store's answer a moment later; joining from a cold launch lands inside
-       * that window, so refusing on the default tells somebody who has paid to
-       * go and pay. See `entitlementsKnown`.
-       */
-      if (!entitlementsKnown) {
-        return {
-          ok: false as const,
-          reason: "Still checking your purchases. Try again in a moment.",
-        };
-      }
-      /**
-       * **Refused before the server is told, because a board you cannot see is
-       * worse than no board.** The leaderboard is behind Pro, so somebody
-       * without it would have joined — membership written, permanently — and
-       * then landed on a paywall, with the board invisible and no way to get
-       * rid of the membership.
-       *
-       * When server-backed features get their own entitlement (see
-       * `ROADMAP.md`), this is the line that changes: the check moves, the
-       * shape does not.
-       */
-      if (!isPremium) {
-        return {
-          ok: false as const,
-          reason: "Shared boards are part of Pro. Unlock Pro to join one.",
-        };
-      }
+      const refusal = joinRefusal({
+        signedIn: (await apiToken()) !== null,
+        entitlementsKnown,
+        hasSharedBoards,
+        isPremium,
+      });
+      if (refusal) return { ok: false as const, reason: refusal };
+
       if (latestState.current.groups.length >= MAX_GROUPS) {
         return {
           ok: false as const,
@@ -744,7 +720,7 @@ export function LeaderboardProvider({
       persist(setActiveGroup(added, board.group.id));
       return { ok: true as const, name: board.group.name };
     },
-    [sync, persist, isPremium, entitlementsKnown],
+    [sync, persist, isPremium, hasSharedBoards, entitlementsKnown],
   );
 
   const deleteGroup = useCallback(

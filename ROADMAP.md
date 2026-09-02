@@ -258,9 +258,36 @@ syncing across devices, joining somebody else's board.
   it is drawn where the cost actually is.
 - **Not named "Pro+"**, which would imply the thing people bought was demoted. Name it for the
   capability rather than the tier.
-- **Not built yet, and deliberately not before 1.2.0 ships.** A new subscription means new products
-  in both stores, and §1 billing already blocks submission and can only be exercised from a Play
-  track. `backendConfig` is `null`, so nothing server-backed reaches a shipped build meanwhile.
+### The seam is built. What is left is entirely store configuration.
+
+`ENTITLEMENT_SHARED_BOARDS` (`shared_boards`) is read from RevenueCat alongside `pro`, exposed as
+`hasSharedBoards`, and every server-backed surface is behind it: joining, the join field, and the
+share button. `joinRefusal` in `@poker/core` decides what somebody missing one is told, and is
+tested — the order matters, because telling a person to buy what they already own is the kind of
+mistake that only shows up in a store review.
+
+**Nothing can be bought yet, and until it can, sharing is unreachable.** That is deliberate rather
+than an oversight: `backendConfig` is `null`, so none of it ships anyway, and a paywall wired to a
+product that does not exist cannot be tested at all.
+
+Still to do, in order:
+
+- ⬜ **Decide the price and period.** Nothing below can start without it.
+- ⬜ **Create the subscription product** in App Store Connect and Play Console as
+  `shared_boards_monthly` (`PRODUCT_SHARED_BOARDS`), then the `shared_boards` entitlement in
+  RevenueCat with both products attached. **Both stores or neither** — one platform able to
+  subscribe and the other not is worse than neither.
+- ⬜ **A way to buy it.** There is no purchase flow: `purchasePro` buys the one-time unlock and
+  nothing buys this. The paywall needs a second offering, which cannot be built honestly until the
+  product exists to price it.
+- ⬜ **Billing rows for it in `RELEASE_TESTING.md`** — purchase, restore, cancel, and *expiry*,
+  which the one-time product never had. **Expiry is the new risk**: a lapsed subscriber still has
+  boards on their phone and on the server, and what happens to them is a decision nobody has made.
+- ⬜ **Decide what a lapsed subscriber keeps.** Their local boards clearly stay — they were written
+  locally first. Whether they can still *read* a shared board, and what the other members see, is
+  open.
+- **Not before 1.2.0 ships.** §1 billing already blocks submission and can only be exercised from a
+  Play track; adding a second product to that pass makes the long pole longer.
 
 ## Backend: the plan
 

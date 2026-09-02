@@ -26,6 +26,16 @@ type PremiumContextValue = {
   /** True once the user has unlocked the Pro (ad-free) tier. */
   isPremium: boolean;
   /**
+   * Whether boards can be shared, joined and synced.
+   *
+   * **Its own purchase, not a tier above Pro.** Pro is one payment and
+   * everything it unlocks runs on the phone; this is the only thing with a cost
+   * that keeps arriving, so it is the only thing that keeps being paid for. See
+   * `ENTITLEMENT_SHARED_BOARDS` for the reasoning, and `ROADMAP.md` for what is
+   * still needed in the stores before anybody can buy it.
+   */
+  hasSharedBoards: boolean;
+  /**
    * Whether {@link isPremium} is the store's answer rather than the default.
    *
    * Only worth checking before *refusing* somebody something — see the comment
@@ -60,6 +70,9 @@ export function PremiumProvider({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
   const [isPremium, setIsPremium] = useState(FORCE_PRO_IN_DEV);
+  // Forced alongside Pro in development, because a dev build with no store
+  // products configured could otherwise never reach the server features at all.
+  const [hasSharedBoards, setHasSharedBoards] = useState(FORCE_PRO_IN_DEV);
   /**
    * Whether the entitlement is the store's answer or still the default.
    *
@@ -117,7 +130,9 @@ export function PremiumProvider({
     revenueCatProvider
       .getEntitlements()
       .then((entitlements: Entitlements) => {
-        if (active) setIsPremium(entitlements.isPremium);
+        if (!active) return;
+        setIsPremium(entitlements.isPremium);
+        setHasSharedBoards(entitlements.hasSharedBoards);
       })
       // **Known either way.** A store that cannot be reached is not a reason to
       // block somebody out of a decision forever; it answers "not Pro", which
@@ -127,6 +142,7 @@ export function PremiumProvider({
       });
     const unsubscribe = revenueCatProvider.onChange((entitlements) => {
       setIsPremium(entitlements.isPremium);
+      setHasSharedBoards(entitlements.hasSharedBoards);
       setEntitlementsKnown(true);
     });
     return () => {
@@ -159,6 +175,7 @@ export function PremiumProvider({
     <PremiumContext.Provider
       value={{
         isPremium,
+        hasSharedBoards,
         entitlementsKnown,
         purchasing,
         proPriceString,

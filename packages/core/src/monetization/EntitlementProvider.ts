@@ -4,6 +4,16 @@
  */
 export type Entitlements = {
   isPremium: boolean;
+  /**
+   * Whether boards can be shared, joined and synced.
+   *
+   * **Separate from `isPremium` on purpose**, because it is the only thing here
+   * with a cost that keeps arriving — see `ENTITLEMENT_SHARED_BOARDS`. Somebody
+   * can have one, both, or neither: Pro without this is the app as it shipped
+   * in 1.2.0, and this without Pro is a person who can join a board and then
+   * cannot see the leaderboard it is drawn on.
+   */
+  hasSharedBoards: boolean;
 };
 
 /**

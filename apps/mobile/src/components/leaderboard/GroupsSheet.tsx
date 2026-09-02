@@ -4,6 +4,7 @@ import { Alert, Keyboard, Share, StyleSheet, Text, View } from "react-native";
 import { MAX_GROUPS, readInviteCode } from "@poker/core";
 import { useLeaderboard } from "@/src/contexts/LeaderboardContext";
 import { accountsAreReal, useAuth } from "@/src/contexts/AuthContext";
+import { usePremium } from "@/src/contexts/PremiumContext";
 import { colors, space, text } from "@/src/theme";
 import { Button } from "@/src/components/ui/Button";
 import { IconButton } from "@/src/components/ui/IconButton";
@@ -54,6 +55,7 @@ export function GroupsSheet({
     joinBoard,
   } = useLeaderboard();
   const { account } = useAuth();
+  const { hasSharedBoards } = usePremium();
   const [sharingId, setSharingId] = useState<string | null>(null);
   const sharing = useRef(false);
   const [joinCode, setJoinCode] = useState("");
@@ -287,7 +289,7 @@ export function GroupsSheet({
                       minting is admin-only, so the button could never do
                       anything but explain itself. Shown while the role is
                       unknown — see `canInvite`. */}
-                  {accountsAreReal && account && group.canInvite ? (
+                  {accountsAreReal && account && hasSharedBoards && group.canInvite ? (
                     <IconButton
                       icon={sharingId === group.id ? "hourglass-outline" : "share-outline"}
                       onPress={() => void share(group.id, group.name)}
@@ -333,7 +335,10 @@ export function GroupsSheet({
           visible field that can only ever answer "this build cannot join
           boards" — a dead feature in the app store. Signed out it is equally
           pointless: joining is the one thing here that needs an account. */}
-      {accountsAreReal && account ? (
+      {/* Sharing is its own purchase — see `ENTITLEMENT_SHARED_BOARDS`. A field
+          that can only answer "you need a subscription" is worse than no field,
+          the same reasoning that hides it with no backend or no account. */}
+      {accountsAreReal && account && hasSharedBoards ? (
         <>
       <TextField
         label="Join a board"
