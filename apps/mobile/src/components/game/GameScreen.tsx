@@ -1,5 +1,5 @@
 // src/components/game/GameScreen.tsx
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useMemo, useState } from "react";
 import {
   Alert,
   ScrollView,
@@ -260,6 +260,8 @@ function ActiveGame({ nameFor }: { nameFor: (id: string) => string }) {
     : 0;
   const fullyRecorded = session ? knockoutsFullyRecorded(session) : true;
 
+  if (!session) return null;
+
   /**
    * Put the finished game on the leaderboard.
    *
@@ -268,10 +270,6 @@ function ActiveGame({ nameFor }: { nameFor: (id: string) => string }) {
    * hand is two taps per player and a memory test at the end of a long evening.
    */
   const record = () => {
-    // Defensive: nothing can call this without a session, but it is defined
-    // above the early return so an effect can reach it, and TypeScript is
-    // right to insist.
-    if (!session) return;
     // The board this game's players came from. Recording into whichever group
     // happens to be selected now would file the night with people who were
     // never at the table, and nothing downstream would notice.
@@ -298,42 +296,41 @@ function ActiveGame({ nameFor }: { nameFor: (id: string) => string }) {
     else setRefused("That result couldn't be saved. Nothing has been recorded.");
   };
 
+
   /**
-   * Ask, rather than wait to be pressed.
+   * Starting a new game is the one action that throws this one away.
    *
-   * **The timer's end-of-game flow asks and this one did not**, which put the
-   * one thing worth doing at the end of a game behind a button somebody has to
-   * notice. The night is not lost if they miss it — a finished game survives
-   * the app closing and the button is still there next launch — but it is the
-   * moment everybody is looking at the screen, and it is the moment to ask.
+   * **So it is the moment to ask, and the completion itself is not.** An alert
+   * the instant the game ends covers the showdown — the board, the cards and
+   * who won what — which is the one hand everybody wants to look at, and is
+   * exactly why the table is kept drawn below rather than replaced by a
+   * summary.
    *
-   * Once per launch, not once per render: the guard is a ref rather than state
-   * so it cannot re-fire while the alert is open. Declining and relaunching
-   * asks again, which is the point — the game is still unsaved, and the only
-   * way to be rid of it is "New game".
+   * It is also the only place the night is genuinely at risk. A finished game
+   * survives the app closing and its Save button is still there next launch;
+   * `endGame` is what makes it gone.
    */
-  const asked = useRef(false);
-  useEffect(() => {
-    if (!complete || recorded || asked.current) return;
-    // Saving would be refused for a game whose players came from another
-    // board, and prompting somebody into an error is worse than not asking.
-    // The card explains that case in words they can act on.
-    if (setup && setup.groupId !== activeGroupId) return;
-    asked.current = true;
+  const confirmEndGame = () => {
+    if (!complete || recorded) {
+      endGame();
+      return;
+    }
     Alert.alert(
-      "Game over",
-      "Put it on the leaderboard? The app dealt every hand, so it already knows who finished where.",
+      "Save this game first?",
+      "The app dealt every hand, so it already knows who finished where. Starting a new game throws this one away.",
       [
-        { text: "Not now", style: "cancel" },
-        { text: "Save", onPress: record },
+        { text: "Cancel", style: "cancel" },
+        { text: "Discard", style: "destructive", onPress: endGame },
+        {
+          text: "Save",
+          onPress: () => {
+            record();
+            endGame();
+          },
+        },
       ],
     );
-    // `record` is redefined every render and reading it here would re-run this
-    // constantly; the ref is what makes it fire once.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [complete, recorded, setup, activeGroupId]);
-
-  if (!session) return null;
+  };
 
   return (
     <>
@@ -384,7 +381,7 @@ function ActiveGame({ nameFor }: { nameFor: (id: string) => string }) {
                 />
               </>
             )}
-            <Button label="New game" icon="refresh" onPress={endGame} />
+            <Button label="New game" icon="refresh" onPress={confirmEndGame} />
           </CardContent>
         </Card>
       ) : !handInProgress ? (

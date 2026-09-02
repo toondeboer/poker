@@ -1,13 +1,13 @@
 // src/components/settings/NotificationsBlockedCard.tsx
 import { useCallback, useEffect } from "react";
-import { AppState, Linking, Platform, StyleSheet, Text } from "react-native";
+import { AppState, Platform, StyleSheet, Text } from "react-native";
 import { Button } from "@/src/components/ui/Button";
 import { Card, CardContent, CardHeader } from "@/src/components/ui/Card";
 import { useNotificationPermission } from "@/src/hooks/useNotificationPermission";
 import { colors, space, text } from "@/src/theme";
 
 /**
- * The way back from a permission Android will not ask about again.
+ * The way back when notifications are off on Android.
  *
  * **This is a silent failure of the app's main job.** After a second denial
  * Android blocks `POST_NOTIFICATIONS` permanently: every later request returns
@@ -28,7 +28,8 @@ import { colors, space, text } from "@/src/theme";
  * Settings, and hiding it would take away the only route back.
  */
 export function NotificationsBlockedCard() {
-  const { hasPermission, checkPermission } = useNotificationPermission();
+  const { hasPermission, checkPermission, requestPermission, showPermissionAlert } =
+    useNotificationPermission();
 
   /**
    * Re-check whenever the app comes back.
@@ -48,9 +49,23 @@ export function NotificationsBlockedCard() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const open = useCallback(() => {
-    // `openSettings` lands on this app's own page on both platforms.
-    void Linking.openSettings();
+  /**
+   * **Ask first, and only fall back to settings when Android will not ask.**
+   *
+   * `hasPermission === false` covers three states that look identical from
+   * here: never asked, denied once, and blocked for good. Only the last needs
+   * system settings — for the other two a request shows the ordinary dialog,
+   * which is far better than sending somebody on a hunt through Android's
+   * menus. Requesting when it *is* blocked costs nothing: it returns instantly
+   * without showing anything, and then the alert offers the way through.
+   *
+   * This is what `showPermissionAlert` was written for. It had never been
+   * called by anything.
+   */
+  const turnOn = useCallback(async () => {
+    if (await requestPermission()) return;
+    showPermissionAlert();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // **iOS is not this problem.** It has no equivalent permanent block for the
@@ -64,19 +79,21 @@ export function NotificationsBlockedCard() {
 
   return (
     <Card style={styles.card}>
-      <CardHeader icon="notifications-off" title="Notifications are blocked" />
+      {/* **"Off", not "blocked."** Denied once and denied for good are
+          indistinguishable from here, and Android will re-prompt for the
+          first — telling somebody it never asks again when it is about to
+          would be worse than saying nothing. */}
+      <CardHeader icon="notifications-off" title="Notifications are off" />
       <CardContent>
         <Text style={styles.body}>
-          Android will not ask again, so the timer cannot alert you when the
-          blinds go up while the app is in the background. Turn notifications on
-          for Poker Blinds Buzzer in your device settings and it starts working
-          again straight away.
+          The timer cannot alert you when the blinds go up while the app is in
+          the background. Turning notifications on puts that back straight away.
         </Text>
         <Button
-          label="Open settings"
-          icon="open-outline"
+          label="Turn on notifications"
+          icon="notifications-outline"
           variant="secondary"
-          onPress={open}
+          onPress={() => void turnOn()}
         />
       </CardContent>
     </Card>
