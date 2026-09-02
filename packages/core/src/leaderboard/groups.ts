@@ -35,6 +35,20 @@ export type GroupState = {
   group: Group;
   players: Player[];
   results: GameResult[];
+  /**
+   * What this phone deleted, so a pull cannot put it back.
+   *
+   * **A merge cannot see an absence** — that is why the server names its own
+   * deletions — and this is the same problem from the other side. Nothing sends
+   * a removal to the server (see SYNC.md), so a player deleted here is still in
+   * the server's list and absent from *its* deleted list, and a merge would
+   * faithfully restore them. A game would come back too, and back into the
+   * standings, which is somebody's leaderboard quietly changing on its own.
+   *
+   * Ids only, and optional: a board saved before this existed has deleted
+   * nothing as far as anyone can tell, which is the safe reading.
+   */
+  deleted?: { players: string[]; results: string[] };
 };
 
 /**
@@ -322,6 +336,17 @@ export const migrateToGroups = (
  * delete a group while a pull of it is in flight, and resurrecting it would
  * undo a deletion they just made.
  */
+/** Note that this phone deleted something, so a pull will not restore it. */
+export const noteDeleted = (
+  board: GroupState,
+  what: "players" | "results",
+  id: string,
+): GroupState => {
+  const deleted = board.deleted ?? { players: [], results: [] };
+  if (deleted[what].includes(id)) return board;
+  return { ...board, deleted: { ...deleted, [what]: [...deleted[what], id] } };
+};
+
 export const replaceBoard = (
   state: GroupedLeaderboard,
   board: GroupState,

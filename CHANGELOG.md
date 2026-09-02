@@ -26,7 +26,8 @@ platform-tagged heading (e.g. `## [1.1.3] - 2026-07-20 — Android`) when you cu
   existed before any of this has a history the server has never been told about, so trusting the
   server's copy would delete a season of game nights. Somebody else's additions arrive, removals
   they made are applied, and a game recorded thirty seconds ago does not flicker off the screen
-  while the request is in flight.
+  while the request is in flight. A game or player you delete stays deleted, and a board you rename
+  keeps the name you gave it.
 - **Claim yourself on a leaderboard.** Signed in, a player on the board can be linked to your
   account — and because every game ever recorded refers to the person rather than to an account,
   the whole season becomes yours with nothing rewritten. It can be undone, so a mis-tap costs

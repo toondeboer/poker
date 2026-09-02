@@ -59,8 +59,17 @@ export const mergeBoard = (
   remote: RemoteBoard,
   queue: SyncQueue,
 ): GroupState => {
-  const goneP = new Set(remote.deleted.players);
-  const goneR = new Set(remote.deleted.results);
+  /**
+   * **Both sides' deletions, not just the server's.**
+   *
+   * Nothing sends a removal to the server yet, so a player deleted on this
+   * phone is still in the server's list and absent from *its* deleted list — and
+   * a merge that trusted only the server would faithfully restore them on the
+   * next foreground. A deleted game would come back into the standings, which
+   * is somebody's leaderboard changing on its own.
+   */
+  const goneP = new Set([...remote.deleted.players, ...(local.deleted?.players ?? [])]);
+  const goneR = new Set([...remote.deleted.results, ...(local.deleted?.results ?? [])]);
 
   const players = byId<Player>(local.players, remote.state.players).filter(
     (player) => !goneP.has(player.id),
@@ -69,18 +78,21 @@ export const mergeBoard = (
     (result) => !goneR.has(result.id),
   );
 
-  /**
-   * The **remote** name, because renaming a board is not something the phone
-   * can send — there is no route for it — so the server's is the one everybody
-   * else sees. `createdAt` likewise: the board's identity is the server's.
-   *
-   * The local id is kept because it is the id we were asked about; they are the
-   * same board or this function was called wrongly.
-   */
   const merged: GroupState = {
-    group: { ...remote.state.group, id: local.group.id },
+    /**
+     * **The local name wins, and that is not a preference — it is the only
+     * option.** There is no route that renames a board, so the server's name is
+     * whatever it was created with and can never be anything else. Taking it
+     * would revert somebody's rename on the next foreground, over and over.
+     *
+     * Two members can therefore see different names for the same board. That is
+     * the honest state of the feature until a rename route exists; SYNC.md says
+     * so under known gaps.
+     */
+    group: local.group,
     players,
     results,
+    ...(local.deleted ? { deleted: local.deleted } : {}),
   };
 
   /**

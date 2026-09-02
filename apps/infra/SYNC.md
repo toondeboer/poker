@@ -242,14 +242,19 @@ board is invisible to them entirely, which may be right or may be the missing ha
 - **A board cannot be renamed on the server.** There is no `PATCH /groups/{groupId}`, so the name a
   board is created with is the name it keeps. The app replaces a *queued* `createGroup` when
   somebody renames a board, which covers a board renamed before it ever synced; a board the server
-  already has keeps the old name and the client is told the write landed, because it did. Latent
-  while nothing reads the server's copy of a board back — the app draws from its own storage — and
-  it stops being latent the moment a second phone joins a board.
+  already has keeps the old name. **The merge therefore keeps the local name**, because taking the
+  server's would revert somebody's rename on the very next foreground, permanently. The consequence
+  is that two members can see different names for the same board until a rename route exists.
 - **Nothing removes a player or a game from the server.** Both are deliberately not queueable: a
   removal has to be checked against who you are *now*, and a queue replayed a week later cannot be.
   So a deletion made offline reaches the server only if the matching write had not gone yet, which
-  the app now handles by withdrawing it. Once a write has landed, deleting locally diverges from the
+  the app handles by withdrawing it. Once a write has landed, deleting locally diverges from the
   shared board until somebody with admin removes it there too.
+  - **The phone keeps its own tombstones for exactly this reason.** Without them a pull reads the
+    row back — it is still in the server's list, and absent from the server's *deleted* list — and
+    faithfully restores what somebody just deleted, a game included, back into the standings. So a
+    local delete is recorded in `GroupState.deleted` and the merge honours both sides' lists. It
+    stops a deletion undoing itself; it does not make one propagate.
 - **An empty group is never deleted.** Account deletion used to tombstone a group whose last member
   was leaving, decided from the eventually consistent index — and a stale read there destroys a
   group that still has people in it. That trade is the wrong way round, so the destructive branch is

@@ -102,6 +102,44 @@ describe("what a phone lets go of", () => {
   });
 });
 
+describe("what this phone deleted", () => {
+  it("is not restored by a pull", () => {
+    // **Nothing tells the server about a removal**, so a player deleted here is
+    // still in the server's list and absent from *its* deleted list. Trusting
+    // only the server would faithfully put them back on the next foreground.
+    const mine = {
+      ...board({ players: [player("p1", "Ann")] }),
+      deleted: { players: ["p2"], results: [] },
+    };
+    const merged = mergeBoard(
+      mine,
+      remote({ players: [player("p1", "Ann"), player("p2", "Bo")] }),
+      EMPTY_QUEUE,
+    );
+    expect(merged.players.map((p) => p.id)).toEqual(["p1"]);
+  });
+
+  it("keeps a deleted game out of the standings", () => {
+    const mine = { ...board({ results: [] }), deleted: { players: [], results: ["r1"] } };
+    const merged = mergeBoard(mine, remote({ results: [game("r1", 100)] }), EMPTY_QUEUE);
+    expect(merged.results).toEqual([]);
+  });
+
+  it("is carried forward, so the next pull does not undo it either", () => {
+    const mine = { ...board(), deleted: { players: ["p2"], results: [] } };
+    expect(mergeBoard(mine, remote(), EMPTY_QUEUE).deleted).toEqual({
+      players: ["p2"],
+      results: [],
+    });
+  });
+
+  it("leaves a board that has deleted nothing the shape it always had", () => {
+    // Absent rather than empty, so a board round-trips unchanged through a
+    // version of the app that predates this.
+    expect(mergeBoard(board(), remote(), EMPTY_QUEUE)).not.toHaveProperty("deleted");
+  });
+});
+
 describe("a pull landing mid-write", () => {
   it("does not take away a game the outbox has not sent yet", () => {
     // **The failure this exists to prevent.** A pull can land in the seconds
@@ -146,16 +184,16 @@ describe("whose answer wins", () => {
     expect(merged.players[0].name).toBe("Annabel");
   });
 
-  it("takes the board's own name from the server", () => {
-    // Renaming a board is not something a phone can send — there is no route —
-    // so the server's name is the one everybody else is looking at.
+  it("keeps the board's own name from this phone", () => {
+    // **There is no route that renames a board**, so the server's name is
+    // whatever it was created with and can never be anything else. Taking it
+    // would revert somebody's rename on the very next foreground, for good.
     const merged = mergeBoard(
-      board(),
-      remote({ group: { id: "g1", name: "Sunday", createdAt: 1 } }),
+      board({ group: { id: "g1", name: "Thursday Night", createdAt: 1 } }),
+      remote({ group: { id: "g1", name: "Thursday", createdAt: 1 } }),
       EMPTY_QUEUE,
     );
-    expect(merged.group.name).toBe("Sunday");
-    expect(merged.group.id).toBe("g1");
+    expect(merged.group.name).toBe("Thursday Night");
   });
 
   it("leaves the board it was given alone", () => {

@@ -31,7 +31,7 @@ import {
   TransactWriteCommand,
   UpdateCommand,
 } from "@aws-sdk/lib-dynamodb";
-import type { GameResult, GroupState, Player } from "@poker/core";
+import type { Deletions, GameResult, GroupState, Player } from "@poker/core";
 import {
   boardFrom,
   deletionsFrom,
@@ -50,7 +50,6 @@ import {
   resultKey,
   sameGame,
   tombstone,
-  type Deletions,
   type MemberItem,
   type Role,
 } from "./groupKeys";

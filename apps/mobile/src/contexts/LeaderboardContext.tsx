@@ -23,6 +23,7 @@ import {
   removeGameResult,
   playerForAccount,
   removeGroup,
+  noteDeleted,
   removePlayer,
   replaceBoard,
   renameGroup,
@@ -176,14 +177,39 @@ export function LeaderboardProvider({
   const announceGroups = sync.announce;
   const cancelWrite = sync.cancel;
   const cancelBoardWrites = sync.cancelBoard;
-  const pullBoard = sync.pull;
+  const fetchBoard = sync.fetchBoard;
+  const mergeInto = sync.mergeInto;
   const { pullsWanted } = sync;
+
+  /**
+   * The board as it is *right now*, for the pull to fold its answer back into.
+   *
+   * A pull takes as long as the network does, and `state` inside the effect is
+   * the snapshot from when it started — so a game recorded while boards were in
+   * flight would be overwritten by a copy that predates it.
+   */
+  const latestState = useRef(state);
+
+  const persist = useCallback((next: GroupedLeaderboard) => {
+    // **Set here, not in an effect.** React defers the re-render, so without
+    // this the ref is stale for the rest of the tick — and the pull loop reads
+    // it again on its very next iteration. The same mistake the outbox made,
+    // where it cost every write a foreground's delay. (The lint rule forbids
+    // writing a ref from an effect body, so this is also the only place it can
+    // go.)
+    latestState.current = next;
+    setState(next);
+    LeaderboardStorage.saveLeaderboard(next).catch((error) =>
+      logger.error("Failed to save leaderboard:", error),
+    );
+  }, []);
 
   useEffect(() => {
     let active = true;
     LeaderboardStorage.loadLeaderboard()
       .then((loaded) => {
         if (!active) return;
+        latestState.current = loaded;
         setState(loaded);
         /**
          * **Every board, not only the ones made from now on.**
@@ -217,24 +243,7 @@ export function LeaderboardProvider({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const persist = useCallback((next: GroupedLeaderboard) => {
-    setState(next);
-    LeaderboardStorage.saveLeaderboard(next).catch((error) =>
-      logger.error("Failed to save leaderboard:", error),
-    );
-  }, []);
 
-  /**
-   * The board as it is *right now*, for the pull to fold its answer back into.
-   *
-   * A pull takes as long as the network does, and `state` inside the effect is
-   * the snapshot from when it started — so a game recorded while boards were in
-   * flight would be overwritten by a copy that predates it.
-   */
-  const latestState = useRef(state);
-  useEffect(() => {
-    latestState.current = state;
-  }, [state]);
 
   /**
    * Read every board back from the server and merge it in.
@@ -252,22 +261,31 @@ export function LeaderboardProvider({
     if (pullsWanted === 0 || isLoading) return;
     let active = true;
     void (async () => {
-      for (const entry of latestState.current.groups) {
-        const merged = await pullBoard(entry);
-        if (!active || !merged) continue;
+      for (const id of latestState.current.groups.map((entry) => entry.group.id)) {
+        const remote = await fetchBoard(id);
+        // **Superseded, so stop.** Carrying on would fetch every remaining
+        // board alongside its replacement, doubling the requests on exactly the
+        // bad connection this loop goes one at a time to avoid.
+        if (!active) return;
+        if (!remote) continue;
         /**
-         * Applied one board at a time against the *current* state rather than
-         * the snapshot this loop started from. Somebody can record a game while
-         * the requests are in flight, and folding a stale copy back over it
-         * would take that game off the screen.
+         * The local board is read **here**, after the request came back, not
+         * when the loop started. Somebody can record a game while boards are in
+         * flight, and merging into the copy the fetch began with writes that
+         * game straight back out of the board.
          */
-        persist(replaceBoard(latestState.current, merged));
+        const current = latestState.current;
+        const mine = current.groups.find((entry) => entry.group.id === id);
+        // Deleted while the request was in flight. Nothing to merge into, and
+        // `replaceBoard` would ignore it anyway.
+        if (!mine) continue;
+        persist(replaceBoard(current, mergeInto(mine, remote)));
       }
     })();
     return () => {
       active = false;
     };
-  }, [pullsWanted, isLoading, pullBoard, persist]);
+  }, [pullsWanted, isLoading, fetchBoard, mergeInto, persist]);
 
 
   const activeEntry = useMemo(
@@ -331,10 +349,11 @@ export function LeaderboardProvider({
       // Results keep the id. The games still happened, and everyone else's
       // history depends on the field sizes they were part of; computeStandings
       // simply ignores placings for players no longer on the roster.
-      const groupId = withActiveGroup((entry) => ({
-        ...entry,
-        players: removePlayer(entry.players, id),
-      }));
+      const groupId = withActiveGroup((entry) =>
+        // Noted as deleted, or the next pull reads it back off the server and
+        // faithfully puts it back — nothing tells the server about a removal.
+        noteDeleted({ ...entry, players: removePlayer(entry.players, id) }, "players", id),
+      );
       /**
        * **A name added with no signal and deleted before it went must not go.**
        *
@@ -394,10 +413,13 @@ export function LeaderboardProvider({
 
   const deleteResult = useCallback(
     (id: string) => {
-      const groupId = withActiveGroup((entry) => ({
-        ...entry,
-        results: removeGameResult(entry.results, id),
-      }));
+      const groupId = withActiveGroup((entry) =>
+        noteDeleted(
+          { ...entry, results: removeGameResult(entry.results, id) },
+          "results",
+          id,
+        ),
+      );
       // Same as deleting a player: a game recorded at the table and deleted
       // before there was any signal should not turn up later on everybody
       // else's board, where removing it is somebody else's job.

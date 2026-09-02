@@ -16,6 +16,7 @@ import {
   setActiveGroup,
   unclaimPlayer,
   updateGroup,
+  noteDeleted,
   replaceBoard,
 } from "./groups";
 
@@ -396,6 +397,33 @@ describe("migrating the board that shipped first", () => {
     };
     const migrated = migrateToGroups(legacy, { id: "g1", name: "x", now: 1 });
     expect(migrated.groups[0].results).toHaveLength(1);
+  });
+});
+
+describe("noting what this phone deleted", () => {
+  const bare: GroupState = {
+    group: { id: "g1", name: "Thursday", createdAt: 1 },
+    players: [],
+    results: [],
+  };
+
+  it("records the id so a pull cannot restore it", () => {
+    expect(noteDeleted(bare, "players", "p1").deleted).toEqual({
+      players: ["p1"],
+      results: [],
+    });
+  });
+
+  it("keeps players and games apart", () => {
+    const after = noteDeleted(noteDeleted(bare, "players", "p1"), "results", "r1");
+    expect(after.deleted).toEqual({ players: ["p1"], results: ["r1"] });
+  });
+
+  it("does not record the same id twice", () => {
+    const once = noteDeleted(bare, "players", "p1");
+    // Returned unchanged, so nothing re-renders and the list cannot grow
+    // without bound on somebody tapping delete twice.
+    expect(noteDeleted(once, "players", "p1")).toBe(once);
   });
 });
 

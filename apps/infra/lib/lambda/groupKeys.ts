@@ -36,7 +36,7 @@
  * The design is in [SYNC.md](../../SYNC.md).
  */
 
-import type { GameResult, Group, GroupState, Player } from "@poker/core";
+import type { Deletions, GameResult, Group, GroupState, Player } from "@poker/core";
 
 /** Roles a membership can hold. Adding is open; removing is not. */
 export type Role = "admin" | "member";
@@ -295,8 +295,6 @@ export const membersFrom = (items: readonly unknown[]): MemberItem[] =>
  * longer than that can miss a deletion, which is the known gap in SYNC.md that
  * a full resync is the answer to.
  */
-export type Deletions = { players: string[]; results: string[] };
-
 export const deletionsFrom = (items: readonly unknown[]): Deletions => {
   const players: string[] = [];
   const results: string[] = [];

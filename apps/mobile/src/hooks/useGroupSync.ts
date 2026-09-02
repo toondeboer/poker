@@ -12,6 +12,7 @@ import {
   drain,
   enqueue,
   type GroupState,
+  type RemoteBoard,
   type PendingWrite,
   type SyncQueue,
   type WriteSubject,
@@ -66,7 +67,16 @@ export type GroupSync = {
    * `null` when there is nothing to apply — no backend, no session, no signal,
    * or a board this account cannot see. The caller keeps what it has.
    */
-  pull: (local: GroupState) => Promise<GroupState | null>;
+  fetchBoard: (groupId: string) => Promise<RemoteBoard | null>;
+  /**
+   * Merge a fetched board into a local one, against the queue as it is *now*.
+   *
+   * Split from the fetch so a caller can read its local board **after** the
+   * request comes back rather than before. A game recorded while the request
+   * was in flight is only on this phone, and merging against the copy the fetch
+   * started with writes it back out of the board.
+   */
+  mergeInto: (local: GroupState, remote: RemoteBoard) => GroupState;
   /**
    * Somebody should pull, because something changed on the server side of this
    * phone's world: it came to the foreground, or the outbox just drained.
@@ -209,16 +219,15 @@ export const useGroupSync = (): GroupSync => {
     [update],
   );
 
-  const pull = useCallback(
-    async (local: GroupState): Promise<GroupState | null> => {
-      if (!backendConfig) return null;
-      const remote = await api.board(local.group.id);
-      if (!remote) return null;
-      // **Merged against the queue as it is now**, not as it was when the
-      // request went out: a game recorded while the board was in flight is
-      // still only on this phone, and reading a stale queue would drop it.
-      return mergeBoard(local, remote, latest.current);
-    },
+  const fetchBoard = useCallback(async (groupId: string): Promise<RemoteBoard | null> => {
+    if (!backendConfig) return null;
+    return api.board(groupId);
+  }, []);
+
+  // `latest.current`, so the queue is the one that exists when the merge runs
+  // rather than the one that existed when the request went out.
+  const mergeInto = useCallback(
+    (local: GroupState, remote: RemoteBoard) => mergeBoard(local, remote, latest.current),
     [],
   );
 
@@ -305,7 +314,8 @@ export const useGroupSync = (): GroupSync => {
       announce,
       cancel: cancelWrite,
       cancelBoard: cancelWholeBoard,
-      pull,
+      fetchBoard,
+      mergeInto,
       pullsWanted,
     }),
     [
@@ -316,7 +326,8 @@ export const useGroupSync = (): GroupSync => {
       announce,
       cancelWrite,
       cancelWholeBoard,
-      pull,
+      fetchBoard,
+      mergeInto,
       pullsWanted,
     ],
   );
