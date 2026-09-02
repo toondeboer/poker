@@ -167,10 +167,10 @@ Nothing below needs you present once the above is done:
   at all, which was the gap.
 - ✅ A game now survives the app being killed as well as navigation, and is validated whole on
   load rather than partially recovered. **Delete this line when 1.2.0 is cut.**
-- 🟡 **Saving a finished game is a button, not a prompt.** The timer's end-of-game flow _asks_;
-  this one waits to be pressed. Much less pressing now that games persist: a table that shuts the
-  app after the last hand finds the finished game and its Save button still there next launch, so
-  the night is no longer lost — only deferred. A prompt would still be the better ending.
+- ✅ **A finished game now asks.** It prompts once per launch when a game completes unsaved, and
+  the button stays as the fallback — declining leaves it exactly where it was. It does not ask when
+  the players came from a different board, because saving would be refused and prompting somebody
+  into an error is worse than not asking. **Delete this line when 1.2.0 is cut.**
 - 🟡 **The deal is not cryptographic.** `Math.random` is passed straight to the engine rather than
   a seeded PRNG, which avoids the brute-forceable 32-bit seed space that `createRandom` warns
   about — but it is still not a cryptographic source. Accepted for a table passing one phone
@@ -480,9 +480,13 @@ Actions over OIDC, and **accounts end-to-end as the first deployable slice**.
 
 ## Android notification permission: no recovery path once blocked
 
-- 🔍 **`showPermissionAlert` is dead code.** `useNotificationPermission` defines it, `TimerContext`
-  threads it through the context value, and **nothing calls it** — so the one piece of UI that would
-  send a user to system settings never runs.
+- ✅ **There is a way back now.** `NotificationsBlockedCard` sits at the top of Settings whenever
+  Android reports the permission denied, explains that the background timer cannot fire, and opens
+  system settings; it re-checks on every foreground so it disappears the moment the permission is
+  granted. Android-only and invisible otherwise. **Delete this line when 1.2.0 is cut.**
+  - `showPermissionAlert` in `useNotificationPermission` is still uncalled and is now genuinely
+    redundant — the card replaced the alert it was written for. Worth deleting with the rest of
+    this section.
 - The state it exists for is reachable: Android permanently blocks `POST_NOTIFICATIONS` after a
   second denial, after which every `PermissionsAndroid.request` returns `never_ask_again`
   immediately with no dialog. `ForegroundServiceModule.startService` then rejects with
@@ -492,10 +496,11 @@ Actions over OIDC, and **accounts end-to-end as the first deployable slice**.
   reach. RN's rationale alert resolved `DENIED` in JS without calling the OS when the user picked
   "Cancel"/"Ask Me Later", so it burned no denial on _that_ path — but a user who tapped OK and then
   denied hit the same block, and everyone paid a permanent double dialog for the partial protection.
-- **What it wants is not a launch-time modal.** A blocked user would see it on every cold launch,
-  since the request returns instantly. The right shape is a persistent, dismissible row in Settings
-  ("Notifications are blocked — open settings"), shown only while the permission is actually denied.
-  That's UI work needing a layout pass, which is why it isn't bundled into the dialog fix.
+- **Not a launch-time modal**, which was the obvious idea and the wrong one: a blocked user would
+  meet it on every cold launch, since the request returns instantly. A card in Settings is seen when
+  somebody goes looking for why the timer is quiet, and is invisible the rest of the time. It is not
+  dismissible either — dismissal is what an unwanted interruption needs, and hiding this would take
+  away the only route back.
 
 ## Parked: Live Activity / foreground service controls
 

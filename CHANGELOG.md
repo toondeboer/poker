@@ -10,6 +10,14 @@ platform-tagged heading (e.g. `## [1.1.3] - 2026-07-20 — Android`) when you cu
 ## [Unreleased]
 
 ### Added
+- **A finished game asks to be saved.** Deal a game to its end and the app offers to put it on the
+  leaderboard there and then, rather than waiting for somebody to notice a button — it watched every
+  hand, so it already knows who finished where. Declining leaves the game and its Save button
+  exactly where they were.
+- **Android tells you when notifications are blocked, and how to fix it.** Deny the permission twice
+  and Android stops asking, which quietly leaves the timer unable to alert you when the blinds go up
+  in the background — previously with no explanation and no way back. Settings now says so and opens
+  the right page, and the message goes as soon as it is fixed.
 - **A leaderboard now survives having no signal.** Adding a player or recording a game writes the
   board on the phone first and tells the server second, keeping what could not be sent in an outbox
   that is retried when the app comes back to the foreground, when somebody signs in, and on the
@@ -192,6 +200,14 @@ platform-tagged heading (e.g. `## [1.1.3] - 2026-07-20 — Android`) when you cu
   instead of deferring them to a flow.
 
 ### Added
+- **A finished game asks to be saved.** Deal a game to its end and the app offers to put it on the
+  leaderboard there and then, rather than waiting for somebody to notice a button — it watched every
+  hand, so it already knows who finished where. Declining leaves the game and its Save button
+  exactly where they were.
+- **Android tells you when notifications are blocked, and how to fix it.** Deny the permission twice
+  and Android stops asking, which quietly leaves the timer unable to alert you when the blinds go up
+  in the background — previously with no explanation and no way back. Settings now says so and opens
+  the right page, and the message goes as soon as it is fixed.
 - Groundwork for the multiplayer game mode: a card model, a **seeded** shuffle and a hand
   evaluator in `@poker/core`. Nothing user-facing yet. Randomness is injected rather than
   generated, so a deal is reproducible from its seed — which is what lets the same hand be replayed
@@ -404,6 +420,14 @@ the rest of the store copy rather than duplicated here. Both platforms shipped
 v1.1.3 together, so both sets of notes cover the same changes.
 
 ### Added
+- **A finished game asks to be saved.** Deal a game to its end and the app offers to put it on the
+  leaderboard there and then, rather than waiting for somebody to notice a button — it watched every
+  hand, so it already knows who finished where. Declining leaves the game and its Save button
+  exactly where they were.
+- **Android tells you when notifications are blocked, and how to fix it.** Deny the permission twice
+  and Android stops asking, which quietly leaves the timer unable to alert you when the blinds go up
+  in the background — previously with no explanation and no way back. Settings now says so and opens
+  the right page, and the message goes as soon as it is fixed.
 - Mobile: blind levels now have their own **Blind structure** screen, reached from Settings,
   replacing the fixed-height scrollable list that was nested inside the scrolling Settings page
   (a scroll-inside-a-scroll that made a 30-level schedule awkward to edit). The new screen is a
@@ -623,6 +647,14 @@ worth since it's live at v1.1.1 (presets are new to Android users here, not
 just Sound Packs).
 
 ### Added
+- **A finished game asks to be saved.** Deal a game to its end and the app offers to put it on the
+  leaderboard there and then, rather than waiting for somebody to notice a button — it watched every
+  hand, so it already knows who finished where. Declining leaves the game and its Save button
+  exactly where they were.
+- **Android tells you when notifications are blocked, and how to fix it.** Deny the permission twice
+  and Android stops asking, which quietly leaves the timer unable to alert you when the blinds go up
+  in the background — previously with no explanation and no way back. Settings now says so and opens
+  the right page, and the message goes as soon as it is fixed.
 - Sound Pack (Pro) — choose the alarm that plays when a round ends. Three bundled alternatives
   (Classic Beep, Bell Chime, Double Buzz) alongside the original Classic Alarm, picked from a new
   "Sound Pack" card in Settings, with a 3-second preview per option.
@@ -668,6 +700,14 @@ _Live on the App Store. Not shipped to Android (this version has Android-only bu
 fixes land in 1.1.3._
 
 ### Added
+- **A finished game asks to be saved.** Deal a game to its end and the app offers to put it on the
+  leaderboard there and then, rather than waiting for somebody to notice a button — it watched every
+  hand, so it already knows who finished where. Declining leaves the game and its Save button
+  exactly where they were.
+- **Android tells you when notifications are blocked, and how to fix it.** Deny the permission twice
+  and Android stops asking, which quietly leaves the timer unable to alert you when the blinds go up
+  in the background — previously with no explanation and no way back. Settings now says so and opens
+  the right page, and the message goes as soon as it is fixed.
 - Saved tournament presets (Pro) — save the current blind structure and round length, then
   load any of them in one tap.
 - In-app review prompt, shown after 5 rounds played.
@@ -688,6 +728,14 @@ _Also the version Android first launched with. Reconstructed from build history 
 _Before Android's launch. Reconstructed from build history — approximate._
 
 ### Added
+- **A finished game asks to be saved.** Deal a game to its end and the app offers to put it on the
+  leaderboard there and then, rather than waiting for somebody to notice a button — it watched every
+  hand, so it already knows who finished where. Declining leaves the game and its Save button
+  exactly where they were.
+- **Android tells you when notifications are blocked, and how to fix it.** Deny the permission twice
+  and Android stops asking, which quietly leaves the timer unable to alert you when the blinds go up
+  in the background — previously with no explanation and no way back. Settings now says so and opens
+  the right page, and the message goes as soon as it is fixed.
 - Monetization: an AdMob banner and a one-time **Pro / Remove Ads** purchase (RevenueCat), plus
   a Ko-fi tip jar on the web timer.
 - iPad support — the app now ships universal (iPhone + iPad).
@@ -700,6 +748,14 @@ _Before Android's launch. Reconstructed from build history — approximate._
 _Before Android's launch. Reconstructed from build history — approximate._
 
 ### Added
+- **A finished game asks to be saved.** Deal a game to its end and the app offers to put it on the
+  leaderboard there and then, rather than waiting for somebody to notice a button — it watched every
+  hand, so it already knows who finished where. Declining leaves the game and its Save button
+  exactly where they were.
+- **Android tells you when notifications are blocked, and how to fix it.** Deny the permission twice
+  and Android stops asking, which quietly leaves the timer unable to alert you when the blinds go up
+  in the background — previously with no explanation and no way back. Settings now says so and opens
+  the right page, and the message goes as soon as it is fixed.
 - Initial App Store release: a poker tournament timer with configurable blind levels, a
   per-round countdown, background timing, iOS Live Activities, and an Android foreground service.
 
