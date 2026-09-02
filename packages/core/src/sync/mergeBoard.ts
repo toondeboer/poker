@@ -81,6 +81,24 @@ const byId = <T extends { id: string }>(
   return Array.from(merged.values());
 };
 
+/**
+ * The board to store, from what the server sent.
+ *
+ * **Exists because `role` is a sibling of `state`, and spreading `state` drops
+ * it.** Two call sites made exactly that mistake — a board joined by code, and
+ * a board discovered on a second device — and both handed a brand-new member
+ * the share button that can only ever be refused. One function is one place to
+ * get it right, and one place to test.
+ *
+ * `groupId` overrides the server's, for a caller that knows the id it asked
+ * about; they are the same board or something is very wrong.
+ */
+export const boardFromRemote = (remote: RemoteBoard, groupId?: string): GroupState => ({
+  ...remote.state,
+  ...(groupId ? { group: { ...remote.state.group, id: groupId } } : {}),
+  ...(remote.role ? { role: remote.role } : {}),
+});
+
 export const mergeBoard = (
   local: GroupState,
   remote: RemoteBoard,

@@ -370,7 +370,12 @@ export {
   readInviteCode,
   tokenFromUrl,
 } from "./sync/invites";
-export { NOTHING_DELETED, mergeBoard, readRemoteBoard } from "./sync/mergeBoard";
+export {
+  NOTHING_DELETED,
+  boardFromRemote,
+  mergeBoard,
+  readRemoteBoard,
+} from "./sync/mergeBoard";
 export type { Deletions, RemoteBoard } from "./sync/mergeBoard";
 export { applyReport, drain } from "./sync/drain";
 export { createSyncQueueStorage, SYNC_QUEUE_KEY } from "./storage/syncQueueStorage";

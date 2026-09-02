@@ -3,6 +3,7 @@ import type { GameResult, Player } from "../leaderboard/gameResult";
 import type { GroupState } from "../leaderboard/groups";
 import {
   NOTHING_DELETED,
+  boardFromRemote,
   mergeBoard,
   readRemoteBoard,
   type RemoteBoard,
@@ -234,6 +235,29 @@ const good = {
   results: [game("r1", 100)],
   deleted: { players: ["p9"], results: ["r9"] },
 };
+
+describe("building a board from what the server sent", () => {
+  it("keeps the role, which is the whole reason this exists", () => {
+    // **Two call sites spread `remote.state` and dropped it** — a board joined
+    // by code, and one discovered on a second device — handing a brand-new
+    // member the share button that can only ever be refused.
+    expect(boardFromRemote({ ...remote(), role: "member" }).role).toBe("member");
+  });
+
+  it("has no role when the server did not send one", () => {
+    expect(boardFromRemote(remote())).not.toHaveProperty("role");
+  });
+
+  it("takes the id the caller asked about", () => {
+    const built = boardFromRemote(remote(), "asked-for");
+    expect(built.group.id).toBe("asked-for");
+    expect(built.group.name).toBe("Thursday");
+  });
+
+  it("keeps the server's id when the caller does not care", () => {
+    expect(boardFromRemote(remote()).group.id).toBe("g1");
+  });
+});
 
 describe("what this account may do on a board", () => {
   it("takes the role the server gave", () => {

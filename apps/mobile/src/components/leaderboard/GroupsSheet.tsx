@@ -195,6 +195,10 @@ export function GroupsSheet({
    */
   const handleJoin = async () => {
     if (joining) return;
+    // **Like every other way out of this sheet.** `keyboardShouldPersistTaps`
+    // means tapping the button does not blur the rename field, so without this
+    // an in-progress rename is silently thrown away by joining.
+    commitRename();
     // Whatever they pasted: the bare code, the whole message it came in, or a
     // link if they happen to have one. See `readInviteCode`.
     const code = readInviteCode(joinCode);

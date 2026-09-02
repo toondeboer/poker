@@ -24,6 +24,7 @@ import {
   playerForAccount,
   removeGroup,
   addBoard,
+  boardFromRemote,
   noteDeleted,
   removePlayer,
   replaceBoard,
@@ -52,6 +53,9 @@ import { generateId } from "@/src/utils/id";
 import { logger } from "@/src/utils/logger";
 import { useGroupSync } from "@/src/hooks/useGroupSync";
 import { usePremium } from "@/src/contexts/PremiumContext";
+// Module-level, because `AuthProviderContext` is mounted *inside* this one —
+// the same reason `useGroupSync` reads the token this way.
+import { apiToken } from "@/src/contexts/AuthContext";
 
 /** One group as the picker needs it: enough to list without loading a board. */
 export type GroupSummary = {
@@ -200,7 +204,7 @@ export function LeaderboardProvider({
    * sending, so losing it costs the news and never the night.
    */
   // Available because `PremiumProvider` is mounted outside this one.
-  const { isPremium } = usePremium();
+  const { isPremium, entitlementsKnown } = usePremium();
   const sync = useGroupSync();
   // The stable half of it. `sync` itself changes whenever the queue does, and a
   // callback that depended on the object would be rebuilt on every write.
@@ -315,7 +319,10 @@ export function LeaderboardProvider({
         if (!active) return;
         // Added without stealing the screen: somebody is looking at a board and
         // this runs on every foreground.
-        if (arrived) persist(addBoard(latestState.current, arrived.state));
+        // Same constructor as the join path. The merge loop below walks the
+        // boards that were here *before* this one, so a dropped role here
+        // would survive an entire extra pull.
+        if (arrived) persist(addBoard(latestState.current, boardFromRemote(arrived)));
       }
 
       // **The boards that were here when this started**, not what is here now:
@@ -659,6 +666,28 @@ export function LeaderboardProvider({
        * re-fetch on every pull — a membership somebody cannot see or get rid of.
        */
       /**
+       * **The session first**, because `redeemInvite` is what detects a
+       * missing one and it runs after the Pro check below. Without this a
+       * signed-out person is told to buy Pro while the screen offers them a
+       * "Sign in" button — the message and the only available action
+       * disagreeing about what is wrong.
+       */
+      if (!(await apiToken())) {
+        return { ok: false as const, reason: "Sign in to join a board." };
+      }
+      /**
+       * **Waited for, not assumed.** `isPremium` starts `false` and becomes the
+       * store's answer a moment later; joining from a cold launch lands inside
+       * that window, so refusing on the default tells somebody who has paid to
+       * go and pay. See `entitlementsKnown`.
+       */
+      if (!entitlementsKnown) {
+        return {
+          ok: false as const,
+          reason: "Still checking your purchases. Try again in a moment.",
+        };
+      }
+      /**
        * **Refused before the server is told, because a board you cannot see is
        * worse than no board.** The leaderboard is behind Pro, so somebody
        * without it would have joined — membership written, permanently — and
@@ -702,7 +731,10 @@ export function LeaderboardProvider({
       // on is ordinary — and taken whole when it is not.
       const board = mine
         ? sync.mergeInto(mine, remote)
-        : { ...remote.state, group: { ...remote.state.group, id: redeemed.groupId } };
+        // Built in core, because spreading `remote.state` by hand drops the
+        // `role` beside it — which is how a brand-new member ended up with a
+        // share button that can only ever be refused.
+        : boardFromRemote(remote, redeemed.groupId);
       // Selected here rather than by `addBoard`, which no longer steals the
       // screen — but somebody who has just tapped a link is looking for this
       // board and nothing else.
@@ -712,7 +744,7 @@ export function LeaderboardProvider({
       persist(setActiveGroup(added, board.group.id));
       return { ok: true as const, name: board.group.name };
     },
-    [sync, persist, isPremium],
+    [sync, persist, isPremium, entitlementsKnown],
   );
 
   const deleteGroup = useCallback(
