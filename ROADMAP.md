@@ -167,10 +167,13 @@ Nothing below needs you present once the above is done:
   at all, which was the gap.
 - ✅ A game now survives the app being killed as well as navigation, and is validated whole on
   load rather than partially recovered. **Delete this line when 1.2.0 is cut.**
-- ✅ **A finished game now asks.** It prompts once per launch when a game completes unsaved, and
-  the button stays as the fallback — declining leaves it exactly where it was. It does not ask when
-  the players came from a different board, because saving would be refused and prompting somebody
-  into an error is worse than not asking. **Delete this line when 1.2.0 is cut.**
+- ✅ **A finished game now asks before it is thrown away.** The prompt hangs off **"New game"**,
+  not off the game completing: an alert on completion covers the showdown, which is the one hand
+  everybody wants to look at and the reason the table stays drawn. "New game" is also the only
+  action that actually loses the night — a finished game survives the app closing and its Save
+  button is still there next launch. Saving refuses when the players came from a board that is no
+  longer active, and the prompt does not end the game unless the save really happened.
+  **Delete this line when 1.2.0 is cut.**
 - 🟡 **The deal is not cryptographic.** `Math.random` is passed straight to the engine rather than
   a seeded PRNG, which avoids the brute-forceable 32-bit seed space that `createRandom` warns
   about — but it is still not a cryptographic source. Accepted for a table passing one phone
@@ -484,9 +487,10 @@ Actions over OIDC, and **accounts end-to-end as the first deployable slice**.
   Android reports the permission denied, explains that the background timer cannot fire, and opens
   system settings; it re-checks on every foreground so it disappears the moment the permission is
   granted. Android-only and invisible otherwise. **Delete this line when 1.2.0 is cut.**
-  - `showPermissionAlert` in `useNotificationPermission` is still uncalled and is now genuinely
-    redundant — the card replaced the alert it was written for. Worth deleting with the rest of
-    this section.
+  - `showPermissionAlert` in `useNotificationPermission` **is finally called** — by the card, as the
+    fallback when a request returns without showing anything, which is the permanently-blocked case
+    it was written for. **Do not delete it with the rest of this section**: it is the only route to
+    `Linking.openSettings()` for a user Android will not prompt again.
 - The state it exists for is reachable: Android permanently blocks `POST_NOTIFICATIONS` after a
   second denial, after which every `PermissionsAndroid.request` returns `never_ask_again`
   immediately with no dialog. `ForegroundServiceModule.startService` then rejects with

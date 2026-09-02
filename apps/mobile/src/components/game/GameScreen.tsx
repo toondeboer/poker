@@ -269,7 +269,7 @@ function ActiveGame({ nameFor }: { nameFor: (id: string) => string }) {
    * app dealt every hand, so it already knows who went out fourth. Recording by
    * hand is two taps per player and a memory test at the end of a long evening.
    */
-  const record = () => {
+  const record = (): boolean => {
     // The board this game's players came from. Recording into whichever group
     // happens to be selected now would file the night with people who were
     // never at the table, and nothing downstream would notice.
@@ -277,7 +277,7 @@ function ActiveGame({ nameFor }: { nameFor: (id: string) => string }) {
       setRefused(
         "These players came from a different group. Switch back to it on the Leaderboard screen to save this game.",
       );
-      return;
+      return false;
     }
     const saved = recordResult({
       playerIds: session.seats.map((seat) => seat.playerId),
@@ -294,6 +294,11 @@ function ActiveGame({ nameFor }: { nameFor: (id: string) => string }) {
     // message saying otherwise and took the retry away with it.
     if (saved) markRecorded();
     else setRefused("That result couldn't be saved. Nothing has been recorded.");
+    // **Returned, because the caller may be about to throw the game away.**
+    // `record` refuses for two reasons that are invisible from outside it, and
+    // ending the game on the strength of a save that did not happen destroys
+    // the night *and* the message explaining why.
+    return saved;
   };
 
 
@@ -322,10 +327,16 @@ function ActiveGame({ nameFor }: { nameFor: (id: string) => string }) {
         { text: "Cancel", style: "cancel" },
         { text: "Discard", style: "destructive", onPress: endGame },
         {
+          /**
+           * **Only ends the game if the save actually happened.** `record`
+           * refuses when the players came from a board that is no longer
+           * active, and refusing then ending would clear the session — taking
+           * the night with it, and the explanation with it too, since this
+           * component renders nothing once there is no session.
+           */
           text: "Save",
           onPress: () => {
-            record();
-            endGame();
+            if (record()) endGame();
           },
         },
       ],
