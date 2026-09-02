@@ -312,17 +312,27 @@ if you host. A board that does not sync is never announced *and* never queues wr
   the sharing rows in `RELEASE_TESTING.md`. Worth knowing before somebody concludes sync is broken.
 - ⬜ **Billing rows in `RELEASE_TESTING.md`** — purchase, restore, cancel and **expiry**, which the
   one-time product never had.
-- ⬜ **Decide what a lapsed subscriber keeps — and it is sharper now that Club grants Pro.** A
-  subscriber who never bought Pro separately loses Pro when the subscription ends, so **every board
-  they own becomes invisible to them** (`boardIsVisible`) while `boardSyncs` keeps uploading it,
-  because the board is on the server and its members are still reading it. The rows are all still
-  there and come back the moment they resubscribe or buy Pro — nothing is destroyed — but "their
-  local boards clearly stay", which this file used to say, is not what somebody would call it when
-  they cannot see them.
-  - The options are the usual ones: leave it (the app becomes what it is without Pro, which is
-    coherent), let a lapsed host keep *reading* their own boards, or let Pro-via-Club persist once
-    granted. The last is the friendliest and the least revocable.
-  - Guests are unaffected either way. They never paid.
+### What a lapsed subscriber keeps — decided
+
+**Pro, once granted by Club, stays granted.** Somebody who subscribed and later stopped keeps the
+leaderboard, their own boards and everything else Pro unlocks, forever. They lose **hosting**: they
+cannot share a board or make a new one shareable. Read from the receipt (`entitlements.all`, not
+`active`), so it survives a reinstall — a flag on the device would not, and then it would mean
+nothing.
+
+The alternative was that they become a free user again, which is coherent — losing Pro means losing
+the leaderboard, and that is what Pro is — but it takes the sight of every board they own while
+those boards carry on syncing for the members still reading them. Nothing is destroyed and it all
+returns on resubscribing, but somebody would reasonably call that the app eating their season.
+
+- 🟡 **The consequence: one month of Club is a permanent Pro.** So the monthly price has to be worth
+  at least what Pro costs, or subscribing and cancelling is simply the cheaper way to buy Pro. With
+  Pro around €5–6 and the monthly at €2–3, it *is* cheaper — **that is a live pricing decision, not
+  a bug**. Either set the monthly at or above the Pro price, or accept the leak on the grounds that
+  somebody doing it has still paid and probably was not going to buy Pro anyway. Worth settling
+  before the products are created rather than after.
+
+Guests are unaffected either way. They never paid.
 - **Not before 1.2.0 ships.** §1 billing already blocks submission and can only be exercised from a
   Play track; a second product makes that pole longer.
 

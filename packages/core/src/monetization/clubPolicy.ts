@@ -140,8 +140,32 @@ export const boardIsVisible = (context: {
 export const entitlementsFrom = (bought: {
   pro: boolean;
   club: boolean;
+  /**
+   * Whether Club has **ever** been held, subscription still running or not.
+   *
+   * Read from the receipt rather than remembered on the device, so it survives
+   * a reinstall — which matters, because the whole point is that this one does
+   * not go away.
+   */
+  clubEver: boolean;
 }): { isPremium: boolean; hasClub: boolean; ownsProOutright: boolean } => ({
-  isPremium: bought.pro || bought.club,
+  /**
+   * **Pro, once granted by Club, stays granted.**
+   *
+   * A subscriber who never bought Pro separately would otherwise lose the
+   * leaderboard the day their subscription lapsed — and with it the sight of
+   * every board they own, while those boards carried on syncing for the members
+   * still reading them. Nothing would be destroyed and it would all come back
+   * on resubscribing, but somebody would reasonably describe it as the app
+   * having eaten their season.
+   *
+   * **The trade is that one month of Club is a permanent Pro**, so the monthly
+   * price has to be worth at least what Pro costs — otherwise subscribing and
+   * cancelling is simply the cheaper way to buy it. `ROADMAP.md` carries that
+   * consequence next to the prices, because it is a pricing decision, not a
+   * code one.
+   */
+  isPremium: bought.pro || bought.club || bought.clubEver,
   hasClub: bought.club,
   /**
    * Kept separately from `isPremium`, which now blurs two different promises:

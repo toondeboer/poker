@@ -62,6 +62,11 @@ const toEntitlements = (info: CustomerInfo): Entitlements =>
   entitlementsFrom({
     pro: info.entitlements.active[ENTITLEMENT_PRO] !== undefined,
     club: info.entitlements.active[ENTITLEMENT_CLUB] !== undefined,
+    // **`all`, not `active`** — every entitlement the receipt has ever carried,
+    // lapsed ones included. Reading it from the receipt rather than a flag on
+    // the device is what makes "Pro, once granted, stays granted" survive a
+    // reinstall, which is the only way it means anything.
+    clubEver: info.entitlements.all[ENTITLEMENT_CLUB] !== undefined,
   });
 
 /**

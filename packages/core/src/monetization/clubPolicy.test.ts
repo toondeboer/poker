@@ -112,7 +112,7 @@ describe("what a purchase grants", () => {
     // **A shared board is a leaderboard, and the leaderboard is Pro.** Without
     // this a subscriber hosts a board they cannot open — not an awkward state,
     // a broken one, sold deliberately.
-    expect(entitlementsFrom({ pro: false, club: true })).toEqual({
+    expect(entitlementsFrom({ pro: false, club: true, clubEver: true })).toEqual({
       isPremium: true,
       hasClub: true,
       // Not bought, only included — and it goes when the subscription does.
@@ -122,7 +122,7 @@ describe("what a purchase grants", () => {
 
   it("does not give a Pro buyer hosting", () => {
     // The rule runs one way only. Pro has never included hosting.
-    expect(entitlementsFrom({ pro: true, club: false })).toEqual({
+    expect(entitlementsFrom({ pro: true, club: false, clubEver: false })).toEqual({
       isPremium: true,
       hasClub: false,
       ownsProOutright: true,
@@ -130,16 +130,32 @@ describe("what a purchase grants", () => {
   });
 
   it("grants nothing to somebody who has bought nothing", () => {
-    expect(entitlementsFrom({ pro: false, club: false })).toEqual({
+    expect(entitlementsFrom({ pro: false, club: false, clubEver: false })).toEqual({
       isPremium: false,
       hasClub: false,
       ownsProOutright: false,
     });
   });
 
+  it("keeps Pro after the subscription lapses", () => {
+    // **The decision this exists for.** Without it a lapsed subscriber loses
+    // the leaderboard and with it the sight of every board they own, while
+    // those boards carry on syncing for the members still reading them.
+    expect(
+      entitlementsFrom({ pro: false, club: false, clubEver: true }),
+    ).toEqual({ isPremium: true, hasClub: false, ownsProOutright: false });
+  });
+
+  it("does not keep hosting after it lapses", () => {
+    // Pro persists; hosting is the thing being paid for and stops.
+    expect(entitlementsFrom({ pro: false, club: false, clubEver: true }).hasClub).toBe(
+      false,
+    );
+  });
+
   it("lets somebody hold both without contradiction", () => {
     // Somebody who bought Pro years ago and later subscribes.
-    expect(entitlementsFrom({ pro: true, club: true })).toEqual({
+    expect(entitlementsFrom({ pro: true, club: true, clubEver: true })).toEqual({
       isPremium: true,
       hasClub: true,
       // Their Pro survives the subscription ending; that is what they paid for.
