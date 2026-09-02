@@ -286,9 +286,8 @@ export function LeaderboardProvider({
     return () => {
       active = false;
     };
-    // Once, on mount: `announce` is stable, and the board is read here exactly
-    // once. Re-running would re-read storage over live state.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // Once, on mount: the board is read here exactly once, and re-running
+    // would re-read storage over live state.
   }, []);
 
   /**
@@ -309,6 +308,18 @@ export function LeaderboardProvider({
       const entry = latestState.current.groups.find(
         (candidate) => candidate.group.id === groupId,
       );
+      /**
+       * **No `entitlementsKnown` guard here, unlike every other refusal**, and
+       * that is deliberate rather than an oversight.
+       *
+       * A board the server already has syncs regardless, so the only thing the
+       * default can affect is a purely local board in the second before the
+       * store answers. Anything written to one of those is recovered: it has no
+       * `role`, so the moment the subscription lands the announce effect
+       * backfills its whole roster and season, that write included. Queueing
+       * optimistically instead would mean every free user's local board
+       * collecting refusals on every cold launch.
+       */
       return boardSyncs({ hasClub, isOnServer: entry?.role !== undefined });
     },
     [hasClub],

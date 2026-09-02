@@ -281,8 +281,16 @@ if you host. A board that does not sync is never announced *and* never queues wr
 - ⬜ **Decide the price and period.** Nothing else can start.
 - ⬜ **Create the subscription** as `club_monthly` (`PRODUCT_CLUB`) in both stores, then the `club`
   entitlement in RevenueCat with `pro` attached to the same product. **Both stores or neither.**
-- ⬜ **A way to buy it.** `purchasePro` buys the one-time unlock and nothing buys this. The paywall
-  needs a second offering, which cannot be built honestly until there is a price.
+- ⬜ **A way to buy it, and any way at all to hear about it.** `purchasePro` buys the one-time
+  unlock and nothing buys this. **Club currently has no surface in the app whatsoever**: the share
+  button is hidden once the store confirms there is no subscription, so a non-subscriber never
+  learns the feature exists. That is right while it cannot be bought — advertising an unbuyable
+  product is worse — and it becomes wrong the moment it can. The paywall needs a second offering,
+  which cannot be built honestly until there is a price.
+- ⬜ **Sharing cannot be tested from a normal build until then.** Nothing grants `club`, so a build
+  pointed at `DEV_BACKEND` announces no board, queues no write and shows no share button — silently
+  and correctly. Set `FORCE_PRO_IN_DEV` in `PremiumContext`, which forces both entitlements, to run
+  the sharing rows in `RELEASE_TESTING.md`. Worth knowing before somebody concludes sync is broken.
 - ⬜ **Billing rows in `RELEASE_TESTING.md`** — purchase, restore, cancel and **expiry**, which the
   one-time product never had.
 - ⬜ **Decide what a lapsed subscriber keeps.** Their local boards clearly stay. Whether their

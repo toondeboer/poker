@@ -1,8 +1,13 @@
 // src/components/leaderboard/GroupsSheet.tsx
 import { useRef, useState } from "react";
+import { useRouter } from "expo-router";
 import { Alert, Keyboard, Share, StyleSheet, Text, View } from "react-native";
 import {
-  hostRefusal, MAX_GROUPS, readInviteCode } from "@poker/core";
+  hostRefusal,
+  joinRefusal,
+  MAX_GROUPS,
+  readInviteCode,
+} from "@poker/core";
 import { useLeaderboard } from "@/src/contexts/LeaderboardContext";
 import { accountsAreReal, useAuth } from "@/src/contexts/AuthContext";
 import { usePremium } from "@/src/contexts/PremiumContext";
@@ -56,6 +61,7 @@ export function GroupsSheet({
     joinBoard,
   } = useLeaderboard();
   const { account } = useAuth();
+  const router = useRouter();
   const { isPremium, hasClub, entitlementsKnown } = usePremium();
   /**
    * **Shown while the store has not answered yet**, the same call `hostRefusal`
@@ -179,7 +185,8 @@ export function GroupsSheet({
          * already own, the exact thing `clubPolicy` is tested to prevent. The
          * message carries the meaning, so the title stays neutral.
          */
-        Alert.alert(refusal ? "Cannot share this board" : "Could not make a link",
+        Alert.alert(
+          refusal ? "Cannot share this board" : "Could not make a link",
           refusal ??
             "Only an admin of a board can invite people to it, and the board has to have reached the server. Try again when you have signal.",
         );
@@ -380,6 +387,29 @@ export function GroupsSheet({
           Still hidden with no backend or no account: in a shipped build
           `backendConfig` is `null`, and a field that can only answer "this
           build cannot join boards" is a dead feature in the app store. */}
+      {/* **Signed out is a state with a way out of it, not a hidden field.**
+          The invited guest this whole feature exists for arrives here having
+          never made an account, and hiding the section left them looking at a
+          sheet with nothing in it — `joinRefusal`'s "Sign in to join a board."
+          was unreachable from the one screen a guest ever sees. */}
+      {accountsAreReal && !account ? (
+        <>
+          <Text style={styles.blurb}>
+            {joinRefusal({ signedIn: false })} Joining is free — the person who
+            shares a board is the one who pays for it.
+          </Text>
+          <Button
+            label="Sign in"
+            icon="log-in-outline"
+            variant="secondary"
+            onPress={() => {
+              onClose();
+              router.push("/account");
+            }}
+          />
+        </>
+      ) : null}
+
       {accountsAreReal && account ? (
         <>
           <TextField

@@ -70,8 +70,13 @@ export function PremiumProvider({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
   const [isPremium, setIsPremium] = useState(FORCE_PRO_IN_DEV);
-  // Forced alongside Pro in development, because a dev build with no store
-  // products configured could otherwise never reach the server features at all.
+  /**
+   * Forced alongside Pro in development, and **this is currently the only way
+   * to exercise sharing at all**: nothing grants `club` yet, so a dev build
+   * without this announces no board, queues no write and shows no share button
+   * — silently, and correctly. `ROADMAP.md` says so next to the testing rows,
+   * because otherwise it reads exactly like sync being broken.
+   */
   const [hasClub, setHasClub] = useState(FORCE_PRO_IN_DEV);
   /**
    * Whether the entitlement is the store's answer or still the default.
