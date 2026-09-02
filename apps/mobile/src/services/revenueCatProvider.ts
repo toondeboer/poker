@@ -93,7 +93,9 @@ export const revenueCatProvider: BillingProvider = {
     // No billing configured at all: nothing is owned, which is the safe answer
     // in both directions — no paid feature is unlocked, and no purchase is
     // claimed to exist that could be "restored".
-    if (!API_KEY) return { isPremium: false, hasClub: false };
+    if (!API_KEY) {
+      return { isPremium: false, hasClub: false, ownsProOutright: false };
+    }
     configurePurchases();
     return toEntitlements(await Purchases.getCustomerInfo());
   },

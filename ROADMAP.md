@@ -296,9 +296,10 @@ review and obvious in a store review. **Which boards reach the server is a per-b
 (`boardSyncs`): a shared board always syncs because the host is paying for it, a local board only
 if you host. A board that does not sync is never announced *and* never queues writes.
 
-- ⬜ **Decide the price and period.** Nothing else can start.
-- ⬜ **Create the subscription** as `club_monthly` (`PRODUCT_CLUB`) in both stores, then the `club`
-  entitlement in RevenueCat with `pro` attached to the same product. **Both stores or neither.**
+- ⬜ **Create both subscription SKUs** — `club_monthly` and `club_yearly` — in both stores, then the
+  `club` entitlement in RevenueCat with **`pro` attached to the same products**. Two SKUs because
+  the annual price is decided; one because somebody read a doc that only mentioned the monthly one.
+  **Both stores or neither.**
 - ⬜ **A way to buy it, and any way at all to hear about it.** `purchasePro` buys the one-time
   unlock and nothing buys this. **Club currently has no surface in the app whatsoever**: the share
   button is hidden once the store confirms there is no subscription, so a non-subscriber never
@@ -311,9 +312,17 @@ if you host. A board that does not sync is never announced *and* never queues wr
   the sharing rows in `RELEASE_TESTING.md`. Worth knowing before somebody concludes sync is broken.
 - ⬜ **Billing rows in `RELEASE_TESTING.md`** — purchase, restore, cancel and **expiry**, which the
   one-time product never had.
-- ⬜ **Decide what a lapsed subscriber keeps.** Their local boards clearly stay. Whether their
-  *shared* boards keep syncing, stop, or become read-only, and what the other members see, is open.
-  Guests are unaffected either way, since they never paid.
+- ⬜ **Decide what a lapsed subscriber keeps — and it is sharper now that Club grants Pro.** A
+  subscriber who never bought Pro separately loses Pro when the subscription ends, so **every board
+  they own becomes invisible to them** (`boardIsVisible`) while `boardSyncs` keeps uploading it,
+  because the board is on the server and its members are still reading it. The rows are all still
+  there and come back the moment they resubscribe or buy Pro — nothing is destroyed — but "their
+  local boards clearly stay", which this file used to say, is not what somebody would call it when
+  they cannot see them.
+  - The options are the usual ones: leave it (the app becomes what it is without Pro, which is
+    coherent), let a lapsed host keep *reading* their own boards, or let Pro-via-Club persist once
+    granted. The last is the friendliest and the least revocable.
+  - Guests are unaffected either way. They never paid.
 - **Not before 1.2.0 ships.** §1 billing already blocks submission and can only be exercised from a
   Play track; a second product makes that pole longer.
 

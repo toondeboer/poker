@@ -140,7 +140,14 @@ export const boardIsVisible = (context: {
 export const entitlementsFrom = (bought: {
   pro: boolean;
   club: boolean;
-}): { isPremium: boolean; hasClub: boolean } => ({
+}): { isPremium: boolean; hasClub: boolean; ownsProOutright: boolean } => ({
   isPremium: bought.pro || bought.club,
   hasClub: bought.club,
+  /**
+   * Kept separately from `isPremium`, which now blurs two different promises:
+   * Pro that was bought is permanent, and Pro that comes with Club goes when
+   * the subscription does. Anything *telling* somebody what they have needs to
+   * know which.
+   */
+  ownsProOutright: bought.pro,
 });

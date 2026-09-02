@@ -170,7 +170,8 @@ export {
   ENTITLEMENT_PRO,
   ENTITLEMENT_CLUB,
   PRODUCT_PRO_LIFETIME,
-  PRODUCT_CLUB,
+  PRODUCT_CLUB_MONTHLY,
+  PRODUCT_CLUB_YEARLY,
 } from "./monetization/products";
 
 // Live Activity reconciliation

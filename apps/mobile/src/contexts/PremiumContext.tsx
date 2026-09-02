@@ -36,6 +36,14 @@ type PremiumContextValue = {
    */
   hasClub: boolean;
   /**
+   * Whether Pro was bought outright rather than coming with Club.
+   *
+   * Only for *telling* somebody what they have — nothing gates on it. A
+   * subscriber's Pro goes when the subscription does, and "Pro unlocked"
+   * implies a permanence they have not got.
+   */
+  ownsProOutright: boolean;
+  /**
    * Whether {@link isPremium} is the store's answer rather than the default.
    *
    * Only worth checking before *refusing* somebody something — see the comment
@@ -78,6 +86,7 @@ export function PremiumProvider({
    * because otherwise it reads exactly like sync being broken.
    */
   const [hasClub, setHasClub] = useState(FORCE_PRO_IN_DEV);
+  const [ownsProOutright, setOwnsProOutright] = useState(FORCE_PRO_IN_DEV);
   /**
    * Whether the entitlement is the store's answer or still the default.
    *
@@ -136,6 +145,7 @@ export function PremiumProvider({
   const applyEntitlements = useCallback((entitlements: Entitlements) => {
     setIsPremium(entitlements.isPremium);
     setHasClub(entitlements.hasClub);
+    setOwnsProOutright(entitlements.ownsProOutright);
     setEntitlementsKnown(true);
   }, []);
 
@@ -189,6 +199,7 @@ export function PremiumProvider({
       value={{
         isPremium,
         hasClub,
+        ownsProOutright,
         entitlementsKnown,
         purchasing,
         proPriceString,

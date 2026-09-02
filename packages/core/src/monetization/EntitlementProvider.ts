@@ -12,6 +12,14 @@ export type Entitlements = {
    * else's board needs neither this nor Pro; the host pays.
    */
   hasClub: boolean;
+  /**
+   * Whether Pro was **bought outright**, rather than coming with Club.
+   *
+   * The two are not the same promise and should not be told to somebody as
+   * though they were: a subscriber's Pro goes when the subscription does, and
+   * saying "Pro unlocked" implies a permanence they have not got.
+   */
+  ownsProOutright: boolean;
 };
 
 /**

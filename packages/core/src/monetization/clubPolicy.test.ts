@@ -115,6 +115,8 @@ describe("what a purchase grants", () => {
     expect(entitlementsFrom({ pro: false, club: true })).toEqual({
       isPremium: true,
       hasClub: true,
+      // Not bought, only included — and it goes when the subscription does.
+      ownsProOutright: false,
     });
   });
 
@@ -123,6 +125,7 @@ describe("what a purchase grants", () => {
     expect(entitlementsFrom({ pro: true, club: false })).toEqual({
       isPremium: true,
       hasClub: false,
+      ownsProOutright: true,
     });
   });
 
@@ -130,6 +133,7 @@ describe("what a purchase grants", () => {
     expect(entitlementsFrom({ pro: false, club: false })).toEqual({
       isPremium: false,
       hasClub: false,
+      ownsProOutright: false,
     });
   });
 
@@ -138,6 +142,8 @@ describe("what a purchase grants", () => {
     expect(entitlementsFrom({ pro: true, club: true })).toEqual({
       isPremium: true,
       hasClub: true,
+      // Their Pro survives the subscription ending; that is what they paid for.
+      ownsProOutright: true,
     });
   });
 });

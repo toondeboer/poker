@@ -30,7 +30,8 @@ platform-tagged heading (e.g. `## [1.1.3] - 2026-07-20 — Android`) when you cu
   actually invite people to. **The host pays and guests do not**: sharing a board of your own is a
   subscription, and joining one somebody sent you costs nothing at all — no account purchase, not
   even Pro, because a board you were invited to is visible without it. Everything Pro unlocks stays
-  exactly as it is and nobody who has bought it loses anything.
+  exactly as it is and nobody who has bought it loses anything — and the subscription includes Pro,
+  so hosting is one purchase rather than two.
 - **A board now reads back what other people did to it.** When the app comes to the foreground, and
   again once anything queued has been sent, each board is fetched and merged with what is already
   on the phone. Merged rather than replaced, which is the whole of the design: a board that
