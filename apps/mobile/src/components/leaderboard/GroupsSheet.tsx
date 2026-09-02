@@ -279,7 +279,11 @@ export function GroupsSheet({
                       is a board with no server copy, and the call would be
                       refused. Better to not offer it than to offer it and
                       fail. */}
-                  {accountsAreReal && account ? (
+                  {/* Hidden on a board this account is only a *member* of:
+                      minting is admin-only, so the button could never do
+                      anything but explain itself. Shown while the role is
+                      unknown — see `canInvite`. */}
+                  {accountsAreReal && account && group.canInvite ? (
                     <IconButton
                       icon={sharingId === group.id ? "hourglass-outline" : "share-outline"}
                       onPress={() => void share(group.id, group.name)}
@@ -320,6 +324,13 @@ export function GroupsSheet({
             : `You can have up to ${MAX_GROUPS} groups. Delete one to add another.`
         }
       />
+      {/* **Only when there is a server to join through.** `backendConfig` is
+          `null` in a shipped build, so without this the release carries a
+          visible field that can only ever answer "this build cannot join
+          boards" — a dead feature in the app store. Signed out it is equally
+          pointless: joining is the one thing here that needs an account. */}
+      {accountsAreReal && account ? (
+        <>
       <TextField
         label="Join a board"
         value={joinCode}
@@ -341,6 +352,8 @@ export function GroupsSheet({
         onPress={() => void handleJoin()}
         disabled={joining || joinCode.trim().length === 0}
       />
+        </>
+      ) : null}
 
       <Button
         label="Create group"

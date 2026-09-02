@@ -505,3 +505,37 @@ describe("a board this device deleted", () => {
     expect(await storage.loadLeaderboard()).not.toHaveProperty("dismissed");
   });
 });
+
+describe("what this account may do on a board", () => {
+  const boardWith = (role?: "admin" | "member") => ({
+    groups: [
+      {
+        group: { id: "g1", name: "Thursday", createdAt: 1 },
+        players: [],
+        results: [],
+        ...(role ? { role } : {}),
+      },
+    ],
+    activeGroupId: "g1",
+  });
+
+  it("survives a relaunch, so the share button does not flicker", async () => {
+    const storage = store(createMemoryAdapter());
+    await storage.saveLeaderboard(boardWith("member"));
+    expect((await storage.loadLeaderboard()).groups[0].role).toBe("member");
+  });
+
+  it("is absent when nobody has said, rather than guessed at", async () => {
+    const storage = store(createMemoryAdapter());
+    await storage.saveLeaderboard(boardWith());
+    expect((await storage.loadLeaderboard()).groups[0]).not.toHaveProperty("role");
+  });
+
+  it("drops a role this version does not understand", async () => {
+    const storage = store(createMemoryAdapter());
+    await storage.saveLeaderboard(
+      boardWith("owner" as unknown as "admin"),
+    );
+    expect((await storage.loadLeaderboard()).groups[0]).not.toHaveProperty("role");
+  });
+});

@@ -228,14 +228,51 @@ describe("whose answer wins", () => {
   });
 });
 
-describe("reading what the API answered", () => {
-  const good = {
-    group: { id: "g1", name: "Thursday", createdAt: 1 },
-    players: [{ id: "p1", name: "Ann" }],
-    results: [game("r1", 100)],
-    deleted: { players: ["p9"], results: ["r9"] },
-  };
+const good = {
+  group: { id: "g1", name: "Thursday", createdAt: 1 },
+  players: [{ id: "p1", name: "Ann" }],
+  results: [game("r1", 100)],
+  deleted: { players: ["p9"], results: ["r9"] },
+};
 
+describe("what this account may do on a board", () => {
+  it("takes the role the server gave", () => {
+    const merged = mergeBoard(board(), { ...remote(), role: "member" }, EMPTY_QUEUE);
+    expect(merged.role).toBe("member");
+  });
+
+  it("keeps the last answer when the server did not say", () => {
+    // A pull that could not be made, or an older server. Forgetting the role
+    // would put the share button back on a board it can never work for.
+    const mine = { ...board(), role: "member" as const };
+    expect(mergeBoard(mine, remote(), EMPTY_QUEUE).role).toBe("member");
+  });
+
+  it("lets the server change its mind", () => {
+    // Being promoted to admin is a thing that happens, and the board is where
+    // this phone finds out.
+    const mine = { ...board(), role: "member" as const };
+    expect(mergeBoard(mine, { ...remote(), role: "admin" }, EMPTY_QUEUE).role).toBe(
+      "admin",
+    );
+  });
+
+  it("stays absent when nobody has said", () => {
+    // Unknown, not "member" — every local-only board is in this state, and
+    // hiding share on those would stop somebody sharing their own board.
+    expect(mergeBoard(board(), remote(), EMPTY_QUEUE)).not.toHaveProperty("role");
+  });
+
+  it("is read back only when it is one of the two roles", () => {
+    expect(readRemoteBoard({ ...good, role: "admin" })?.role).toBe("admin");
+    expect(readRemoteBoard({ ...good, role: "member" })?.role).toBe("member");
+    // Anything else is unknown rather than guessed at.
+    expect(readRemoteBoard({ ...good, role: "owner" })).not.toHaveProperty("role");
+    expect(readRemoteBoard(good)).not.toHaveProperty("role");
+  });
+});
+
+describe("reading what the API answered", () => {
   it("reads a whole board", () => {
     const read = readRemoteBoard(good);
     expect(read?.state.players).toHaveLength(1);

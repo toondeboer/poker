@@ -10,7 +10,8 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { MIN_PASSWORD_LENGTH } from "@poker/core";
-import { useAuth, type AuthError } from "@/src/contexts/AuthContext";
+import {
+  accountsAreReal, useAuth, type AuthError } from "@/src/contexts/AuthContext";
 import { useLeaderboard } from "@/src/contexts/LeaderboardContext";
 import { useKeyboardFocusScroll } from "@/src/hooks/useKeyboardFocusScroll";
 import {
@@ -194,9 +195,15 @@ export function AccountScreen() {
       <CardHeader icon="person-circle" title="Your account" />
       <CardContent>
         <Text style={styles.email}>{account.email}</Text>
+        {/* **Conditional, because both halves are true in some build.** A
+            shipped 1.2.0 has `backendConfig` as `null`, so the boards really do
+            stay on the phone; the moment that switch is flipped this sentence
+            becomes a lie. Deriving it means it cannot be forgotten at the point
+            somebody has other things to think about. */}
         <Text style={styles.blurb}>
-          Signed in on this device. Your groups and leaderboards stay on the
-          phone until sync is switched on.
+          {accountsAreReal
+            ? "Signed in on this device. Boards you share or join sync with your account, so they follow you to another phone."
+            : "Signed in on this device. Your groups and leaderboards stay on the phone until sync is switched on."}
         </Text>
         {error ? <Text style={styles.error}>{MESSAGE[error]}</Text> : null}
         <Button

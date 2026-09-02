@@ -51,6 +51,7 @@ import {
 import { generateId } from "@/src/utils/id";
 import { logger } from "@/src/utils/logger";
 import { useGroupSync } from "@/src/hooks/useGroupSync";
+import { usePremium } from "@/src/contexts/PremiumContext";
 
 /** One group as the picker needs it: enough to list without loading a board. */
 export type GroupSummary = {
@@ -58,6 +59,16 @@ export type GroupSummary = {
   name: string;
   playerCount: number;
   gameCount: number;
+  /**
+   * Whether this account can invite people to it.
+   *
+   * `true` until the server says otherwise, which covers every board made on
+   * this phone and every board before its first pull. **The optimistic default
+   * is deliberate**: offering an action that turns out to be refused costs one
+   * clear message, where hiding one somebody is allowed to take leaves them
+   * unable to share their own board with no explanation at all.
+   */
+  canInvite: boolean;
 };
 
 type LeaderboardContextValue = {
@@ -188,6 +199,8 @@ export function LeaderboardProvider({
    * somebody sees and is written first; this only remembers what still needs
    * sending, so losing it costs the news and never the night.
    */
+  // Available because `PremiumProvider` is mounted outside this one.
+  const { isPremium } = usePremium();
   const sync = useGroupSync();
   // The stable half of it. `sync` itself changes whenever the queue does, and a
   // callback that depended on the object would be rebuilt on every write.
@@ -576,6 +589,7 @@ export function LeaderboardProvider({
   const groups = useMemo<GroupSummary[]>(
     () =>
       state.groups.map((entry) => ({
+        canInvite: entry.role !== "member",
         id: entry.group.id,
         name: entry.group.name,
         playerCount: entry.players.length,
@@ -644,6 +658,23 @@ export function LeaderboardProvider({
        * account on a board server-side that this device will not show and will
        * re-fetch on every pull — a membership somebody cannot see or get rid of.
        */
+      /**
+       * **Refused before the server is told, because a board you cannot see is
+       * worse than no board.** The leaderboard is behind Pro, so somebody
+       * without it would have joined — membership written, permanently — and
+       * then landed on a paywall, with the board invisible and no way to get
+       * rid of the membership.
+       *
+       * When server-backed features get their own entitlement (see
+       * `ROADMAP.md`), this is the line that changes: the check moves, the
+       * shape does not.
+       */
+      if (!isPremium) {
+        return {
+          ok: false as const,
+          reason: "Shared boards are part of Pro. Unlock Pro to join one.",
+        };
+      }
       if (latestState.current.groups.length >= MAX_GROUPS) {
         return {
           ok: false as const,
@@ -681,7 +712,7 @@ export function LeaderboardProvider({
       persist(setActiveGroup(added, board.group.id));
       return { ok: true as const, name: board.group.name };
     },
-    [sync, persist],
+    [sync, persist, isPremium],
   );
 
   const deleteGroup = useCallback(

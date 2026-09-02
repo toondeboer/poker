@@ -36,8 +36,26 @@ export const NOTHING_DELETED: Deletions = Object.freeze({
   results: Object.freeze([]) as readonly string[],
 });
 
+/**
+ * What this account may do on a board.
+ *
+ * Only ever told to us by the server — nothing here decides it, and a client
+ * that thought it could would be a client that can be lied to about it.
+ */
+export type BoardRole = "admin" | "member";
+
 /** The board as the server sees it, plus what it says is gone. */
-export type RemoteBoard = { state: GroupState; deleted: Deletions };
+export type RemoteBoard = {
+  state: GroupState;
+  deleted: Deletions;
+  /**
+   * The caller's own role, when the server said. `undefined` from a server that
+   * does not send it, which reads as "unknown" rather than "member" — offering
+   * an action that turns out to be refused is a smaller sin than hiding one
+   * somebody is allowed to take.
+   */
+  role?: BoardRole;
+};
 
 const byId = <T extends { id: string }>(
   mine: readonly T[],
@@ -102,6 +120,8 @@ export const mergeBoard = (
     players,
     results,
     ...(local.deleted ? { deleted: local.deleted } : {}),
+    // The server's answer, or the last one it gave. Never invented here.
+    ...(remote.role ?? local.role ? { role: remote.role ?? local.role } : {}),
   };
 
   /**
@@ -201,5 +221,8 @@ export const readRemoteBoard = (value: unknown): RemoteBoard | null => {
       players: ids(deleted?.players),
       results: ids(deleted?.results),
     },
+    ...(body.role === "admin" || body.role === "member"
+      ? { role: body.role }
+      : {}),
   };
 };
