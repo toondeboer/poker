@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   boardIsVisible,
+  entitlementsFrom,
   boardSyncs,
   hostRefusal,
   joinRefusal,
@@ -103,5 +104,40 @@ describe("which boards can be looked at", () => {
     // syncing, which is not a thing anybody bought.
     expect(boardIsVisible({ isPremium: false, isGuestBoard: false })).toBe(false);
     expect(boardIsVisible({ isPremium: true, isGuestBoard: false })).toBe(true);
+  });
+});
+
+describe("what a purchase grants", () => {
+  it("gives a subscriber Pro as well", () => {
+    // **A shared board is a leaderboard, and the leaderboard is Pro.** Without
+    // this a subscriber hosts a board they cannot open — not an awkward state,
+    // a broken one, sold deliberately.
+    expect(entitlementsFrom({ pro: false, club: true })).toEqual({
+      isPremium: true,
+      hasClub: true,
+    });
+  });
+
+  it("does not give a Pro buyer hosting", () => {
+    // The rule runs one way only. Pro has never included hosting.
+    expect(entitlementsFrom({ pro: true, club: false })).toEqual({
+      isPremium: true,
+      hasClub: false,
+    });
+  });
+
+  it("grants nothing to somebody who has bought nothing", () => {
+    expect(entitlementsFrom({ pro: false, club: false })).toEqual({
+      isPremium: false,
+      hasClub: false,
+    });
+  });
+
+  it("lets somebody hold both without contradiction", () => {
+    // Somebody who bought Pro years ago and later subscribes.
+    expect(entitlementsFrom({ pro: true, club: true })).toEqual({
+      isPremium: true,
+      hasClub: true,
+    });
   });
 });

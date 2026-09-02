@@ -263,8 +263,26 @@ Pro** — `boardIsVisible`. Pro is for keeping your own score; a board somebody 
 That is also the better funnel: a guest sees what a season of game nights looks like and then wants
 one of their own.
 
-**The subscription should also grant `pro`** so nobody ever buys twice — one product, several
-entitlements, configured in RevenueCat with no code change.
+**Club grants Pro, and that is a rule rather than a convenience.** A shared board *is* a
+leaderboard, and the leaderboard is Pro — so a subscriber without it would host a board they could
+not open. Not an awkward state: a broken one, sold deliberately. It is enforced in
+`entitlementsFrom` **as well as** in the RevenueCat product, because configuration is one forgotten
+checkbox away from shipping exactly that. The reverse does not hold: Pro has never included
+hosting.
+
+**Priced at the bottom of the category — decided.** Roughly **€2–3 a month or €12–15 a year**, and
+the exact figure is set in the stores. The reasoning is worth keeping, because the market medians
+argue for four times that and they are wrong for this app:
+
+- Every serious poker-timer competitor is **one-time**, between $2.99 and $7.99 — NextBlind $7.99,
+  PokerTimer $6.99, Texas Holdem "The Works" $5.99, Easy Poker Timer $2.99. The subscription
+  outliers charge $9.99–14.99 a month for a timer, which is how an app earns one-star reviews.
+- RevenueCat's 2026 utilities medians ($7.99–9.99/month, $30–39.99/year) are set by health, fitness
+  and AI apps with far broader appeal. Only ~10% of apps run a hybrid model at all.
+- **The server bill was never the reason.** It is pennies now and stays small at ten to fifty times
+  this size. The reason to charge is that **you can always stop charging and can never start**: fold
+  hosting into Pro and every past and future one-time buyer has it forever, unrevocably. That is an
+  argument for charging *something*, not for charging a lot.
 
 **Named for the axis, not the tier.** "Pro+" would say the thing people already bought had been
 demoted. "Club" also outlives shared boards: the shared clock and playing a hand together belong to

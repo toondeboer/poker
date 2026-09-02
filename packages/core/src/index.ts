@@ -161,6 +161,7 @@ export type { AdPolicyInput } from "./monetization/adPolicy";
 export {
   boardIsVisible,
   boardSyncs,
+  entitlementsFrom,
   hostRefusal,
   joinRefusal,
 } from "./monetization/clubPolicy";

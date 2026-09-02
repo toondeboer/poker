@@ -164,6 +164,25 @@ work outwards, rather than editing these fields from memory.
   ```
   `166` chars.
 
+### App Store Connect — Auto-Renewable Subscription → `club_monthly`
+
+**Not created yet** — the price is decided (€2–3/month, €12–15/year) and nothing else here is.
+See `ROADMAP.md` for why the figure sits well below the category's subscription medians.
+
+- **Reference Name / Display Name:** Club — the working name; "Pro+" is deliberately avoided
+  because it would say the thing people already bought had been demoted, and it has not changed.
+- **Must grant both `club` and `pro` entitlements in RevenueCat.** A shared board is a leaderboard
+  and the leaderboard is Pro, so a subscriber without it hosts a board they cannot open. The app
+  enforces this too (`entitlementsFrom`), so a missed checkbox is survivable rather than shipped —
+  but set it anyway, or restores and receipts disagree with the app.
+- **Description must say joining is free**, or it reads as though every player at the table needs a
+  subscription, which is the misunderstanding most likely to kill the feature.
+
+### Google Play — Monetize → Subscriptions → `club_monthly`
+
+Same product, same entitlements, same copy. **Both stores or neither** — one platform able to
+subscribe and the other not is worse than neither.
+
 ### RevenueCat
 - The `pro_lifetime` product description mirrors the store; if you keep an
   internal description/notes field, match the copy above so the dashboard reads

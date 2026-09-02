@@ -120,3 +120,27 @@ export const boardIsVisible = (context: {
    */
   isGuestBoard: boolean;
 }): boolean => context.isPremium || context.isGuestBoard;
+
+/**
+ * What somebody holds, from what the store says they bought.
+ *
+ * **Club includes Pro, and that is a rule rather than a convenience.** A shared
+ * board *is* a leaderboard, and the leaderboard is Pro — so a subscriber
+ * without it would host a board they could not open. Not an awkward state: a
+ * broken one, sold deliberately.
+ *
+ * It is enforced here as well as in the store's own configuration, because
+ * configuration is one forgotten checkbox away from shipping exactly that. If
+ * the `club` product is ever set up without `pro` attached, this is what stops
+ * a subscriber finding a paywall over the board they are paying to host.
+ *
+ * The reverse does **not** hold: Pro has never included hosting and buying it
+ * again does not change that.
+ */
+export const entitlementsFrom = (bought: {
+  pro: boolean;
+  club: boolean;
+}): { isPremium: boolean; hasClub: boolean } => ({
+  isPremium: bought.pro || bought.club,
+  hasClub: bought.club,
+});
