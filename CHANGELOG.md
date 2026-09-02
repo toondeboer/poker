@@ -27,8 +27,10 @@ platform-tagged heading (e.g. `## [1.1.3] - 2026-07-20 — Android`) when you cu
   replaces the last one, which is the only way to take one back from somebody you did not mean to
   send it to. Boards follow the account rather than the phone: sign in on a second device, or
   reinstall, and every board you are on comes back. The share button only appears on boards you can
-  actually invite people to, and joining is refused up front if you do not have Pro — rather than
-  putting you on a board you would then be unable to see.
+  actually invite people to. **The host pays and guests do not**: sharing a board of your own is a
+  subscription, and joining one somebody sent you costs nothing at all — no account purchase, not
+  even Pro, because a board you were invited to is visible without it. Everything Pro unlocks stays
+  exactly as it is and nobody who has bought it loses anything.
 - **A board now reads back what other people did to it.** When the app comes to the foreground, and
   again once anything queued has been sent, each board is fetched and merged with what is already
   on the phone. Merged rather than replaced, which is the whole of the design: a board that

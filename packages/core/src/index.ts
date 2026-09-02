@@ -158,7 +158,19 @@ export type {
 } from "./monetization/EntitlementProvider";
 export { shouldShowAds } from "./monetization/adPolicy";
 export type { AdPolicyInput } from "./monetization/adPolicy";
-export { ENTITLEMENT_PRO, PRODUCT_PRO_LIFETIME } from "./monetization/products";
+export {
+  boardIsVisible,
+  boardSyncs,
+  hostRefusal,
+  joinRefusal,
+} from "./monetization/clubPolicy";
+export type { ClubContext } from "./monetization/clubPolicy";
+export {
+  ENTITLEMENT_PRO,
+  ENTITLEMENT_CLUB,
+  PRODUCT_PRO_LIFETIME,
+  PRODUCT_CLUB,
+} from "./monetization/products";
 
 // Live Activity reconciliation
 export { reconcileActivities } from "./liveActivity/activityReconciliation";

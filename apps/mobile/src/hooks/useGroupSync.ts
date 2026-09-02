@@ -46,12 +46,17 @@ export type GroupSync = {
   /**
    * Tell the server about boards it may not know.
    *
-   * **Needed for every group that already existed on the device.** Only newly
-   * created ones were announced, so an upgrader's boards — and the default
-   * group the app makes on its own — would have been refused "no such group" on
-   * every write, forever, with nothing that would ever fix it.
+   * **The whole board, not just its existence.** Announcing only the group left
+   * it on the server *empty*: the outbox carries writes made from now on, and
+   * the pull only merges downward, so a board with a season on it appeared to
+   * everybody else as a board with nothing on it, permanently. Somebody
+   * subscribing and then sharing is exactly when that gets looked at.
+   *
+   * Needed for every board that predates syncing — an upgrader's, the default
+   * group the app makes on its own, and one created in the second before the
+   * store said whether there was a subscription.
    */
-  announce: (groups: readonly { id: string; name: string; createdAt: number }[]) => void;
+  announce: (boards: readonly GroupState[]) => void;
   /**
    * Withdraw a write nobody has sent, because what it was about is gone.
    *
@@ -94,6 +99,16 @@ export type GroupSync = {
 };
 
 export const useGroupSync = (): GroupSync => {
+  /**
+   * **Whether there is a server at all** — and nothing more.
+   *
+   * The subscription decides which *boards* belong on the server, which is a
+   * per-board question and is answered by `boardSyncs` where the boards live.
+   * It deliberately does not belong here: a guest with nothing bought still has
+   * to pull the board somebody shared with them and write to it, and gating
+   * this hook would make them a spectator.
+   */
+  const enabled = backendConfig !== null;
   const [queue, setQueue] = useState<SyncQueue>(EMPTY_QUEUE);
   /**
    * The queue as it is *right now*, for the drain to work from.
@@ -141,7 +156,7 @@ export const useGroupSync = (): GroupSync => {
     // on the server, which is idempotent, and confusing here, because both
     // would apply reports built from different snapshots.
     if (draining.current) return;
-    if (!backendConfig) return;
+    if (!enabled) return;
     if (latest.current.pending.length === 0) return;
 
     draining.current = true;
@@ -176,59 +191,79 @@ export const useGroupSync = (): GroupSync => {
       .finally(() => {
         draining.current = false;
       });
-  }, [update]);
+  }, [update, enabled]);
 
   const record = useCallback(
     (write: PendingWrite) => {
-      // Nothing to tell, and nobody to tell it to. A build with no backend
-      // behaves exactly as it did before any of this existed.
-      if (!backendConfig) return;
+      // Nothing to tell, nobody to tell it to, or nothing paid for. A build in
+      // any of those states behaves exactly as it did before any of this
+      // existed — and does not queue writes that will never be sent.
+      if (!enabled) return;
       update((current) =>
         enqueue(current, { ...write, id: generateId(), queuedAt: Date.now() }),
       );
       syncNow();
     },
-    [update, syncNow],
+    [update, syncNow, enabled],
   );
 
   const announce = useCallback(
-    (groups: readonly { id: string; name: string; createdAt: number }[]) => {
-      if (!backendConfig) return;
-      // Safe to repeat: `enqueue` ignores a board already queued, and the server
-      // answers *ok* to a group it already has — so this can run on every load
-      // without piling up.
-      for (const group of groups) {
+    (boards: readonly GroupState[]) => {
+      if (!enabled) return;
+      for (const board of boards) {
+        // Safe to repeat: `enqueue` ignores a subject already queued, and every
+        // one of these three routes answers *ok* to being told the same thing
+        // twice — so this can run on every load without piling up.
         record({
           kind: "createGroup",
-          groupId: group.id,
-          name: group.name,
-          createdAt: group.createdAt,
+          groupId: board.group.id,
+          name: board.group.name,
+          createdAt: board.group.createdAt,
         });
+        /**
+         * **The contents too, but only for a board the server has never
+         * answered about.** A `role` means it has been pulled, so the server
+         * has it and its contents are already up there — re-sending a season of
+         * game nights every launch would be a few hundred requests for nothing.
+         *
+         * Without this the board arrives on the server *empty*: the outbox only
+         * carries writes made from now on and the pull only merges downward, so
+         * a board with a year on it looked, to everybody it was shared with,
+         * like a board with nothing on it. Permanently.
+         */
+        if (board.role !== undefined) continue;
+        for (const player of board.players) {
+          record({ kind: "addPlayer", groupId: board.group.id, player });
+        }
+        for (const result of board.results) {
+          record({ kind: "recordGame", groupId: board.group.id, result });
+        }
       }
     },
-    [record],
+    [record, enabled],
   );
 
   const cancelWrite = useCallback(
     (subject: WriteSubject) => {
-      if (!backendConfig) return;
+      if (!enabled) return;
       update((current) => cancel(current, subject));
     },
-    [update],
+    [update, enabled],
   );
 
   const cancelWholeBoard = useCallback(
     (groupId: string) => {
-      if (!backendConfig) return;
+      if (!enabled) return;
       update((current) => cancelBoard(current, groupId));
     },
-    [update],
+    [update, enabled],
   );
 
-  const fetchBoard = useCallback(async (groupId: string): Promise<RemoteBoard | null> => {
-    if (!backendConfig) return null;
-    return api.board(groupId);
-  }, []);
+  const fetchBoard = useCallback(
+    async (groupId: string): Promise<RemoteBoard | null> =>
+      enabled ? api.board(groupId) : null,
+    [enabled],
+  );
 
   // `latest.current`, so the queue is the one that exists when the merge runs
   // rather than the one that existed when the request went out.
@@ -237,7 +272,10 @@ export const useGroupSync = (): GroupSync => {
     [],
   );
 
-  const myBoards = useCallback(() => api.myBoards(), []);
+  const myBoards = useCallback(
+    () => (enabled ? api.myBoards() : Promise.resolve(null)),
+    [enabled],
+  );
   const createInvite = useCallback((groupId: string) => api.createInvite(groupId), []);
   const redeemInvite = useCallback(
     (token: string) => api.redeemInvite(token),

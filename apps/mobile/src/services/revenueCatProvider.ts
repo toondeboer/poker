@@ -8,6 +8,8 @@ import Purchases, {
 } from "react-native-purchases";
 import {
   ENTITLEMENT_PRO,
+  ENTITLEMENT_CLUB,
+  PRODUCT_PRO_LIFETIME,
   type EntitlementProvider,
   type Entitlements,
 } from "@poker/core";
@@ -48,14 +50,34 @@ export function configurePurchases() {
 
 const toEntitlements = (info: CustomerInfo): Entitlements => ({
   isPremium: info.entitlements.active[ENTITLEMENT_PRO] !== undefined,
+  /**
+   * **Read independently of `pro`, never derived from it.** They are separate
+   * purchases: somebody can hold one, both or neither, and inferring either
+   * from the other is how a person who paid for one ends up with the other for
+   * nothing — or without what they bought.
+   */
+  hasClub: info.entitlements.active[ENTITLEMENT_CLUB] !== undefined,
 });
 
+/**
+ * The Pro package, **found by its product id rather than by being first**.
+ *
+ * `availablePackages[0]` was fine while the offering held one product and
+ * becomes a live bug the moment it holds two: the shared-boards subscription is
+ * going into the same offering, and whichever RevenueCat happened to order
+ * first would then be what the Pro price showed and what the Pro button bought.
+ * A person tapping "Unlock Pro · one-time" and being charged monthly is not a
+ * mistake that gets a second chance.
+ */
 async function getProPackage(): Promise<PurchasesPackage> {
   const offerings = await Purchases.getOfferings();
-  const pkg = offerings.current?.availablePackages[0];
+  const packages = offerings.current?.availablePackages ?? [];
+  const pkg = packages.find(
+    (candidate) => candidate.product.identifier === PRODUCT_PRO_LIFETIME,
+  );
   if (!pkg) {
     throw new Error(
-      "No Pro package available — check the RevenueCat offering and store product.",
+      `No package for ${PRODUCT_PRO_LIFETIME} in the current offering — check RevenueCat and the store product.`,
     );
   }
   return pkg;
@@ -63,7 +85,10 @@ async function getProPackage(): Promise<PurchasesPackage> {
 
 export const revenueCatProvider: BillingProvider = {
   getEntitlements: async () => {
-    if (!API_KEY) return { isPremium: false };
+    // No billing configured at all: nothing is owned, which is the safe answer
+    // in both directions — no paid feature is unlocked, and no purchase is
+    // claimed to exist that could be "restored".
+    if (!API_KEY) return { isPremium: false, hasClub: false };
     configurePurchases();
     return toEntitlements(await Purchases.getCustomerInfo());
   },

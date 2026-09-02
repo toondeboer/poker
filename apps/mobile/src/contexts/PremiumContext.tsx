@@ -26,6 +26,16 @@ type PremiumContextValue = {
   /** True once the user has unlocked the Pro (ad-free) tier. */
   isPremium: boolean;
   /**
+   * Whether boards can be shared, joined and synced.
+   *
+   * **Its own purchase, not a tier above Pro.** Pro is one payment and
+   * everything it unlocks runs on the phone; this is the only thing with a cost
+   * that keeps arriving, so it is the only thing that keeps being paid for. See
+   * `ENTITLEMENT_CLUB` for the reasoning, and `ROADMAP.md` for what is
+   * still needed in the stores before anybody can buy it.
+   */
+  hasClub: boolean;
+  /**
    * Whether {@link isPremium} is the store's answer rather than the default.
    *
    * Only worth checking before *refusing* somebody something — see the comment
@@ -60,6 +70,14 @@ export function PremiumProvider({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
   const [isPremium, setIsPremium] = useState(FORCE_PRO_IN_DEV);
+  /**
+   * Forced alongside Pro in development, and **this is currently the only way
+   * to exercise sharing at all**: nothing grants `club` yet, so a dev build
+   * without this announces no board, queues no write and shows no share button
+   * — silently, and correctly. `ROADMAP.md` says so next to the testing rows,
+   * because otherwise it reads exactly like sync being broken.
+   */
+  const [hasClub, setHasClub] = useState(FORCE_PRO_IN_DEV);
   /**
    * Whether the entitlement is the store's answer or still the default.
    *
@@ -105,6 +123,22 @@ export function PremiumProvider({
       });
   }, []);
 
+  /**
+   * Take **everything** the store just said, not the one field this used to
+   * care about.
+   *
+   * Reading only `isPremium` here was survivable while there was one
+   * entitlement and is not now: somebody reinstalling and tapping "Restore
+   * purchases" would get Pro back and silently not sharing — and the Restore
+   * button only renders while `!isPremium`, so once Pro came back there was no
+   * way left in the app to ask again.
+   */
+  const applyEntitlements = useCallback((entitlements: Entitlements) => {
+    setIsPremium(entitlements.isPremium);
+    setHasClub(entitlements.hasClub);
+    setEntitlementsKnown(true);
+  }, []);
+
   useEffect(() => {
     // The price is fetched either way (see refreshProPrice). Only the
     // *entitlement* is forced: the initial state above already reflects
@@ -117,7 +151,7 @@ export function PremiumProvider({
     revenueCatProvider
       .getEntitlements()
       .then((entitlements: Entitlements) => {
-        if (active) setIsPremium(entitlements.isPremium);
+        if (active) applyEntitlements(entitlements);
       })
       // **Known either way.** A store that cannot be reached is not a reason to
       // block somebody out of a decision forever; it answers "not Pro", which
@@ -125,40 +159,36 @@ export function PremiumProvider({
       .finally(() => {
         if (active) setEntitlementsKnown(true);
       });
-    const unsubscribe = revenueCatProvider.onChange((entitlements) => {
-      setIsPremium(entitlements.isPremium);
-      setEntitlementsKnown(true);
-    });
+    const unsubscribe = revenueCatProvider.onChange(applyEntitlements);
     return () => {
       active = false;
       unsubscribe();
     };
-  }, [refreshProPrice]);
+  }, [refreshProPrice, applyEntitlements]);
 
   const purchasePro = useCallback(async () => {
     setPurchasing(true);
     try {
-      const entitlements = await revenueCatProvider.purchasePro();
-      setIsPremium(entitlements.isPremium);
+      applyEntitlements(await revenueCatProvider.purchasePro());
     } finally {
       setPurchasing(false);
     }
-  }, []);
+  }, [applyEntitlements]);
 
   const restore = useCallback(async () => {
     setPurchasing(true);
     try {
-      const entitlements = await revenueCatProvider.restore();
-      setIsPremium(entitlements.isPremium);
+      applyEntitlements(await revenueCatProvider.restore());
     } finally {
       setPurchasing(false);
     }
-  }, []);
+  }, [applyEntitlements]);
 
   return (
     <PremiumContext.Provider
       value={{
         isPremium,
+        hasClub,
         entitlementsKnown,
         purchasing,
         proPriceString,

@@ -4,6 +4,14 @@
  */
 export type Entitlements = {
   isPremium: boolean;
+  /**
+   * Whether this person can **host**: make a board of their own and share it.
+   *
+   * **Separate from `isPremium` on purpose**, because it is the only thing here
+   * with a cost that keeps arriving — see `ENTITLEMENT_CLUB`. Joining somebody
+   * else's board needs neither this nor Pro; the host pays.
+   */
+  hasClub: boolean;
 };
 
 /**

@@ -13,6 +13,7 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useLocalSearchParams } from "expo-router";
 import {
+  boardIsVisible,
   formatPlace,
   formatStandingsSummary,
   isValidPlayerName,
@@ -80,6 +81,7 @@ export function LeaderboardScreen() {
     claimedPlayer,
     claimPlayerAs,
     releasePlayer,
+    activeBoardIsGuest,
     refusedWrites,
     acknowledgeRefusal,
   } = useLeaderboard();
@@ -229,7 +231,15 @@ export function LeaderboardScreen() {
   // persists `{players: [], results: []}` straight over a season of game
   // nights — the arriving load then repairs the *state* and hides it until the
   // next launch. This is the one store here whose contents can't be retyped.
-  const content = isLoading ? null : isPremium ? (
+  /**
+   * **A shared board is readable without Pro.** Pro is for keeping your own
+   * score; a board somebody else keeps is theirs, and they are paying for it.
+   * Without this a guest joins and lands on a paywall looking at the board they
+   * were just invited to — which would make "joining is always free" untrue.
+   */
+  const canView = boardIsVisible({ isPremium, isGuestBoard: activeBoardIsGuest });
+
+  const content = isLoading ? null : canView ? (
     <>
       {/* Above the standings, because it is about the standings: what is on
           this phone and not on anybody else's. Renders nothing when there is
@@ -426,7 +436,7 @@ export function LeaderboardScreen() {
             it, and this is the screen where somebody decides to pay. */}
         <Text style={styles.description}>
           {accountsAreReal
-            ? "Keep score across game nights — who's won the most, who turns up, and what everyone's taken home. Share a board with the people you play with, or keep it to yourself."
+            ? "Keep score across game nights — who's won the most, who turns up, and what everyone's taken home. Sent a board by somebody else? Joining is free."
             : "Keep score across game nights — who's won the most, who turns up, and what everyone's taken home. Stays on your device; no accounts, nothing to sign up for."}
         </Text>
         <Button
@@ -435,6 +445,17 @@ export function LeaderboardScreen() {
           variant="pro"
           onPress={() => setShowPaywall(true)}
         />
+        {/* **The way in for somebody who was sent a board.** Without it a
+            guest sees only a paywall for a feature they do not need — joining
+            is free — and has nowhere to put the code they were given. */}
+        {accountsAreReal ? (
+          <Button
+            label="Join a board"
+            icon="enter-outline"
+            variant="secondary"
+            onPress={() => setShowGroups(true)}
+          />
+        ) : null}
       </CardContent>
     </Card>
   );
@@ -467,7 +488,7 @@ export function LeaderboardScreen() {
       {/* Pro-gated here as well as in `content`: this sits outside that
           ternary, and `showRecord` can be seeded from `?record=1`, so without
           the check a deep link opens the record flow with Pro locked. */}
-      {isPremium && !isLoading && (
+      {canView && !isLoading && (
       <RecordResultSheet
         visible={showRecord}
         onClose={() => setShowRecord(false)}
@@ -475,9 +496,13 @@ export function LeaderboardScreen() {
         onRecord={recordResult}
       />
       )}
-      {/* Same reasoning as the record sheet: this sits outside the Pro-gated
-          `content`, so it needs its own check. */}
-      {isPremium && !isLoading && (
+      {/* **Not gated on `canView`, unlike the record sheet.** This is the only
+          place an invite code can be pasted, and gating it here made "guests
+          join free" unreachable: a guest with a code has no board yet, so
+          `canView` is false, so the sheet never renders, so there is nowhere to
+          paste it. The sheet does its own gating per section — creating a board
+          is Pro, sharing is Club, joining is neither. */}
+      {!isLoading && (
         <GroupsSheet
           visible={showGroups}
           onClose={() => setShowGroups(false)}

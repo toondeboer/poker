@@ -25,6 +25,9 @@ import {
   removeGroup,
   addBoard,
   boardFromRemote,
+  boardSyncs,
+  type PendingWrite,
+  joinRefusal,
   noteDeleted,
   removePlayer,
   replaceBoard,
@@ -82,6 +85,16 @@ type LeaderboardContextValue = {
   /** The active group's name, or `""` when there is no group yet. */
   activeGroupName: string;
   canAddGroup: boolean;
+  /**
+   * Whether the board on screen is **somebody else's** — one you joined.
+   *
+   * The leaderboard is Pro; a board somebody else keeps is not, or "guests join
+   * free" would be a lie. **`member`, not merely "the server knows it"**: the
+   * server answers `admin` for a board you created, and treating that as shared
+   * would unlock Pro for anybody whose own boards had synced once. See
+   * `boardIsVisible`.
+   */
+  activeBoardIsGuest: boolean;
   /** Whether a name is free to use, ignoring the group being renamed. */
   isGroupNameAvailable: (name: string, exceptId?: string) => boolean;
   selectGroup: (id: string) => void;
@@ -204,11 +217,12 @@ export function LeaderboardProvider({
    * sending, so losing it costs the news and never the night.
    */
   // Available because `PremiumProvider` is mounted outside this one.
-  const { isPremium, entitlementsKnown } = usePremium();
+  // Only the hosting entitlement is decided here. Pro decides what is *shown*,
+  // which is the screens' business, and joining needs neither.
+  const { hasClub } = usePremium();
   const sync = useGroupSync();
   // The stable half of it. `sync` itself changes whenever the queue does, and a
   // callback that depended on the object would be rebuilt on every write.
-  const recordWrite = sync.record;
   const announceGroups = sync.announce;
   const cancelWrite = sync.cancel;
   const cancelBoardWrites = sync.cancelBoard;
@@ -258,14 +272,12 @@ export function LeaderboardProvider({
          *
          * Cheap to repeat: the server answers *ok* to a board this account is
          * already on, and the queue ignores one it is already carrying.
+         *
+         * Done in an effect below rather than here, because whether a board
+         * belongs on the server depends on the subscription — which is `false`
+         * at mount and becomes the store's answer a moment later.
          */
-        announceGroups(
-          loaded.groups.map((entry) => ({
-            id: entry.group.id,
-            name: entry.group.name,
-            createdAt: entry.group.createdAt,
-          })),
-        );
+
       })
       .catch((error) => logger.error("Failed to load leaderboard:", error))
       .finally(() => {
@@ -274,10 +286,54 @@ export function LeaderboardProvider({
     return () => {
       active = false;
     };
-    // Once, on mount: `announce` is stable, and the board is read here exactly
-    // once. Re-running would re-read storage over live state.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // Once, on mount: the board is read here exactly once, and re-running
+    // would re-read storage over live state.
   }, []);
+
+  /**
+   * Whether a board belongs on the server.
+   *
+   * **Any board the server already has keeps syncing** — including one of your
+   * own, where the role comes back as `admin`. Cutting a board off because a
+   * subscription lapsed would strand every member reading it, which is a worse
+   * failure than the cost it saves; `ROADMAP.md` records that the lapsed case
+   * is genuinely undecided.
+   *
+   * A purely local board only belongs there if you host, and one that does not
+   * must never be announced *or* written to: a queued write for a board the
+   * server has never heard of is a refusal waiting to happen.
+   */
+  const syncsFor = useCallback(
+    (groupId: string): boolean => {
+      const entry = latestState.current.groups.find(
+        (candidate) => candidate.group.id === groupId,
+      );
+      /**
+       * **No `entitlementsKnown` guard here, unlike every other refusal**, and
+       * that is deliberate rather than an oversight.
+       *
+       * A board the server already has syncs regardless, so the only thing the
+       * default can affect is a purely local board in the second before the
+       * store answers. Anything written to one of those is recovered: it has no
+       * `role`, so the moment the subscription lands the announce effect
+       * backfills its whole roster and season, that write included. Queueing
+       * optimistically instead would mean every free user's local board
+       * collecting refusals on every cold launch.
+       */
+      return boardSyncs({ hasClub, isOnServer: entry?.role !== undefined });
+    },
+    [hasClub],
+  );
+
+  const record = sync.record;
+  const recordWrite = useCallback(
+    (write: PendingWrite) => {
+      // A board that does not sync must not queue writes either — see
+      // `syncsFor`.
+      if (syncsFor(write.groupId)) record(write);
+    },
+    [record, syncsFor],
+  );
 
 
 
@@ -373,6 +429,20 @@ export function LeaderboardProvider({
     },
     [persist],
   );
+
+  /**
+   * Tell the server about the boards that belong there.
+   *
+   * Keyed on the subscription rather than done once at load, because `hasClub`
+   * is `false` until the store answers — and somebody who subscribes mid-session
+   * should not have to relaunch before their boards appear.
+   */
+  useEffect(() => {
+    if (isLoading) return;
+    announceGroups(
+      latestState.current.groups.filter((entry) => syncsFor(entry.group.id)),
+    );
+  }, [isLoading, syncsFor, announceGroups]);
 
   const activeEntry = useMemo(
     () => state.groups.find((entry) => entry.group.id === state.activeGroupId),
@@ -666,44 +736,13 @@ export function LeaderboardProvider({
        * re-fetch on every pull — a membership somebody cannot see or get rid of.
        */
       /**
-       * **The session first**, because `redeemInvite` is what detects a
-       * missing one and it runs after the Pro check below. Without this a
-       * signed-out person is told to buy Pro while the screen offers them a
-       * "Sign in" button — the message and the only available action
-       * disagreeing about what is wrong.
+       * **Joining needs nothing bought — the host pays.** Asking a guest to
+       * subscribe before they can see a board somebody sent them is how this
+       * feature ends up unused. See `joinRefusal`.
        */
-      if (!(await apiToken())) {
-        return { ok: false as const, reason: "Sign in to join a board." };
-      }
-      /**
-       * **Waited for, not assumed.** `isPremium` starts `false` and becomes the
-       * store's answer a moment later; joining from a cold launch lands inside
-       * that window, so refusing on the default tells somebody who has paid to
-       * go and pay. See `entitlementsKnown`.
-       */
-      if (!entitlementsKnown) {
-        return {
-          ok: false as const,
-          reason: "Still checking your purchases. Try again in a moment.",
-        };
-      }
-      /**
-       * **Refused before the server is told, because a board you cannot see is
-       * worse than no board.** The leaderboard is behind Pro, so somebody
-       * without it would have joined — membership written, permanently — and
-       * then landed on a paywall, with the board invisible and no way to get
-       * rid of the membership.
-       *
-       * When server-backed features get their own entitlement (see
-       * `ROADMAP.md`), this is the line that changes: the check moves, the
-       * shape does not.
-       */
-      if (!isPremium) {
-        return {
-          ok: false as const,
-          reason: "Shared boards are part of Pro. Unlock Pro to join one.",
-        };
-      }
+      const refusal = joinRefusal({ signedIn: (await apiToken()) !== null });
+      if (refusal) return { ok: false as const, reason: refusal };
+
       if (latestState.current.groups.length >= MAX_GROUPS) {
         return {
           ok: false as const,
@@ -744,7 +783,7 @@ export function LeaderboardProvider({
       persist(setActiveGroup(added, board.group.id));
       return { ok: true as const, name: board.group.name };
     },
-    [sync, persist, isPremium, entitlementsKnown],
+    [sync, persist],
   );
 
   const deleteGroup = useCallback(
@@ -766,6 +805,7 @@ export function LeaderboardProvider({
         activeGroupId: state.activeGroupId,
         activeGroupName: activeEntry?.group.name ?? "",
         canAddGroup: state.groups.length < MAX_GROUPS,
+        activeBoardIsGuest: activeEntry?.role === "member",
         isGroupNameAvailable,
         selectGroup,
         createNewGroup,
