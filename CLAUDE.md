@@ -335,6 +335,16 @@ Mobile releases are batched on a short-lived branch per version, not shipped str
   `--cache-location=apps/mobile/.expo/cache/eslint/`, so `rm -rf apps/mobile/.expo/cache/eslint`
   is the fix. Reached by creating `src/app/account.tsx` before the component it imports; the
   component appeared a minute later and lint kept insisting it did not exist.
+- **A route file added while Metro is running is "Unmatched Route" until Metro restarts.** Same
+  family as the `expo lint` cache above, and it costs an afternoon because the failure looks like a
+  broken deep link rather than a stale process: `pokerkit://join/<token>` rendered expo-router's
+  **"Unmatched Route — Page could not be found"** with `src/app/join/[token].tsx` present, typechecking,
+  linting clean and committed. `expo-router` builds its route table from a `require.context` that
+  the running bundler has already resolved, so a **new directory** in particular is not picked up.
+  Restarting with `npx expo start --clear` fixed it instantly and nothing else did. Suspect this
+  before suspecting the link, the scheme, or the native config — especially on a dev client, where
+  the launcher owning `pokerkit://` is the *other* known trap and makes it easy to blame the wrong
+  one.
 - **`@types/node` leaks to mobile via hoisting** — use `ReturnType<typeof setInterval>` for interval
   refs, not `number`.
 - **`expo-router` does not hoist to the root `node_modules`, and the expo CLI can't find it without

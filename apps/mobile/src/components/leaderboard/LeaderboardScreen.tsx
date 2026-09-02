@@ -21,7 +21,8 @@ import {
 } from "@poker/core";
 import { usePremium } from "@/src/contexts/PremiumContext";
 import { useLeaderboard } from "@/src/contexts/LeaderboardContext";
-import { useAuth } from "@/src/contexts/AuthContext";
+import {
+  accountsAreReal, useAuth } from "@/src/contexts/AuthContext";
 import { useKeyboardFocusScroll } from "@/src/hooks/useKeyboardFocusScroll";
 import {
   colors,
@@ -420,10 +421,13 @@ export function LeaderboardScreen() {
     <Card>
       <CardHeader icon="trophy" title="Leaderboard" />
       <CardContent>
+        {/* Same reason as the account screen: "no accounts, nothing to sign
+            up for" is true of a build with no backend and false of one with
+            it, and this is the screen where somebody decides to pay. */}
         <Text style={styles.description}>
-          Keep score across game nights — who&apos;s won the most, who turns up,
-          and what everyone&apos;s taken home. Stays on your device; no accounts,
-          nothing to sign up for.
+          {accountsAreReal
+            ? "Keep score across game nights — who's won the most, who turns up, and what everyone's taken home. Share a board with the people you play with, or keep it to yourself."
+            : "Keep score across game nights — who's won the most, who turns up, and what everyone's taken home. Stays on your device; no accounts, nothing to sign up for."}
         </Text>
         <Button
           label="Unlock Pro"

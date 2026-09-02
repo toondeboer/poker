@@ -8,6 +8,9 @@
   },
   "context": {
     "alertEmail": "poker.blinds.buzzer@gmail.com",
-    "monthlyBudgetUsd": 25
+    "monthlyBudgetUsd": 25,
+    "apiDomain": "poker-api.toondeboer.com",
+    "hostedZoneId": "Z09937423M47OIIZLJ34Y",
+    "hostedZoneName": "toondeboer.com"
   }
 }

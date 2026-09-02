@@ -241,6 +241,27 @@ is cut.**
 - ⬜ **Invite links need universal links to work from a phone.** `pokerkit://` is owned by the Expo
   dev launcher, so a cold-launch deep link cannot even be tested from a dev client.
 
+## Monetization: server features are a second entitlement — decided
+
+**Pro stays exactly what it is.** The one-time purchase keeps every local feature it grants today —
+leaderboard, payouts, play a hand, no ads, presets, sound packs — forever. None of those cost
+anything per user, so nothing has to be taken away and nobody who has already paid loses a thing.
+
+**Server-backed features get their own entitlement**, because they carry an ongoing cost that a
+one-time purchase cannot fund. Anything that talks to the backend is behind it: sharing a board,
+syncing across devices, joining somebody else's board.
+
+- **Existing Pro buyers are grandfathered automatically** and there is nothing to migrate: `pro` is
+  a separate entitlement in RevenueCat, so a second one cannot affect it. No restore edge case, no
+  receipt rewriting, no way for an old purchase to break.
+- **Decided: existing Pro buyers do not get server features free.** The line is the cost line, and
+  it is drawn where the cost actually is.
+- **Not named "Pro+"**, which would imply the thing people bought was demoted. Name it for the
+  capability rather than the tier.
+- **Not built yet, and deliberately not before 1.2.0 ships.** A new subscription means new products
+  in both stores, and §1 billing already blocks submission and can only be exercised from a Play
+  track. `backendConfig` is `null`, so nothing server-backed reaches a shipped build meanwhile.
+
 ## Backend: the plan
 
 The architecture, the observability design, environments and deploys, the cost model and the build

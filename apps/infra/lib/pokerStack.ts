@@ -62,6 +62,7 @@ import { HttpUserPoolAuthorizer } from "aws-cdk-lib/aws-apigatewayv2-authorizers
 import { HttpLambdaIntegration } from "aws-cdk-lib/aws-apigatewayv2-integrations";
 import { PLAYER_NAMESPACE, TABLE_NAMESPACE } from "@poker/core";
 import { settingsFor, type StageSettings } from "./stage";
+import { domainFor } from "./apiDomain";
 import { Observability, serviceMetric } from "./observability";
 import { MathExpression } from "aws-cdk-lib/aws-cloudwatch";
 import { Construct } from "constructs";
@@ -538,6 +539,25 @@ export class PokerStack extends Stack {
       userPoolClients: [userPoolClient],
     });
 
+    /**
+     * A name of our own for the API.
+     *
+     * **The reason is durability, not looks.** The generated
+     * `https://<id>.execute-api.<region>.amazonaws.com` host is baked into
+     * every shipped binary, and the id belongs to the API Gateway resource — so
+     * if this stack is ever recreated, that host changes and **every installed
+     * copy of the app is permanently broken**, with no way to point it
+     * anywhere else. A name we own is the only insurance against that, it is
+     * nearly free, and it is impossible to add retroactively for anybody who
+     * has already installed the old one.
+     *
+     * **Opt-in through context**, because `cdk synth` and the tests have to
+     * work with no credentials at all (see `bin/app.ts`) — and because a
+     * hosted zone this stack does not own would fail at deploy time rather
+     * than here. Without the context flags the API is exactly what it was.
+     */
+    const domain = domainFor(this, settings.stage);
+
     const api = new HttpApi(this, "Api", {
       apiName: `${this.stackName}-api`,
       description: "Requests in. Everything else comes back over AppSync.",
@@ -546,6 +566,21 @@ export class PokerStack extends Stack {
       // deliberate `authorizer: new HttpNoneAuthorizer()`. Fail closed is only
       // worth anything when it is the thing that happens by default.
       defaultAuthorizer: authorizer,
+      ...(domain
+        ? {
+            defaultDomainMapping: { domainName: domain.domainName },
+            /**
+             * The generated host is deliberately **left answering**, as a way
+             * back in if DNS or the certificate ever has a bad day. That is
+             * only safe because the `ApiUrl` output below names the custom
+             * host, so a build cannot pick up the disposable one by accident.
+             *
+             * Worth turning off (`disableExecuteApiEndpoint: true`) once the
+             * custom name has carried real traffic for a while: two names for
+             * one API is two names somebody can end up depending on.
+             */
+          }
+        : {}),
     });
 
     api.addRoutes({
@@ -827,7 +862,19 @@ export class PokerStack extends Stack {
       value: observability.dashboard.dashboardName,
       description: "CloudWatch > Dashboards",
     });
-    new CfnOutput(this, "ApiUrl", { value: api.apiEndpoint });
+    // **The name to put in the app**, which is the custom one when there is
+    // one. Reading the generated endpoint here would bake the disposable host
+    // into a build even after the durable name existed.
+    new CfnOutput(this, "ApiUrl", {
+      value: domain ? `https://${domain.hostName}` : api.apiEndpoint,
+    });
+    if (domain) {
+      new CfnOutput(this, "ApiEndpointGenerated", {
+        value: api.apiEndpoint,
+        description:
+          "The AWS-generated host. Do not ship this — it changes if the API is recreated.",
+      });
+    }
     new CfnOutput(this, "Stage", { value: settings.stage });
     new CfnOutput(this, "UserPoolId", { value: userPool.userPoolId });
     new CfnOutput(this, "UserPoolClientId", {

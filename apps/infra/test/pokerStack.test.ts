@@ -2,6 +2,8 @@ import { describe, expect, it } from "vitest";
 import { App } from "aws-cdk-lib";
 import { Match, Template } from "aws-cdk-lib/assertions";
 import { PokerStack } from "../lib/pokerStack";
+import { settingsFor } from "../lib/stage";
+import { hostNameFor } from "../lib/apiDomain";
 import cdkJson from "../cdk.json";
 import { playerChannel } from "@poker/core";
 
@@ -75,6 +77,116 @@ describe("the stack synthesises", () => {
     );
     configured.resourceCountIs("AWS::SNS::Subscription", 1);
     configured.resourceCountIs("AWS::Budgets::Budget", 1);
+  });
+});
+
+describe("a name for the API that we own", () => {
+  /**
+   * Why any of this is tested: the generated `execute-api` host is baked into
+   * every shipped binary, and recreating the stack changes it — which breaks
+   * every installed copy of the app with no way to tell it the new address.
+   */
+  const withDomain = (stage: "dev" | "prod" = "prod"): Template => {
+    const app = new App({
+      context: {
+        apiDomain: "poker-api.example.test",
+        hostedZoneId: "Z0000000000000000000",
+        hostedZoneName: "example.test",
+      },
+    });
+    // The stage is named, because `PokerStack` defaults to **prod** on purpose
+    // — a settings mistake should fail towards the strict end.
+    return Template.fromStack(
+      new PokerStack(app, `Domained${stage}`, { settings: settingsFor(stage) }),
+    );
+  };
+
+  it("is absent unless it is asked for", () => {
+    // **The property CI depends on.** `cdk synth` has to work with no
+    // credentials and no context, so a hosted zone nobody named must not
+    // appear — a fork of this repo still synthesises.
+    template().resourceCountIs("AWS::CertificateManager::Certificate", 0);
+    template().resourceCountIs("AWS::Route53::RecordSet", 0);
+    template().resourceCountIs("AWS::ApiGatewayV2::DomainName", 0);
+  });
+
+  it("is a certificate, a domain and both record types when it is", () => {
+    const t = withDomain();
+    t.resourceCountIs("AWS::CertificateManager::Certificate", 1);
+    t.resourceCountIs("AWS::ApiGatewayV2::DomainName", 1);
+    // A and AAAA. A mobile network on IPv6-only cannot reach an A record at
+    // all, and the failure reads as "the app doesn't work on my phone".
+    t.resourceCountIs("AWS::Route53::RecordSet", 2);
+    t.hasResourceProperties("AWS::Route53::RecordSet", Match.objectLike({ Type: "A" }));
+    t.hasResourceProperties("AWS::Route53::RecordSet", Match.objectLike({ Type: "AAAA" }));
+  });
+
+  it("serves IPv6, so the AAAA record is not decoration", () => {
+    // **An alias can only answer with what its target has.** A custom domain is
+    // IPv4-only unless told otherwise, so the AAAA resolved to nothing at all
+    // until this was set — verified against the deployed stack, where `dig
+    // AAAA` came back empty with the record plainly present in the zone.
+    withDomain().hasResourceProperties(
+      "AWS::ApiGatewayV2::DomainName",
+      Match.objectLike({
+        DomainNameConfigurations: Match.arrayWith([
+          Match.objectLike({ IpAddressType: "dualstack" }),
+        ]),
+      }),
+    );
+  });
+
+  it("keeps the API off the website's name, where CAA forbids ACM", () => {
+    // **Not cosmetic.** Vercel publishes CAA on the name it manages that
+    // authorises Let's Encrypt, Google, GlobalSign and Sectigo — and not
+    // Amazon. CAA is inherited, so ACM cannot issue for anything beneath it,
+    // and the failure reads exactly like a DNS propagation problem.
+    expect(hostNameFor("prod", "poker-api.example.test")).toBe("poker-api.example.test");
+    expect(hostNameFor("dev", "poker-api.example.test")).toBe(
+      "poker-api-dev.example.test",
+    );
+    // A bare label still produces something usable rather than throwing.
+    expect(hostNameFor("dev", "poker-api")).toBe("poker-api-dev");
+  });
+
+  it("validates the certificate by DNS, so it can renew itself", () => {
+    // Email validation needs somebody to click a link on every renewal. For an
+    // API nobody is watching, that is a certificate that expires.
+    withDomain().hasResourceProperties(
+      "AWS::CertificateManager::Certificate",
+      Match.objectLike({ ValidationMethod: "DNS" }),
+    );
+  });
+
+  it("keeps dev off the production host", () => {
+    // A dev stack exists to be thrown away. One answering on the production
+    // name would take production with it.
+    withDomain("dev").hasResourceProperties(
+      "AWS::ApiGatewayV2::DomainName",
+      Match.objectLike({ DomainName: "poker-api-dev.example.test" }),
+    );
+    withDomain("prod").hasResourceProperties(
+      "AWS::ApiGatewayV2::DomainName",
+      Match.objectLike({ DomainName: "poker-api.example.test" }),
+    );
+  });
+
+  it("half-configured is the same as not configured", () => {
+    // Two of the three flags would otherwise fail at deploy time with
+    // something unhelpful about a missing zone.
+    const app = new App({ context: { apiDomain: "poker-api.example.test" } });
+    Template.fromStack(new PokerStack(app, "Partial")).resourceCountIs(
+      "AWS::ApiGatewayV2::DomainName",
+      0,
+    );
+  });
+
+  it("publishes the name to ship, not the disposable one", () => {
+    // The output is what fills in `apiUrl` in the app. Reading the generated
+    // endpoint here would bake the throwaway host into a build even after the
+    // durable name existed.
+    const outputs = withDomain("dev").findOutputs("ApiUrl");
+    expect(JSON.stringify(outputs)).toContain("https://poker-api-dev.example.test");
   });
 });
 

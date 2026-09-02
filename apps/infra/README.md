@@ -15,11 +15,26 @@ sufficient — see _What only a deploy could tell us_, below.
 
 | Output             | Value                                                                     |
 | ------------------ | ------------------------------------------------------------------------- |
-| `ApiUrl`           | `https://hv0qrcgmt4.execute-api.us-east-1.amazonaws.com`                  |
+| `ApiUrl`           | `https://poker-api-dev.toondeboer.com`                                    |
 | `UserPoolId`       | `us-east-1_6iwLdpBIy`                                                     |
 | `UserPoolClientId` | `2lahhup3m7il6iqusctitu6lbc`                                              |
 | `EventApiDns`      | `55bempvj4fh2fcvzcy7x26vgy4.appsync-realtime-api.us-east-1.amazonaws.com` |
 | `TableName`        | `PokerBackend-dev-TableCD117FA1-FLOO5GQYD00E`                             |
+
+`ApiUrl` is **a name we own**, and that is the point of it: the generated
+`https://<id>.execute-api.<region>.amazonaws.com` is baked into every shipped build, and the id
+belongs to the API Gateway resource — recreate the stack and every installed copy of the app is
+permanently broken with no way to tell it the new address. The generated host still answers (it is
+published as `ApiEndpointGenerated`, as a way back in if DNS or the certificate has a bad day) and
+must never be the one that ships.
+
+**The API sits beside the website, not beneath it, and that is not cosmetic.** `poker-timer.
+toondeboer.com` is served from Vercel, which publishes CAA records on the name it manages
+authorising Let's Encrypt, Google, GlobalSign and Sectigo — **and not Amazon**. CAA is inherited by
+every name below it, so ACM cannot issue for anything under that subtree. It fails after about two
+minutes with `Certificate validation failed with status: FAILED`, which reads exactly like a DNS
+propagation problem and is nothing of the sort: no amount of waiting fixes it. The apex has no CAA,
+so a name beside the site issues fine.
 
 None of these are secrets — a user pool id and a public app client id are public by design. They are
 mirrored in `DEV_BACKEND` in
@@ -367,7 +382,7 @@ npm run smoke -w @poker/infra -- --as-stranger
 script's own "the stranger is a different account" check, and proves nothing about the guard it
 exists to test.
 
-26 checks against the live stack: sign-in, `/me` three ways, a seeded hand acted on, the shared
+35 checks against the live stack: sign-in, `/me` three ways, a seeded hand acted on, the shared
 event with every hole card stripped, the private event with exactly two, a replay refused as stale,
 acting as another player refused, and a non-member refused on both channels. Then the shared-board
 routes, where **every write is sent twice**: a phone replays anything whose answer went missing, so

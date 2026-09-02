@@ -202,18 +202,23 @@ thing that needs one.
 
 ## Open, and worth settling before code
 
-**Joining is by invite link** — decided, and now built on both sides. The host shares a URL, tapping it opens the app on a join
-screen, and redeeming it writes the membership. The token is its own partition (`INVITE#<token>`)
-because whoever is redeeming it does not know the group id yet; any other keying is a scan.
-
-Two things it needs that do not exist:
+**Joining is by a pasted code** — decided, and built on both sides. The host shares a 32-character
+token, whoever receives it pastes it into *Groups → Join a board*, and redeeming it writes the
+membership. The token is its own partition (`INVITE#<token>`) because whoever is redeeming it does
+not know the group id yet; any other keying is a scan.
 
 - **A long random token, not the six-character join code.** That code is built to be read across a
   table and deliberately drops `O`/`0`, `I`/`1` and `S`/`5` — it is short because it is spoken, and
-  short means guessable. A link is not spoken, so it should carry something with real entropy.
-- **Universal links.** `pokerkit://` is owned by the Expo dev launcher in development, so a
-  cold-launch deep link cannot be tested from a dev client at all — this is already a known trap in
-  CLAUDE.md and would need a real build to verify.
+  short means guessable. **These invites never expire**, so one lucky guess is permanent access to a
+  board's whole history. A code that is pasted rather than spoken can carry real entropy, and does.
+- **Why a code rather than a link.** A `pokerkit://` link only opens for somebody who *already has
+  the app* — sent to anybody else it does nothing at all, which is most of the point of an invite
+  gone. An `https://` one needs a domain worth publicising, universal links configured on both
+  platforms, and a page on the website to catch the tap. A code needs none of that and gives up
+  nothing: it is the same token either way.
+- **The deep link still works and is still there** (`pokerkit://join/<token>`, and `readInviteCode`
+  accepts a pasted URL as readily as a bare code), so nothing has to change if universal links are
+  ever set up. That is a horizon item for when traffic justifies a public domain.
 
 **An invite does not expire, and is not single-use** — decided. A link pinned in a group chat is how
 a Thursday game actually works, and a link that dies mid-season is a link somebody has to reissue
@@ -265,6 +270,12 @@ board is invisible to them entirely, which may be right or may be the missing ha
     foreground. `GroupedLeaderboard.dismissed` holds the ids; redeeming a link for one clears it,
     because tapping a link is asking for the board back. There is still no route that *leaves* a
     board, so the membership itself stays.
+- **A membership can outlive its group, and nothing prunes it.** `GET /groups` lists what the
+  account is on; a board that has since gone answers 404 to the read that follows, and the app
+  skips it — correctly, but it asks again on every pull, forever. Nearly unreachable in practice,
+  because an empty group is never deleted (below), so the only way to produce one is to remove a
+  group's rows out of band. Every instance in the dev table came from the smoke script cleaning up
+  after itself. Worth a lazy prune if that ever stops being true.
 - **An empty group is never deleted.** Account deletion used to tombstone a group whose last member
   was leaving, decided from the eventually consistent index — and a stale read there destroys a
   group that still has people in it. That trade is the wrong way round, so the destructive branch is

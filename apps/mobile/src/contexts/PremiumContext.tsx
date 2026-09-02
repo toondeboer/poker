@@ -25,6 +25,13 @@ const FORCE_FREE_IN_DEV: boolean = __DEV__ && false;
 type PremiumContextValue = {
   /** True once the user has unlocked the Pro (ad-free) tier. */
   isPremium: boolean;
+  /**
+   * Whether {@link isPremium} is the store's answer rather than the default.
+   *
+   * Only worth checking before *refusing* somebody something — see the comment
+   * on the state itself.
+   */
+  entitlementsKnown: boolean;
   /** True while a purchase or restore is in flight. */
   purchasing: boolean;
   /** Localized Pro price (e.g. "$2.99"), or null until loaded/unavailable. */
@@ -53,6 +60,20 @@ export function PremiumProvider({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
   const [isPremium, setIsPremium] = useState(FORCE_PRO_IN_DEV);
+  /**
+   * Whether the entitlement is the store's answer or still the default.
+   *
+   * **`isPremium` starts `false`, which is indistinguishable from "not Pro"
+   * until RevenueCat replies.** Nothing that merely *renders* cares — a paywall
+   * that appears for a moment and goes is a flicker. Anything that makes a
+   * decision does: refusing an invite in that window tells somebody who has
+   * paid to go and pay, and joining from a cold launch lands exactly there.
+   *
+   * Forced flags are known immediately: they *are* the answer.
+   */
+  const [entitlementsKnown, setEntitlementsKnown] = useState(
+    FORCE_PRO_IN_DEV || FORCE_FREE_IN_DEV,
+  );
   const [purchasing, setPurchasing] = useState(false);
   const [proPriceString, setProPriceString] = useState<string | null>(null);
 
@@ -93,11 +114,20 @@ export function PremiumProvider({
     refreshProPrice();
     if (FORCE_PRO_IN_DEV || FORCE_FREE_IN_DEV) return;
     let active = true;
-    revenueCatProvider.getEntitlements().then((entitlements: Entitlements) => {
-      if (active) setIsPremium(entitlements.isPremium);
-    });
+    revenueCatProvider
+      .getEntitlements()
+      .then((entitlements: Entitlements) => {
+        if (active) setIsPremium(entitlements.isPremium);
+      })
+      // **Known either way.** A store that cannot be reached is not a reason to
+      // block somebody out of a decision forever; it answers "not Pro", which
+      // is what `isPremium` already says.
+      .finally(() => {
+        if (active) setEntitlementsKnown(true);
+      });
     const unsubscribe = revenueCatProvider.onChange((entitlements) => {
       setIsPremium(entitlements.isPremium);
+      setEntitlementsKnown(true);
     });
     return () => {
       active = false;
@@ -129,6 +159,7 @@ export function PremiumProvider({
     <PremiumContext.Provider
       value={{
         isPremium,
+        entitlementsKnown,
         purchasing,
         proPriceString,
         refreshProPrice,

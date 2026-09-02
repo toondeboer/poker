@@ -20,7 +20,13 @@ import {
   type Player,
 } from "@poker/core";
 import { log } from "./logging";
-import { anotherAdmin, isUsableId, may, type GroupAction } from "./groupKeys";
+import {
+  anotherAdmin,
+  isUsableId,
+  may,
+  type GroupAction,
+  type Role,
+} from "./groupKeys";
 import { createGroupStore, type GroupStore } from "./groupStore";
 import { deleteAccount } from "./deleteAccount";
 import { randomBytes, randomUUID } from "node:crypto";
@@ -228,7 +234,7 @@ const authorize = async (
   caller: string,
   groupId: string,
   action: GroupAction,
-): Promise<{ ok: true } | { ok: false; response: Response }> => {
+): Promise<{ ok: true; role: Role } | { ok: false; response: Response }> => {
   const membership = await store.membership(caller, groupId);
   if (!membership) {
     return { ok: false, response: json(404, { error: "no such group" }) };
@@ -241,7 +247,11 @@ const authorize = async (
       response: json(403, { error: "an admin has to do that" }),
     };
   }
-  return { ok: true };
+  // **Handed back rather than thrown away.** It has just been read, strongly
+  // consistent, and the board route wants it: a client that does not know its
+  // own role offers "share" on a board where minting is always going to be
+  // refused, then explains why every single time.
+  return { ok: true, role: membership.role };
 };
 
 export const handler = async (request: VerifiedRequest): Promise<Response> => {
@@ -343,7 +353,12 @@ export const handler = async (request: VerifiedRequest): Promise<Response> => {
       // replaces — it has to, or a board's local history is wiped the first
       // time it syncs against a server that was never told about it — and a
       // merge cannot see an absence.
-      return json(200, { ...visibleTo(caller, snapshot.state), deleted: snapshot.deleted });
+      return json(200, {
+        ...visibleTo(caller, snapshot.state),
+        deleted: snapshot.deleted,
+        // What this caller may do here. Free — `authorize` read it a line ago.
+        role: allowed.role,
+      });
     }
 
     case "POST /groups/{groupId}/players": {

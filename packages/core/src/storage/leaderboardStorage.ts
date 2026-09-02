@@ -152,10 +152,14 @@ const coerceGroups = (raw: unknown, fallbackName: string): GroupState[] => {
           results: coerceIds(entry.deleted.results),
         }
       : null;
+    // Kept across launches so the share button does not flicker back on for a
+    // board this account is only a member of, until the first pull lands.
+    const role = entry.role === "admin" || entry.role === "member" ? entry.role : null;
     groups.push({
       group,
       players: coercePlayers(entry.players),
       results: coerceResults(entry.results),
+      ...(role ? { role } : {}),
       // Omitted rather than stored empty, so a board that has never deleted
       // anything round-trips to the same shape it had before this existed.
       ...(deleted && (deleted.players.length > 0 || deleted.results.length > 0)

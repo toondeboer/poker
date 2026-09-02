@@ -1,5 +1,11 @@
 import { describe, expect, it } from "vitest";
-import { INVITE_PATH, inviteUrlFor, isInviteToken, tokenFromUrl } from "./invites";
+import {
+  INVITE_PATH,
+  inviteUrlFor,
+  isInviteToken,
+  readInviteCode,
+  tokenFromUrl,
+} from "./invites";
 
 // What the server actually mints: 24 random bytes as base64url.
 const TOKEN = "Zm9vYmFyYmF6cXV4MTIzNDU2Nzg5MEFC";
@@ -88,5 +94,55 @@ describe("what counts as a token", () => {
     expect(isInviteToken("tooshort")).toBe(false);
     expect(isInviteToken(null)).toBe(false);
     expect(isInviteToken(12345)).toBe(false);
+  });
+});
+
+describe("reading a code somebody pasted", () => {
+  it("takes the code on its own", () => {
+    expect(readInviteCode(TOKEN)).toBe(TOKEN);
+  });
+
+  it("takes it with the whitespace a paste brings", () => {
+    // Nobody selects exactly the code. A newline on the end must not be the
+    // difference between joining and being told the invite is invalid.
+    expect(readInviteCode(`  ${TOKEN}\n`)).toBe(TOKEN);
+  });
+
+  it("takes the whole message it arrived in", () => {
+    // What the app itself shares, pasted wholesale — which is what somebody
+    // does when they select a chat bubble rather than a word.
+    expect(
+      readInviteCode(`Join "Thursday Night" on Poker Blinds Buzzer: ${TOKEN}`),
+    ).toBe(TOKEN);
+  });
+
+  it("is not fooled by a board name that looks like a code", () => {
+    // Scanned from the end, because the code is always last in a message this
+    // app produced — so a long alphanumeric board name cannot shadow it.
+    expect(
+      readInviteCode(`Join "aVeryLongBoardNameIndeed" on Poker: ${TOKEN}`),
+    ).toBe(TOKEN);
+  });
+
+  it("still takes a link, for anybody who has one", () => {
+    expect(readInviteCode(inviteUrlFor(TOKEN, "pokerkit://"))).toBe(TOKEN);
+    expect(readInviteCode(`  ${inviteUrlFor(TOKEN, "https://pokerkit.app")}  `)).toBe(
+      TOKEN,
+    );
+  });
+
+  it("strips the quotes and full stops a keyboard adds", () => {
+    expect(readInviteCode(`"${TOKEN}"`)).toBe(TOKEN);
+    expect(readInviteCode(`the code is ${TOKEN}.`)).toBe(TOKEN);
+    expect(readInviteCode(`\u201c${TOKEN}\u201d`)).toBe(TOKEN);
+  });
+
+  it("refuses what is not a code at all", () => {
+    expect(readInviteCode("")).toBeNull();
+    expect(readInviteCode("   ")).toBeNull();
+    expect(readInviteCode("hello there")).toBeNull();
+    expect(readInviteCode("short")).toBeNull();
+    // Base64, not base64url — the server never mints one of these.
+    expect(readInviteCode("plus+and/slash/aaaaaaaaaaaaaaa")).toBeNull();
   });
 });

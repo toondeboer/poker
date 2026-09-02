@@ -49,6 +49,15 @@ export type GroupState = {
    * nothing as far as anyone can tell, which is the safe reading.
    */
   deleted?: { players: string[]; results: string[] };
+  /**
+   * What this account may do on this board, as last told by the server.
+   *
+   * `undefined` for a board that has never been read back — every local-only
+   * board, and every board before its first pull. Read as "unknown", not as
+   * "member": offering an action that turns out to be refused is a smaller sin
+   * than hiding one somebody is allowed to take.
+   */
+  role?: "admin" | "member";
 };
 
 /**

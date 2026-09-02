@@ -55,7 +55,17 @@ export const DEV_BACKEND: BackendConfig = {
   region: "us-east-1",
   userPoolId: "us-east-1_6iwLdpBIy",
   clientId: "2lahhup3m7il6iqusctitu6lbc",
-  apiUrl: "https://hv0qrcgmt4.execute-api.us-east-1.amazonaws.com",
+  /**
+   * **A name we own, not the generated one.**
+   *
+   * `https://<id>.execute-api...` is what CloudFormation hands out, and the id
+   * belongs to the API Gateway resource — recreate the stack and it changes.
+   * This value is baked into every build, so that would break every installed
+   * copy of the app permanently, with no channel through which to tell them the
+   * new address. The generated host still answers; it must never be the one
+   * that ships.
+   */
+  apiUrl: "https://poker-api-dev.toondeboer.com",
 };
 
 /**
@@ -72,7 +82,10 @@ export const PROD_BACKEND: BackendConfig = {
   region: "us-east-1",
   userPoolId: "replace-me",
   clientId: "replace-me",
-  apiUrl: "https://replace-me.execute-api.us-east-1.amazonaws.com",
+  // The name is already decided even though the stack is not deployed — see
+  // `hostNameFor` in `apps/infra/lib/apiDomain.ts`. Only the pool ids are
+  // unknown, and those are what make this fail loudly rather than reach dev.
+  apiUrl: "https://poker-api.toondeboer.com",
 };
 
 /**
@@ -90,16 +103,3 @@ export const PROD_BACKEND: BackendConfig = {
  * is deployed and the Settings entry point lands with it.
  */
 export const backendConfig: BackendConfig | null = null;
-
-/**
- * Where an invite link points.
- *
- * **The app's own scheme, which only opens for somebody who already has the
- * app.** A link sent to somebody who does not have it does nothing at all —
- * which is most of the point of an invite, so this is a known gap rather than
- * the finished thing. Moving to an `https://` base needs universal links
- * configured on both platforms (`apple-app-site-association`, `assetlinks.json`)
- * and a page on the website to serve them, and it is a one-line change here
- * once that exists.
- */
-export const INVITE_BASE = "pokerkit://";

@@ -36,8 +36,26 @@ export const NOTHING_DELETED: Deletions = Object.freeze({
   results: Object.freeze([]) as readonly string[],
 });
 
+/**
+ * What this account may do on a board.
+ *
+ * Only ever told to us by the server — nothing here decides it, and a client
+ * that thought it could would be a client that can be lied to about it.
+ */
+export type BoardRole = "admin" | "member";
+
 /** The board as the server sees it, plus what it says is gone. */
-export type RemoteBoard = { state: GroupState; deleted: Deletions };
+export type RemoteBoard = {
+  state: GroupState;
+  deleted: Deletions;
+  /**
+   * The caller's own role, when the server said. `undefined` from a server that
+   * does not send it, which reads as "unknown" rather than "member" — offering
+   * an action that turns out to be refused is a smaller sin than hiding one
+   * somebody is allowed to take.
+   */
+  role?: BoardRole;
+};
 
 const byId = <T extends { id: string }>(
   mine: readonly T[],
@@ -62,6 +80,24 @@ const byId = <T extends { id: string }>(
   // downlevel iteration, so spreading a `MapIterator` does not compile.
   return Array.from(merged.values());
 };
+
+/**
+ * The board to store, from what the server sent.
+ *
+ * **Exists because `role` is a sibling of `state`, and spreading `state` drops
+ * it.** Two call sites made exactly that mistake — a board joined by code, and
+ * a board discovered on a second device — and both handed a brand-new member
+ * the share button that can only ever be refused. One function is one place to
+ * get it right, and one place to test.
+ *
+ * `groupId` overrides the server's, for a caller that knows the id it asked
+ * about; they are the same board or something is very wrong.
+ */
+export const boardFromRemote = (remote: RemoteBoard, groupId?: string): GroupState => ({
+  ...remote.state,
+  ...(groupId ? { group: { ...remote.state.group, id: groupId } } : {}),
+  ...(remote.role ? { role: remote.role } : {}),
+});
 
 export const mergeBoard = (
   local: GroupState,
@@ -102,6 +138,8 @@ export const mergeBoard = (
     players,
     results,
     ...(local.deleted ? { deleted: local.deleted } : {}),
+    // The server's answer, or the last one it gave. Never invented here.
+    ...(remote.role ?? local.role ? { role: remote.role ?? local.role } : {}),
   };
 
   /**
@@ -201,5 +239,8 @@ export const readRemoteBoard = (value: unknown): RemoteBoard | null => {
       players: ids(deleted?.players),
       results: ids(deleted?.results),
     },
+    ...(body.role === "admin" || body.role === "member"
+      ? { role: body.role }
+      : {}),
   };
 };

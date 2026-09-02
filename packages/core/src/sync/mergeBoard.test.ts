@@ -3,6 +3,7 @@ import type { GameResult, Player } from "../leaderboard/gameResult";
 import type { GroupState } from "../leaderboard/groups";
 import {
   NOTHING_DELETED,
+  boardFromRemote,
   mergeBoard,
   readRemoteBoard,
   type RemoteBoard,
@@ -228,14 +229,74 @@ describe("whose answer wins", () => {
   });
 });
 
-describe("reading what the API answered", () => {
-  const good = {
-    group: { id: "g1", name: "Thursday", createdAt: 1 },
-    players: [{ id: "p1", name: "Ann" }],
-    results: [game("r1", 100)],
-    deleted: { players: ["p9"], results: ["r9"] },
-  };
+const good = {
+  group: { id: "g1", name: "Thursday", createdAt: 1 },
+  players: [{ id: "p1", name: "Ann" }],
+  results: [game("r1", 100)],
+  deleted: { players: ["p9"], results: ["r9"] },
+};
 
+describe("building a board from what the server sent", () => {
+  it("keeps the role, which is the whole reason this exists", () => {
+    // **Two call sites spread `remote.state` and dropped it** — a board joined
+    // by code, and one discovered on a second device — handing a brand-new
+    // member the share button that can only ever be refused.
+    expect(boardFromRemote({ ...remote(), role: "member" }).role).toBe("member");
+  });
+
+  it("has no role when the server did not send one", () => {
+    expect(boardFromRemote(remote())).not.toHaveProperty("role");
+  });
+
+  it("takes the id the caller asked about", () => {
+    const built = boardFromRemote(remote(), "asked-for");
+    expect(built.group.id).toBe("asked-for");
+    expect(built.group.name).toBe("Thursday");
+  });
+
+  it("keeps the server's id when the caller does not care", () => {
+    expect(boardFromRemote(remote()).group.id).toBe("g1");
+  });
+});
+
+describe("what this account may do on a board", () => {
+  it("takes the role the server gave", () => {
+    const merged = mergeBoard(board(), { ...remote(), role: "member" }, EMPTY_QUEUE);
+    expect(merged.role).toBe("member");
+  });
+
+  it("keeps the last answer when the server did not say", () => {
+    // A pull that could not be made, or an older server. Forgetting the role
+    // would put the share button back on a board it can never work for.
+    const mine = { ...board(), role: "member" as const };
+    expect(mergeBoard(mine, remote(), EMPTY_QUEUE).role).toBe("member");
+  });
+
+  it("lets the server change its mind", () => {
+    // Being promoted to admin is a thing that happens, and the board is where
+    // this phone finds out.
+    const mine = { ...board(), role: "member" as const };
+    expect(mergeBoard(mine, { ...remote(), role: "admin" }, EMPTY_QUEUE).role).toBe(
+      "admin",
+    );
+  });
+
+  it("stays absent when nobody has said", () => {
+    // Unknown, not "member" — every local-only board is in this state, and
+    // hiding share on those would stop somebody sharing their own board.
+    expect(mergeBoard(board(), remote(), EMPTY_QUEUE)).not.toHaveProperty("role");
+  });
+
+  it("is read back only when it is one of the two roles", () => {
+    expect(readRemoteBoard({ ...good, role: "admin" })?.role).toBe("admin");
+    expect(readRemoteBoard({ ...good, role: "member" })?.role).toBe("member");
+    // Anything else is unknown rather than guessed at.
+    expect(readRemoteBoard({ ...good, role: "owner" })).not.toHaveProperty("role");
+    expect(readRemoteBoard(good)).not.toHaveProperty("role");
+  });
+});
+
+describe("reading what the API answered", () => {
   it("reads a whole board", () => {
     const read = readRemoteBoard(good);
     expect(read?.state.players).toHaveLength(1);
