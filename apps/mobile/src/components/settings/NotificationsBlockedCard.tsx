@@ -63,7 +63,16 @@ export function NotificationsBlockedCard() {
    * called by anything.
    */
   const turnOn = useCallback(async () => {
-    if (await requestPermission()) return;
+    await requestPermission();
+    /**
+     * **Ask the OS again rather than trusting the answer.** `requestPermission`
+     * returns `true` unconditionally below API 33 and on any path it does not
+     * handle, which is a different question from the one `checkPermission`
+     * asks — so a card shown because the native check said "no" could be
+     * dismissed by a request that changed nothing and reported success,
+     * without ever reaching the settings route below.
+     */
+    if (await checkPermission()) return;
     showPermissionAlert();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);

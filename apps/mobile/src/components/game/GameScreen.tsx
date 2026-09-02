@@ -303,7 +303,7 @@ function ActiveGame({ nameFor }: { nameFor: (id: string) => string }) {
 
 
   /**
-   * Starting a new game is the one action that throws this one away.
+   * Ending a game is the one action that throws it away.
    *
    * **So it is the moment to ask, and the completion itself is not.** An alert
    * the instant the game ends covers the showdown — the board, the cards and
@@ -313,19 +313,45 @@ function ActiveGame({ nameFor }: { nameFor: (id: string) => string }) {
    *
    * It is also the only place the night is genuinely at risk. A finished game
    * survives the app closing and its Save button is still there next launch;
-   * `endGame` is what makes it gone.
+   * this is what makes it gone.
    */
   const confirmEndGame = () => {
-    if (!complete || recorded) {
+    // Nothing to lose: already on the leaderboard.
+    if (complete && recorded) {
       endGame();
       return;
     }
+
+    /**
+     * **A game still in progress is the worse loss**, and it reached this
+     * button unguarded. A finished one can at least be recorded; an evening
+     * halfway through cannot be reconstructed from anywhere, and "End the game"
+     * sits directly under "Next hand".
+     */
+    if (!complete) {
+      Alert.alert(
+        "End this game?",
+        "The hands played so far cannot be recovered, and a game in progress cannot be put on the leaderboard.",
+        [
+          { text: "Keep playing", style: "cancel" },
+          { text: "End the game", style: "destructive", onPress: endGame },
+        ],
+      );
+      return;
+    }
+
+    /**
+     * **Save first in the array, destructive second.** iOS moves the `cancel`
+     * action to the bottom and keeps the rest in order, so `[Cancel, Discard,
+     * Save]` renders as Discard / Save / Cancel — putting the destructive
+     * choice in the easiest slot to hit, on the prompt written to prevent
+     * exactly that loss. This order renders Save / Discard / Cancel on iOS and
+     * reads the same way on Android.
+     */
     Alert.alert(
       "Save this game first?",
-      "The app dealt every hand, so it already knows who finished where. Starting a new game throws this one away.",
+      "The app dealt every hand, so it already knows who finished where. Ending the game throws it away.",
       [
-        { text: "Cancel", style: "cancel" },
-        { text: "Discard", style: "destructive", onPress: endGame },
         {
           /**
            * **Only ends the game if the save actually happened.** `record`
@@ -339,6 +365,8 @@ function ActiveGame({ nameFor }: { nameFor: (id: string) => string }) {
             if (record()) endGame();
           },
         },
+        { text: "Discard", style: "destructive", onPress: endGame },
+        { text: "Cancel", style: "cancel" },
       ],
     );
   };
@@ -403,7 +431,11 @@ function ActiveGame({ nameFor }: { nameFor: (id: string) => string }) {
               icon="play"
               onPress={deal}
             />
-            <Button label="End the game" variant="ghost" onPress={endGame} />
+            <Button
+              label="End the game"
+              variant="ghost"
+              onPress={confirmEndGame}
+            />
           </CardContent>
         </Card>
       ) : null}

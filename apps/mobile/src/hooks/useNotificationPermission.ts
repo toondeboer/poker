@@ -8,19 +8,29 @@ export function useNotificationPermission() {
     const [hasPermission, setHasPermission] = useState<boolean | null>(null);
     const [isLoading, setIsLoading] = useState(true);
 
-    const checkPermission = async () => {
+    /**
+     * @returns what the OS actually said, as well as storing it.
+     *
+     * Returned because a caller that has just requested the permission needs
+     * to know whether it worked, and `requestPermission`'s own return value
+     * answers a different question — it is `true` unconditionally below API 33
+     * and on paths it does not handle.
+     */
+    const checkPermission = async (): Promise<boolean> => {
         setIsLoading(true);
         try {
             if (Platform.OS === 'android') {
                 const hasNotificationPermission = await liveActivityService.hasNotificationPermission();
                 setHasPermission(hasNotificationPermission);
-            } else {
-                // iOS handles Live Activity permissions automatically
-                setHasPermission(true);
+                return hasNotificationPermission;
             }
+            // iOS handles Live Activity permissions automatically
+            setHasPermission(true);
+            return true;
         } catch (error) {
             logger.error('Error checking notification permission:', error);
             setHasPermission(false);
+            return false;
         } finally {
             setIsLoading(false);
         }
@@ -45,9 +55,12 @@ export function useNotificationPermission() {
                     // denial: every later `request` returns this immediately,
                     // without showing anything. The foreground service then
                     // refuses to start, so the background timer and its expiry
-                    // alarm are silently dead. Logged distinctly because
-                    // there is currently no in-app route back — the user has to
-                    // find it in system settings (see ROADMAP.md).
+                    // alarm are silently dead. Logged distinctly because it is
+                    // the state `NotificationsBlockedCard` in Settings exists
+                    // for: that card is the in-app route back, and it reaches
+                    // system settings through `showPermissionAlert` below.
+                    // **`showPermissionAlert` is not dead code** — it has a
+                    // caller now, and it is the only path to `openSettings`.
                     logger.warn(
                         'POST_NOTIFICATIONS is permanently denied; background timer notifications cannot start until it is re-enabled in system settings',
                     );

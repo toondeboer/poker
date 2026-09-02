@@ -203,7 +203,11 @@ or a number field is touched.
 | Notification survives swipe-away from Recents — start a round, swipe the app out of the app switcher, and the timer notification keeps counting down instead of vanishing with it | ➖ | ⬜ |
 | First launch after install asks for notification permission **exactly once** | ➖ | ⬜ |
 | **After denying once**, force-stop and relaunch → still **exactly one** dialog, and it's the system sheet ("Allow Poker Timer to send you notifications?"), not an app-drawn alert in front of it | ➖ | ⬜ |
-| Denying **twice** blocks the permission permanently (Android's own behaviour) — confirm the background timer degrades rather than crashes, and that Metro logs the "permanently denied" warning. **There is no in-app route back**; see the ROADMAP entry | ➖ | 🟡 |
+| Denying **twice** blocks the permission permanently (Android's own behaviour) — confirm the background timer degrades rather than crashes, and that Metro logs the "permanently denied" warning | ➖ | 🟡 |
+| **With notifications denied, Settings shows the "Notifications are off" card** at the top, above Pro. It is the only route back and has never run on a device | ➖ | ⬜ |
+| Its **"Turn on notifications"** button shows the *system* dialog when Android will still ask, and falls through to the "Open Settings" alert when it will not — the permanently-blocked case | ➖ | ⬜ |
+| Granting the permission in system settings and **returning to the app makes the card disappear** without a relaunch | ➖ | ⬜ |
+| The card is **absent** whenever notifications are allowed, and absent on iOS entirely | ⬜ | ⬜ |
 | **Force-quit mid-round, relaunch → exactly one Live Activity**, not two. Repeat three times: still one, and it's the live round rather than a stale one | ⬜ | ➖ |
 | Stopping/resetting the timer leaves **no** Live Activity behind, including any stray from an earlier session | ⬜ | ➖ |
 | Swipe a Live Activity away by hand mid-round, then change level → a fresh card appears and there is still only one | ⬜ | ➖ |
@@ -390,6 +394,11 @@ the table can follow what is happening from across it.
 | **A game survives a force-stop.** Deal a hand, kill the app from the switcher, reopen → same table, same stacks, same cards, same player to act | ⬜ | ⬜ |
 | A game survives between hands too, and a finished-but-unsaved game still offers Save after a relaunch | ⬜ | ⬜ |
 | Ending a game clears it — reopening the screen offers the setup form, not the last table | ⬜ | ⬜ |
+| **"New game" on a finished, unsaved game asks first**, and does not cover the showdown while it does — the hand that decided it stays readable behind the alert | ⬜ | ⬜ |
+| On that alert, **Save is the top button and Discard is below it** (iOS moves Cancel to the bottom, which once put Discard in the easiest slot) | ⬜ | ➖ |
+| **Save from the alert that cannot save keeps the game.** Finish a game, switch board on the Leaderboard screen, come back, New game → Save → the refusal is shown and the table is still there | ⬜ | ⬜ |
+| **"End the game" mid-hand asks too** — an evening in progress cannot be put on the leaderboard or recovered, and the button sits under "Next hand" | ⬜ | ⬜ |
+| Ending an **already-saved** game does not ask, because there is nothing left to lose | ⬜ | ⬜ |
 | **Save to the leaderboard** records the finishing order the game produced, with winnings from the Payouts screen priced for the field that sat down | ⬜ | ⬜ |
 | The saved game appears in the standings immediately, and the winner's count goes up | ⬜ | ⬜ |
 | Saving with **no buy-in set** still records the finishing order, everyone winning nothing — a friendly game still has a winner | ⬜ | ⬜ |
