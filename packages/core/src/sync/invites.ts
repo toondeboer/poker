@@ -121,7 +121,9 @@ export const readInviteCode = (input: string): string | null => {
   for (let i = chunks.length - 1; i >= 0; i -= 1) {
     // Quotes and sentence punctuation somebody's chat app or keyboard added.
     // None of them are base64url, so this cannot eat part of a real code.
-    const cleaned = chunks[i].replace(/^["'\u201c\u2018(\[]+/, "").replace(/["'\u201d\u2019.,;:!)\]]+$/, "");
+    const cleaned = chunks[i]
+      .replace(/^["'\u201c\u2018([]+/, "")
+      .replace(/["'\u201d\u2019.,;:!)\]]+$/, "");
     if (isInviteToken(cleaned)) return cleaned;
   }
   return null;
