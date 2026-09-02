@@ -1,10 +1,9 @@
 // src/components/leaderboard/GroupsSheet.tsx
 import { useRef, useState } from "react";
 import { Alert, Keyboard, Share, StyleSheet, Text, View } from "react-native";
-import { MAX_GROUPS, inviteUrlFor } from "@poker/core";
+import { MAX_GROUPS, readInviteCode } from "@poker/core";
 import { useLeaderboard } from "@/src/contexts/LeaderboardContext";
 import { accountsAreReal, useAuth } from "@/src/contexts/AuthContext";
-import { INVITE_BASE } from "@/src/services/backendConfig";
 import { colors, space, text } from "@/src/theme";
 import { Button } from "@/src/components/ui/Button";
 import { IconButton } from "@/src/components/ui/IconButton";
@@ -52,10 +51,14 @@ export function GroupsSheet({
     renameGroupById,
     deleteGroup,
     inviteToBoard,
+    joinBoard,
   } = useLeaderboard();
   const { account } = useAuth();
   const [sharingId, setSharingId] = useState<string | null>(null);
   const sharing = useRef(false);
+  const [joinCode, setJoinCode] = useState("");
+  const [joinProblem, setJoinProblem] = useState<string | null>(null);
+  const [joining, setJoining] = useState(false);
 
   const [newName, setNewName] = useState("");
   const [renamingId, setRenamingId] = useState<string | null>(null);
@@ -154,24 +157,65 @@ export function GroupsSheet({
         );
         return;
       }
-      const link = inviteUrlFor(token, INVITE_BASE);
+      /**
+       * **The code, not a link.** A `pokerkit://` link only opens for somebody
+       * who already has the app, which is most of the point of an invite gone —
+       * and an `https://` one needs a domain, universal links and a page to
+       * catch the tap. The code needs none of that and gives up no entropy: it
+       * is the same 32-character token either way.
+       */
+      const message =
+        `Join "${name}" on Poker Blinds Buzzer.\n\n` +
+        `Paste this code into Leaderboard → Groups → Join a board:\n\n${token}`;
       try {
-        await Share.share({
-          message: `Join "${name}" on Poker Blinds Buzzer: ${link}`,
-        });
+        await Share.share({ message });
       } catch {
         /**
-         * **The link exists whether or not the share sheet opened**, and it has
-         * already replaced whatever link this board had — minting is how the old
+         * **The code exists whether or not the share sheet opened**, and it has
+         * already replaced whatever code this board had — minting is how the old
          * one is revoked. Saying nothing would leave somebody with the previous
-         * link dead and no new one to send, so the link goes on screen where it
-         * can at least be copied.
+         * code dead and no new one to send, so it goes on screen where it can at
+         * least be copied.
          */
-        Alert.alert("Here is the link", link);
+        Alert.alert("Here is the code", token);
       }
     } finally {
       sharing.current = false;
       setSharingId(null);
+    }
+  };
+
+  /**
+   * Redeem a pasted code.
+   *
+   * **Not queued, and this is the one place that is right.** Every other write
+   * the app makes can wait in the outbox because nobody is watching it happen;
+   * somebody who has just pasted a code is watching, and "it will go through
+   * eventually" does not answer "am I on the board?".
+   */
+  const handleJoin = async () => {
+    if (joining) return;
+    // Whatever they pasted: the bare code, the whole message it came in, or a
+    // link if they happen to have one. See `readInviteCode`.
+    const code = readInviteCode(joinCode);
+    if (!code) {
+      setJoinProblem("That does not look like an invite code.");
+      return;
+    }
+    setJoining(true);
+    setJoinProblem(null);
+    try {
+      const result = await joinBoard(code);
+      if (!result.ok) {
+        setJoinProblem(result.reason);
+        return;
+      }
+      setJoinCode("");
+      Keyboard.dismiss();
+      // Joining selects the board, so there is nothing left to choose here.
+      onClose();
+    } finally {
+      setJoining(false);
     }
   };
 
@@ -276,6 +320,28 @@ export function GroupsSheet({
             : `You can have up to ${MAX_GROUPS} groups. Delete one to add another.`
         }
       />
+      <TextField
+        label="Join a board"
+        value={joinCode}
+        onChangeText={setJoinCode}
+        placeholder="Paste an invite code"
+        returnKeyType="go"
+        onSubmitEditing={handleJoin}
+        autoCapitalize="none"
+        autoCorrect={false}
+        helper={
+          joinProblem ??
+          "Somebody on the board can send you one from their Groups list."
+        }
+      />
+      <Button
+        label={joining ? "Joining…" : "Join board"}
+        icon="enter-outline"
+        variant="secondary"
+        onPress={() => void handleJoin()}
+        disabled={joining || joinCode.trim().length === 0}
+      />
+
       <Button
         label="Create group"
         icon="add"

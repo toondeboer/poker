@@ -20,14 +20,13 @@ platform-tagged heading (e.g. `## [1.1.3] - 2026-07-20 — Android`) when you cu
   it is held back with it, so a game can never be recorded naming a player who was never added.
   The leaderboard says so plainly when that happens — what was not saved, why, and the part that
   matters: it is on your phone and the other players will not see it.
-- **Boards can be shared.** A board's row in the groups sheet has a share button that makes a link
-  and hands it to the usual share sheet; tapping that link opens the app on a join screen, adds you
-  to the board, and pulls it down with its whole roster and season. The link never expires, so
-  sharing again replaces the last one — which is the only way to take a link back from somebody you
-  did not mean to send it to. **A link only opens for somebody who already has the app installed**;
-  making it work for anybody else needs a page on the website behind it, which is still to come.
-  Boards follow the account rather than the phone: sign in on a second device, or reinstall, and
-  every board you are on comes back.
+- **Boards can be shared.** A board's row in the groups sheet has a share button that makes an
+  invite code and hands it to the usual share sheet; whoever gets it pastes it into *Join a board*
+  in the same list, and the board arrives with its whole roster and season. Paste the code on its
+  own or the entire message it came in — either works. The code never expires, so sharing again
+  replaces the last one, which is the only way to take one back from somebody you did not mean to
+  send it to. Boards follow the account rather than the phone: sign in on a second device, or
+  reinstall, and every board you are on comes back.
 - **A board now reads back what other people did to it.** When the app comes to the foreground, and
   again once anything queued has been sent, each board is fetched and merged with what is already
   on the phone. Merged rather than replaced, which is the whole of the design: a board that

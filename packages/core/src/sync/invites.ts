@@ -13,6 +13,19 @@
  * to be clever about links.
  */
 
+/**
+ * **The token is the code.** Nothing about it needs a URL wrapped round it: it
+ * is 32 characters of base64url, and pasting it into a field is a complete way
+ * to join a board that needs no domain, no universal links, and no page on a
+ * website to catch the tap.
+ *
+ * That is not the six-character code this design considered and rejected — see
+ * `SYNC.md`. **That one was rejected because these invites never expire**, so
+ * short enough to say aloud is short enough to guess, and one lucky guess is
+ * permanent access to a board's whole history. A pasted code keeps every bit of
+ * the entropy and gives up nothing.
+ */
+
 /** Where a link points when the app is installed. */
 export const INVITE_PATH = "join";
 
@@ -80,4 +93,36 @@ export const tokenFromUrl = (url: string): string | null => {
   // character.
   const trimmed = decoded.replace(/[.,;:!)\]]+$/, "");
   return isInviteToken(trimmed) ? trimmed : null;
+};
+
+/**
+ * Read an invite out of whatever somebody pasted.
+ *
+ * **The one part of joining by code that can be wrong**, and therefore the part
+ * that lives here rather than in a text field. People do not paste a bare token:
+ * they paste it with a newline, or they paste the whole message it arrived in,
+ * or they paste a link because they had one. All three should work, because the
+ * alternative is telling somebody their perfectly good invite is invalid.
+ *
+ * Scanned from the end, because in every message this app produces the code is
+ * the last thing on the line — which also means a board whose *name* happens to
+ * look like a token cannot shadow the real one.
+ */
+export const readInviteCode = (input: string): string | null => {
+  const trimmed = input.trim();
+  if (!trimmed) return null;
+  // A link, if that is what they had. Handles the query strings and trailing
+  // full stops that `tokenFromUrl` already knows about.
+  const fromUrl = tokenFromUrl(trimmed);
+  if (fromUrl) return fromUrl;
+
+  // A bare code is just a message of one word, so the scan below covers it too.
+  const chunks = trimmed.split(/\s+/);
+  for (let i = chunks.length - 1; i >= 0; i -= 1) {
+    // Quotes and sentence punctuation somebody's chat app or keyboard added.
+    // None of them are base64url, so this cannot eat part of a real code.
+    const cleaned = chunks[i].replace(/^["'\u201c\u2018(\[]+/, "").replace(/["'\u201d\u2019.,;:!)\]]+$/, "");
+    if (isInviteToken(cleaned)) return cleaned;
+  }
+  return null;
 };
