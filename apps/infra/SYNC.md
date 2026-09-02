@@ -202,7 +202,7 @@ thing that needs one.
 
 ## Open, and worth settling before code
 
-**Joining is by invite link** — decided. The host shares a URL, tapping it opens the app on a join
+**Joining is by invite link** — decided, and now built on both sides. The host shares a URL, tapping it opens the app on a join
 screen, and redeeming it writes the membership. The token is its own partition (`INVITE#<token>`)
 because whoever is redeeming it does not know the group id yet; any other keying is a scan.
 
@@ -233,6 +233,11 @@ board is invisible to them entirely, which may be right or may be the missing ha
 
 ## Known gaps
 
+- **An invite link only opens for somebody who already has the app.** It is built on the app's own
+  `pokerkit://` scheme, so a link sent to anybody else does nothing at all — which is most of the
+  point of an invite. The fix is an `https://` base with universal links configured either side
+  (`apple-app-site-association`, `assetlinks.json`) and a page on the website to serve them; the URL
+  shape is already the one that supports it, and `INVITE_BASE` is the one line that changes.
 - **Local history never reaches the server.** A board announces its *existence* on every launch, but
   the players and games it already had are never sent — only writes made from now on are queued. So
   an old board syncs as an empty one, and the merge is what stops that from wiping the phone. It

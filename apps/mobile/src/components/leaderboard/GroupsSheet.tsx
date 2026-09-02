@@ -1,8 +1,10 @@
 // src/components/leaderboard/GroupsSheet.tsx
 import { useState } from "react";
-import { Alert, Keyboard, StyleSheet, Text, View } from "react-native";
-import { MAX_GROUPS } from "@poker/core";
+import { Alert, Keyboard, Share, StyleSheet, Text, View } from "react-native";
+import { MAX_GROUPS, inviteUrlFor } from "@poker/core";
 import { useLeaderboard } from "@/src/contexts/LeaderboardContext";
+import { accountsAreReal, useAuth } from "@/src/contexts/AuthContext";
+import { INVITE_BASE } from "@/src/services/backendConfig";
 import { colors, space, text } from "@/src/theme";
 import { Button } from "@/src/components/ui/Button";
 import { IconButton } from "@/src/components/ui/IconButton";
@@ -49,7 +51,10 @@ export function GroupsSheet({
     createNewGroup,
     renameGroupById,
     deleteGroup,
+    inviteToBoard,
   } = useLeaderboard();
+  const { account } = useAuth();
+  const [sharingId, setSharingId] = useState<string | null>(null);
 
   const [newName, setNewName] = useState("");
   const [renamingId, setRenamingId] = useState<string | null>(null);
@@ -120,6 +125,35 @@ export function GroupsSheet({
     setRenameValue(current);
   };
 
+  /**
+   * Make a link and hand it to the system share sheet.
+   *
+   * **Minted fresh every time, and that is deliberate** — the server treats
+   * creating and revoking as one operation, because a link that never expires
+   * can only be taken back by replacing it. So sharing again invalidates the
+   * last link, which is the behaviour somebody wants when they shared it with
+   * the wrong person; it is worth saying out loud rather than surprising them.
+   */
+  const share = async (id: string, name: string) => {
+    if (sharingId) return;
+    setSharingId(id);
+    try {
+      const token = await inviteToBoard(id);
+      if (!token) {
+        Alert.alert(
+          "Could not make a link",
+          "Only an admin of a board can invite people to it, and the board has to have reached the server. Try again when you have signal.",
+        );
+        return;
+      }
+      await Share.share({
+        message: `Join "${name}" on Poker Blinds Buzzer: ${inviteUrlFor(token, INVITE_BASE)}`,
+      });
+    } finally {
+      setSharingId(null);
+    }
+  };
+
   const confirmDelete = (id: string, name: string, gameCount: number) => {
     commitRename();
     const played =
@@ -176,6 +210,17 @@ export function GroupsSheet({
               }}
               right={
                 <View style={styles.rowActions}>
+                  {/* Only while signed in: a board nobody can be invited *to*
+                      is a board with no server copy, and the call would be
+                      refused. Better to not offer it than to offer it and
+                      fail. */}
+                  {accountsAreReal && account ? (
+                    <IconButton
+                      icon={sharingId === group.id ? "hourglass-outline" : "share-outline"}
+                      onPress={() => share(group.id, group.name)}
+                      accessibilityLabel={`Share ${group.name}`}
+                    />
+                  ) : null}
                   <IconButton
                     icon="pencil"
                     onPress={() => startRename(group.id, group.name)}

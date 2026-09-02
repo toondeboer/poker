@@ -99,6 +99,16 @@ export default function RootLayout() {
                             headerBackTitle: "Settings",
                           }}
                         />
+                        {/* Reached by tapping a shared link, never from
+                            inside the app — which is why it has no entry point
+                            and a back title pointing at the board. */}
+                        <Stack.Screen
+                          name="join/[token]"
+                          options={{
+                            title: "Join a board",
+                            headerBackTitle: "Back",
+                          }}
+                        />
                         {/* Same again: there is no transport behind shared
                             sessions yet, and a join code nobody else can join
                             is worse than none. See ROADMAP.md. */}

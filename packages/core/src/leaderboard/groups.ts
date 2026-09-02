@@ -336,6 +336,36 @@ export const migrateToGroups = (
  * delete a group while a pull of it is in flight, and resurrecting it would
  * undo a deletion they just made.
  */
+/**
+ * Put a whole board on this device — the one somebody just joined.
+ *
+ * Distinct from `addGroup`, which makes an empty one: a joined board arrives
+ * with a roster and a season already in it.
+ *
+ * **A board already here is replaced rather than duplicated.** Redeeming a link
+ * for a board you are already on is an ordinary thing to do — somebody sends it
+ * twice, or you tap it again months later — and the server answers happily.
+ * Adding a second copy would give the app two boards with one id, which every
+ * lookup here resolves by taking the first.
+ */
+export const addBoard = (
+  state: GroupedLeaderboard,
+  board: GroupState,
+): GroupedLeaderboard => {
+  const known = state.groups.some((entry) => entry.group.id === board.group.id);
+  if (!known && state.groups.length >= MAX_GROUPS) return state;
+  return {
+    groups: known
+      ? state.groups.map((entry) =>
+          entry.group.id === board.group.id ? board : entry,
+        )
+      : [...state.groups, board],
+    // Made active either way: somebody who has just tapped a link is looking
+    // for that board and nothing else.
+    activeGroupId: board.group.id,
+  };
+};
+
 /** Note that this phone deleted something, so a pull will not restore it. */
 export const noteDeleted = (
   board: GroupState,

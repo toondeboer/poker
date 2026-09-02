@@ -19,7 +19,7 @@ import {
 } from "@poker/core";
 import { createSyncQueueStorage } from "@poker/core";
 import { asyncStorageAdapter } from "@/src/services/storageAdapter";
-import { createGroupApi } from "@/src/services/groupApi";
+import { createGroupApi, type GroupApi } from "@/src/services/groupApi";
 import { apiToken, onSignedIn } from "@/src/contexts/AuthContext";
 import { backendConfig } from "@/src/services/backendConfig";
 import { generateId } from "@/src/utils/id";
@@ -77,6 +77,10 @@ export type GroupSync = {
    * started with writes it back out of the board.
    */
   mergeInto: (local: GroupState, remote: RemoteBoard) => GroupState;
+  /** Mint a link for a board. Admin only; `null` when that is refused. */
+  createInvite: (groupId: string) => Promise<string | null>;
+  /** Redeem somebody's link, saying which board or why not. */
+  redeemInvite: GroupApi["redeemInvite"];
   /**
    * Somebody should pull, because something changed on the server side of this
    * phone's world: it came to the foreground, or the outbox just drained.
@@ -231,6 +235,12 @@ export const useGroupSync = (): GroupSync => {
     [],
   );
 
+  const createInvite = useCallback((groupId: string) => api.createInvite(groupId), []);
+  const redeemInvite = useCallback(
+    (token: string) => api.redeemInvite(token),
+    [],
+  );
+
   const acknowledge = useCallback(
     (id: string) => update((current) => dismiss(current, id)),
     [update],
@@ -316,6 +326,8 @@ export const useGroupSync = (): GroupSync => {
       cancelBoard: cancelWholeBoard,
       fetchBoard,
       mergeInto,
+      createInvite,
+      redeemInvite,
       pullsWanted,
     }),
     [
@@ -328,6 +340,8 @@ export const useGroupSync = (): GroupSync => {
       cancelWholeBoard,
       fetchBoard,
       mergeInto,
+      createInvite,
+      redeemInvite,
       pullsWanted,
     ],
   );

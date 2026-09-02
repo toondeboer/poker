@@ -32,6 +32,24 @@ export type GroupApi = {
    * later treat one of them as "the board is empty".
    */
   board: (groupId: string) => Promise<RemoteBoard | null>;
+  /**
+   * Mint the link for a board. Admin only, server-side.
+   *
+   * **Creating and revoking are the same call.** The link never expires, so
+   * rotating it is the only way to take one back — and there is deliberately no
+   * state in which a board has two working links.
+   */
+  createInvite: (groupId: string) => Promise<string | null>;
+  /**
+   * Redeem somebody's link.
+   *
+   * Says which board was joined, or why not in words a screen can show. The
+   * distinction matters here in a way it does not for a queued write: somebody
+   * is watching this one happen.
+   */
+  redeemInvite: (token: string) => Promise<
+    { ok: true; groupId: string } | { ok: false; reason: string }
+  >;
 };
 
 /**
@@ -105,6 +123,61 @@ export const createGroupApi = (
     } catch (error) {
       logger.warn("Could not read board:", error);
       return null;
+    }
+  },
+
+  async createInvite(groupId) {
+    const config = backendConfig;
+    if (!config) return null;
+    const token = await idToken();
+    if (!token) return null;
+    try {
+      const response = await fetcher(
+        `${config.apiUrl.replace(/\/$/, "")}/groups/${encodeURIComponent(groupId)}/invite`,
+        { method: "POST", headers: { Authorization: token } },
+      );
+      if (!response.ok) {
+        logger.warn(`Could not create an invite: ${response.status}`);
+        return null;
+      }
+      const body = (await response.json()) as { token?: unknown };
+      return typeof body.token === "string" ? body.token : null;
+    } catch (error) {
+      logger.warn("Could not create an invite:", error);
+      return null;
+    }
+  },
+
+  async redeemInvite(invite) {
+    const config = backendConfig;
+    if (!config) return { ok: false, reason: "This build cannot join boards." };
+    const token = await idToken();
+    // The one refusal worth naming precisely: joining is the first thing in the
+    // app that *requires* an account, and "sign in first" is actionable where
+    // "something went wrong" is not.
+    if (!token) return { ok: false, reason: "Sign in to join a board." };
+    try {
+      const response = await fetcher(
+        `${config.apiUrl.replace(/\/$/, "")}/invites/${encodeURIComponent(invite)}`,
+        { method: "POST", headers: { Authorization: token } },
+      );
+      const body: unknown = await response.json().catch(() => null);
+      if (response.ok) {
+        const groupId = (body as { groupId?: unknown } | null)?.groupId;
+        if (typeof groupId === "string") return { ok: true, groupId };
+        return { ok: false, reason: "The server did not say which board." };
+      }
+      logger.warn(`Invite refused (${response.status})`);
+      return {
+        ok: false,
+        reason:
+          response.status === 404
+            ? "That link has expired or been replaced. Ask for a new one."
+            : reasonForRefusal(body) ?? "That link could not be used.",
+      };
+    } catch (error) {
+      logger.warn("Could not redeem an invite:", error);
+      return { ok: false, reason: "No connection. Try again when you have signal." };
     }
   },
 });

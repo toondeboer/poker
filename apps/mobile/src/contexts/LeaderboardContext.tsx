@@ -23,6 +23,7 @@ import {
   removeGameResult,
   playerForAccount,
   removeGroup,
+  addBoard,
   noteDeleted,
   removePlayer,
   replaceBoard,
@@ -132,6 +133,21 @@ type LeaderboardContextValue = {
    */
   refusedWrites: RefusedWrite[];
   acknowledgeRefusal: (id: string) => void;
+  /**
+   * Make a link that puts somebody on the active board.
+   *
+   * `null` when the server refused — you are not an admin of it, or the board
+   * has never reached the server at all.
+   */
+  inviteToBoard: (groupId: string) => Promise<string | null>;
+  /**
+   * Redeem a link somebody sent, and put the board on this device.
+   *
+   * Says the board's name so a screen can say what happened, or why not.
+   */
+  joinBoard: (token: string) => Promise<
+    { ok: true; name: string } | { ok: false; reason: string }
+  >;
 };
 
 const LeaderboardContext = createContext<LeaderboardContextValue | null>(null);
@@ -548,6 +564,48 @@ export function LeaderboardProvider({
     [state, persist, cancelWrite, recordWrite],
   );
 
+  const inviteToBoard = useCallback(
+    (groupId: string) => sync.createInvite(groupId),
+    [sync],
+  );
+
+  const joinBoard = useCallback(
+    async (token: string) => {
+      const redeemed = await sync.redeemInvite(token);
+      if (!redeemed.ok) return redeemed;
+      /**
+       * **Joined, then read.** Redeeming writes the membership and says which
+       * board; it does not hand the board back. Without the read that follows,
+       * somebody taps a link and arrives at an empty leaderboard — which is
+       * indistinguishable from the link not having worked.
+       */
+      const remote = await sync.fetchBoard(redeemed.groupId);
+      if (!remote) {
+        return {
+          ok: false as const,
+          reason: "Joined, but the board could not be loaded. Try again in a moment.",
+        };
+      }
+      const current = latestState.current;
+      const mine = current.groups.find((entry) => entry.group.id === redeemed.groupId);
+      // Merged when it is already here — redeeming a link for a board you are
+      // on is ordinary — and taken whole when it is not.
+      const board = mine
+        ? sync.mergeInto(mine, remote)
+        : { ...remote.state, group: { ...remote.state.group, id: redeemed.groupId } };
+      const next = addBoard(current, board);
+      if (next === current) {
+        return {
+          ok: false as const,
+          reason: `You can only have ${MAX_GROUPS} boards on this device.`,
+        };
+      }
+      persist(next);
+      return { ok: true as const, name: board.group.name };
+    },
+    [sync, persist],
+  );
+
   const deleteGroup = useCallback(
     (id: string) => {
       persist(removeGroup(state, id));
@@ -586,6 +644,8 @@ export function LeaderboardProvider({
         releaseAllFor,
         refusedWrites: sync.queue.refused,
         acknowledgeRefusal: sync.acknowledge,
+        inviteToBoard,
+        joinBoard,
       }}
     >
       {children}

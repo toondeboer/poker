@@ -58,7 +58,9 @@ import {
 } from "@aws-sdk/lib-dynamodb";
 import {
   accountFromIdToken,
+  inviteUrlFor,
   legalActions,
+  tokenFromUrl,
   playerChannel,
   signInCall,
   startHand,
@@ -402,6 +404,7 @@ const checkGroups = async (
   me: { accountId: string; tokens: { idToken: string } },
   tableName: string,
   region: string,
+  stranger: { accountId: string; tokens: { idToken: string } } | null,
 ): Promise<void> => {
   const groupId = `smoke-${randomBytes(6).toString("hex")}`;
   const send = (path: string, body: unknown) =>
@@ -503,6 +506,49 @@ const checkGroups = async (
     JSON.stringify(reread.deleted),
   );
 
+  /**
+   * **The invite round trip, with a real second account.**
+   *
+   * The link is the whole feature, and the two halves are written a long way
+   * apart: the app builds the URL, the server mints the token, and nothing
+   * checks that what one produces is what the other accepts until somebody
+   * taps a link that does not work.
+   */
+  if (stranger) {
+    step("inviting the other account to the board");
+    const minted = await send(`/groups/${groupId}/invite`, {});
+    const invite = (await minted.json()) as { token?: string };
+    check("an admin can mint an invite", minted.ok && !!invite.token, `${minted.status}`);
+
+    if (invite.token) {
+      // Built by the app's own code, so a change to either side that breaks the
+      // other fails here rather than in somebody's hands.
+      const url = inviteUrlFor(invite.token, "https://pokerkit.app");
+      check(
+        "the app can read its own link back",
+        tokenFromUrl(url) === invite.token,
+        url,
+      );
+
+      const joined = await fetch(
+        `${apiUrl}/invites/${encodeURIComponent(tokenFromUrl(url) ?? "")}`,
+        { method: "POST", headers: { Authorization: stranger.tokens.idToken } },
+      );
+      const joinedBody = (await joined.json()) as { groupId?: string };
+      check(
+        "the other account can redeem it",
+        joined.ok && joinedBody.groupId === groupId,
+        `${joined.status} ${JSON.stringify(joinedBody)}`,
+      );
+
+      // The point of joining: they can now read the board they were invited to.
+      const theirs = await fetch(`${apiUrl}/groups/${groupId}`, {
+        headers: { Authorization: stranger.tokens.idToken },
+      });
+      check("and can then read the board", theirs.status === 200, `${theirs.status}`);
+    }
+  }
+
   if (KEEP) {
     console.log(`  keeping board ${groupId}`);
     return;
@@ -528,12 +574,17 @@ const checkGroups = async (
       }),
     );
   }
-  await documents.send(
-    new DeleteCommand({
-      TableName: tableName,
-      Key: { pk: `ACCOUNT#${me.accountId}`, sk: `GROUP#${groupId}` },
-    }),
-  );
+  // Both sides of every membership. The group's partition holds one copy and
+  // each account holds the other, so cleaning only the group leaves whoever
+  // joined carrying a board that no longer exists.
+  for (const accountId of [me.accountId, ...(stranger ? [stranger.accountId] : [])]) {
+    await documents.send(
+      new DeleteCommand({
+        TableName: tableName,
+        Key: { pk: `ACCOUNT#${accountId}`, sk: `GROUP#${groupId}` },
+      }),
+    );
+  }
 };
 
 const main = async (): Promise<void> => {
@@ -594,7 +645,20 @@ const main = async (): Promise<void> => {
   const tableId = `smoke-${randomBytes(6).toString("hex")}`;
   const opponent = "smokebot";
 
-  await checkGroups(apiUrl, me, tableName, REGION);
+  /**
+   * Signed in up front when `--as-stranger` is set, because the board checks
+   * want a real second account — an invite nobody else can redeem proves
+   * nothing about invites.
+   */
+  const other = AS_STRANGER
+    ? await signIn(
+        config,
+        credentials("SMOKE_STRANGER_EMAIL", "SMOKE_STRANGER_PASSWORD").email,
+        credentials("SMOKE_STRANGER_EMAIL", "SMOKE_STRANGER_PASSWORD").password,
+      )
+    : null;
+
+  await checkGroups(apiUrl, me, tableName, REGION, other);
 
   step(`seeding table ${tableId}`);
   const hand: Hand = startHand({

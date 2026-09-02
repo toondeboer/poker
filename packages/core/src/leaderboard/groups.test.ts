@@ -16,6 +16,7 @@ import {
   setActiveGroup,
   unclaimPlayer,
   updateGroup,
+  addBoard,
   noteDeleted,
   replaceBoard,
 } from "./groups";
@@ -397,6 +398,51 @@ describe("migrating the board that shipped first", () => {
     };
     const migrated = migrateToGroups(legacy, { id: "g1", name: "x", now: 1 });
     expect(migrated.groups[0].results).toHaveLength(1);
+  });
+});
+
+describe("putting a joined board on this device", () => {
+  const boardOf = (id: string, name: string): GroupState => ({
+    group: { id, name, createdAt: 1 },
+    players: [{ id: "p1", name: "Ann" }],
+    results: [],
+  });
+
+  it("arrives with its roster and season, and is what you are looking at", () => {
+    const after = addBoard({ groups: [], activeGroupId: null }, boardOf("g1", "Thursday"));
+    expect(after.groups).toHaveLength(1);
+    expect(after.groups[0].players).toHaveLength(1);
+    expect(after.activeGroupId).toBe("g1");
+  });
+
+  it("replaces a board already here rather than adding a second", () => {
+    // Redeeming a link for a board you are already on is ordinary — somebody
+    // sends it twice. Two boards with one id would be resolved by every lookup
+    // taking the first, which is a bug nobody would find quickly.
+    const state = { groups: [boardOf("g1", "Thursday")], activeGroupId: "g1" };
+    const after = addBoard(state, { ...boardOf("g1", "Thursday"), players: [] });
+    expect(after.groups).toHaveLength(1);
+    expect(after.groups[0].players).toEqual([]);
+  });
+
+  it("refuses to go past the limit with a new board", () => {
+    const full = {
+      groups: Array.from({ length: MAX_GROUPS }, (_, i) => boardOf(`g${i}`, `B${i}`)),
+      activeGroupId: "g0",
+    };
+    expect(addBoard(full, boardOf("new", "New")).groups).toHaveLength(MAX_GROUPS);
+  });
+
+  it("still updates a board it already has when full", () => {
+    // The limit is about how many boards this device carries, not about
+    // refusing news for one it already has.
+    const full = {
+      groups: Array.from({ length: MAX_GROUPS }, (_, i) => boardOf(`g${i}`, `B${i}`)),
+      activeGroupId: "g0",
+    };
+    const after = addBoard(full, { ...boardOf("g3", "B3"), players: [] });
+    expect(after.groups).toHaveLength(MAX_GROUPS);
+    expect(after.groups[3].players).toEqual([]);
   });
 });
 
