@@ -39,6 +39,19 @@ export type GroupApi = {
    * rotating it is the only way to take one back — and there is deliberately no
    * state in which a board has two working links.
    */
+  /**
+   * Every board this account is on.
+   *
+   * **The only way a board reaches a second device.** Joining writes a
+   * membership on the server; without asking for the list, the board exists only
+   * on the phone that redeemed the link — so a reinstall, or the same person's
+   * other phone, would show nothing.
+   *
+   * `null` rather than an empty list when it could not be asked, because those
+   * are very different things: one means "you are on no boards", the other means
+   * "do not touch what is already here".
+   */
+  myBoards: () => Promise<string[] | null>;
   createInvite: (groupId: string) => Promise<string | null>;
   /**
    * Redeem somebody's link.
@@ -122,6 +135,29 @@ export const createGroupApi = (
       return readRemoteBoard(await response.json());
     } catch (error) {
       logger.warn("Could not read board:", error);
+      return null;
+    }
+  },
+
+  async myBoards() {
+    const config = backendConfig;
+    if (!config) return null;
+    const token = await idToken();
+    if (!token) return null;
+    try {
+      const response = await fetcher(`${config.apiUrl.replace(/\/$/, "")}/groups`, {
+        headers: { Authorization: token },
+      });
+      if (!response.ok) {
+        logger.warn(`Could not list boards: ${response.status}`);
+        return null;
+      }
+      const body = (await response.json()) as { groups?: unknown };
+      return Array.isArray(body.groups)
+        ? body.groups.filter((id): id is string => typeof id === "string")
+        : [];
+    } catch (error) {
+      logger.warn("Could not list boards:", error);
       return null;
     }
   },

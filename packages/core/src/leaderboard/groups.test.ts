@@ -408,11 +408,21 @@ describe("putting a joined board on this device", () => {
     results: [],
   });
 
-  it("arrives with its roster and season, and is what you are looking at", () => {
+  it("arrives with its roster and season", () => {
     const after = addBoard({ groups: [], activeGroupId: null }, boardOf("g1", "Thursday"));
     expect(after.groups).toHaveLength(1);
     expect(after.groups[0].players).toHaveLength(1);
+    // The first board on an empty device has to be shown, or the app shows
+    // nothing at all.
     expect(after.activeGroupId).toBe("g1");
+  });
+
+  it("does not steal the screen from the board being looked at", () => {
+    // **A pull discovers boards joined on another device, on every
+    // foreground.** Making each one active would move somebody off whatever
+    // they were reading. Joining selects deliberately, with `setActiveGroup`.
+    const state = { groups: [boardOf("g1", "Thursday")], activeGroupId: "g1" };
+    expect(addBoard(state, boardOf("g2", "Sunday")).activeGroupId).toBe("g1");
   });
 
   it("replaces a board already here rather than adding a second", () => {

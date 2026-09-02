@@ -347,6 +347,11 @@ export const migrateToGroups = (
  * twice, or you tap it again months later — and the server answers happily.
  * Adding a second copy would give the app two boards with one id, which every
  * lookup here resolves by taking the first.
+ *
+ * **It does not change which board is on screen.** Joining does that, with
+ * `setActiveGroup`, because somebody who just tapped a link is looking for that
+ * board — but a pull that discovers a board joined on another device must not
+ * yank the screen away from whatever is being looked at.
  */
 export const addBoard = (
   state: GroupedLeaderboard,
@@ -360,9 +365,9 @@ export const addBoard = (
           entry.group.id === board.group.id ? board : entry,
         )
       : [...state.groups, board],
-    // Made active either way: somebody who has just tapped a link is looking
-    // for that board and nothing else.
-    activeGroupId: board.group.id,
+    // The first board on an empty device has to be the active one, or the app
+    // shows nothing at all.
+    activeGroupId: state.activeGroupId ?? board.group.id,
   };
 };
 
@@ -377,6 +382,13 @@ export const noteDeleted = (
   return { ...board, deleted: { ...deleted, [what]: [...deleted[what], id] } };
 };
 
+/**
+ * Put a merged board back where it came from.
+ *
+ * By id, and a board that is no longer there is simply not added: somebody can
+ * delete a group while a pull of it is in flight, and resurrecting it would
+ * undo a deletion they just made.
+ */
 export const replaceBoard = (
   state: GroupedLeaderboard,
   board: GroupState,

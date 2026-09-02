@@ -146,9 +146,21 @@ export function GroupsSheet({
         );
         return;
       }
-      await Share.share({
-        message: `Join "${name}" on Poker Blinds Buzzer: ${inviteUrlFor(token, INVITE_BASE)}`,
-      });
+      const link = inviteUrlFor(token, INVITE_BASE);
+      try {
+        await Share.share({
+          message: `Join "${name}" on Poker Blinds Buzzer: ${link}`,
+        });
+      } catch {
+        /**
+         * **The link exists whether or not the share sheet opened**, and it has
+         * already replaced whatever link this board had — minting is how the old
+         * one is revoked. Saying nothing would leave somebody with the previous
+         * link dead and no new one to send, so the link goes on screen where it
+         * can at least be copied.
+         */
+        Alert.alert("Here is the link", link);
+      }
     } finally {
       setSharingId(null);
     }
@@ -217,7 +229,7 @@ export function GroupsSheet({
                   {accountsAreReal && account ? (
                     <IconButton
                       icon={sharingId === group.id ? "hourglass-outline" : "share-outline"}
-                      onPress={() => share(group.id, group.name)}
+                      onPress={() => void share(group.id, group.name)}
                       accessibilityLabel={`Share ${group.name}`}
                     />
                   ) : null}

@@ -272,14 +272,6 @@ export const membersFrom = (items: readonly unknown[]): MemberItem[] =>
     .filter((m): m is MemberItem => m !== null);
 
 /**
- * The board, assembled from one partition query.
- *
- * Tombstones are dropped here rather than by the caller, so exactly one place
- * decides what "deleted" means — and `MEMBER#` rows are dropped too: who is in
- * the group is a different question from what is on the board, and they share a
- * partition only because that is what makes both consistent.
- */
-/**
  * What a board has had removed, so a phone can remove it too.
  *
  * **A pull that only carried what exists could never propagate a deletion.** A
@@ -309,6 +301,14 @@ export const deletionsFrom = (items: readonly unknown[]): Deletions => {
   return { players, results };
 };
 
+/**
+ * The board, assembled from one partition query.
+ *
+ * Tombstones are dropped here rather than by the caller, so exactly one place
+ * decides what "deleted" means — and `MEMBER#` rows are dropped too: who is in
+ * the group is a different question from what is on the board, and they share a
+ * partition only because that is what makes both consistent.
+ */
 export const boardFrom = (
   groupId: string,
   items: readonly unknown[],

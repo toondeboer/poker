@@ -194,6 +194,7 @@ export function LeaderboardProvider({
   const cancelWrite = sync.cancel;
   const cancelBoardWrites = sync.cancelBoard;
   const fetchBoard = sync.fetchBoard;
+  const listBoards = sync.myBoards;
   const mergeInto = sync.mergeInto;
   const { pullsWanted } = sync;
 
@@ -277,6 +278,27 @@ export function LeaderboardProvider({
     if (pullsWanted === 0 || isLoading) return;
     let active = true;
     void (async () => {
+      /**
+       * **Boards joined elsewhere, first.** A membership is written on the
+       * server, so a board redeemed on one phone exists only on that phone
+       * until something asks for the list — a reinstall, or the same person's
+       * second device, would show nothing at all.
+       *
+       * `null` means it could not be asked, which is not the same as "you are
+       * on no boards" and must not be read as one.
+       */
+      const mine = await listBoards();
+      if (!active) return;
+      const here = new Set(latestState.current.groups.map((entry) => entry.group.id));
+      for (const id of mine ?? []) {
+        if (here.has(id)) continue;
+        const arrived = await fetchBoard(id);
+        if (!active) return;
+        // Added without stealing the screen: somebody is looking at a board and
+        // this runs on every foreground.
+        if (arrived) persist(addBoard(latestState.current, arrived.state));
+      }
+
       for (const id of latestState.current.groups.map((entry) => entry.group.id)) {
         const remote = await fetchBoard(id);
         // **Superseded, so stop.** Carrying on would fetch every remaining
@@ -301,8 +323,27 @@ export function LeaderboardProvider({
     return () => {
       active = false;
     };
-  }, [pullsWanted, isLoading, fetchBoard, mergeInto, persist]);
+  }, [pullsWanted, isLoading, listBoards, fetchBoard, mergeInto, persist]);
 
+
+  /**
+   * Every change to the board goes through here.
+   *
+   * **Reading `latestState.current` rather than the render snapshot** is what
+   * stops an action taken while a pull is in flight from being applied to a
+   * board that predates the merge — `persist` sets the ref synchronously and
+   * the state a render later, and a tap can land in that window. It also keeps
+   * these callbacks out of the render's dependency graph, so they are built
+   * once instead of on every state change.
+   */
+  const mutate = useCallback(
+    (change: (current: GroupedLeaderboard) => GroupedLeaderboard) => {
+      const current = latestState.current;
+      const next = change(current);
+      if (next !== current) persist(next);
+    },
+    [persist],
+  );
 
   const activeEntry = useMemo(
     () => state.groups.find((entry) => entry.group.id === state.activeGroupId),
@@ -320,16 +361,26 @@ export function LeaderboardProvider({
    */
   const withActiveGroup = useCallback(
     (update: (entry: GroupState) => GroupState): string => {
-      if (activeEntry) {
-        persist(updateGroup(state, activeEntry.group.id, update));
-        return activeEntry.group.id;
+      /**
+       * **The ref, not the render snapshot.** A pull writes through `persist`,
+       * which sets the ref synchronously and the state a render later — so an
+       * action taken in that window would have been applied to a board that
+       * predates the merge, throwing away whatever the pull just brought in.
+       */
+      const current = latestState.current;
+      const active = current.groups.find(
+        (entry) => entry.group.id === current.activeGroupId,
+      );
+      if (active) {
+        persist(updateGroup(current, active.group.id, update));
+        return active.group.id;
       }
       const group = createGroup({
         id: generateId(),
         name: DEFAULT_GROUP_NAME,
         now: Date.now(),
       });
-      const seeded = addGroup(state, group);
+      const seeded = addGroup(current, group);
       persist(updateGroup(seeded, group.id, update));
       // **The group is announced before anything in it.** This one was created
       // implicitly by somebody adding a player to an empty leaderboard, so the
@@ -342,7 +393,7 @@ export function LeaderboardProvider({
       });
       return group.id;
     },
-    [activeEntry, state, persist, recordWrite],
+    [persist, recordWrite],
   );
 
   const addNewPlayer = useCallback(
@@ -454,9 +505,10 @@ export function LeaderboardProvider({
 
   const claimPlayerAs = useCallback(
     (playerId: string, accountId: string): ClaimError | null => {
-      if (!state.activeGroupId) return "no-such-group";
-      const result = claimPlayer(state, {
-        groupId: state.activeGroupId,
+      const current = latestState.current;
+      if (!current.activeGroupId) return "no-such-group";
+      const result = claimPlayer(current, {
+        groupId: current.activeGroupId,
         playerId,
         accountId,
       });
@@ -464,17 +516,20 @@ export function LeaderboardProvider({
       persist(result.state);
       return null;
     },
-    [state, persist],
+    [persist],
   );
 
   const releasePlayer = useCallback(
-    (playerId: string) => {
-      if (!state.activeGroupId) return;
-      persist(
-        unclaimPlayer(state, { groupId: state.activeGroupId, playerId }),
-      );
-    },
-    [state, persist],
+    (playerId: string) =>
+      mutate((current) =>
+        current.activeGroupId
+          ? unclaimPlayer(current, {
+              groupId: current.activeGroupId,
+              playerId,
+            })
+          : current,
+      ),
+    [mutate],
   );
 
   /**
@@ -486,9 +541,10 @@ export function LeaderboardProvider({
    * dead end reachable through the account deletion the App Store requires.
    */
   const releaseAllFor = useCallback(
-    (accountId: string) => {
-      let next = state;
-      for (const entry of state.groups) {
+    (accountId: string) =>
+      mutate((current) => {
+      let next = current;
+      for (const entry of current.groups) {
         const held = entry.players.find(
           (player) => player.accountId === accountId,
         );
@@ -498,9 +554,9 @@ export function LeaderboardProvider({
           playerId: held.id,
         });
       }
-      if (next !== state) persist(next);
-    },
-    [state, persist],
+      return next;
+      }),
+    [mutate],
   );
 
   const standings = useMemo(
@@ -526,15 +582,16 @@ export function LeaderboardProvider({
   );
 
   const selectGroup = useCallback(
-    (id: string) => persist(setActiveGroup(state, id)),
-    [state, persist],
+    (id: string) => mutate((current) => setActiveGroup(current, id)),
+    [mutate],
   );
 
   const createNewGroup = useCallback(
     (name: string) => {
-      if (!isValidGroupName(name, state.groups)) return;
+      const current = latestState.current;
+      if (!isValidGroupName(name, current.groups)) return;
       const group = createGroup({ id: generateId(), name, now: Date.now() });
-      persist(addGroup(state, group));
+      persist(setActiveGroup(addGroup(current, group), group.id));
       recordWrite({
         kind: "createGroup",
         groupId: group.id,
@@ -542,26 +599,28 @@ export function LeaderboardProvider({
         createdAt: group.createdAt,
       });
     },
-    [state, persist, recordWrite],
+    [persist, recordWrite],
   );
 
   const renameGroupById = useCallback(
     (id: string, name: string) => {
-      persist(renameGroup(state, id, name));
+      const current = latestState.current;
+      persist(renameGroup(current, id, name));
       /**
        * A board still waiting to be created should be created under its new
        * name. Replacing the queued write is the whole of what can be done here:
        * **there is no route that renames a board**, so one the server already
-       * has keeps the name it was created with. Latent while nothing reads the
-       * server's copy; it needs a `PATCH /groups/{id}` before anything does.
+       * has keeps the name it was created with, and the merge deliberately
+       * keeps the local one rather than reverting somebody's rename. See
+       * SYNC.md — it needs a `PATCH /groups/{id}`.
        */
       cancelWrite({ kind: "createGroup", groupId: id });
-      const group = state.groups.find((entry) => entry.group.id === id)?.group;
+      const group = current.groups.find((entry) => entry.group.id === id)?.group;
       if (group) {
         recordWrite({ kind: "createGroup", groupId: id, name, createdAt: group.createdAt });
       }
     },
-    [state, persist, cancelWrite, recordWrite],
+    [persist, cancelWrite, recordWrite],
   );
 
   const inviteToBoard = useCallback(
@@ -593,7 +652,11 @@ export function LeaderboardProvider({
       const board = mine
         ? sync.mergeInto(mine, remote)
         : { ...remote.state, group: { ...remote.state.group, id: redeemed.groupId } };
-      const next = addBoard(current, board);
+      // Selected here rather than by `addBoard`, which no longer steals the
+      // screen — but somebody who has just tapped a link is looking for this
+      // board and nothing else.
+      const added = addBoard(current, board);
+      const next = added === current ? current : setActiveGroup(added, board.group.id);
       if (next === current) {
         return {
           ok: false as const,
@@ -608,14 +671,14 @@ export function LeaderboardProvider({
 
   const deleteGroup = useCallback(
     (id: string) => {
-      persist(removeGroup(state, id));
+      persist(removeGroup(latestState.current, id));
       // **Everything queued for it, not just its creation.** A board made with
       // no signal and deleted before it synced would otherwise be created on
       // the server, with its players — and no route deletes a board, so it
       // would be there for good.
       cancelBoardWrites(id);
     },
-    [state, persist, cancelBoardWrites],
+    [persist, cancelBoardWrites],
   );
 
   return (

@@ -26,6 +26,8 @@ platform-tagged heading (e.g. `## [1.1.3] - 2026-07-20 — Android`) when you cu
   sharing again replaces the last one — which is the only way to take a link back from somebody you
   did not mean to send it to. **A link only opens for somebody who already has the app installed**;
   making it work for anybody else needs a page on the website behind it, which is still to come.
+  Boards follow the account rather than the phone: sign in on a second device, or reinstall, and
+  every board you are on comes back.
 - **A board now reads back what other people did to it.** When the app comes to the foreground, and
   again once anything queued has been sent, each board is fetched and merged with what is already
   on the phone. Merged rather than replaced, which is the whole of the design: a board that

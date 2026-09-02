@@ -77,6 +77,8 @@ export type GroupSync = {
    * started with writes it back out of the board.
    */
   mergeInto: (local: GroupState, remote: RemoteBoard) => GroupState;
+  /** Every board this account is on, server-side. `null` when it could not ask. */
+  myBoards: () => Promise<string[] | null>;
   /** Mint a link for a board. Admin only; `null` when that is refused. */
   createInvite: (groupId: string) => Promise<string | null>;
   /** Redeem somebody's link, saying which board or why not. */
@@ -235,6 +237,7 @@ export const useGroupSync = (): GroupSync => {
     [],
   );
 
+  const myBoards = useCallback(() => api.myBoards(), []);
   const createInvite = useCallback((groupId: string) => api.createInvite(groupId), []);
   const redeemInvite = useCallback(
     (token: string) => api.redeemInvite(token),
@@ -272,7 +275,18 @@ export const useGroupSync = (): GroupSync => {
    * token to use — so the queue after a sign-in is exactly the backlog that
    * could not have gone before it.
    */
-  useEffect(() => onSignedIn(syncNow), [syncNow]);
+  useEffect(
+    () =>
+      onSignedIn(() => {
+        syncNow();
+        // **Separately from `syncNow`**, which returns at its empty-queue guard
+        // long before it reaches `wantPull` — so signing in with nothing waiting
+        // to send read no boards at all, which is the ordinary case on a fresh
+        // install and exactly when there is most to fetch.
+        wantPull();
+      }),
+    [syncNow, wantPull],
+  );
 
   useEffect(() => {
     let active = true;
@@ -326,6 +340,7 @@ export const useGroupSync = (): GroupSync => {
       cancelBoard: cancelWholeBoard,
       fetchBoard,
       mergeInto,
+      myBoards,
       createInvite,
       redeemInvite,
       pullsWanted,
@@ -340,6 +355,7 @@ export const useGroupSync = (): GroupSync => {
       cancelWholeBoard,
       fetchBoard,
       mergeInto,
+      myBoards,
       createInvite,
       redeemInvite,
       pullsWanted,
