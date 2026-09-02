@@ -1,8 +1,10 @@
 // src/services/groupApi.ts
 import {
+  readRemoteBoard,
   reasonForRefusal,
   requestFor,
   resultForStatus,
+  type RemoteBoard,
   type QueuedWrite,
   type SendResult,
 } from "@poker/core";
@@ -18,7 +20,50 @@ import { logger } from "@/src/utils/logger";
  * left here is the `fetch` and the token, which is the same split
  * `cognitoAuthProvider` makes.
  */
-export type GroupApi = { send: (write: QueuedWrite) => Promise<SendResult> };
+export type GroupApi = {
+  send: (write: QueuedWrite) => Promise<SendResult>;
+  /**
+   * Read a board back.
+   *
+   * `null` for every reason a phone should keep what it has: no backend, no
+   * session, no signal, a board this account cannot see. **None of them are
+   * distinguished here on purpose** — the only correct response to all four is
+   * to leave local state alone, and a caller offered four cases would sooner or
+   * later treat one of them as "the board is empty".
+   */
+  board: (groupId: string) => Promise<RemoteBoard | null>;
+  /**
+   * Every board this account is on.
+   *
+   * **The only way a board reaches a second device.** Joining writes a
+   * membership on the server; without asking for the list, the board exists only
+   * on the phone that redeemed the link — so a reinstall, or the same person's
+   * other phone, would show nothing.
+   *
+   * `null` rather than an empty list when it could not be asked, because those
+   * are very different things: one means "you are on no boards", the other means
+   * "do not touch what is already here".
+   */
+  myBoards: () => Promise<string[] | null>;
+  /**
+   * Mint the link for a board. Admin only, server-side.
+   *
+   * **Creating and revoking are the same call.** The link never expires, so
+   * rotating it is the only way to take one back — and there is deliberately no
+   * state in which a board has two working links.
+   */
+  createInvite: (groupId: string) => Promise<string | null>;
+  /**
+   * Redeem somebody's link.
+   *
+   * Says which board was joined, or why not in words a screen can show. The
+   * distinction matters here in a way it does not for a queued write: somebody
+   * is watching this one happen.
+   */
+  redeemInvite: (token: string) => Promise<
+    { ok: true; groupId: string } | { ok: false; reason: string }
+  >;
+};
 
 /**
  * @param idToken Read per request rather than held. It expires and the provider
@@ -67,5 +112,111 @@ export const createGroupApi = (
       logger.warn(`Sync failed with ${response.status}; will retry`);
     }
     return result;
+  },
+
+  async board(groupId) {
+    const config = backendConfig;
+    if (!config) return null;
+
+    try {
+      // **Inside the try.** `idToken()` can reject — the provider reads storage
+      // before its own error handling — and an escaping rejection breaks the
+      // `null` contract these methods promise, taking the pull loop down with it.
+      const token = await idToken();
+      if (!token) return null;
+      const response = await fetcher(
+        `${config.apiUrl.replace(/\/$/, "")}/groups/${encodeURIComponent(groupId)}`,
+        { headers: { Authorization: token } },
+      );
+      if (!response.ok) {
+        // A 404 is the ordinary answer for a board this account is not on —
+        // the API answers that rather than 403, so membership is not something
+        // a stranger can probe for. Nothing to merge either way.
+        logger.warn(`Could not read board ${groupId}: ${response.status}`);
+        return null;
+      }
+      return readRemoteBoard(await response.json());
+    } catch (error) {
+      logger.warn("Could not read board:", error);
+      return null;
+    }
+  },
+
+  async myBoards() {
+    const config = backendConfig;
+    if (!config) return null;
+    try {
+      const token = await idToken();
+      if (!token) return null;
+      const response = await fetcher(`${config.apiUrl.replace(/\/$/, "")}/groups`, {
+        headers: { Authorization: token },
+      });
+      if (!response.ok) {
+        logger.warn(`Could not list boards: ${response.status}`);
+        return null;
+      }
+      const body = (await response.json()) as { groups?: unknown };
+      return Array.isArray(body.groups)
+        ? body.groups.filter((id): id is string => typeof id === "string")
+        : [];
+    } catch (error) {
+      logger.warn("Could not list boards:", error);
+      return null;
+    }
+  },
+
+  async createInvite(groupId) {
+    const config = backendConfig;
+    if (!config) return null;
+    try {
+      const token = await idToken();
+      if (!token) return null;
+      const response = await fetcher(
+        `${config.apiUrl.replace(/\/$/, "")}/groups/${encodeURIComponent(groupId)}/invite`,
+        { method: "POST", headers: { Authorization: token } },
+      );
+      if (!response.ok) {
+        logger.warn(`Could not create an invite: ${response.status}`);
+        return null;
+      }
+      const body = (await response.json()) as { token?: unknown };
+      return typeof body.token === "string" ? body.token : null;
+    } catch (error) {
+      logger.warn("Could not create an invite:", error);
+      return null;
+    }
+  },
+
+  async redeemInvite(invite) {
+    const config = backendConfig;
+    if (!config) return { ok: false, reason: "This build cannot join boards." };
+    try {
+      const token = await idToken();
+      // The one refusal worth naming precisely: joining is the first thing in
+      // the app that *requires* an account, and "sign in first" is actionable
+      // where "something went wrong" is not.
+      if (!token) return { ok: false, reason: "Sign in to join a board." };
+      const response = await fetcher(
+        `${config.apiUrl.replace(/\/$/, "")}/invites/${encodeURIComponent(invite)}`,
+        { method: "POST", headers: { Authorization: token } },
+      );
+      const body: unknown = await response.json().catch(() => null);
+      if (response.ok) {
+        const groupId = (body as { groupId?: unknown } | null)?.groupId;
+        if (typeof groupId === "string") return { ok: true, groupId };
+        return { ok: false, reason: "The server did not say which board." };
+      }
+      logger.warn(`Invite refused (${response.status})`);
+      return {
+        ok: false,
+        reason:
+          response.status === 404
+            ? "That link has expired or been replaced. Ask for a new one."
+            : reasonForRefusal(body) ?? "That link could not be used.",
+      };
+    } catch (error) {
+      logger.warn("Could not redeem an invite:", error);
+      return { ok: false, reason: "No connection. Try again when you have signal." };
+    }
   },
 });

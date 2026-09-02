@@ -16,6 +16,11 @@ import {
   setActiveGroup,
   unclaimPlayer,
   updateGroup,
+  addBoard,
+  noteDeleted,
+  replaceBoard,
+  undismiss,
+  wasDismissed,
 } from "./groups";
 
 const group = (id: string, name = id, now = 0) => createGroup({ id, name, now });
@@ -125,7 +130,26 @@ describe("groups", () => {
 
   it("clears the selection when the last group goes", () => {
     const state = addGroup(EMPTY_LEADERBOARD, group("g1"));
-    expect(removeGroup(state, "g1")).toEqual(EMPTY_LEADERBOARD);
+    const after = removeGroup(state, "g1");
+    expect(after.groups).toEqual([]);
+    expect(after.activeGroupId).toBeNull();
+  });
+
+  it("remembers the board it deleted, so a pull does not bring it back", () => {
+    // **The third time this problem has come up**, after players and games.
+    // The membership lives on the server and `GET /groups` keeps listing it,
+    // so without this the whole board reappears on the next foreground.
+    const state = addGroup(EMPTY_LEADERBOARD, group("g1"));
+    expect(removeGroup(state, "g1").dismissed).toEqual(["g1"]);
+    expect(wasDismissed(removeGroup(state, "g1"), "g1")).toBe(true);
+  });
+
+  it("takes a board back when somebody asks for it again", () => {
+    // Tapping a link for a board you deleted is asking for it back.
+    const gone = removeGroup(addGroup(EMPTY_LEADERBOARD, group("g1")), "g1");
+    expect(wasDismissed(undismiss(gone, "g1"), "g1")).toBe(false);
+    // And a no-op for one that was never dismissed.
+    expect(undismiss(gone, "other")).toBe(gone);
   });
 
   it("ignores a delete for a group that isn't there", () => {
@@ -395,5 +419,114 @@ describe("migrating the board that shipped first", () => {
     };
     const migrated = migrateToGroups(legacy, { id: "g1", name: "x", now: 1 });
     expect(migrated.groups[0].results).toHaveLength(1);
+  });
+});
+
+describe("putting a joined board on this device", () => {
+  const boardOf = (id: string, name: string): GroupState => ({
+    group: { id, name, createdAt: 1 },
+    players: [{ id: "p1", name: "Ann" }],
+    results: [],
+  });
+
+  it("arrives with its roster and season", () => {
+    const after = addBoard({ groups: [], activeGroupId: null }, boardOf("g1", "Thursday"));
+    expect(after.groups).toHaveLength(1);
+    expect(after.groups[0].players).toHaveLength(1);
+    // The first board on an empty device has to be shown, or the app shows
+    // nothing at all.
+    expect(after.activeGroupId).toBe("g1");
+  });
+
+  it("does not steal the screen from the board being looked at", () => {
+    // **A pull discovers boards joined on another device, on every
+    // foreground.** Making each one active would move somebody off whatever
+    // they were reading. Joining selects deliberately, with `setActiveGroup`.
+    const state = { groups: [boardOf("g1", "Thursday")], activeGroupId: "g1" };
+    expect(addBoard(state, boardOf("g2", "Sunday")).activeGroupId).toBe("g1");
+  });
+
+  it("replaces a board already here rather than adding a second", () => {
+    // Redeeming a link for a board you are already on is ordinary — somebody
+    // sends it twice. Two boards with one id would be resolved by every lookup
+    // taking the first, which is a bug nobody would find quickly.
+    const state = { groups: [boardOf("g1", "Thursday")], activeGroupId: "g1" };
+    const after = addBoard(state, { ...boardOf("g1", "Thursday"), players: [] });
+    expect(after.groups).toHaveLength(1);
+    expect(after.groups[0].players).toEqual([]);
+  });
+
+  it("refuses to go past the limit with a new board", () => {
+    const full = {
+      groups: Array.from({ length: MAX_GROUPS }, (_, i) => boardOf(`g${i}`, `B${i}`)),
+      activeGroupId: "g0",
+    };
+    expect(addBoard(full, boardOf("new", "New")).groups).toHaveLength(MAX_GROUPS);
+  });
+
+  it("still updates a board it already has when full", () => {
+    // The limit is about how many boards this device carries, not about
+    // refusing news for one it already has.
+    const full = {
+      groups: Array.from({ length: MAX_GROUPS }, (_, i) => boardOf(`g${i}`, `B${i}`)),
+      activeGroupId: "g0",
+    };
+    const after = addBoard(full, { ...boardOf("g3", "B3"), players: [] });
+    expect(after.groups).toHaveLength(MAX_GROUPS);
+    expect(after.groups[3].players).toEqual([]);
+  });
+});
+
+describe("noting what this phone deleted", () => {
+  const bare: GroupState = {
+    group: { id: "g1", name: "Thursday", createdAt: 1 },
+    players: [],
+    results: [],
+  };
+
+  it("records the id so a pull cannot restore it", () => {
+    expect(noteDeleted(bare, "players", "p1").deleted).toEqual({
+      players: ["p1"],
+      results: [],
+    });
+  });
+
+  it("keeps players and games apart", () => {
+    const after = noteDeleted(noteDeleted(bare, "players", "p1"), "results", "r1");
+    expect(after.deleted).toEqual({ players: ["p1"], results: ["r1"] });
+  });
+
+  it("does not record the same id twice", () => {
+    const once = noteDeleted(bare, "players", "p1");
+    // Returned unchanged, so nothing re-renders and the list cannot grow
+    // without bound on somebody tapping delete twice.
+    expect(noteDeleted(once, "players", "p1")).toBe(once);
+  });
+});
+
+describe("putting a pulled board back", () => {
+  const boardFor = (id: string, name: string): GroupState => ({
+    group: { id, name, createdAt: 1 },
+    players: [],
+    results: [],
+  });
+
+  it("replaces the board with that id and leaves the others", () => {
+    const state: GroupedLeaderboard = {
+      groups: [boardFor("g1", "Thursday"), boardFor("g2", "Sunday")],
+      activeGroupId: "g1",
+    };
+    const merged = { ...boardFor("g1", "Thursday"), players: [{ id: "p1", name: "Ann" }] };
+    const after = replaceBoard(state, merged);
+    expect(after.groups[0].players).toHaveLength(1);
+    expect(after.groups[1].group.name).toBe("Sunday");
+    expect(after.activeGroupId).toBe("g1");
+  });
+
+  it("does not resurrect a board somebody deleted mid-pull", () => {
+    // A pull takes as long as the network does, and a group can be deleted
+    // while one is in flight. Adding it back would undo a deletion just made.
+    const state: GroupedLeaderboard = { groups: [boardFor("g2", "Sunday")], activeGroupId: "g2" };
+    expect(replaceBoard(state, boardFor("g1", "Thursday")).groups).toHaveLength(1);
   });
 });

@@ -7,16 +7,19 @@ import {
   applyReport,
   cancel,
   cancelBoard,
+  mergeBoard,
   dismiss,
   drain,
   enqueue,
+  type GroupState,
+  type RemoteBoard,
   type PendingWrite,
   type SyncQueue,
   type WriteSubject,
 } from "@poker/core";
 import { createSyncQueueStorage } from "@poker/core";
 import { asyncStorageAdapter } from "@/src/services/storageAdapter";
-import { createGroupApi } from "@/src/services/groupApi";
+import { createGroupApi, type GroupApi } from "@/src/services/groupApi";
 import { apiToken, onSignedIn } from "@/src/contexts/AuthContext";
 import { backendConfig } from "@/src/services/backendConfig";
 import { generateId } from "@/src/utils/id";
@@ -58,6 +61,36 @@ export type GroupSync = {
   cancel: (subject: WriteSubject) => void;
   /** The same, for a whole board that has just been deleted. */
   cancelBoard: (groupId: string) => void;
+  /**
+   * Read a board back, merged with what this phone has and has not sent.
+   *
+   * `null` when there is nothing to apply — no backend, no session, no signal,
+   * or a board this account cannot see. The caller keeps what it has.
+   */
+  fetchBoard: (groupId: string) => Promise<RemoteBoard | null>;
+  /**
+   * Merge a fetched board into a local one, against the queue as it is *now*.
+   *
+   * Split from the fetch so a caller can read its local board **after** the
+   * request comes back rather than before. A game recorded while the request
+   * was in flight is only on this phone, and merging against the copy the fetch
+   * started with writes it back out of the board.
+   */
+  mergeInto: (local: GroupState, remote: RemoteBoard) => GroupState;
+  /** Every board this account is on, server-side. `null` when it could not ask. */
+  myBoards: () => Promise<string[] | null>;
+  /** Mint a link for a board. Admin only; `null` when that is refused. */
+  createInvite: (groupId: string) => Promise<string | null>;
+  /** Redeem somebody's link, saying which board or why not. */
+  redeemInvite: GroupApi["redeemInvite"];
+  /**
+   * Somebody should pull, because something changed on the server side of this
+   * phone's world: it came to the foreground, or the outbox just drained.
+   *
+   * A counter rather than a callback, so the board can watch it without this
+   * hook needing to know what a board is.
+   */
+  pullsWanted: number;
 };
 
 export const useGroupSync = (): GroupSync => {
@@ -72,6 +105,14 @@ export const useGroupSync = (): GroupSync => {
    */
   const latest = useRef(queue);
   const draining = useRef(false);
+  /**
+   * Bumped whenever it is worth reading boards back.
+   *
+   * **Not a pull itself**, because this hook holds the outbox and not the
+   * board. It says *when*; `LeaderboardContext` knows *what*.
+   */
+  const [pullsWanted, setPullsWanted] = useState(0);
+  const wantPull = useCallback(() => setPullsWanted((n) => n + 1), []);
 
   const update = useCallback((next: (current: SyncQueue) => SyncQueue) => {
     /**
@@ -123,6 +164,13 @@ export const useGroupSync = (): GroupSync => {
         // foreground and sign-in listeners are what try next.
         if (report.stopped) break;
       }
+      /**
+       * **After the writes, not before.** Pulling first would hand back a board
+       * that does not yet contain what this phone just sent, and the merge
+       * would then have to be trusted to put it back — which it does, but only
+       * for writes still queued. One that settled mid-pull would be in neither.
+       */
+      wantPull();
     })()
       .catch((error) => logger.error("Sync failed unexpectedly:", error))
       .finally(() => {
@@ -177,6 +225,25 @@ export const useGroupSync = (): GroupSync => {
     [update],
   );
 
+  const fetchBoard = useCallback(async (groupId: string): Promise<RemoteBoard | null> => {
+    if (!backendConfig) return null;
+    return api.board(groupId);
+  }, []);
+
+  // `latest.current`, so the queue is the one that exists when the merge runs
+  // rather than the one that existed when the request went out.
+  const mergeInto = useCallback(
+    (local: GroupState, remote: RemoteBoard) => mergeBoard(local, remote, latest.current),
+    [],
+  );
+
+  const myBoards = useCallback(() => api.myBoards(), []);
+  const createInvite = useCallback((groupId: string) => api.createInvite(groupId), []);
+  const redeemInvite = useCallback(
+    (token: string) => api.redeemInvite(token),
+    [],
+  );
+
   const acknowledge = useCallback(
     (id: string) => update((current) => dismiss(current, id)),
     [update],
@@ -192,7 +259,11 @@ export const useGroupSync = (): GroupSync => {
    */
   useEffect(() => {
     const subscription = AppState.addEventListener("change", (next) => {
-      if (next === "active") syncNow();
+      if (next !== "active") return;
+      syncNow();
+      // Somebody else's phone has had all the time the app was closed to change
+      // a board. This is the moment to find out.
+      wantPull();
     });
     return () => subscription.remove();
   }, [syncNow]);
@@ -204,7 +275,18 @@ export const useGroupSync = (): GroupSync => {
    * token to use — so the queue after a sign-in is exactly the backlog that
    * could not have gone before it.
    */
-  useEffect(() => onSignedIn(syncNow), [syncNow]);
+  useEffect(
+    () =>
+      onSignedIn(() => {
+        syncNow();
+        // **Separately from `syncNow`**, which returns at its empty-queue guard
+        // long before it reaches `wantPull` — so signing in with nothing waiting
+        // to send read no boards at all, which is the ordinary case on a fresh
+        // install and exactly when there is most to fetch.
+        wantPull();
+      }),
+    [syncNow, wantPull],
+  );
 
   useEffect(() => {
     let active = true;
@@ -256,7 +338,27 @@ export const useGroupSync = (): GroupSync => {
       announce,
       cancel: cancelWrite,
       cancelBoard: cancelWholeBoard,
+      fetchBoard,
+      mergeInto,
+      myBoards,
+      createInvite,
+      redeemInvite,
+      pullsWanted,
     }),
-    [queue, record, syncNow, acknowledge, announce, cancelWrite, cancelWholeBoard],
+    [
+      queue,
+      record,
+      syncNow,
+      acknowledge,
+      announce,
+      cancelWrite,
+      cancelWholeBoard,
+      fetchBoard,
+      mergeInto,
+      myBoards,
+      createInvite,
+      redeemInvite,
+      pullsWanted,
+    ],
   );
 };

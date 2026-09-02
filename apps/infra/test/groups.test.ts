@@ -41,6 +41,7 @@ const store = (role: Role | null, overrides: Partial<GroupStore> = {}): GroupSto
       { pk: "ACCOUNT#me", sk: "CLAIM#g1#p1" },
     ],
     board: async () => board,
+    snapshot: async () => ({ state: board, deleted: { players: [], results: [] } }),
     addPlayer: async () => {
       calls.push("addPlayer");
       return { status: "ok" } as WriteOutcome;
@@ -318,7 +319,7 @@ describe("refusals that are not errors", () => {
   it("answers 404 for a membership pointing at a group that is gone", async () => {
     // A membership row can outlive the group it names. The honest answer is the
     // same as never having been a member: there is nothing to show.
-    useGroupStore(store("member", { board: async () => null }));
+    useGroupStore(store("member", { board: async () => null, snapshot: async () => null }));
     const response = await handler(request("GET /groups/{groupId}"));
     expect(response.statusCode).toBe(404);
   });
@@ -564,7 +565,7 @@ describe("redeeming an invite", () => {
   it("refuses a link to a group that is gone", async () => {
     // An invite row outlives the group it names. Joining one would grant a
     // membership to something that answers 404 forever.
-    useGroupStore(store("member", { board: async () => null }));
+    useGroupStore(store("member", { board: async () => null, snapshot: async () => null }));
     const response = await handler(
       request("POST /invites/{token}", { pathParameters: { token: "tok" } }),
     );

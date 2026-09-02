@@ -431,3 +431,77 @@ describe("tolerating a damaged group", () => {
     expect(loaded.groups[0].players).toEqual([{ id: "a", name: "Ana" }]);
   });
 });
+
+describe("what this phone deleted", () => {
+  it("survives a relaunch, or the delete undoes itself", async () => {
+    // The only thing keeping a pull from restoring what somebody deleted — and
+    // a pull happens the moment the app comes forward.
+    const storage = store(createMemoryAdapter());
+    await storage.saveLeaderboard({
+      activeGroupId: "g1",
+      groups: [
+        {
+          group: { id: "g1", name: "Thursday", createdAt: 1 },
+          players: [],
+          results: [],
+          deleted: { players: ["p1"], results: ["r1"] },
+        },
+      ],
+    });
+    const loaded = await storage.loadLeaderboard();
+    expect(loaded.groups[0].deleted).toEqual({ players: ["p1"], results: ["r1"] });
+  });
+
+  it("is absent on a board that has deleted nothing", async () => {
+    // Absent rather than empty, so a board round-trips to the shape it had
+    // before any of this existed.
+    const storage = store(createMemoryAdapter());
+    await storage.saveLeaderboard({
+      activeGroupId: "g1",
+      groups: [
+        { group: { id: "g1", name: "Thursday", createdAt: 1 }, players: [], results: [] },
+      ],
+    });
+    expect((await storage.loadLeaderboard()).groups[0]).not.toHaveProperty("deleted");
+  });
+
+  it("drops ids that are not ids", async () => {
+    const storage = store(createMemoryAdapter());
+    await storage.saveLeaderboard({
+      activeGroupId: "g1",
+      groups: [
+        {
+          group: { id: "g1", name: "Thursday", createdAt: 1 },
+          players: [],
+          results: [],
+          deleted: { players: ["p1", 7 as unknown as string], results: "nope" as never },
+        },
+      ],
+    });
+    expect((await storage.loadLeaderboard()).groups[0].deleted).toEqual({
+      players: ["p1"],
+      results: [],
+    });
+  });
+});
+
+describe("a board this device deleted", () => {
+  it("stays deleted across a relaunch", async () => {
+    // The membership lives on the server and `GET /groups` keeps listing it, so
+    // this list is the only thing stopping the pull from putting the whole
+    // board back on the next foreground.
+    const storage = store(createMemoryAdapter());
+    await storage.saveLeaderboard({
+      groups: [],
+      activeGroupId: null,
+      dismissed: ["g1"],
+    });
+    expect((await storage.loadLeaderboard()).dismissed).toEqual(["g1"]);
+  });
+
+  it("is absent when nothing has been deleted", async () => {
+    const storage = store(createMemoryAdapter());
+    await storage.saveLeaderboard({ groups: [], activeGroupId: null });
+    expect(await storage.loadLeaderboard()).not.toHaveProperty("dismissed");
+  });
+});

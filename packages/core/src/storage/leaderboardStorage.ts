@@ -130,6 +130,9 @@ const coerceGroup = (raw: unknown, fallbackName: string): Group | null => {
   };
 };
 
+const coerceIds = (raw: unknown): string[] =>
+  Array.isArray(raw) ? raw.filter((id): id is string => typeof id === "string") : [];
+
 const coerceGroups = (raw: unknown, fallbackName: string): GroupState[] => {
   if (!Array.isArray(raw)) return [];
   const groups: GroupState[] = [];
@@ -137,10 +140,27 @@ const coerceGroups = (raw: unknown, fallbackName: string): GroupState[] => {
     if (!isObject(entry)) continue;
     const group = coerceGroup(entry.group, fallbackName);
     if (!group) continue;
+    /**
+     * **Read back, or a delete undoes itself on the next launch.** Nothing
+     * tells the server about a removal, so this list is the only thing keeping
+     * a pull from restoring what somebody deleted — and a pull happens the
+     * moment the app comes forward.
+     */
+    const deleted = isObject(entry.deleted)
+      ? {
+          players: coerceIds(entry.deleted.players),
+          results: coerceIds(entry.deleted.results),
+        }
+      : null;
     groups.push({
       group,
       players: coercePlayers(entry.players),
       results: coerceResults(entry.results),
+      // Omitted rather than stored empty, so a board that has never deleted
+      // anything round-trips to the same shape it had before this existed.
+      ...(deleted && (deleted.players.length > 0 || deleted.results.length > 0)
+        ? { deleted }
+        : {}),
     });
   }
   return groups;
@@ -203,7 +223,17 @@ export function createLeaderboardStorage(
         // Already grouped: read it back as it was written.
         if (Array.isArray(parsed.groups)) {
           const groups = coerceGroups(parsed.groups, migration.defaultGroupName);
-          if (groups.length === 0) return EMPTY_LEADERBOARD;
+          /**
+           * **Read back, and read back *before* the empty check.** A deleted
+           * board's membership is still on the server and `GET /groups` keeps
+           * listing it, so this list is the only thing stopping the pull from
+           * putting the whole board back — and deleting your *only* board takes
+           * exactly the path below, which is precisely when it matters most.
+           */
+          const dismissed = coerceIds(parsed.dismissed);
+          const withDismissals = <T extends GroupedLeaderboard>(state: T) =>
+            dismissed.length > 0 ? { ...state, dismissed } : state;
+          if (groups.length === 0) return withDismissals(EMPTY_LEADERBOARD);
           // A selection pointing at a group that didn't survive coercion would
           // show an empty board indistinguishable from a real one.
           const stored = parsed.activeGroupId;
@@ -212,7 +242,9 @@ export function createLeaderboardStorage(
             groups.some((entry) => entry.group.id === stored)
               ? stored
               : groups[0].group.id;
-          return { groups, activeGroupId };
+          // Omitted when empty, so a leaderboard that has deleted nothing
+          // round-trips to the shape it had before this existed.
+          return withDismissals({ groups, activeGroupId });
         }
 
         // The single board that shipped first. Migrate it in place: it is

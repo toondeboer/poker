@@ -90,3 +90,16 @@ export const PROD_BACKEND: BackendConfig = {
  * is deployed and the Settings entry point lands with it.
  */
 export const backendConfig: BackendConfig | null = null;
+
+/**
+ * Where an invite link points.
+ *
+ * **The app's own scheme, which only opens for somebody who already has the
+ * app.** A link sent to somebody who does not have it does nothing at all —
+ * which is most of the point of an invite, so this is a known gap rather than
+ * the finished thing. Moving to an `https://` base needs universal links
+ * configured on both platforms (`apple-app-site-association`, `assetlinks.json`)
+ * and a page on the website to serve them, and it is a one-line change here
+ * once that exists.
+ */
+export const INVITE_BASE = "pokerkit://";

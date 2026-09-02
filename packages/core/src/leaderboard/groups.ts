@@ -35,6 +35,20 @@ export type GroupState = {
   group: Group;
   players: Player[];
   results: GameResult[];
+  /**
+   * What this phone deleted, so a pull cannot put it back.
+   *
+   * **A merge cannot see an absence** — that is why the server names its own
+   * deletions — and this is the same problem from the other side. Nothing sends
+   * a removal to the server (see SYNC.md), so a player deleted here is still in
+   * the server's list and absent from *its* deleted list, and a merge would
+   * faithfully restore them. A game would come back too, and back into the
+   * standings, which is somebody's leaderboard quietly changing on its own.
+   *
+   * Ids only, and optional: a board saved before this existed has deleted
+   * nothing as far as anyone can tell, which is the safe reading.
+   */
+  deleted?: { players: string[]; results: string[] };
 };
 
 /**
@@ -49,6 +63,19 @@ export type GroupState = {
 export type GroupedLeaderboard = {
   groups: GroupState[];
   activeGroupId: string | null;
+  /**
+   * Boards this device deleted, so a pull does not bring them back.
+   *
+   * **The third time this exact problem has come up**, after players and games
+   * (`GroupState.deleted`). Deleting a board removes it here and tells the
+   * server nothing — there is no route that leaves a board, and deleting one
+   * server-side is somebody else's board too. So the membership survives, `GET
+   * /groups` keeps listing it, and the discovery half of a pull would put the
+   * whole board back on the next foreground, forever.
+   *
+   * Optional, so a leaderboard saved before this existed reads back unchanged.
+   */
+  dismissed?: string[];
 };
 
 /**
@@ -120,11 +147,16 @@ export const removeGroup = (
   const groups = state.groups.filter((entry) => entry.group.id !== groupId);
   if (groups.length === state.groups.length) return state;
   return {
+    ...state,
     groups,
     activeGroupId:
       state.activeGroupId === groupId
         ? (groups[0]?.group.id ?? null)
         : state.activeGroupId,
+    // **Remembered, or the pull puts it straight back.** The membership lives
+    // on the server and `GET /groups` keeps listing it; without this the whole
+    // board reappears on the next foreground, every time, forever.
+    dismissed: [...(state.dismissed ?? []), groupId],
   };
 };
 
@@ -314,3 +346,87 @@ export const migrateToGroups = (
     activeGroupId: group.id,
   };
 };
+
+/**
+ * Put a whole board on this device — the one somebody just joined.
+ *
+ * Distinct from `addGroup`, which makes an empty one: a joined board arrives
+ * with a roster and a season already in it.
+ *
+ * **A board already here is replaced rather than duplicated.** Redeeming a link
+ * for a board you are already on is an ordinary thing to do — somebody sends it
+ * twice, or you tap it again months later — and the server answers happily.
+ * Adding a second copy would give the app two boards with one id, which every
+ * lookup here resolves by taking the first.
+ *
+ * **It does not change which board is on screen.** Joining does that, with
+ * `setActiveGroup`, because somebody who just tapped a link is looking for that
+ * board — but a pull that discovers a board joined on another device must not
+ * yank the screen away from whatever is being looked at.
+ */
+export const addBoard = (
+  state: GroupedLeaderboard,
+  board: GroupState,
+): GroupedLeaderboard => {
+  const known = state.groups.some((entry) => entry.group.id === board.group.id);
+  // Deliberately *not* checked against `dismissed` — redeeming a link for a
+  // board you once deleted is somebody asking for it back, and the caller
+  // clears the dismissal. Only discovery has to respect it.
+  if (!known && state.groups.length >= MAX_GROUPS) return state;
+  return {
+    groups: known
+      ? state.groups.map((entry) =>
+          entry.group.id === board.group.id ? board : entry,
+        )
+      : [...state.groups, board],
+    // The first board on an empty device has to be the active one, or the app
+    // shows nothing at all.
+    activeGroupId: state.activeGroupId ?? board.group.id,
+  };
+};
+
+/**
+ * Should a pull put this board back?
+ *
+ * Discovery asks; joining does not — tapping a link for a board you deleted is
+ * asking for it back.
+ */
+export const wasDismissed = (state: GroupedLeaderboard, groupId: string): boolean =>
+  state.dismissed?.includes(groupId) ?? false;
+
+/** Take a board back, so it can be discovered again. */
+export const undismiss = (
+  state: GroupedLeaderboard,
+  groupId: string,
+): GroupedLeaderboard =>
+  state.dismissed?.includes(groupId)
+    ? { ...state, dismissed: state.dismissed.filter((id) => id !== groupId) }
+    : state;
+
+/** Note that this phone deleted something, so a pull will not restore it. */
+export const noteDeleted = (
+  board: GroupState,
+  what: "players" | "results",
+  id: string,
+): GroupState => {
+  const deleted = board.deleted ?? { players: [], results: [] };
+  if (deleted[what].includes(id)) return board;
+  return { ...board, deleted: { ...deleted, [what]: [...deleted[what], id] } };
+};
+
+/**
+ * Put a merged board back where it came from.
+ *
+ * By id, and a board that is no longer there is simply not added: somebody can
+ * delete a group while a pull of it is in flight, and resurrecting it would
+ * undo a deletion they just made.
+ */
+export const replaceBoard = (
+  state: GroupedLeaderboard,
+  board: GroupState,
+): GroupedLeaderboard => ({
+  ...state,
+  groups: state.groups.map((entry) =>
+    entry.group.id === board.group.id ? board : entry,
+  ),
+});

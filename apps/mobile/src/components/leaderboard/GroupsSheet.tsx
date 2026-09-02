@@ -1,8 +1,10 @@
 // src/components/leaderboard/GroupsSheet.tsx
-import { useState } from "react";
-import { Alert, Keyboard, StyleSheet, Text, View } from "react-native";
-import { MAX_GROUPS } from "@poker/core";
+import { useRef, useState } from "react";
+import { Alert, Keyboard, Share, StyleSheet, Text, View } from "react-native";
+import { MAX_GROUPS, inviteUrlFor } from "@poker/core";
 import { useLeaderboard } from "@/src/contexts/LeaderboardContext";
+import { accountsAreReal, useAuth } from "@/src/contexts/AuthContext";
+import { INVITE_BASE } from "@/src/services/backendConfig";
 import { colors, space, text } from "@/src/theme";
 import { Button } from "@/src/components/ui/Button";
 import { IconButton } from "@/src/components/ui/IconButton";
@@ -49,7 +51,11 @@ export function GroupsSheet({
     createNewGroup,
     renameGroupById,
     deleteGroup,
+    inviteToBoard,
   } = useLeaderboard();
+  const { account } = useAuth();
+  const [sharingId, setSharingId] = useState<string | null>(null);
+  const sharing = useRef(false);
 
   const [newName, setNewName] = useState("");
   const [renamingId, setRenamingId] = useState<string | null>(null);
@@ -120,6 +126,55 @@ export function GroupsSheet({
     setRenameValue(current);
   };
 
+  /**
+   * Make a link and hand it to the system share sheet.
+   *
+   * **Minted fresh every time, and that is deliberate** — the server treats
+   * creating and revoking as one operation, because a link that never expires
+   * can only be taken back by replacing it. So sharing again invalidates the
+   * last link, which is the behaviour somebody wants when they shared it with
+   * the wrong person; it is worth saying out loud rather than surprising them.
+   */
+  const share = async (id: string, name: string) => {
+    /**
+     * **A ref, because state is not set until the next render.** Two taps in
+     * the same frame both pass a state-based guard, and minting is *also*
+     * revoking — so the second link would quietly kill the first, which is the
+     * one already on its way into somebody's chat app.
+     */
+    if (sharing.current) return;
+    sharing.current = true;
+    setSharingId(id);
+    try {
+      const token = await inviteToBoard(id);
+      if (!token) {
+        Alert.alert(
+          "Could not make a link",
+          "Only an admin of a board can invite people to it, and the board has to have reached the server. Try again when you have signal.",
+        );
+        return;
+      }
+      const link = inviteUrlFor(token, INVITE_BASE);
+      try {
+        await Share.share({
+          message: `Join "${name}" on Poker Blinds Buzzer: ${link}`,
+        });
+      } catch {
+        /**
+         * **The link exists whether or not the share sheet opened**, and it has
+         * already replaced whatever link this board had — minting is how the old
+         * one is revoked. Saying nothing would leave somebody with the previous
+         * link dead and no new one to send, so the link goes on screen where it
+         * can at least be copied.
+         */
+        Alert.alert("Here is the link", link);
+      }
+    } finally {
+      sharing.current = false;
+      setSharingId(null);
+    }
+  };
+
   const confirmDelete = (id: string, name: string, gameCount: number) => {
     commitRename();
     const played =
@@ -176,6 +231,17 @@ export function GroupsSheet({
               }}
               right={
                 <View style={styles.rowActions}>
+                  {/* Only while signed in: a board nobody can be invited *to*
+                      is a board with no server copy, and the call would be
+                      refused. Better to not offer it than to offer it and
+                      fail. */}
+                  {accountsAreReal && account ? (
+                    <IconButton
+                      icon={sharingId === group.id ? "hourglass-outline" : "share-outline"}
+                      onPress={() => void share(group.id, group.name)}
+                      accessibilityLabel={`Share ${group.name}`}
+                    />
+                  ) : null}
                   <IconButton
                     icon="pencil"
                     onPress={() => startRename(group.id, group.name)}
