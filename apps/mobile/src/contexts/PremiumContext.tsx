@@ -31,7 +31,7 @@ type PremiumContextValue = {
    * **Its own purchase, not a tier above Pro.** Pro is one payment and
    * everything it unlocks runs on the phone; this is the only thing with a cost
    * that keeps arriving, so it is the only thing that keeps being paid for. See
-   * `ENTITLEMENT_SHARED_BOARDS` for the reasoning, and `ROADMAP.md` for what is
+   * `ENTITLEMENT_CLUB` for the reasoning, and `ROADMAP.md` for what is
    * still needed in the stores before anybody can buy it.
    */
   hasClub: boolean;

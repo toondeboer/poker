@@ -71,33 +71,37 @@ describe("sharing a board of your own", () => {
 });
 
 describe("which boards reach the server", () => {
-  it("sends a board somebody shared with you, subscription or not", () => {
-    // The host is already paying for it; a guest writing to it costs nothing
-    // extra, and refusing would make a guest a spectator.
-    expect(boardSyncs({ hasClub: false, isShared: true })).toBe(true);
+  it("keeps sending a board the server already has, subscription or not", () => {
+    // A board up there has members reading it. Cutting it off would leave them
+    // looking at a stale board with no idea why.
+    expect(boardSyncs({ hasClub: false, isOnServer: true })).toBe(true);
   });
 
   it("sends your own boards when you host", () => {
-    expect(boardSyncs({ hasClub: true, isShared: false })).toBe(true);
+    expect(boardSyncs({ hasClub: true, isOnServer: false })).toBe(true);
   });
 
-  it("leaves a local board alone without the subscription", () => {
+  it("leaves a purely local board alone without the subscription", () => {
     // **And this is why writes must not be queued for it either**: it is never
     // announced, so anything queued would sit there being refused for a board
     // the server has never heard of.
-    expect(boardSyncs({ hasClub: false, isShared: false })).toBe(false);
+    expect(boardSyncs({ hasClub: false, isOnServer: false })).toBe(false);
   });
 });
 
 describe("which boards can be looked at", () => {
-  it("shows a shared board without Pro", () => {
+  it("shows somebody else's board without Pro", () => {
     // Or "guests join free" is a lie: they would join and land on a paywall
     // looking at the board they were invited to.
-    expect(boardIsVisible({ isPremium: false, isShared: true })).toBe(true);
+    expect(boardIsVisible({ isPremium: false, isGuestBoard: true })).toBe(true);
   });
 
-  it("keeps your own boards behind Pro", () => {
-    expect(boardIsVisible({ isPremium: false, isShared: false })).toBe(false);
-    expect(boardIsVisible({ isPremium: true, isShared: false })).toBe(true);
+  it("keeps your own boards behind Pro even once they have synced", () => {
+    // **The server answers `admin` for a board you created.** Treating any
+    // known role as "shared" would hand the Pro leaderboard to anybody who
+    // signed in on a device that had pulled its own boards — Pro unlocked by
+    // syncing, which is not a thing anybody bought.
+    expect(boardIsVisible({ isPremium: false, isGuestBoard: false })).toBe(false);
+    expect(boardIsVisible({ isPremium: true, isGuestBoard: false })).toBe(true);
   });
 });

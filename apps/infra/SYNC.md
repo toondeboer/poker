@@ -243,12 +243,13 @@ board is invisible to them entirely, which may be right or may be the missing ha
   point of an invite. The fix is an `https://` base with universal links configured either side
   (`apple-app-site-association`, `assetlinks.json`) and a page on the website to serve them; the URL
   shape is already the one that supports it, and `INVITE_BASE` is the one line that changes.
-- **Local history never reaches the server.** A board announces its *existence* on every launch, but
-  the players and games it already had are never sent — only writes made from now on are queued. So
-  an old board syncs as an empty one, and the merge is what stops that from wiping the phone. It
-  means a board shared today shows the other person nothing before today. A backfill wants to be
-  deliberate — a few hundred queued writes, or a bulk upload route — and belongs with the work that
-  makes sharing a board possible.
+- **Local history is backfilled once, on the board's first announce.** A board the server has never
+  answered about gets its whole roster and season queued alongside the `createGroup` — otherwise it
+  arrives *empty*, because the outbox only carries writes made from now on and the pull only merges
+  downward, and a board with a year on it would look to everybody it was shared with like a board
+  with nothing on it. Bounded by the `role` the first pull brings back: once the server has told us
+  what we are on a board, its contents are known to be up there and nothing is re-sent. A season is
+  a few hundred writes drained one at a time, once.
 - **A board cannot be renamed on the server.** There is no `PATCH /groups/{groupId}`, so the name a
   board is created with is the name it keeps. The app replaces a *queued* `createGroup` when
   somebody renames a board, which covers a board renamed before it ever synced; a board the server

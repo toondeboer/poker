@@ -71,20 +71,29 @@ export const hostRefusal = (context: ClubContext): string | null => {
 /**
  * Whether a board should reach the server at all.
  *
- * Two quite different boards qualify, and conflating them was the bug worth
- * naming: **a board somebody shared with you** is already on the server and the
- * host is paying for it, so writing to it costs nothing extra and needs
- * nothing bought. **A board of your own** only belongs there if you host.
+ * **A different question from who may look at it**, and conflating the two was
+ * the bug worth naming — see `boardIsVisible`. This one is about cost and about
+ * not stranding other people; that one is about what somebody bought.
  *
- * A local board with no Club is deliberately never announced, which also means
- * its writes must never be queued — they would sit there being refused for a
- * board the server has never heard of.
+ * A purely local board with no Club is deliberately never announced, which also
+ * means its writes must never be queued: they would sit there being refused for
+ * a board the server has never heard of.
  */
 export const boardSyncs = (context: {
   hasClub: boolean;
-  /** Whether the server has told us our role on it, i.e. it is a shared board. */
-  isShared: boolean;
-}): boolean => context.hasClub || context.isShared;
+  /**
+   * Whether the server already has this board — **any role at all**, including
+   * `admin` on a board of your own.
+   *
+   * Deliberately not "is it somebody else's": a board that is already up there
+   * has members reading it, and quietly cutting it off would leave them looking
+   * at a stale board with no idea why. Whether a *lapsed* host should keep
+   * syncing is a real question and `ROADMAP.md` says it is open; until it is
+   * answered the harmless direction is to keep sending, because the other one
+   * silently strands other people's boards.
+   */
+  isOnServer: boolean;
+}): boolean => context.hasClub || context.isOnServer;
 
 /**
  * Whether a board can be looked at without Pro.
@@ -100,5 +109,14 @@ export const boardSyncs = (context: {
  */
 export const boardIsVisible = (context: {
   isPremium: boolean;
-  isShared: boolean;
-}): boolean => context.isPremium || context.isShared;
+  /**
+   * Whether this is **somebody else's** board — `role === "member"`, and not
+   * merely "the server knows about it".
+   *
+   * The distinction is the whole check. The server answers `admin` for a board
+   * you created, so treating any known role as shared would hand the Pro
+   * leaderboard to anybody who signed in on a device that had once pulled its
+   * own boards — Pro unlocked by syncing, which is not a thing anybody bought.
+   */
+  isGuestBoard: boolean;
+}): boolean => context.isPremium || context.isGuestBoard;

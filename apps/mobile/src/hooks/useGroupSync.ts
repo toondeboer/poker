@@ -46,12 +46,17 @@ export type GroupSync = {
   /**
    * Tell the server about boards it may not know.
    *
-   * **Needed for every group that already existed on the device.** Only newly
-   * created ones were announced, so an upgrader's boards — and the default
-   * group the app makes on its own — would have been refused "no such group" on
-   * every write, forever, with nothing that would ever fix it.
+   * **The whole board, not just its existence.** Announcing only the group left
+   * it on the server *empty*: the outbox carries writes made from now on, and
+   * the pull only merges downward, so a board with a season on it appeared to
+   * everybody else as a board with nothing on it, permanently. Somebody
+   * subscribing and then sharing is exactly when that gets looked at.
+   *
+   * Needed for every board that predates syncing — an upgrader's, the default
+   * group the app makes on its own, and one created in the second before the
+   * store said whether there was a subscription.
    */
-  announce: (groups: readonly { id: string; name: string; createdAt: number }[]) => void;
+  announce: (boards: readonly GroupState[]) => void;
   /**
    * Withdraw a write nobody has sent, because what it was about is gone.
    *
@@ -203,18 +208,36 @@ export const useGroupSync = (): GroupSync => {
   );
 
   const announce = useCallback(
-    (groups: readonly { id: string; name: string; createdAt: number }[]) => {
+    (boards: readonly GroupState[]) => {
       if (!enabled) return;
-      // Safe to repeat: `enqueue` ignores a board already queued, and the server
-      // answers *ok* to a group it already has — so this can run on every load
-      // without piling up.
-      for (const group of groups) {
+      for (const board of boards) {
+        // Safe to repeat: `enqueue` ignores a subject already queued, and every
+        // one of these three routes answers *ok* to being told the same thing
+        // twice — so this can run on every load without piling up.
         record({
           kind: "createGroup",
-          groupId: group.id,
-          name: group.name,
-          createdAt: group.createdAt,
+          groupId: board.group.id,
+          name: board.group.name,
+          createdAt: board.group.createdAt,
         });
+        /**
+         * **The contents too, but only for a board the server has never
+         * answered about.** A `role` means it has been pulled, so the server
+         * has it and its contents are already up there — re-sending a season of
+         * game nights every launch would be a few hundred requests for nothing.
+         *
+         * Without this the board arrives on the server *empty*: the outbox only
+         * carries writes made from now on and the pull only merges downward, so
+         * a board with a year on it looked, to everybody it was shared with,
+         * like a board with nothing on it. Permanently.
+         */
+        if (board.role !== undefined) continue;
+        for (const player of board.players) {
+          record({ kind: "addPlayer", groupId: board.group.id, player });
+        }
+        for (const result of board.results) {
+          record({ kind: "recordGame", groupId: board.group.id, result });
+        }
       }
     },
     [record, enabled],

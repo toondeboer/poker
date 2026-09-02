@@ -86,13 +86,15 @@ type LeaderboardContextValue = {
   activeGroupName: string;
   canAddGroup: boolean;
   /**
-   * Whether the board on screen is one somebody shared with you.
+   * Whether the board on screen is **somebody else's** — one you joined.
    *
-   * The leaderboard is Pro; **a board somebody else keeps is not**, or "guests
-   * join free" would be a lie — they would join and land on a paywall looking
-   * at the board they were invited to. See `boardIsVisible`.
+   * The leaderboard is Pro; a board somebody else keeps is not, or "guests join
+   * free" would be a lie. **`member`, not merely "the server knows it"**: the
+   * server answers `admin` for a board you created, and treating that as shared
+   * would unlock Pro for anybody whose own boards had synced once. See
+   * `boardIsVisible`.
    */
-  activeBoardIsShared: boolean;
+  activeBoardIsGuest: boolean;
   /** Whether a name is free to use, ignoring the group being renamed. */
   isGroupNameAvailable: (name: string, exceptId?: string) => boolean;
   selectGroup: (id: string) => void;
@@ -292,18 +294,22 @@ export function LeaderboardProvider({
   /**
    * Whether a board belongs on the server.
    *
-   * **A board somebody shared with you always does** — it is already there and
-   * the host is paying for it, so writing to it costs nothing extra. **A board
-   * of your own only does if you host**, and one that does not must never be
-   * announced *or* written to: a queued write for a board the server has never
-   * heard of is a refusal waiting to happen.
+   * **Any board the server already has keeps syncing** — including one of your
+   * own, where the role comes back as `admin`. Cutting a board off because a
+   * subscription lapsed would strand every member reading it, which is a worse
+   * failure than the cost it saves; `ROADMAP.md` records that the lapsed case
+   * is genuinely undecided.
+   *
+   * A purely local board only belongs there if you host, and one that does not
+   * must never be announced *or* written to: a queued write for a board the
+   * server has never heard of is a refusal waiting to happen.
    */
   const syncsFor = useCallback(
     (groupId: string): boolean => {
       const entry = latestState.current.groups.find(
         (candidate) => candidate.group.id === groupId,
       );
-      return boardSyncs({ hasClub, isShared: entry?.role !== undefined });
+      return boardSyncs({ hasClub, isOnServer: entry?.role !== undefined });
     },
     [hasClub],
   );
@@ -423,13 +429,7 @@ export function LeaderboardProvider({
   useEffect(() => {
     if (isLoading) return;
     announceGroups(
-      latestState.current.groups
-        .filter((entry) => syncsFor(entry.group.id))
-        .map((entry) => ({
-          id: entry.group.id,
-          name: entry.group.name,
-          createdAt: entry.group.createdAt,
-        })),
+      latestState.current.groups.filter((entry) => syncsFor(entry.group.id)),
     );
   }, [isLoading, syncsFor, announceGroups]);
 
@@ -794,7 +794,7 @@ export function LeaderboardProvider({
         activeGroupId: state.activeGroupId,
         activeGroupName: activeEntry?.group.name ?? "",
         canAddGroup: state.groups.length < MAX_GROUPS,
-        activeBoardIsShared: activeEntry?.role !== undefined,
+        activeBoardIsGuest: activeEntry?.role === "member",
         isGroupNameAvailable,
         selectGroup,
         createNewGroup,

@@ -172,8 +172,14 @@ export function GroupsSheet({
           hasClub,
           isPremium,
         });
-        Alert.alert(
-          refusal ? "Sharing is part of Club" : "Could not make a link",
+        /**
+         * **One title for three different refusals was the bug.** "Sharing is
+         * part of Club" was shown for "sign in first" and for "still checking
+         * your purchases" too — which tells a subscriber to buy what they
+         * already own, the exact thing `clubPolicy` is tested to prevent. The
+         * message carries the meaning, so the title stays neutral.
+         */
+        Alert.alert(refusal ? "Cannot share this board" : "Could not make a link",
           refusal ??
             "Only an admin of a board can invite people to it, and the board has to have reached the server. Try again when you have signal.",
         );
