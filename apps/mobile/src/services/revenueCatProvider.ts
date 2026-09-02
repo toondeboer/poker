@@ -9,6 +9,7 @@ import Purchases, {
 import {
   ENTITLEMENT_PRO,
   ENTITLEMENT_CLUB,
+  entitlementsFrom,
   PRODUCT_PRO_LIFETIME,
   type EntitlementProvider,
   type Entitlements,
@@ -48,16 +49,25 @@ export function configurePurchases() {
   configured = true;
 }
 
-const toEntitlements = (info: CustomerInfo): Entitlements => ({
-  isPremium: info.entitlements.active[ENTITLEMENT_PRO] !== undefined,
-  /**
-   * **Read independently of `pro`, never derived from it.** They are separate
-   * purchases: somebody can hold one, both or neither, and inferring either
-   * from the other is how a person who paid for one ends up with the other for
-   * nothing — or without what they bought.
-   */
-  hasClub: info.entitlements.active[ENTITLEMENT_CLUB] !== undefined,
-});
+/**
+ * **Both read independently, then combined by `entitlementsFrom`.**
+ *
+ * They are separate purchases and RevenueCat is asked about each on its own —
+ * inferring one from the other *here* is how somebody ends up with what they
+ * did not buy. The one direction that is a product rule, Club including Pro,
+ * is applied in `@poker/core` where it is written down and tested, rather than
+ * being an undocumented `||` in a mapping function.
+ */
+const toEntitlements = (info: CustomerInfo): Entitlements =>
+  entitlementsFrom({
+    pro: info.entitlements.active[ENTITLEMENT_PRO] !== undefined,
+    club: info.entitlements.active[ENTITLEMENT_CLUB] !== undefined,
+    // **`all`, not `active`** — every entitlement the receipt has ever carried,
+    // lapsed ones included. Reading it from the receipt rather than a flag on
+    // the device is what makes "Pro, once granted, stays granted" survive a
+    // reinstall, which is the only way it means anything.
+    clubEver: info.entitlements.all[ENTITLEMENT_CLUB] !== undefined,
+  });
 
 /**
  * The Pro package, **found by its product id rather than by being first**.
@@ -88,7 +98,9 @@ export const revenueCatProvider: BillingProvider = {
     // No billing configured at all: nothing is owned, which is the safe answer
     // in both directions — no paid feature is unlocked, and no purchase is
     // claimed to exist that could be "restored".
-    if (!API_KEY) return { isPremium: false, hasClub: false };
+    if (!API_KEY) {
+      return { isPremium: false, hasClub: false, ownsProOutright: false };
+    }
     configurePurchases();
     return toEntitlements(await Purchases.getCustomerInfo());
   },

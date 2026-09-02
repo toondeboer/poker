@@ -120,3 +120,58 @@ export const boardIsVisible = (context: {
    */
   isGuestBoard: boolean;
 }): boolean => context.isPremium || context.isGuestBoard;
+
+/**
+ * What somebody holds, from what the store says they bought.
+ *
+ * **Club includes Pro, and that is a rule rather than a convenience.** A shared
+ * board *is* a leaderboard, and the leaderboard is Pro — so a subscriber
+ * without it would host a board they could not open. Not an awkward state: a
+ * broken one, sold deliberately.
+ *
+ * It is enforced here as well as in the store's own configuration, because
+ * configuration is one forgotten checkbox away from shipping exactly that. If
+ * the `club` product is ever set up without `pro` attached, this is what stops
+ * a subscriber finding a paywall over the board they are paying to host.
+ *
+ * The reverse does **not** hold: Pro has never included hosting and buying it
+ * again does not change that.
+ */
+export const entitlementsFrom = (bought: {
+  pro: boolean;
+  club: boolean;
+  /**
+   * Whether Club has **ever** been held, subscription still running or not.
+   *
+   * Read from the receipt rather than remembered on the device, so it survives
+   * a reinstall — which matters, because the whole point is that this one does
+   * not go away.
+   */
+  clubEver: boolean;
+}): { isPremium: boolean; hasClub: boolean; ownsProOutright: boolean } => ({
+  /**
+   * **Pro, once granted by Club, stays granted.**
+   *
+   * A subscriber who never bought Pro separately would otherwise lose the
+   * leaderboard the day their subscription lapsed — and with it the sight of
+   * every board they own, while those boards carried on syncing for the members
+   * still reading them. Nothing would be destroyed and it would all come back
+   * on resubscribing, but somebody would reasonably describe it as the app
+   * having eaten their season.
+   *
+   * **The trade is that one month of Club is a permanent Pro**, so the monthly
+   * price has to be worth at least what Pro costs — otherwise subscribing and
+   * cancelling is simply the cheaper way to buy it. `ROADMAP.md` carries that
+   * consequence next to the prices, because it is a pricing decision, not a
+   * code one.
+   */
+  isPremium: bought.pro || bought.club || bought.clubEver,
+  hasClub: bought.club,
+  /**
+   * Kept separately from `isPremium`, which now blurs two different promises:
+   * Pro that was bought is permanent, and Pro that comes with Club goes when
+   * the subscription does. Anything *telling* somebody what they have needs to
+   * know which.
+   */
+  ownsProOutright: bought.pro,
+});

@@ -49,6 +49,8 @@ export function Paywall({
 }) {
   const {
     isPremium,
+    hasClub,
+    ownsProOutright,
     purchasing,
     proPriceString,
     refreshProPrice,
@@ -106,33 +108,44 @@ export function Paywall({
 
       {isPremium ? (
         <View style={styles.unlockedBox}>
-          <Text style={styles.unlockedText}>✓ Pro unlocked — thank you!</Text>
+          <Text style={styles.unlockedText}>
+            {hasClub && !ownsProOutright
+              ? "✓ Pro is included with Club — thank you!"
+              : "✓ Pro unlocked — thank you!"}
+          </Text>
         </View>
       ) : (
-        <>
-          <TouchableOpacity
-            style={[styles.buyButton, purchasing && styles.disabled]}
-            onPress={() => run(purchasePro)}
-            disabled={purchasing}
-            activeOpacity={0.85}
-          >
-            {purchasing ? (
-              <ActivityIndicator color="#1f2937" />
-            ) : (
-              <Text style={styles.buyButtonText}>{buyLabel}</Text>
-            )}
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={styles.restoreButton}
-            onPress={() => run(restore)}
-            disabled={purchasing}
-            activeOpacity={0.7}
-          >
-            <Text style={styles.restoreText}>Restore purchases</Text>
-          </TouchableOpacity>
-        </>
+        <TouchableOpacity
+          style={[styles.buyButton, purchasing && styles.disabled]}
+          onPress={() => run(purchasePro)}
+          disabled={purchasing}
+          activeOpacity={0.85}
+        >
+          {purchasing ? (
+            <ActivityIndicator color="#1f2937" />
+          ) : (
+            <Text style={styles.buyButtonText}>{buyLabel}</Text>
+          )}
+        </TouchableOpacity>
       )}
+
+      {/**
+       * **Always offered, never hidden behind `isPremium`.**
+       *
+       * Apple requires a restore path for a non-consumable, and hiding it from
+       * anybody the app *believes* is unlocked is precisely backwards: the
+       * person who most needs it is the one whose purchase this device has not
+       * recognised. Club made that reachable — a subscriber reads as unlocked,
+       * so a Pro purchase made on another device had no way back.
+       */}
+      <TouchableOpacity
+        style={styles.restoreButton}
+        onPress={() => run(restore)}
+        disabled={purchasing}
+        activeOpacity={0.7}
+      >
+        <Text style={styles.restoreText}>Restore purchases</Text>
+      </TouchableOpacity>
 
       {error && <Text style={styles.error}>{error}</Text>}
 

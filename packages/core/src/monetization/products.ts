@@ -41,5 +41,13 @@ export const PRODUCT_PRO_LIFETIME = "pro_lifetime";
  */
 export const ENTITLEMENT_CLUB = "club";
 
-/** Store product id for the Club subscription. */
-export const PRODUCT_CLUB = "club_monthly";
+/**
+ * Store product ids for the Club subscription — **both, or the annual price is
+ * a decision nobody can act on.**
+ *
+ * A single monthly SKU was documented while the roadmap called the annual price
+ * decided, which is the sort of gap that gets a store set up wrong once and
+ * then repeated on the second platform.
+ */
+export const PRODUCT_CLUB_MONTHLY = "club_monthly";
+export const PRODUCT_CLUB_YEARLY = "club_yearly";

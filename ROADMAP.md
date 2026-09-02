@@ -263,8 +263,26 @@ Pro** — `boardIsVisible`. Pro is for keeping your own score; a board somebody 
 That is also the better funnel: a guest sees what a season of game nights looks like and then wants
 one of their own.
 
-**The subscription should also grant `pro`** so nobody ever buys twice — one product, several
-entitlements, configured in RevenueCat with no code change.
+**Club grants Pro, and that is a rule rather than a convenience.** A shared board *is* a
+leaderboard, and the leaderboard is Pro — so a subscriber without it would host a board they could
+not open. Not an awkward state: a broken one, sold deliberately. It is enforced in
+`entitlementsFrom` **as well as** in the RevenueCat product, because configuration is one forgotten
+checkbox away from shipping exactly that. The reverse does not hold: Pro has never included
+hosting.
+
+**Priced at the bottom of the category — decided.** Roughly **€2–3 a month or €12–15 a year**, and
+the exact figure is set in the stores. The reasoning is worth keeping, because the market medians
+argue for four times that and they are wrong for this app:
+
+- Every serious poker-timer competitor is **one-time**, between $2.99 and $7.99 — NextBlind $7.99,
+  PokerTimer $6.99, Texas Holdem "The Works" $5.99, Easy Poker Timer $2.99. The subscription
+  outliers charge $9.99–14.99 a month for a timer, which is how an app earns one-star reviews.
+- RevenueCat's 2026 utilities medians ($7.99–9.99/month, $30–39.99/year) are set by health, fitness
+  and AI apps with far broader appeal. Only ~10% of apps run a hybrid model at all.
+- **The server bill was never the reason.** It is pennies now and stays small at ten to fifty times
+  this size. The reason to charge is that **you can always stop charging and can never start**: fold
+  hosting into Pro and every past and future one-time buyer has it forever, unrevocably. That is an
+  argument for charging *something*, not for charging a lot.
 
 **Named for the axis, not the tier.** "Pro+" would say the thing people already bought had been
 demoted. "Club" also outlives shared boards: the shared clock and playing a hand together belong to
@@ -278,9 +296,10 @@ review and obvious in a store review. **Which boards reach the server is a per-b
 (`boardSyncs`): a shared board always syncs because the host is paying for it, a local board only
 if you host. A board that does not sync is never announced *and* never queues writes.
 
-- ⬜ **Decide the price and period.** Nothing else can start.
-- ⬜ **Create the subscription** as `club_monthly` (`PRODUCT_CLUB`) in both stores, then the `club`
-  entitlement in RevenueCat with `pro` attached to the same product. **Both stores or neither.**
+- ⬜ **Create both subscription SKUs** — `club_monthly` and `club_yearly` — in both stores, then the
+  `club` entitlement in RevenueCat with **`pro` attached to the same products**. Two SKUs because
+  the annual price is decided; one because somebody read a doc that only mentioned the monthly one.
+  **Both stores or neither.**
 - ⬜ **A way to buy it, and any way at all to hear about it.** `purchasePro` buys the one-time
   unlock and nothing buys this. **Club currently has no surface in the app whatsoever**: the share
   button is hidden once the store confirms there is no subscription, so a non-subscriber never
@@ -293,9 +312,27 @@ if you host. A board that does not sync is never announced *and* never queues wr
   the sharing rows in `RELEASE_TESTING.md`. Worth knowing before somebody concludes sync is broken.
 - ⬜ **Billing rows in `RELEASE_TESTING.md`** — purchase, restore, cancel and **expiry**, which the
   one-time product never had.
-- ⬜ **Decide what a lapsed subscriber keeps.** Their local boards clearly stay. Whether their
-  *shared* boards keep syncing, stop, or become read-only, and what the other members see, is open.
-  Guests are unaffected either way, since they never paid.
+### What a lapsed subscriber keeps — decided
+
+**Pro, once granted by Club, stays granted.** Somebody who subscribed and later stopped keeps the
+leaderboard, their own boards and everything else Pro unlocks, forever. They lose **hosting**: they
+cannot share a board or make a new one shareable. Read from the receipt (`entitlements.all`, not
+`active`), so it survives a reinstall — a flag on the device would not, and then it would mean
+nothing.
+
+The alternative was that they become a free user again, which is coherent — losing Pro means losing
+the leaderboard, and that is what Pro is — but it takes the sight of every board they own while
+those boards carry on syncing for the members still reading them. Nothing is destroyed and it all
+returns on resubscribing, but somebody would reasonably call that the app eating their season.
+
+- 🟡 **The consequence: one month of Club is a permanent Pro.** So the monthly price has to be worth
+  at least what Pro costs, or subscribing and cancelling is simply the cheaper way to buy Pro. With
+  Pro around €5–6 and the monthly at €2–3, it *is* cheaper — **that is a live pricing decision, not
+  a bug**. Either set the monthly at or above the Pro price, or accept the leak on the grounds that
+  somebody doing it has still paid and probably was not going to buy Pro anyway. Worth settling
+  before the products are created rather than after.
+
+Guests are unaffected either way. They never paid.
 - **Not before 1.2.0 ships.** §1 billing already blocks submission and can only be exercised from a
   Play track; a second product makes that pole longer.
 
