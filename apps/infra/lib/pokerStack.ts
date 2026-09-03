@@ -63,6 +63,7 @@ import { HttpLambdaIntegration } from "aws-cdk-lib/aws-apigatewayv2-integrations
 import { PLAYER_NAMESPACE, TABLE_NAMESPACE } from "@poker/core";
 import { settingsFor, type StageSettings } from "./stage";
 import { domainFor } from "./apiDomain";
+import { mailFor } from "./mailIdentity";
 import { Observability, serviceMetric } from "./observability";
 import { MathExpression } from "aws-cdk-lib/aws-cloudwatch";
 import { Construct } from "constructs";
@@ -247,6 +248,9 @@ export class PokerStack extends Stack {
      * they are a deliberate, credential-bearing addition rather than something
      * to scaffold with placeholders that would silently ship broken.
      */
+    // Resolved before the user pool, which is the first thing that needs it.
+    const mail = mailFor(this, settings.stage);
+
     const userPool = new UserPool(this, "UserPool", {
       selfSignUpEnabled: true,
       signInAliases: { email: true },
@@ -263,7 +267,13 @@ export class PokerStack extends Stack {
         requireSymbols: false,
       },
       accountRecovery: AccountRecovery.EMAIL_ONLY,
-      email: UserPoolEmail.withCognito(),
+      /**
+       * **Cognito's own sender only when nothing better is configured.** It is
+       * capped around 50 messages a day and its mail lands in spam — observed
+       * here with the smoke-test codes — so a build whose sign-up depends on a
+       * code arriving cannot ship on it. See `mailFor`.
+       */
+      email: mail?.email ?? UserPoolEmail.withCognito(),
       // Losing the user pool loses every account and every link between an
       // account and a player. Nothing about a stack update should be able to
       // do that by accident.
@@ -876,6 +886,13 @@ export class PokerStack extends Stack {
       });
     }
     new CfnOutput(this, "Stage", { value: settings.stage });
+    if (mail) {
+      new CfnOutput(this, "MailFrom", {
+        value: `noreply@${mail.domain}`,
+        description:
+          "Sender for confirmation codes. Useless until SES production access is granted — until then it only delivers to verified addresses.",
+      });
+    }
     new CfnOutput(this, "UserPoolId", { value: userPool.userPoolId });
     new CfnOutput(this, "UserPoolClientId", {
       value: userPoolClient.userPoolClientId,

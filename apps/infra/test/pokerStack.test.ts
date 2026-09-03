@@ -190,6 +190,80 @@ describe("a name for the API that we own", () => {
   });
 });
 
+describe("where confirmation emails come from", () => {
+  /**
+   * Why this is tested at all: Cognito's own sender is capped around 50 a day
+   * and lands in spam — observed here — so an app whose sign-up depends on a
+   * code arriving cannot ship on it.
+   */
+  const withMail = (stage: "dev" | "prod" = "prod"): Template => {
+    const app = new App({
+      context: {
+        mailDomain: "example.test",
+        hostedZoneId: "Z0000000000000000000",
+        hostedZoneName: "example.test",
+        region: "us-east-1",
+      },
+    });
+    return Template.fromStack(
+      new PokerStack(app, `Mailed${stage}`, { settings: settingsFor(stage) }),
+    );
+  };
+
+  it("is absent unless it is asked for", () => {
+    template().resourceCountIs("AWS::SES::EmailIdentity", 0);
+  });
+
+  it("is absent without a region, rather than throwing", () => {
+    // **The property CI depends on.** `withSES` refuses to synthesise against
+    // an environment-agnostic stack, and throwing there would break the
+    // credential-free synth the whole test suite runs on.
+    const app = new App({
+      context: {
+        mailDomain: "example.test",
+        hostedZoneId: "Z0000000000000000000",
+        hostedZoneName: "example.test",
+      },
+    });
+    expect(() => Template.fromStack(new PokerStack(app, "NoRegion"))).not.toThrow();
+  });
+
+  it("verifies the sending subdomain and publishes its DKIM", () => {
+    const t = withMail();
+    t.hasResourceProperties(
+      "AWS::SES::EmailIdentity",
+      Match.objectLike({ EmailIdentity: "poker.example.test" }),
+    );
+    // Three, which is how many keys SES rotates through. Without them the
+    // identity never verifies and every send fails.
+    expect(
+      Object.values(t.findResources("AWS::Route53::RecordSet")).filter(
+        (r) => (r.Properties as { Type?: string }).Type === "CNAME",
+      ),
+    ).toHaveLength(3);
+  });
+
+  it("keeps dev's sending reputation off the production domain", () => {
+    // A dev stack mailing throwaway inboxes must not be able to spend the
+    // deliverability production's sign-up depends on.
+    withMail("dev").hasResourceProperties(
+      "AWS::SES::EmailIdentity",
+      Match.objectLike({ EmailIdentity: "poker-dev.example.test" }),
+    );
+  });
+
+  it("sends from the domain it verified, which Cognito insists on", () => {
+    withMail().hasResourceProperties(
+      "AWS::Cognito::UserPool",
+      Match.objectLike({
+        EmailConfiguration: Match.objectLike({
+          From: "Poker Blinds Timer <noreply@poker.example.test>",
+        }),
+      }),
+    );
+  });
+});
+
 describe("accounts", () => {
   it("signs people in by email, case-insensitively", () => {
     template().hasResourceProperties("AWS::Cognito::UserPool", {
