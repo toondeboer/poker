@@ -15,6 +15,7 @@ import {
 } from "@/src/theme";
 import { useKeyboardFocusScroll } from "@/src/hooks/useKeyboardFocusScroll";
 import { Paywall } from "@/src/components/paywall/Paywall";
+import { AccountCard } from "./AccountCard";
 import { NotificationsBlockedCard } from "./NotificationsBlockedCard";
 import { ProCard } from "./ProCard";
 import { TournamentCard } from "./TournamentCard";
@@ -99,6 +100,11 @@ export function SettingsScreen() {
         </View>
 
         <SoundPackCard onRequestPro={openPaywall} />
+
+        {/* Last, because it is optional and everything above it is not — the
+            timer works with no account at all. Renders nothing in a build
+            with no backend. */}
+        <AccountCard />
       </ScrollView>
 
       <Paywall visible={showPaywall} onClose={() => setShowPaywall(false)} />

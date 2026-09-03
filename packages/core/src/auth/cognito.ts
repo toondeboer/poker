@@ -157,10 +157,21 @@ export const signOutCall = (
   call(config, "GlobalSignOut", { AccessToken: accessToken });
 
 /**
- * Delete the account from inside the app.
+ * Delete the account from inside the app — **Cognito only**.
  *
  * App Store guideline 5.1.1(v) requires this of any app offering account
  * creation, and it is the one call here with no way back.
+ *
+ * **This is not the whole job any more, and must not be called on its own.**
+ * It removes the login and nothing else, which was correct while the backend
+ * held nothing durable keyed to an account. It no longer does: memberships,
+ * claims, players and results all are. Deleting the user first strands every
+ * one of those rows — and strands them *permanently*, because once the user is
+ * gone there is no token left to authenticate a cleanup with.
+ *
+ * `DELETE /me` on the API is the replacement: it clears the data first and the
+ * user last, server-side, with credentials of its own. Kept exported only for
+ * a build with no backend at all, where there is no data to strand.
  */
 export const deleteAccountCall = (
   config: CognitoConfig,
