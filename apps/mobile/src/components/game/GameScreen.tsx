@@ -329,6 +329,14 @@ function ActiveGame({ nameFor }: { nameFor: (id: string) => string }) {
      * sits directly under "Next hand".
      */
     if (!complete) {
+      // **Nothing dealt is nothing to lose**, and warning that "the hands
+      // played so far cannot be recovered" when there are none is the kind of
+      // confirmation people learn to tap through. Same check the Deal /
+      // Next hand label uses.
+      if (session.handsPlayed === 0) {
+        endGame();
+        return;
+      }
       Alert.alert(
         "End this game?",
         "The hands played so far cannot be recovered, and a game in progress cannot be put on the leaderboard.",

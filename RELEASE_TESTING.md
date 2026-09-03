@@ -397,7 +397,8 @@ the table can follow what is happening from across it.
 | **"New game" on a finished, unsaved game asks first**, and does not cover the showdown while it does — the hand that decided it stays readable behind the alert | ⬜ | ⬜ |
 | On that alert, **Save is the top button and Discard is below it** (iOS moves Cancel to the bottom, which once put Discard in the easiest slot) | ⬜ | ➖ |
 | **Save from the alert that cannot save keeps the game.** Finish a game, switch board on the Leaderboard screen, come back, New game → Save → the refusal is shown and the table is still there | ⬜ | ⬜ |
-| **"End the game" mid-hand asks too** — an evening in progress cannot be put on the leaderboard or recovered, and the button sits under "Next hand" | ⬜ | ⬜ |
+| **"End the game" between hands asks too** — an evening in progress cannot be put on the leaderboard or recovered, and the button sits under "Next hand". It only appears between hands, never mid-hand | ⬜ | ⬜ |
+| Ending a game where **nothing has been dealt** does not ask — there is nothing to lose, and a confirmation there is one people learn to tap through | ⬜ | ⬜ |
 | Ending an **already-saved** game does not ask, because there is nothing left to lose | ⬜ | ⬜ |
 | **Save to the leaderboard** records the finishing order the game produced, with winnings from the Payouts screen priced for the field that sat down | ⬜ | ⬜ |
 | The saved game appears in the standings immediately, and the winner's count goes up | ⬜ | ⬜ |

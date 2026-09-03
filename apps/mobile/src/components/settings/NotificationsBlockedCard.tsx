@@ -28,7 +28,7 @@ import { colors, space, text } from "@/src/theme";
  * Settings, and hiding it would take away the only route back.
  */
 export function NotificationsBlockedCard() {
-  const { hasPermission, checkPermission, requestPermission, showPermissionAlert } =
+  const { hasPermission, checkPermission, requestPermissionDetailed, showPermissionAlert } =
     useNotificationPermission();
 
   /**
@@ -63,17 +63,24 @@ export function NotificationsBlockedCard() {
    * called by anything.
    */
   const turnOn = useCallback(async () => {
-    await requestPermission();
+    const outcome = await requestPermissionDetailed();
     /**
-     * **Ask the OS again rather than trusting the answer.** `requestPermission`
-     * returns `true` unconditionally below API 33 and on any path it does not
-     * handle, which is a different question from the one `checkPermission`
-     * asks — so a card shown because the native check said "no" could be
-     * dismissed by a request that changed nothing and reported success,
-     * without ever reaching the settings route below.
+     * **Only when Android will not ask again.** Following an ordinary decline
+     * with a second dialog offering system settings is nagging, and is the
+     * exact "Android asks twice" complaint the `rationale` removal in
+     * `useNotificationPermission` exists to fix. Somebody who just said no has
+     * said no; the card stays, which is enough.
      */
-    if (await checkPermission()) return;
-    showPermissionAlert();
+    if (outcome === "blocked") {
+      showPermissionAlert();
+      return;
+    }
+    /**
+     * Re-read from the OS rather than trusting the outcome: it reports
+     * `granted` unconditionally below API 33 and on paths it does not handle,
+     * which is a different question from the one the native check answers.
+     */
+    void checkPermission();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 

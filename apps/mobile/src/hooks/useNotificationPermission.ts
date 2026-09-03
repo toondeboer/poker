@@ -36,7 +36,17 @@ export function useNotificationPermission() {
         }
     };
 
-    const requestPermission = async (): Promise<boolean> => {
+    /**
+     * What the OS actually did, rather than just whether it worked.
+     *
+     * **`denied` and `blocked` need different handling and look identical
+     * through a boolean.** Somebody who has just declined the ordinary dialog
+     * should be left alone; somebody Android will never prompt again needs the
+     * route to system settings. Telling the two apart is the difference between
+     * a helpful fallback and asking twice, which is the exact complaint the
+     * `rationale` removal above was written to fix.
+     */
+    const requestPermissionDetailed = async (): Promise<'granted' | 'denied' | 'blocked'> => {
         if (Platform.OS === 'android' && Platform.Version >= 33) {
             try {
                 // No `rationale` argument, deliberately: passing one makes
@@ -50,6 +60,7 @@ export function useNotificationPermission() {
                 );
 
                 const hasPermission = granted === PermissionsAndroid.RESULTS.GRANTED;
+                setHasPermission(hasPermission);
                 if (granted === PermissionsAndroid.RESULTS.NEVER_ASK_AGAIN) {
                     // Android blocks the permission permanently after a second
                     // denial: every later `request` returns this immediately,
@@ -64,20 +75,24 @@ export function useNotificationPermission() {
                     logger.warn(
                         'POST_NOTIFICATIONS is permanently denied; background timer notifications cannot start until it is re-enabled in system settings',
                     );
+                    return 'blocked';
                 }
-                setHasPermission(hasPermission);
-                return hasPermission;
+                return hasPermission ? 'granted' : 'denied';
             } catch (error) {
                 logger.error('Error requesting notification permission:', error);
                 setHasPermission(false);
-                return false;
+                return 'denied';
             }
         }
 
         // For iOS or older Android versions
         setHasPermission(true);
-        return true;
+        return 'granted';
     };
+
+    /** The same request, for callers that only need to know whether it worked. */
+    const requestPermission = async (): Promise<boolean> =>
+        (await requestPermissionDetailed()) === 'granted';
 
     const showPermissionAlert = () => {
         Alert.alert(
@@ -110,6 +125,7 @@ export function useNotificationPermission() {
         hasPermission,
         isLoading,
         requestPermission,
+        requestPermissionDetailed,
         showPermissionAlert,
         checkPermission,
     };
