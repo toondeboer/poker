@@ -10,6 +10,14 @@ platform-tagged heading (e.g. `## [1.1.3] - 2026-07-20 — Android`) when you cu
 ## [Unreleased]
 
 ### Added
+- **A finished game asks before it is thrown away.** Start a new game with an unsaved one on screen
+  and the app offers to put it on the leaderboard first — it dealt every hand, so it already knows
+  who finished where. Nothing is lost either way: a finished game survives the app closing, and its
+  Save button is still there next time.
+- **Android tells you when notifications are blocked, and how to fix it.** Turn the permission down
+  and the timer cannot alert you when the blinds go up in the background — previously with no
+  explanation and no way back. Settings now says so and opens the right page, and the message goes
+  as soon as it is fixed.
 - **A leaderboard now survives having no signal.** Adding a player or recording a game writes the
   board on the phone first and tells the server second, keeping what could not be sent in an outbox
   that is retried when the app comes back to the foreground, when somebody signs in, and on the

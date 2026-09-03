@@ -1,6 +1,13 @@
 // src/components/game/GameScreen.tsx
 import { useMemo, useState } from "react";
-import { ScrollView, StyleSheet, Text, useWindowDimensions, View } from "react-native";
+import {
+  Alert,
+  ScrollView,
+  StyleSheet,
+  Text,
+  useWindowDimensions,
+  View,
+} from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import {
   computePayouts,
@@ -262,7 +269,7 @@ function ActiveGame({ nameFor }: { nameFor: (id: string) => string }) {
    * app dealt every hand, so it already knows who went out fourth. Recording by
    * hand is two taps per player and a memory test at the end of a long evening.
    */
-  const record = () => {
+  const record = (): boolean => {
     // The board this game's players came from. Recording into whichever group
     // happens to be selected now would file the night with people who were
     // never at the table, and nothing downstream would notice.
@@ -270,7 +277,7 @@ function ActiveGame({ nameFor }: { nameFor: (id: string) => string }) {
       setRefused(
         "These players came from a different group. Switch back to it on the Leaderboard screen to save this game.",
       );
-      return;
+      return false;
     }
     const saved = recordResult({
       playerIds: session.seats.map((seat) => seat.playerId),
@@ -287,6 +294,89 @@ function ActiveGame({ nameFor }: { nameFor: (id: string) => string }) {
     // message saying otherwise and took the retry away with it.
     if (saved) markRecorded();
     else setRefused("That result couldn't be saved. Nothing has been recorded.");
+    // **Returned, because the caller may be about to throw the game away.**
+    // `record` refuses for two reasons that are invisible from outside it, and
+    // ending the game on the strength of a save that did not happen destroys
+    // the night *and* the message explaining why.
+    return saved;
+  };
+
+
+  /**
+   * Ending a game is the one action that throws it away.
+   *
+   * **So it is the moment to ask, and the completion itself is not.** An alert
+   * the instant the game ends covers the showdown — the board, the cards and
+   * who won what — which is the one hand everybody wants to look at, and is
+   * exactly why the table is kept drawn below rather than replaced by a
+   * summary.
+   *
+   * It is also the only place the night is genuinely at risk. A finished game
+   * survives the app closing and its Save button is still there next launch;
+   * this is what makes it gone.
+   */
+  const confirmEndGame = () => {
+    // Nothing to lose: already on the leaderboard.
+    if (complete && recorded) {
+      endGame();
+      return;
+    }
+
+    /**
+     * **A game still in progress is the worse loss**, and it reached this
+     * button unguarded. A finished one can at least be recorded; an evening
+     * halfway through cannot be reconstructed from anywhere, and "End the game"
+     * sits directly under "Next hand".
+     */
+    if (!complete) {
+      // **Nothing dealt is nothing to lose**, and warning that "the hands
+      // played so far cannot be recovered" when there are none is the kind of
+      // confirmation people learn to tap through. Same check the Deal /
+      // Next hand label uses.
+      if (session.handsPlayed === 0) {
+        endGame();
+        return;
+      }
+      Alert.alert(
+        "End this game?",
+        "The hands played so far cannot be recovered, and a game in progress cannot be put on the leaderboard.",
+        [
+          { text: "Keep playing", style: "cancel" },
+          { text: "End the game", style: "destructive", onPress: endGame },
+        ],
+      );
+      return;
+    }
+
+    /**
+     * **Save first in the array, destructive second.** iOS moves the `cancel`
+     * action to the bottom and keeps the rest in order, so `[Cancel, Discard,
+     * Save]` renders as Discard / Save / Cancel — putting the destructive
+     * choice in the easiest slot to hit, on the prompt written to prevent
+     * exactly that loss. This order renders Save / Discard / Cancel on iOS and
+     * reads the same way on Android.
+     */
+    Alert.alert(
+      "Save this game first?",
+      "The app dealt every hand, so it already knows who finished where. Ending the game throws it away.",
+      [
+        {
+          /**
+           * **Only ends the game if the save actually happened.** `record`
+           * refuses when the players came from a board that is no longer
+           * active, and refusing then ending would clear the session — taking
+           * the night with it, and the explanation with it too, since this
+           * component renders nothing once there is no session.
+           */
+          text: "Save",
+          onPress: () => {
+            if (record()) endGame();
+          },
+        },
+        { text: "Discard", style: "destructive", onPress: endGame },
+        { text: "Cancel", style: "cancel" },
+      ],
+    );
   };
 
   return (
@@ -338,7 +428,7 @@ function ActiveGame({ nameFor }: { nameFor: (id: string) => string }) {
                 />
               </>
             )}
-            <Button label="New game" icon="refresh" onPress={endGame} />
+            <Button label="New game" icon="refresh" onPress={confirmEndGame} />
           </CardContent>
         </Card>
       ) : !handInProgress ? (
@@ -349,7 +439,11 @@ function ActiveGame({ nameFor }: { nameFor: (id: string) => string }) {
               icon="play"
               onPress={deal}
             />
-            <Button label="End the game" variant="ghost" onPress={endGame} />
+            <Button
+              label="End the game"
+              variant="ghost"
+              onPress={confirmEndGame}
+            />
           </CardContent>
         </Card>
       ) : null}

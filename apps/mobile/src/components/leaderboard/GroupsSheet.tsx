@@ -199,8 +199,15 @@ export function GroupsSheet({
        * catch the tap. The code needs none of that and gives up no entropy: it
        * is the same 32-character token either way.
        */
+      /**
+       * **The name the stores actually use**, which is neither the name on the
+       * home screen ("Poker Timer") nor the one the marketing copy uses
+       * ("Poker Blinds Buzzer"). This message is read by somebody who does not
+       * have the app: it has to name something they can search for and find.
+       * `STORE_LISTING.md` is the source of truth for it.
+       */
       const message =
-        `Join "${name}" on Poker Blinds Buzzer.\n\n` +
+        `Join "${name}" on Poker Blinds Timer & Buzzer.\n\n` +
         `Paste this code into Leaderboard → Groups → Join a board:\n\n${token}`;
       try {
         await Share.share({ message });
