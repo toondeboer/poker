@@ -83,6 +83,16 @@ A fix landing never upgrades a row on its own: ❌ becomes 🔧, and only a re-t
 - [⬜] If the app behaves strangely in ways that don't match the code, check
       `pgrep -fl GradleDaemon` — VS Code's Java extension replants the broken expo shims.
       `node apps/mobile/scripts/clean-expo-shims.js` fixes it; lint/typecheck now self-heal.
+- [⬜] **Anything in §14–§17 needs a backend to point at.** `backendConfig` in
+      `apps/mobile/src/services/backendConfig.ts` ships as `null`, so accounts and sharing are
+      absent — correctly and silently. Set it to `DEV_BACKEND` (or `PROD_BACKEND` once that exists)
+      or every row in those sections passes by being invisible.
+- [⬜] **And §15–§16 need the Club entitlement**, which nothing grants until the subscription exists
+      in both stores. Until then set `FORCE_PRO_IN_DEV` in `PremiumContext.tsx`, which forces Pro
+      **and** Club. Without it the share button and join field are simply not there, which reads
+      exactly like sync being broken.
+- [⬜] **§15 needs two devices**, and a third for the "boards follow the account" row. One phone
+      cannot see any of the failures worth finding.
 
 ---
 
@@ -99,6 +109,27 @@ sandbox/test account, and for Android, a build uploaded to a Play track.
 | **Purchase completes** and Pro unlocks (ads gone, Presets, Sound Pack, Payouts + Leaderboard usable) | ⬜ | 🚫 [see below](#android-billing) |
 | **Restore purchases** works on a fresh install of the same account | ⬜ | 🚫 [see below](#android-billing) |
 | Cancelling a purchase leaves the app in a sane state, no error toast | ⬜ | 🚫 [see below](#android-billing) |
+
+### 1b. The Club subscription · **new in 1.2.0**
+
+A subscription is not a second one-time purchase. **It ends**, and nothing in this app has ever had
+to handle something a person bought stopping working — every row below is a first.
+
+| | iOS | Android |
+|---|---|---|
+| Both SKUs appear and are priced — monthly **and** annual. One store having only one of them is a half-shipped product | ⬜ | 🚫 [see below](#android-billing) |
+| **Subscribing grants Pro as well.** A subscriber who never bought Pro can open the leaderboard — otherwise they are hosting a board they cannot see | ⬜ | 🚫 |
+| **Restore brings back both**, on a fresh install of the same account — Pro and Club, not one of them | ⬜ | 🚫 |
+| Cancelling in the store leaves the app sane, and access continues to the end of the paid period | ⬜ | 🚫 |
+| **After it expires: sharing stops, and Pro does not.** Once a subscription has granted Pro it keeps it, so the boards stay visible and only hosting goes. Getting this wrong takes the sight of every board they own | ⬜ | 🚫 |
+| An expired subscriber's **existing shared boards keep working for the other members** — they are still on the server, and stranding them is worse than the cost it saves | ⬜ | 🚫 |
+| Resubscribing restores hosting without anything being lost | ⬜ | 🚫 |
+| A Pro-only buyer is **never** told to buy Pro again by any Club message | ⬜ | 🚫 |
+
+> **Expiry is the row most likely to be skipped and most likely to hurt.** Sandbox subscriptions
+> renew and expire on a compressed clock — minutes rather than months on both stores — so it is
+> genuinely testable in an afternoon. `entitlementsFrom` reads `entitlements.all` rather than
+> `active` precisely so a lapsed subscriber keeps Pro through a reinstall; this is what proves it.
 
 > Set `FORCE_PRO_IN_DEV`/`FORCE_FREE_IN_DEV` in `PremiumContext.tsx` to exercise the *gated UI*
 > without buying — but that does **not** test billing itself. Both flags leave the **price** fetch
@@ -412,6 +443,103 @@ the table can follow what is happening from across it.
 | A hand where everyone folds and the busted player's pot goes unclaimed shows the "went unclaimed" line on the game-over card rather than silently losing the money | ⬜ | ⬜ |
 | Readable across a table — card faces, stacks and whose turn it is, at arm's length | ⬜ | ⬜ |
 | Tablet: the table is capped and centred rather than running the full width | ⬜ | ⬜ |
+
+---
+
+## 14. Accounts · **new in 1.2.0, and never once run from the app**
+
+Every screen here was written, wired to Cognito and exercised from a script. **None of it has been
+used from inside the app**, which is a different thing — the script never mistyped a code, never
+backgrounded the phone mid-flow, and never had to find the entry point.
+
+**Read this before starting.** The account screens are reachable from Settings, and `backendConfig`
+must point at a real backend or they cannot work at all. If sign-up says the build cannot do it,
+that is the switch, not a bug.
+
+| | iOS | Android |
+|---|---|---|
+| Settings shows the account row, and it opens the account screen | ⬜ | ⬜ |
+| **Sign up with a real address → the code arrives.** This is the row the whole feature rests on: Cognito's own sender was capped and landed in spam, which is why it now goes through SES | ⬜ | ⬜ |
+| The code arrives **in the inbox, not spam**, and is from `Poker Blinds Timer` | ⬜ | ⬜ |
+| Confirming with the emailed code signs you in | ⬜ | ⬜ |
+| **After confirming, the account can reset its password.** A user confirmed without the emailed code ends up `email_verified: false` and Cognito refuses to send to them at all — it reads as a mail failure and is not one. [See D-note](#accounts-email-verified) | ⬜ | ⬜ |
+| A **wrong code** says so and lets you try again, rather than dead-ending | ⬜ | ⬜ |
+| An **already-taken email** says so in words, not an error code | ⬜ | ⬜ |
+| A **wrong password** on sign-in says so and does not clear the email field | ⬜ | ⬜ |
+| Sign out, then sign back in — the boards are still there | ⬜ | ⬜ |
+| **Force-quit mid-sign-up, relaunch** → not signed in and not stuck; signing up again with the same address behaves sanely | ⬜ | ⬜ |
+| **Airplane mode during sign-in** says there is no connection, and does **not** sign you out of an existing session | ⬜ | ⬜ |
+| **Delete account removes the data, not just the login.** Delete, then sign up again with the same address: no old boards, no old claims. App Store 5.1.1(v) asks for the data as well | ⬜ | ⬜ |
+| After deleting, the app still works — local boards intact, timer fine, no crash on next launch | ⬜ | ⬜ |
+
+<a id="accounts-email-verified"></a>
+> **Why the password-reset row is there.** Both smoke accounts were `CONFIRMED` with
+> `email_verified: false`, because they had been confirmed administratively rather than through the
+> emailed code. Cognito then refuses to send to them — *"no registered/verified email"* — which looks
+> exactly like SES being broken. Real sign-up should set it; this row is what proves it does.
+
+---
+
+## 15. Shared boards (Club) · **new in 1.2.0, needs two devices**
+
+**One device cannot test this.** The whole feature is a board on one phone appearing on another, and
+every interesting failure — a stale board, a write that never arrives, a member seeing an empty
+board — only shows with two.
+
+**Nothing grants `club` until the subscription exists in both stores.** Until then set
+`FORCE_PRO_IN_DEV` in `PremiumContext.tsx`, which forces both entitlements. Without it the share
+button and join field are simply absent, silently and correctly, which reads exactly like sync being
+broken.
+
+| | iOS | Android |
+|---|---|---|
+| **The host shares a board** — the code arrives in the share sheet with a message naming the app | ⬜ | ⬜ |
+| **A second device joins by pasting the code**, and the board arrives with its whole roster and season, not empty | ⬜ | ⬜ |
+| Pasting **the entire shared message** works, not just the bare code | ⬜ | ⬜ |
+| A **wrong or expired code** says so and leaves the app usable | ⬜ | ⬜ |
+| **A guest pays nothing.** A device with neither Pro nor Club joins, and can read the board it was sent — if it hits a paywall, the feature is dead | ⬜ | ⬜ |
+| That guest **cannot** create a board of their own (Pro) or share one (Club) — the create and share controls are absent, not broken | ⬜ | ⬜ |
+| **A player added on one device appears on the other** after foregrounding it | ⬜ | ⬜ |
+| **A game recorded on one appears on the other**, with the same standings | ⬜ | ⬜ |
+| **Record with no signal, then reconnect.** Airplane mode, add a player and record a game, come back — both arrive, and nothing was lost or doubled | ⬜ | ⬜ |
+| **A deletion propagates.** Remove a player on the host; the guest stops showing them | ⬜ | ⬜ |
+| **A local delete stays deleted.** Delete a game on the guest, foreground twice — it does not come back | ⬜ | ⬜ |
+| **A board deleted locally stays deleted**, and is not re-added by the next sync | ⬜ | ⬜ |
+| The **share button is absent on a board you joined** — only an admin can invite, so offering it would only ever explain itself | ⬜ | ⬜ |
+| **Sign in on a third device → the boards are there**, without anybody sharing anything | ⬜ | ⬜ |
+| A write the server refuses shows the "Not saved for others" card, and dismissing it works | ⬜ | ⬜ |
+| Renaming a board on one device does **not** revert on the next sync | ⬜ | ⬜ |
+
+---
+
+## 16. Club, Pro, and what each unlocks
+
+The rules are unit-tested in `clubPolicy`. **What a human has to check is that nobody is told to buy
+something they already own**, which is the failure that reaches a store review.
+
+| | iOS | Android |
+|---|---|---|
+| A **Pro-only** account (no Club) can use every local feature and **cannot** share a board — and the message names Club, not Pro | ⬜ | ⬜ |
+| A **Club** subscriber gets Pro with it — the leaderboard works without buying Pro separately | ⬜ | ⬜ |
+| A Club subscriber sees **"Pro is included with Club"**, not "Pro unlocked" — the second implies a permanence they have not got | ⬜ | ⬜ |
+| **Restore purchases is offered even when the app thinks you are unlocked.** The person who needs it most is the one whose purchase this device has not recognised | ⬜ | ⬜ |
+| Buying **Pro** while subscribed does not double-charge or confuse the paywall | ⬜ | ⬜ |
+| Nobody is ever told to buy something they hold — check the messages for a Pro-only, a Club-only, and a signed-out account | ⬜ | ⬜ |
+| A **signed-out** person tapping "Join a board" is offered a sign-in, not a paywall and not an empty sheet | ⬜ | ⬜ |
+
+---
+
+## 17. The kill switch
+
+**An untested switch is worse than none**, because it gets reached for in an emergency. Verified
+from a laptop against dev in both directions; these rows are the app half.
+
+| | iOS | Android |
+|---|---|---|
+| With `featureSharing=off` deployed, a **cold launch** shows no share button and no join field, and nothing syncs | ⬜ | ⬜ |
+| Turning it back on and relaunching restores both — within the 60-second cache | ⬜ | ⬜ |
+| With `featureAccounts=off`, the account screens say so rather than failing at the first request | ⬜ | ⬜ |
+| **With the backend unreachable entirely** (airplane mode at launch), the app treats the features as off rather than queueing writes at a server that is not there | ⬜ | ⬜ |
 
 ---
 

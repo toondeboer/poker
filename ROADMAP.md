@@ -25,9 +25,12 @@ if an earlier one is broken.
 The release is the thing with a date on it, and the backend is the thing that can wait. Doing them
 the other way round means a half-deployed backend competing for attention with an App Store review.
 
-- **Run the manual pass.** ~151 unrun rows in [RELEASE_TESTING.md](./RELEASE_TESTING.md), heaviest
-  in _Play a hand_ (64), _Leaderboard_ (49), the blind editor (30) and _Payouts_ (29). §1 billing
-  blocks submission and cannot be exercised from a local build at all.
+- **Run the manual pass.** ~212 unrun rows in [RELEASE_TESTING.md](./RELEASE_TESTING.md), heaviest
+  in _Play a hand_ (64), _Leaderboard_ (49), the blind editor (30), _Payouts_ (29) and shared boards
+  (16). §1 billing blocks submission and cannot be exercised from a local build at all. **§14–§17
+  are new and need setting up**: a backend to point `backendConfig` at, `FORCE_PRO_IN_DEV` to force
+  the Club entitlement nothing grants yet, and **two devices** — one phone cannot see any of the
+  sharing failures worth finding.
 - **Android has seen almost none of this.** Eight features were looked at on an iOS simulator only,
   and simulator synthetic taps do not work here — so **nothing in the new UI has ever been pressed
   by hand on either platform**. Assume the first real tap finds something.
@@ -313,8 +316,10 @@ if you host. A board that does not sync is never announced *and* never queues wr
   pointed at `DEV_BACKEND` announces no board, queues no write and shows no share button — silently
   and correctly. Set `FORCE_PRO_IN_DEV` in `PremiumContext`, which forces both entitlements, to run
   the sharing rows in `RELEASE_TESTING.md`. Worth knowing before somebody concludes sync is broken.
-- ⬜ **Billing rows in `RELEASE_TESTING.md`** — purchase, restore, cancel and **expiry**, which the
-  one-time product never had.
+- ✅ **Billing rows written** — §1b covers both SKUs, restore bringing back *both* entitlements,
+  cancellation, and **expiry**, which the one-time product never had. They cannot be run until the
+  products exist, but they are no longer waiting to be remembered. **Delete this line when 1.2.0 is
+  cut.**
 ### What a lapsed subscriber keeps — decided
 
 **Pro, once granted by Club, stays granted.** Somebody who subscribed and later stopped keeps the
