@@ -384,6 +384,8 @@ export {
   readInviteCode,
   tokenFromUrl,
 } from "./sync/invites";
+export { NO_FEATURES, readFeatures } from "./sync/features";
+export type { Features } from "./sync/features";
 export {
   NOTHING_DELETED,
   boardFromRemote,

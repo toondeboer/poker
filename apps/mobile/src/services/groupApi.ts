@@ -1,9 +1,12 @@
 // src/services/groupApi.ts
 import {
+  NO_FEATURES,
+  readFeatures,
   readRemoteBoard,
   reasonForRefusal,
   requestFor,
   resultForStatus,
+  type Features,
   type RemoteBoard,
   type QueuedWrite,
   type SendResult,
@@ -32,6 +35,14 @@ export type GroupApi = {
    * later treat one of them as "the board is empty".
    */
   board: (groupId: string) => Promise<RemoteBoard | null>;
+  /**
+   * What the server says the app may do — the kill switch.
+   *
+   * Unauthenticated, because a phone has to be able to ask before it has an
+   * account: otherwise somebody signed out could never learn that sign-in has
+   * been switched off, which is the state the switch exists for.
+   */
+  features: () => Promise<Features>;
   /**
    * Every board this account is on.
    *
@@ -162,6 +173,23 @@ export const createGroupApi = (
     } catch (error) {
       logger.warn("Could not list boards:", error);
       return null;
+    }
+  },
+
+  async features() {
+    const config = backendConfig;
+    if (!config) return NO_FEATURES;
+    try {
+      const response = await fetcher(`${config.apiUrl.replace(/\/$/, "")}/config`);
+      // **Anything other than a clean answer means off.** A 500, an HTML error
+      // page from something in front of the API, a timeout — none of them are
+      // the server saying yes, and treating them as such is how the switch
+      // fails to switch anything off.
+      if (!response.ok) return NO_FEATURES;
+      return readFeatures(await response.json());
+    } catch (error) {
+      logger.warn("Could not read the server config:", error);
+      return NO_FEATURES;
     }
   },
 

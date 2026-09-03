@@ -57,7 +57,8 @@ import {
 import { Runtime, Tracing } from "aws-cdk-lib/aws-lambda";
 import { NodejsFunction } from "aws-cdk-lib/aws-lambda-nodejs";
 import { LogGroup } from "aws-cdk-lib/aws-logs";
-import { HttpApi, HttpMethod, type CfnStage } from "aws-cdk-lib/aws-apigatewayv2";
+import {
+  HttpNoneAuthorizer, HttpApi, HttpMethod, type CfnStage } from "aws-cdk-lib/aws-apigatewayv2";
 import { HttpUserPoolAuthorizer } from "aws-cdk-lib/aws-apigatewayv2-authorizers";
 import { HttpLambdaIntegration } from "aws-cdk-lib/aws-apigatewayv2-integrations";
 import { PLAYER_NAMESPACE, TABLE_NAMESPACE } from "@poker/core";
@@ -597,6 +598,47 @@ export class PokerStack extends Stack {
       path: "/me",
       methods: [HttpMethod.GET],
       integration: new HttpLambdaIntegration("IdentityRoute", identityHandler),
+    });
+
+    /**
+     * The kill switch — see `lambda/config.ts`.
+     *
+     * **The one deliberately public route**, and `HttpNoneAuthorizer` is how
+     * that is said out loud rather than by omission: the API authenticates by
+     * default precisely so this has to be a choice somebody made. A phone must
+     * be able to ask whether accounts work *before* it has one, which is
+     * exactly the state the switch exists for.
+     */
+    const configHandler = new NodejsFunction(this, "Config", {
+      entry: path.join(__dirname, "lambda", "config.ts"),
+      runtime: Runtime.NODEJS_22_X,
+      memorySize: 128,
+      timeout: Duration.seconds(3),
+      logGroup: new LogGroup(this, "ConfigLogs", {
+        retention: settings.logRetention,
+        removalPolicy: RemovalPolicy.DESTROY,
+      }),
+      environment: {
+        ...functionEnvironment,
+        /**
+         * Set to `off` to switch a feature off in a running deployment. A stack
+         * update rather than a build — a minute, against days for a store
+         * review, which is the entire point.
+         */
+        FEATURE_ACCOUNTS: (this.node.tryGetContext("featureAccounts") as string) ?? "on",
+        FEATURE_SHARING: (this.node.tryGetContext("featureSharing") as string) ?? "on",
+      },
+      // Traced like everything else. It is the first thing a cold app asks, so
+      // when launches are slow this is where the answer starts.
+      tracing: Tracing.ACTIVE,
+      ...handlerBundling,
+    });
+
+    api.addRoutes({
+      path: "/config",
+      methods: [HttpMethod.GET],
+      authorizer: new HttpNoneAuthorizer(),
+      integration: new HttpLambdaIntegration("ConfigRoute", configHandler),
     });
 
     /**

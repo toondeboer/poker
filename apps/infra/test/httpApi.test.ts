@@ -32,6 +32,7 @@ describe("something can finally call the backend", () => {
       "DELETE /groups/{groupId}/members/{accountId}",
       "DELETE /groups/{groupId}/players/{playerId}",
       "DELETE /me",
+      "GET /config",
       "GET /groups",
       "GET /groups/{groupId}",
       "GET /groups/{groupId}/members",
@@ -49,12 +50,33 @@ describe("something can finally call the backend", () => {
 });
 
 describe("every route is authenticated, and that is the default", () => {
-  it("leaves nothing open", () => {
-    // The assertion worth having is over *all* routes rather than the two that
-    // exist today: a route added later must be authenticated because nobody
-    // did anything, not because somebody remembered.
-    const open = routes().filter((route) => route.AuthorizationType !== "JWT");
-    expect(open).toEqual([]);
+  it("leaves nothing open except the one route that has to be", () => {
+    // The assertion worth having is over *all* routes rather than the handful
+    // that exist today: a route added later must be authenticated because
+    // nobody did anything, not because somebody remembered.
+    //
+    // **The exception is named, not a relaxation.** `GET /config` carries the
+    // kill switch and has to answer a phone that does not have an account yet —
+    // otherwise a signed-out user could never learn that sign-in has been
+    // switched off, which is the state the switch exists for. Anything *else*
+    // going public still fails here.
+    const open = routes()
+      .filter((route) => route.AuthorizationType !== "JWT")
+      .map((route) => route.RouteKey);
+    expect(open).toEqual(["GET /config"]);
+  });
+
+  it("says nothing on that open route that is not the same for everybody", () => {
+    // The reason it is safe to leave open: two booleans, identical for every
+    // caller, and nothing derived from who is asking.
+    const config = Object.values(
+      template().findResources("AWS::Lambda::Function"),
+    ).filter((fn) =>
+      JSON.stringify((fn.Properties as { Environment?: unknown }).Environment).includes(
+        "FEATURE_",
+      ),
+    );
+    expect(config).toHaveLength(1);
   });
 
   it("verifies tokens against this user pool and this client", () => {

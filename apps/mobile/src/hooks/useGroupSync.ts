@@ -4,6 +4,7 @@ import { AppState } from "react-native";
 import {
   EMPTY_QUEUE,
   MAX_REFUSALS,
+  NO_FEATURES,
   applyReport,
   cancel,
   cancelBoard,
@@ -108,7 +109,21 @@ export const useGroupSync = (): GroupSync => {
    * to pull the board somebody shared with them and write to it, and gating
    * this hook would make them a spectator.
    */
-  const enabled = backendConfig !== null;
+  /**
+   * What the server currently allows — the kill switch.
+   *
+   * **Starts off and is asked once at launch.** Nothing syncs until the server
+   * has said it may, which is a second or two of delay against the ability to
+   * stop a misbehaving feature without a store release. The effect below turns
+   * everything on the moment the answer arrives, so the cost of starting
+   * closed is that delay and nothing else.
+   */
+  const [features, setFeatures] = useState(NO_FEATURES);
+  const enabled = backendConfig !== null && features.sharing;
+
+
+
+
   const [queue, setQueue] = useState<SyncQueue>(EMPTY_QUEUE);
   /**
    * The queue as it is *right now*, for the drain to work from.
@@ -325,6 +340,37 @@ export const useGroupSync = (): GroupSync => {
       }),
     [syncNow, wantPull],
   );
+
+  /**
+   * Ask the server what the app is allowed to do, and start if it says so.
+   *
+   * **The kill switch.** Nothing syncs until this answers, so a feature can be
+   * turned off from a laptop in a minute rather than through a store review —
+   * which for a solo developer is the difference between a recovery and a week.
+   * Unreachable counts as off; see `readFeatures`.
+   *
+   * The start happens in the callback rather than in a later effect because
+   * `wantPull` is a `setState`, and calling one synchronously in an effect body
+   * is the cascading-render pattern the lint rule exists to stop. It also puts
+   * the first sync exactly at the moment permission arrives, rather than a
+   * render afterwards.
+   */
+  useEffect(() => {
+    if (!backendConfig) return;
+    let active = true;
+    void api.features().then((allowed) => {
+      if (!active) return;
+      setFeatures(allowed);
+      if (!allowed.sharing) return;
+      syncNow();
+      wantPull();
+    });
+    return () => {
+      active = false;
+    };
+  }, [syncNow, wantPull]);
+
+
 
   useEffect(() => {
     let active = true;

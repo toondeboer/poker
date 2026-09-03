@@ -438,10 +438,11 @@ describe("the action handler", () => {
     // call PutRetentionPolicy on another function's log group; an explicit log
     // group does that with no function at all.
     template().resourceCountIs("Custom::LogRetention", 0);
-    // Four: the action handler, the identity route that proves the API chain
-    // works, the subscribe authorizer, and the group routes. Update this
-    // deliberately when a fifth is written.
-    template().resourceCountIs("AWS::Lambda::Function", 4);
+    // Five: the action handler, the identity route that proves the API chain
+    // works, the subscribe authorizer, the group routes, and the public config
+    // route carrying the kill switch. Update this deliberately when a sixth is
+    // written.
+    template().resourceCountIs("AWS::Lambda::Function", 5);
   });
 
   it("has no secondary index at all", () => {
