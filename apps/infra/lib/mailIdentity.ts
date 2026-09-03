@@ -157,7 +157,15 @@ export const mailFor = (scope: Construct, stage: Stage): Mail | undefined => {
    * without them — and because it should be a deliberate second step, not
    * something that flips under a deploy that was about something else.
    */
-  if (scope.node.tryGetContext("mailVerified") !== true) return { domain };
+  /**
+   * **Both spellings, because `-c` only ever gives a string.** Checking for the
+   * boolean alone meant `-c mailVerified=true` on the command line did nothing
+   * at all and the deploy reported "no changes" — while a test setting it as a
+   * boolean in `App` context passed happily. The flag could not be set the one
+   * way anybody would set it.
+   */
+  const verified = scope.node.tryGetContext("mailVerified");
+  if (verified !== true && verified !== "true") return { domain };
 
   return {
     domain,

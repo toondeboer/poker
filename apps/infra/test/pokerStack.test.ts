@@ -203,7 +203,10 @@ describe("where confirmation emails come from", () => {
         hostedZoneId: "Z0000000000000000000",
         hostedZoneName: "example.test",
         region: "us-east-1",
-        ...(verified ? { mailVerified: true } : {}),
+        // **The string, as `-c` gives it.** Setting the boolean here is what
+        // let a version through that could not be switched on from a command
+        // line at all: the test agreed with the code rather than with the CLI.
+        ...(verified ? { mailVerified: "true" } : {}),
       },
     });
     return Template.fromStack(
