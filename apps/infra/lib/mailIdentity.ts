@@ -18,6 +18,20 @@
  * `From` header. Nothing needs buying beyond the domain itself, which is why
  * this costs nothing here: the zone is already in Route 53, in this account.
  *
+ * ## It takes two deploys, and that is not avoidable
+ *
+ * **Cognito checks the identity when it is updated, and verification is
+ * asynchronous.** CloudFormation creates the identity and updates the pool in
+ * parallel, so the pool is told to use an identity SES has not yet read the DKIM
+ * records back for, and the whole stack rolls back with *"Email address is not
+ * verified"*. No dependency between the resources fixes it: the wait is on SES,
+ * not on a resource existing.
+ *
+ * So it is explicit. The first deploy creates the identity and its records; SES
+ * verifies in its own time; a second deploy with `-c mailVerified=true` moves
+ * the pool onto it. `aws sesv2 get-email-identity --email-identity <domain>`
+ * says when that is true.
+ *
  * ## Two things this deliberately does not do
  *
  * It does not leave the SES **sandbox**, which is a support request rather than
@@ -25,9 +39,10 @@
  * have themselves been verified. Fine for the smoke accounts, useless for real
  * users, and it has a queue, so it wants requesting early.
  *
- * It also does not publish SPF or DMARC. DKIM alignment alone satisfies DMARC,
- * and a `p=` policy on a domain that has never sent mail is a good way to have
- * your own future mail quarantined by a rule you forgot you wrote.
+ * It also does not publish SPF or DMARC, or set a custom MAIL FROM. DKIM
+ * alignment alone satisfies DMARC, and a `p=` policy on a domain that has never
+ * sent mail is a good way to have your own future mail quarantined by a rule
+ * you forgot you wrote.
  */
 
 import { EmailIdentity, Identity } from "aws-cdk-lib/aws-ses";
@@ -50,7 +65,14 @@ import type { Stage } from "./stage";
 export const mailDomainFor = (stage: Stage, base: string): string =>
   stage === "prod" ? `poker.${base}` : `poker-dev.${base}`;
 
-export type Mail = { email: UserPoolEmail; domain: string };
+export type Mail = {
+  /**
+   * `undefined` until the identity has actually verified — see `mailFor`. The
+   * pool keeps Cognito's own sender in the meantime.
+   */
+  email?: UserPoolEmail;
+  domain: string;
+};
 
 /**
  * SES-backed email for the user pool, or Cognito's own sender.
@@ -95,9 +117,16 @@ export const mailFor = (scope: Construct, stage: Stage): Mail | undefined => {
    * zone here rather than being created for us. Same outcome, one construct
    * more.
    */
+  /**
+   * **No custom MAIL FROM.** SES requires one to be a *strict* subdomain of the
+   * identity, so naming the identity itself is rejected outright — and it buys
+   * nothing here. A custom MAIL FROM exists to align SPF with the sending
+   * domain; DMARC passes on *either* SPF or DKIM alignment, and the DKIM below
+   * gives us that. Adding one would mean an extra MX and TXT record to keep
+   * correct for a second guarantee we do not need.
+   */
   const identity = new EmailIdentity(scope, "MailIdentity", {
     identity: Identity.domain(domain),
-    mailFromDomain: domain,
   });
 
   /**
@@ -108,10 +137,27 @@ export const mailFor = (scope: Construct, stage: Stage): Mail | undefined => {
   identity.dkimRecords.forEach((record, index) => {
     new CnameRecord(scope, `MailDkim${index}`, {
       zone,
-      recordName: record.name,
+      /**
+       * **The trailing dot is load-bearing.** SES hands these names back as
+       * CloudFormation tokens, so CDK's "does this already end with the zone
+       * name?" check cannot see inside them and appends the zone a second
+       * time — the records land at
+       * `…._domainkey.poker-dev.toondeboer.com.toondeboer.com`, SES never finds
+       * them, and the identity sits at `PENDING` forever with nothing obviously
+       * wrong. A name ending in `.` is treated as already fully qualified.
+       */
+      recordName: `${record.name}.`,
       domainName: record.value,
     });
   });
+
+  /**
+   * **Only once somebody has confirmed SES verified it.** Named rather than
+   * looked up, because a lookup needs credentials and this has to synthesise
+   * without them — and because it should be a deliberate second step, not
+   * something that flips under a deploy that was about something else.
+   */
+  if (scope.node.tryGetContext("mailVerified") !== true) return { domain };
 
   return {
     domain,

@@ -888,9 +888,11 @@ export class PokerStack extends Stack {
     new CfnOutput(this, "Stage", { value: settings.stage });
     if (mail) {
       new CfnOutput(this, "MailFrom", {
-        value: `noreply@${mail.domain}`,
+        value: mail.email
+          ? `noreply@${mail.domain}`
+          : `${mail.domain} (identity created; pool still on Cognito's sender — redeploy with -c mailVerified=true once SES has verified it)`,
         description:
-          "Sender for confirmation codes. Useless until SES production access is granted — until then it only delivers to verified addresses.",
+          "Sender for confirmation codes. Delivers only to verified addresses until SES production access is granted.",
       });
     }
     new CfnOutput(this, "UserPoolId", { value: userPool.userPoolId });

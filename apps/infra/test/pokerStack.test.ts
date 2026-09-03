@@ -196,17 +196,18 @@ describe("where confirmation emails come from", () => {
    * and lands in spam — observed here — so an app whose sign-up depends on a
    * code arriving cannot ship on it.
    */
-  const withMail = (stage: "dev" | "prod" = "prod"): Template => {
+  const withMail = (stage: "dev" | "prod" = "prod", verified = true): Template => {
     const app = new App({
       context: {
         mailDomain: "example.test",
         hostedZoneId: "Z0000000000000000000",
         hostedZoneName: "example.test",
         region: "us-east-1",
+        ...(verified ? { mailVerified: true } : {}),
       },
     });
     return Template.fromStack(
-      new PokerStack(app, `Mailed${stage}`, { settings: settingsFor(stage) }),
+      new PokerStack(app, `Mailed${stage}${verified}`, { settings: settingsFor(stage) }),
     );
   };
 
@@ -241,6 +242,23 @@ describe("where confirmation emails come from", () => {
         (r) => (r.Properties as { Type?: string }).Type === "CNAME",
       ),
     ).toHaveLength(3);
+  });
+
+  it("does not move the pool onto an identity nobody has confirmed", () => {
+    /**
+     * **Cognito checks the identity when it is updated, and verification is
+     * asynchronous** — so pointing the pool at a brand-new identity rolls the
+     * whole stack back with "Email address is not verified". Observed, twice.
+     * The identity is still created; only the switch waits.
+     */
+    const t = withMail("dev", false);
+    t.resourceCountIs("AWS::SES::EmailIdentity", 1);
+    t.hasResourceProperties(
+      "AWS::Cognito::UserPool",
+      Match.objectLike({
+        EmailConfiguration: Match.objectLike({ EmailSendingAccount: "COGNITO_DEFAULT" }),
+      }),
+    );
   });
 
   it("keeps dev's sending reputation off the production domain", () => {
