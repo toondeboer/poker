@@ -105,6 +105,54 @@ describe("being told when it stops", () => {
       ]),
     });
   });
+
+  it("measures this stack's spend and not the whole account's", () => {
+    // **The budget used to have no filter at all**, so in an account running
+    // anything else it forecast a number this stack was only part of: another
+    // project could hold it permanently over the limit while a runaway here
+    // stayed invisible inside the total.
+    template().hasResourceProperties("AWS::Budgets::Budget", {
+      Budget: Match.objectLike({
+        CostFilters: { TagKeyValue: ["user:billingScope$poker-prod"] },
+      }),
+    });
+  });
+
+  it("filters on one tag, because Budgets ORs the values it is given", () => {
+    // Not a style point. `TagKeyValue` matches a resource carrying *any* of
+    // the values, so listing `project$poker` beside `stage$prod` would bill
+    // this budget for every poker stack plus anything else in the account
+    // tagged `stage=prod`. One value that is already unique per stack is the
+    // only correct shape — hence the `billingScope` tag existing at all.
+    const budgets = template().findResources("AWS::Budgets::Budget");
+    const filters = Object.values(budgets).map(
+      (budget) =>
+        (budget.Properties as { Budget: { CostFilters?: { TagKeyValue?: string[] } } })
+          .Budget.CostFilters?.TagKeyValue,
+    );
+    expect(filters).toHaveLength(1);
+    expect(filters[0]).toHaveLength(1);
+  });
+
+  it("tags every stack uniquely, or the filter above matches the wrong one", () => {
+    // `billingScope` is what the budget keys on, so dev and prod must never
+    // produce the same value.
+    const dev = Template.fromStack(
+      new PokerStack(new App(), "TagDev", { settings: settingsFor("dev") }),
+    );
+    // Read off the SNS topic: `Tags.of(this)` reaches every taggable resource,
+    // and this one carries them as a plain `Properties.Tags` list. The
+    // DynamoDB table does not — a GlobalTable puts them under `Replicas` —
+    // which is a detail of that resource and not of the tagging.
+    const scopeOf = (t: Template) =>
+      (
+        Object.values(t.findResources("AWS::SNS::Topic"))[0].Properties as {
+          Tags?: { Key: string; Value: string }[];
+        }
+      ).Tags?.find((tag) => tag.Key === "billingScope")?.Value;
+    expect(scopeOf(dev)).toBe("poker-dev");
+    expect(scopeOf(template())).toBe("poker-prod");
+  });
 });
 
 describe("a stack nobody gave an address", () => {

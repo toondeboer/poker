@@ -158,14 +158,28 @@ export class PokerStack extends Stack {
     /**
      * Tags on everything in this stack.
      *
-     * What a budget would need to filter on. The `poker-dev`
-     * budget currently forecasts the *whole account*, because `CfnBudget` has no
-     * cost filter and this account runs other projects; filtering it means
-     * activating `project` as a cost allocation tag in Billing and waiting for
-     * AWS to backfill it.
+     * Two jobs, which is why there are three tags rather than two.
+     *
+     * `project` and `stage` are for **reading** the bill: Cost Explorer can
+     * group by several tags at once, so these are what answer "what does poker
+     * cost, and how much of it is dev" once they are activated as cost
+     * allocation tags.
+     *
+     * `billingScope` is for **alarming** on it, and exists because AWS Budgets
+     * cannot express the same thing. Its `TagKeyValue` filter ORs the values it
+     * is given, so `project$poker` plus `stage$dev` matches either — every
+     * poker resource including prod, *plus* anything else in the account tagged
+     * `stage=dev`. One tag whose value is already unique per stack is the only
+     * shape that filter can hold. See `Observability`.
+     *
+     * **None of this does anything until the tags are activated by hand** in
+     * Billing → Cost allocation tags. CloudFormation cannot activate them, and
+     * activation is not retroactive — spend before it stays unattributed. The
+     * runbook is in the README.
      */
     Tags.of(this).add("project", "poker");
     Tags.of(this).add("stage", settings.stage);
+    Tags.of(this).add("billingScope", `poker-${settings.stage}`);
 
     /**
      * Telemetry and the alarms that read it — set up first, because every
