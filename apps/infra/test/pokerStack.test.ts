@@ -67,6 +67,19 @@ describe("the stack synthesises", () => {
     expect(typeof context?.alertEmail).toBe("string");
     expect(typeof context?.monthlyBudgetUsd).toBe("number");
 
+    /**
+     * **And `mailVerified`, which was the same bug a second time.** Dev was
+     * moved onto SES with a hand-typed `-c mailVerified=true` that nothing
+     * wrote down, so the next deploy from CI — which passes only account and
+     * region — would have put the pool silently back on Cognito's own sender.
+     * That is not a visible failure: it is confirmation codes returning to
+     * spam, capped at fifty a day, found out when sign-up stops working.
+     *
+     * Per stage, because a fresh identity has to exist before it can be
+     * verified; see `mailVerifiedFor`.
+     */
+    expect(typeof context?.mailVerified).toBe("object");
+
     // And that those two keys are the ones that matter: `bin/app.ts` reads them
     // and passes them as props, so a rename on either side is a silent loss.
     const configured = Template.fromStack(
@@ -302,6 +315,47 @@ describe("where confirmation emails come from", () => {
     withMail("dev").hasResourceProperties(
       "AWS::SES::EmailIdentity",
       Match.objectLike({ EmailIdentity: "poker-dev.example.test" }),
+    );
+  });
+
+  it("moves only the stage whose identity has actually verified", () => {
+    /**
+     * The two-phase deploy, expressed per stage. Prod's identity does not exist
+     * until prod's first deploy creates it, and pointing a pool at an identity
+     * SES has not read the DKIM records back for rolls the whole stack back —
+     * observed twice. So dev can be on SES while prod is still waiting.
+     */
+    const perStage = (id: string, stage: "dev" | "prod"): Template =>
+      Template.fromStack(
+        new PokerStack(
+          new App({
+            context: {
+              mailDomain: "example.test",
+              hostedZoneId: "Z0000000000000000000",
+              hostedZoneName: "example.test",
+              region: "us-east-1",
+              mailVerified: { dev: true },
+            },
+          }),
+          id,
+          { settings: settingsFor(stage) },
+        ),
+      );
+
+    perStage("PerStageDev", "dev").hasResourceProperties(
+      "AWS::Cognito::UserPool",
+      Match.objectLike({
+        EmailConfiguration: Match.objectLike({ EmailSendingAccount: "DEVELOPER" }),
+      }),
+    );
+    // Still created, so it can verify; only the switch waits.
+    const prod = perStage("PerStageProd", "prod");
+    prod.resourceCountIs("AWS::SES::EmailIdentity", 1);
+    prod.hasResourceProperties(
+      "AWS::Cognito::UserPool",
+      Match.objectLike({
+        EmailConfiguration: Match.objectLike({ EmailSendingAccount: "COGNITO_DEFAULT" }),
+      }),
     );
   });
 

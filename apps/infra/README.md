@@ -367,6 +367,90 @@ Prod is never automatic. It holds the leaderboards.
 dev is deployed by hand with `npm run deploy:dev`, and the `cdk diff` job on a pull request is the
 part that already runs — which is also the thing that proves the OIDC round trip works.
 
+## Standing up production
+
+**Not done.** Dev has been deployed and exercised; prod has never existed. This is the order, and
+the order matters — two of these steps cannot be undone by the next deploy, and one of them has a
+queue measured in days.
+
+### Before touching AWS: ask for SES production access
+
+**Do this first, because it is the only step here that waits on somebody else.** A new SES account
+is in the *sandbox*, where mail is delivered only to addresses that have themselves been verified.
+That is fine for the smoke accounts and useless for real users: every sign-up would send a code
+that never arrives.
+
+Support → *Account and billing* → *Service limit increase* → *SES Sending Limits*, or the "Request
+production access" button in the SES console. Say what the mail is (transactional confirmation
+codes for a mobile app's sign-up), how somebody stops receiving it (they never receive another one
+— there is no list to unsubscribe from), and how bounces are handled. It is usually granted within
+a day or two, and it is **per account and region**, so granting it for `us-east-1` covers both
+stages.
+
+The request is stronger once the dev identity has been sending, which it has.
+
+### 1. Deploy prod once, to create the identity
+
+```bash
+# Actions → Infra → Run workflow → prod, which waits on the `backend-production`
+# environment approval. Or, from a laptop:
+cd apps/infra
+npx cdk deploy PokerBackend-prod -c account=096695166445 -c region=us-east-1
+```
+
+This creates everything except the mail sender: the pool, the table, the API and its domain, and
+the SES identity `poker.toondeboer.com` with its three DKIM records — but it leaves the pool on
+Cognito's own sender, because `cdk.json` says `mailVerified: { "dev": true }` and prod is not in
+that list yet.
+
+**That is deliberate and is not a step to skip.** Cognito validates the identity at the moment the
+pool is updated, and SES verifies asynchronously, so a deploy that did both at once rolls the entire
+stack back with *"Email address is not verified"*. It happened twice on dev.
+
+**Then confirm the alarm subscription email.** SNS sends a confirmation link to
+`poker.blinds.buzzer@gmail.com`; until somebody clicks it, every alarm in prod fires into nothing.
+
+### 2. Wait for SES, then flip prod on
+
+```bash
+aws sesv2 get-email-identity --email-identity poker.toondeboer.com \
+  --query '{Verified:VerifiedForSendingStatus,Dkim:DkimAttributes.Status}'
+# Wait for Verified: true, Dkim: SUCCESS. Minutes to a few hours.
+```
+
+Then add prod to the list in `cdk.json` — **in the file, not as a `-c` flag**:
+
+```json
+"mailVerified": { "dev": true, "prod": true }
+```
+
+and deploy again. Commit that change: **CDK context is not sticky**, so a flag typed on a command
+line is undone by the next deploy that does not repeat it, and the deploy job passes only account
+and region. That is exactly how it went wrong the first time — see `mailVerifiedFor`.
+
+Confirm with a real sign-up, not with the console: `aws sesv2 get-account` reports sending is
+enabled long before it proves a message arrived.
+
+### 3. Point the app at prod
+
+`apps/mobile/src/services/backendConfig.ts` — `backendConfig` is `null` in git so that no build can
+ship pointing at dev. Set it to `PROD_BACKEND` in the release commit, and check the ids against the
+prod stack's outputs rather than assuming they were filled in correctly.
+
+### 4. Only then, the store
+
+Club products in App Store Connect and Play Console, and the RevenueCat entitlement mapping. A
+build that reaches a tester before the products exist shows a paywall that cannot be bought.
+
+### What can be recovered afterwards, and what cannot
+
+| | |
+| --- | --- |
+| SES sandbox | **Cannot be rushed.** Days, and no code fixes it. Ask first. |
+| A feature misbehaving in prod | `-c featureSharing=off` — a stack update, about 90 seconds |
+| The table or the user pool | `RemovalPolicy.RETAIN` on prod, so a stack delete does not take them |
+| A bad prod deploy | Roll forward. There is no undo, and the data is real. |
+
 ## Turning a feature off without a release
 
 **The only recovery a solo developer can actually use.** Every other way of
