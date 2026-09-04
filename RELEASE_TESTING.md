@@ -538,7 +538,7 @@ from a laptop against dev in both directions; these rows are the app half.
 |---|---|---|
 | With `featureSharing=off` deployed, a **cold launch** shows no share button and no join field, and nothing syncs | ⬜ | ⬜ |
 | Turning it back on and relaunching restores both — within the 60-second cache | ⬜ | ⬜ |
-| With `featureAccounts=off`, the account screens say so rather than failing at the first request | ⬜ | ⬜ |
+| With `featureAccounts=off` deployed, a **cold launch** shows no Account row in Settings; `pokerkit://account` still opens the screen, because a confirmation email has to land somewhere | ⬜ | ⬜ |
 | **With the backend unreachable entirely** (airplane mode at launch), the app treats the features as off rather than queueing writes at a server that is not there | ⬜ | ⬜ |
 
 ---

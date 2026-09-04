@@ -3,6 +3,7 @@ import { useRouter } from "expo-router";
 import { Card, CardContent, CardHeader } from "@/src/components/ui/Card";
 import { NavRow } from "@/src/components/ui/NavRow";
 import { accountsAreReal, useAuth } from "@/src/contexts/AuthContext";
+import { useFeatures } from "@/src/contexts/FeaturesContext";
 
 /**
  * The way in to the account screens.
@@ -17,14 +18,22 @@ import { accountsAreReal, useAuth } from "@/src/contexts/AuthContext";
  * then, and a row that leads to a sign-in form which cannot sign anybody in is
  * worse than no row: it looks like a broken feature rather than an absent one.
  *
+ * **Absent too when the server has switched accounts off**, which is the same
+ * argument for a reason that is not compiled in. The case it is there for is
+ * concrete rather than hypothetical: sign-up depends on a confirmation code
+ * arriving by email, and until SES is out of its sandbox it will not reach an
+ * address nobody verified by hand. If that is where 1.2.0 lands, hiding the row
+ * beats shipping a form whose codes never come.
+ *
  * Signed in, the summary is the address rather than an invitation, because the
  * question somebody opens this to answer is usually "which account is this?".
  */
 export function AccountCard() {
   const router = useRouter();
   const { account } = useAuth();
+  const features = useFeatures();
 
-  if (!accountsAreReal) return null;
+  if (!accountsAreReal || !features.accounts) return null;
 
   return (
     <Card>

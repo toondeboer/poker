@@ -4,7 +4,6 @@ import { AppState } from "react-native";
 import {
   EMPTY_QUEUE,
   MAX_REFUSALS,
-  NO_FEATURES,
   applyReport,
   cancel,
   cancelBoard,
@@ -23,6 +22,7 @@ import { asyncStorageAdapter } from "@/src/services/storageAdapter";
 import { createGroupApi, type GroupApi } from "@/src/services/groupApi";
 import { apiToken, onSignedIn } from "@/src/contexts/AuthContext";
 import { backendConfig } from "@/src/services/backendConfig";
+import { useFeatures } from "@/src/contexts/FeaturesContext";
 import { generateId } from "@/src/utils/id";
 import { logger } from "@/src/utils/logger";
 
@@ -118,7 +118,7 @@ export const useGroupSync = (): GroupSync => {
    * everything on the moment the answer arrives, so the cost of starting
    * closed is that delay and nothing else.
    */
-  const [features, setFeatures] = useState(NO_FEATURES);
+  const features = useFeatures();
   const enabled = backendConfig !== null && features.sharing;
 
 
@@ -291,10 +291,24 @@ export const useGroupSync = (): GroupSync => {
     () => (enabled ? api.myBoards() : Promise.resolve(null)),
     [enabled],
   );
-  const createInvite = useCallback((groupId: string) => api.createInvite(groupId), []);
+  /**
+   * **Gated like everything else, which they were not.**
+   *
+   * Both write memberships server-side, so with sharing switched off they went
+   * on minting and redeeming links for boards that could then never sync — the
+   * one state the switch exists to prevent. `redeemInvite` refuses in words,
+   * because unlike a queued write somebody is watching this one happen.
+   */
+  const createInvite = useCallback(
+    (groupId: string) => (enabled ? api.createInvite(groupId) : Promise.resolve(null)),
+    [enabled],
+  );
   const redeemInvite = useCallback(
-    (token: string) => api.redeemInvite(token),
-    [],
+    (token: string): ReturnType<GroupApi["redeemInvite"]> =>
+      enabled
+        ? api.redeemInvite(token)
+        : Promise.resolve({ ok: false, reason: "Sharing is unavailable right now." }),
+    [enabled],
   );
 
   const acknowledge = useCallback(
@@ -342,35 +356,30 @@ export const useGroupSync = (): GroupSync => {
   );
 
   /**
-   * Ask the server what the app is allowed to do, and start if it says so.
+   * Start the moment the kill switch says we may.
    *
-   * **The kill switch.** Nothing syncs until this answers, so a feature can be
-   * turned off from a laptop in a minute rather than through a store review —
-   * which for a solo developer is the difference between a recovery and a week.
-   * Unreachable counts as off; see `readFeatures`.
+   * **Two halves, and they are split for a lint rule with a real reason behind
+   * it.** `syncNow` is safe in an effect body — it does network work behind a
+   * ref guard and sets no state synchronously. `wantPull` is a `setState`, and
+   * calling one in an effect body is the cascading render `set-state-in-effect`
+   * exists to stop, so the pull is bumped during render behind a previous-value
+   * comparison instead: React re-runs this without committing the intermediate
+   * result, exactly as `DurationField` does.
    *
-   * The start happens in the callback rather than in a later effect because
-   * `wantPull` is a `setState`, and calling one synchronously in an effect body
-   * is the cascading-render pattern the lint rule exists to stop. It also puts
-   * the first sync exactly at the moment permission arrives, rather than a
-   * render afterwards.
+   * Both are needed. The drain alone returns at its empty-queue guard long
+   * before it reaches `wantPull`, so a phone with nothing waiting to send would
+   * read no boards at all — which is the ordinary case on a fresh install and
+   * precisely when there is most to fetch.
    */
+  const [syncedEnabled, setSyncedEnabled] = useState(enabled);
+  if (syncedEnabled !== enabled) {
+    setSyncedEnabled(enabled);
+    if (enabled) setPullsWanted((n) => n + 1);
+  }
+
   useEffect(() => {
-    if (!backendConfig) return;
-    let active = true;
-    void api.features().then((allowed) => {
-      if (!active) return;
-      setFeatures(allowed);
-      if (!allowed.sharing) return;
-      syncNow();
-      wantPull();
-    });
-    return () => {
-      active = false;
-    };
-  }, [syncNow, wantPull]);
-
-
+    if (enabled) syncNow();
+  }, [enabled, syncNow]);
 
   useEffect(() => {
     let active = true;

@@ -49,6 +49,17 @@ platform-tagged heading (e.g. `## [1.1.3] - 2026-07-20 — Android`) when you cu
   they made are applied, and a game recorded thirty seconds ago does not flicker off the screen
   while the request is in flight. A game or player you delete stays deleted, and a board you rename
   keeps the name you gave it.
+- **Deleting your account now deletes what is on the server too.** Every board membership, claim
+  and shared result goes first and the login goes last — the other order leaves rows nobody can
+  ever reach again, because once the login is gone there is no way to prove they were yours. If it
+  is interrupted, asking again finishes the job.
+- **Confirmation codes now come from an address that belongs to this app**, signed so mail
+  providers can prove it. They were arriving in spam, which for a code that expires is the same as
+  not arriving.
+- **Anything that needs the server can be switched off without a store release.** If sharing or
+  sign-in misbehaves after a release, they can be turned off from a laptop in a minute rather than
+  through a review that takes days — and turned back on the same way. The app asks at every launch,
+  and treats an unreachable server as off rather than queueing work at a server that is not there.
 - **Claim yourself on a leaderboard.** Signed in, a player on the board can be linked to your
   account — and because every game ever recorded refers to the person rather than to an account,
   the whole season becomes yours with nothing rewritten. It can be undone, so a mis-tap costs
@@ -69,9 +80,8 @@ platform-tagged heading (e.g. `## [1.1.3] - 2026-07-20 — Android`) when you cu
   and does **not** sign you in until it comes back, so the screen asks for it rather than saying
   "welcome" to somebody who is not logged in. Every refusal says what to do about it — that address
   is already taken, that code has expired, wait a minute and try again — rather than "that didn't
-  work". **Nothing links to any of it yet**: the screens are reachable only by URL, and a shipped
-  build still runs them against the same development stub, because a development server is a thing
-  that gets deleted and rebuilt and nobody's account should live there.
+  work". Settings has an Account row that leads to them, and they run against a real
+  user pool rather than the development stub they were written against.
 - **Progressive bounties (Pro).** Knock somebody out and half their bounty is yours in cash — the
   other half goes onto your own head, so whoever is winning becomes the one worth beating. It is the
   format nobody can run on paper: the bounty on every head changes a dozen times an evening, and
@@ -166,14 +176,13 @@ platform-tagged heading (e.g. `## [1.1.3] - 2026-07-20 — Android`) when you cu
   a player or record a game, and only an admin can remove one — because writing down a name should
   be easy and making a season disappear should not. People join by a link that does not expire, so
   it can be pinned in the group chat, and an admin can rotate it if it ever goes somewhere it should
-  not. **Nothing in the app uses any of this yet**, and it is deliberately built so the app keeps
+  not. It is deliberately built so the app keeps
   working with no signal at a table: the things that only need your own phone — the timer, dealing,
   writing down who won — carry on offline and catch up later, and only the things that genuinely
-  need everybody else wait for a connection. Deleting your account now removes what the server holds
-  as well: the players you claimed are let go, but the games stay on the board, because a night of
-  poker belongs to the table rather than to whoever wrote it down — and if you were the last person
-  who could manage a group, somebody else is put in charge of it rather than it being left with
-  nobody.
+  need everybody else wait for a connection. When an account is deleted, the players you
+  claimed are let go but the games stay on the board, because a night of poker belongs to the table
+  rather than to whoever wrote it down — and if you were the last person who could manage a group,
+  somebody else is put in charge of it rather than it being left with nobody.
 - That backend now actually runs. A development environment is deployed and has been exercised end
   to end: an account created from a real emailed code, signed in, a hand dealt and acted on, and the
   cards arriving on the right screens — including the part that matters, which is that a player's

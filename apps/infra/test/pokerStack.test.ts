@@ -218,18 +218,50 @@ describe("where confirmation emails come from", () => {
     template().resourceCountIs("AWS::SES::EmailIdentity", 0);
   });
 
-  it("is absent without a region, rather than throwing", () => {
-    // **The property CI depends on.** `withSES` refuses to synthesise against
-    // an environment-agnostic stack, and throwing there would break the
-    // credential-free synth the whole test suite runs on.
+  /** The same context, minus the region — which is the thing under test. */
+  const withoutRegionContext = (id: string): Template => {
     const app = new App({
       context: {
         mailDomain: "example.test",
         hostedZoneId: "Z0000000000000000000",
         hostedZoneName: "example.test",
+        mailVerified: "true",
       },
     });
-    expect(() => Template.fromStack(new PokerStack(app, "NoRegion"))).not.toThrow();
+    return Template.fromStack(new PokerStack(app, id));
+  };
+
+  it("is absent without a region anywhere, rather than throwing", () => {
+    // **The property CI depends on.** `withSES` refuses to synthesise against
+    // an environment-agnostic stack, and throwing there would break the
+    // credential-free synth the whole test suite runs on.
+    delete process.env.CDK_DEFAULT_REGION;
+    expect(() => withoutRegionContext("NoRegion")).not.toThrow();
+  });
+
+  it("takes the region from the environment, which is how deploys set it", () => {
+    /**
+     * **`bin/app.ts` documents `CDK_DEFAULT_REGION` as the normal path** and
+     * `-c region=` as the override, so reading only the context flag meant a
+     * plain `npm run deploy` — and the documented `-c mailVerified=true`
+     * follow-up if it omitted the region — dropped the SES identity and its
+     * DKIM records and quietly put the pool back on Cognito's sender. There is
+     * no error in that case: the identity is only built when all four values
+     * are present, so the mail just starts going to spam again.
+     */
+    process.env.CDK_DEFAULT_REGION = "us-east-1";
+    try {
+      const t = withoutRegionContext("RegionFromEnv");
+      t.resourceCountIs("AWS::SES::EmailIdentity", 1);
+      t.hasResourceProperties(
+        "AWS::Cognito::UserPool",
+        Match.objectLike({
+          EmailConfiguration: Match.objectLike({ EmailSendingAccount: "DEVELOPER" }),
+        }),
+      );
+    } finally {
+      delete process.env.CDK_DEFAULT_REGION;
+    }
   });
 
   it("verifies the sending subdomain and publishes its DKIM", () => {

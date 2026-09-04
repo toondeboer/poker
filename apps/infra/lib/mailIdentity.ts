@@ -94,7 +94,19 @@ export const mailFor = (scope: Construct, stage: Stage): Mail | undefined => {
    * that CI depends on. Named rather than read off the stack for the same
    * reason the hosted zone is.
    */
-  const region = scope.node.tryGetContext("region") as string | undefined;
+  const region =
+    (scope.node.tryGetContext("region") as string | undefined) ??
+    /**
+     * **The environment too, because that is the documented way to deploy.**
+     * `bin/app.ts` names `CDK_DEFAULT_REGION` as the normal path and `-c
+     * region=` as the override, so requiring the context flag here meant the
+     * ordinary `npm run deploy` — and the documented `-c mailVerified=true`
+     * follow-up, if it omitted the region — silently dropped the SES identity
+     * and its DKIM records and put the pool back on Cognito's sender. Silently:
+     * the identity is only created when all four are present, so there is no
+     * error, just mail that starts going to spam again.
+     */
+    process.env.CDK_DEFAULT_REGION;
   if (!base || !hostedZoneId || !zoneName || !region) return undefined;
 
   const domain = mailDomainFor(stage, base);

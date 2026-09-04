@@ -383,6 +383,19 @@ curl -s https://poker-api-dev.toondeboer.com/config
 Redeploying without the flag turns it back on. Verified in both directions
 against dev; about 90 seconds each way.
 
+**What each one actually does in the app**, because a switch nothing reads is a
+string in a Lambda's environment:
+
+- `featureSharing=off` — nothing syncs, and no board can be shared or joined.
+  The outbox stops accepting writes, and minting or redeeming a link is refused
+  rather than being allowed to write a membership for a board that can never
+  then sync.
+- `featureAccounts=off` — the Account row disappears from Settings. The
+  `/account` route itself stays registered, because a confirmation email is a
+  deep link that has to land somewhere. The case this is here for is concrete:
+  sign-up depends on a code arriving, and until SES is out of its sandbox it
+  reaches only addresses verified by hand.
+
 - **The app treats unreachable as off** (`readFeatures`). That is the only safe
   direction: a backend that cannot be reached is one where none of this works
   anyway, so refusing early turns a queue of failing requests into a feature that

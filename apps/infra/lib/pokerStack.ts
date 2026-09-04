@@ -631,7 +631,11 @@ export class PokerStack extends Stack {
       // Traced like everything else. It is the first thing a cold app asks, so
       // when launches are slow this is where the answer starts.
       tracing: Tracing.ACTIVE,
-      ...handlerBundling,
+      // `bundling:`, not a spread. Spread, these land on `NodejsFunctionProps`
+      // keys that do not exist and are dropped without a word — the Config
+      // function was the only one of the five shipping unminified and without a
+      // source map, which is exactly the opposite of what the others say.
+      bundling: handlerBundling,
     });
 
     api.addRoutes({
