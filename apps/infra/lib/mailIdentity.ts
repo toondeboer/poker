@@ -83,6 +83,41 @@ export type Mail = {
  * flags the pool sends exactly as it did — badly, but harmlessly, since a dev
  * stack's mail only ever goes to accounts we made.
  */
+/**
+ * Whether *this stage's* identity has been confirmed verified.
+ *
+ * **Per stage, and in `cdk.json` rather than on a command line**, which is the
+ * whole point of it. Both halves were wrong before:
+ *
+ * A bare `-c mailVerified=true` moved dev onto SES by hand and nothing wrote it
+ * down, so — exactly like `alertEmail` and `monthlyBudgetUsd`, and for the same
+ * reason, since **CDK context is not sticky** — the next deploy that did not
+ * repeat the flag put the pool silently back on `COGNITO_DEFAULT`. That is not
+ * a visible failure: it is confirmation codes going back to spam at fifty a
+ * day, discovered when people say sign-up is broken. The CI deploy job passes
+ * only account and region, so every merge to `main` would have done it.
+ *
+ * It cannot simply be `true` for everyone, though, because a *fresh* identity
+ * has to be created before it can be verified: pointing a pool at one in the
+ * same deploy that creates it rolls the whole stack back with "Email address is
+ * not verified", which happened twice. So each stage is flipped on its own,
+ * once SES says that stage's identity is ready.
+ *
+ * A plain boolean still means "all stages", so `-c mailVerified=true` keeps
+ * working for a one-off deploy against a stack whose identity is already good.
+ */
+export const mailVerifiedFor = (scope: Construct, stage: Stage): boolean => {
+  const value: unknown = scope.node.tryGetContext("mailVerified");
+  // **Both spellings, because `-c` only ever gives a string.** Checking for the
+  // boolean alone meant `-c mailVerified=true` on the command line did nothing
+  // at all and the deploy reported "no changes" — while a test setting it as a
+  // boolean in `App` context passed happily.
+  if (value === true || value === "true") return true;
+  if (typeof value !== "object" || value === null) return false;
+  const perStage = (value as Record<string, unknown>)[stage];
+  return perStage === true || perStage === "true";
+};
+
 export const mailFor = (scope: Construct, stage: Stage): Mail | undefined => {
   const base = scope.node.tryGetContext("mailDomain") as string | undefined;
   const hostedZoneId = scope.node.tryGetContext("hostedZoneId") as string | undefined;
@@ -176,8 +211,7 @@ export const mailFor = (scope: Construct, stage: Stage): Mail | undefined => {
    * boolean in `App` context passed happily. The flag could not be set the one
    * way anybody would set it.
    */
-  const verified = scope.node.tryGetContext("mailVerified");
-  if (verified !== true && verified !== "true") return { domain };
+  if (!mailVerifiedFor(scope, stage)) return { domain };
 
   return {
     domain,
