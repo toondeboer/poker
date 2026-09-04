@@ -124,6 +124,34 @@ describe("computeChop", () => {
     expect(failure).toBeNull();
   });
 
+  it("keeps two identical stacks within a note of each other", () => {
+    // **The tie was the case the rotation test above cannot reach.** With the
+    // largest weights exactly equal, the `>` scan that picks who gets the
+    // indivisible leftover always chose the earlier one — and when the
+    // rounding had already favoured that same player, the leftover widened the
+    // gap instead of closing it. Two people with identical stacks then came
+    // out more than one note apart, decided by who was typed in first.
+    let failure: string | null = null;
+    for (let entrants = 2; entrants <= 30; entrants += 1) {
+      for (const denomination of [1, 5, 10, 25]) {
+        const structure = structureFor(entrants, 20, denomination);
+        for (let n = 2; n <= structure.payouts.length; n += 1) {
+          // Two equal leaders, the rest short, so the tie is at the top.
+          const stacks = Array.from({ length: n }, (_, i) =>
+            i < 2 ? 1000 : 1,
+          );
+          const result = computeChop({ structure, chips: stacks, denomination });
+          if (!result) continue;
+          const gap = Math.abs(result.shares[0].amount - result.shares[1].amount);
+          if (gap > denomination) {
+            failure ??= `${entrants} entrants, ${n} left, denom ${denomination}: gap ${gap}`;
+          }
+        }
+      }
+    }
+    expect(failure).toBeNull();
+  });
+
   it("never lets a smaller stack out-earn a larger one", () => {
     const structure = structureFor(8, 20, 25);
     const result = chop({ structure, chips: [1, 1, 1000], denomination: 25 });

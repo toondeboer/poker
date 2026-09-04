@@ -257,6 +257,18 @@ export const handler = async (request: VerifiedRequest): Promise<Response> => {
   const stored = await store.read(table.tableId);
   if (!stored) return refuse(404, "no such table", request);
 
+  // **The same guard the subscribe path has, on the path that can change
+  // things.** Without it any signed-in account holding a table id learns the
+  // table exists (404 vs 409), its live version, and — with the right version
+  // — the Cognito subject of whoever is to act, from `it is <sub>'s turn`.
+  //
+  // 404 rather than 403, so a non-member cannot tell an existing table from an
+  // imaginary one. No members at all means nobody, matching what `tableStore`
+  // says it wrote for items older than the field.
+  if (!(stored.members ?? []).includes(actor.playerId)) {
+    return refuse(404, "no such table", request);
+  }
+
   const outcome = applyAction(stored, {
     tableId: table.tableId,
     playerId: actor.playerId,

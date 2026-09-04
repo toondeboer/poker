@@ -138,6 +138,10 @@ export const addGroup = (
 ): GroupedLeaderboard => {
   if (state.groups.length >= MAX_GROUPS) return state;
   return {
+    // Spread, or `dismissed` is dropped and every board deleted on this phone
+    // is rediscovered by the next pull. Rebuilding the state field-by-field
+    // here is what used to do exactly that.
+    ...state,
     groups: [...state.groups, { group, players: [], results: [] }],
     activeGroupId: group.id,
   };
@@ -383,6 +387,10 @@ export const addBoard = (
   // clears the dismissal. Only discovery has to respect it.
   if (!known && state.groups.length >= MAX_GROUPS) return state;
   return {
+    // Spread for `dismissed` — see `addGroup`. The dismissal for *this* board
+    // is cleared by the caller (`joinBoard` calls `undismiss`); every other
+    // board's has to survive, or discovery puts them all back.
+    ...state,
     groups: known
       ? state.groups.map((entry) =>
           entry.group.id === board.group.id ? board : entry,

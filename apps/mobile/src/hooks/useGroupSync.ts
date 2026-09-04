@@ -7,6 +7,7 @@ import {
   applyReport,
   cancel,
   cancelBoard,
+  clearBoardRefusals,
   mergeBoard,
   dismiss,
   drain,
@@ -67,6 +68,8 @@ export type GroupSync = {
   cancel: (subject: WriteSubject) => void;
   /** The same, for a whole board that has just been deleted. */
   cancelBoard: (groupId: string) => void;
+  /** Free a board's refusals so a join can announce it again. */
+  clearRefusals: (groupId: string) => void;
   /**
    * Read a board back, merged with what this phone has and has not sent.
    *
@@ -157,6 +160,12 @@ export const useGroupSync = (): GroupSync => {
      * The ref is the live value; state is what renders.
      */
     const value = next(latest.current);
+    // **Nothing changed means nothing to write.** Core returns the same queue
+    // when a write is a duplicate or a refusal blocks it, and `announce` runs
+    // once per player and once per game on every launch — on a board with a
+    // season on it that is a few hundred calls, all of them serializing and
+    // re-writing a queue byte-for-byte identical to the one on disk.
+    if (value === latest.current) return;
     latest.current = value;
     setQueue(value);
     // Persisted on every change rather than on a timer: the writes worth
@@ -270,6 +279,20 @@ export const useGroupSync = (): GroupSync => {
     (groupId: string) => {
       if (!enabled) return;
       update((current) => cancelBoard(current, groupId));
+    },
+    [update, enabled],
+  );
+
+  /**
+   * Let a board be announced again, because somebody just joined it by link.
+   *
+   * A refusal blocks its subject until a person says otherwise, and joining is
+   * that — see `clearBoardRefusals`.
+   */
+  const clearRefusalsForBoard = useCallback(
+    (groupId: string) => {
+      if (!enabled) return;
+      update((current) => clearBoardRefusals(current, groupId));
     },
     [update, enabled],
   );
@@ -431,6 +454,7 @@ export const useGroupSync = (): GroupSync => {
       announce,
       cancel: cancelWrite,
       cancelBoard: cancelWholeBoard,
+      clearRefusals: clearRefusalsForBoard,
       fetchBoard,
       mergeInto,
       myBoards,
@@ -446,6 +470,7 @@ export const useGroupSync = (): GroupSync => {
       announce,
       cancelWrite,
       cancelWholeBoard,
+      clearRefusalsForBoard,
       fetchBoard,
       mergeInto,
       myBoards,

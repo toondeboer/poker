@@ -20,7 +20,9 @@ const dealtTable = (): StoredTable => {
     createSession({ players: ["u-1", "u-2", "u-3"], startingStack: 200 }),
     { smallBlind: 1, bigBlind: 2, random: createRandom(4) },
   );
-  return { hand: session.hand!, version: 3 };
+  // Seated *and* on the membership list, the way a real table is written —
+  // the action handler refuses anybody who is not on it.
+  return { hand: session.hand!, version: 3, members: ["u-1", "u-2", "u-3"] };
 };
 
 /** Whoever the engine says is to act. */
@@ -98,6 +100,36 @@ describe("who is allowed to act", () => {
     );
     expect(response.statusCode).toBe(403);
     expect(parsed(response).reason).toContain("another player");
+  });
+
+  it("refuses somebody who is not at the table, without admitting it exists", async () => {
+    // **A signed-in stranger with a table id used to learn a great deal.** The
+    // handler read `members` into the table and never consulted it, so a
+    // guessed id answered 404 when it did not exist and 409 with the live
+    // version when it did — and with the right version, 422 naming the Cognito
+    // subject of whoever was to act. The subscribe path has always refused
+    // non-members; this is the same guard on the path that can change things.
+    const writes = storeThatWorks(dealtTable());
+    const response = await handler(
+      request({ sub: "u-9", body: { action: { type: "fold" }, expectedVersion: 3 } }),
+    );
+    // 404 and not 403, so it is indistinguishable from a table that is not there.
+    expect(response.statusCode).toBe(404);
+    expect(parsed(response).reason).toBe("no such table");
+    // Nothing about the real table leaks: no version, no subject, no write.
+    expect(response.body).not.toContain("u-1");
+    expect(response.body).not.toContain("3");
+    expect(writes).toHaveLength(0);
+  });
+
+  it("refuses everybody when the table lists no members at all", async () => {
+    // An item written before `members` existed has none, and `tableStore` says
+    // the guards read that as "nobody", not "everybody".
+    storeThatWorks({ ...dealtTable(), members: undefined });
+    const response = await handler(
+      request({ sub: "u-1", body: { action: { type: "fold" }, expectedVersion: 3 } }),
+    );
+    expect(response.statusCode).toBe(404);
   });
 
   it("refuses before it reads anything", async () => {

@@ -156,6 +156,20 @@ export function ChopSheet({
               ))}
             </View>
 
+            {/*
+              A stack can legitimately be cleared to 0 while typing, and an
+              all-zero field makes `computeChop` return null. Without this the
+              whole deal simply vanishes and "Share the deal" greys out with
+              nothing saying why — the same unexplained empty state the
+              `activePlayers` clamp above exists to prevent.
+            */}
+            {!result && (
+              <Text style={styles.empty}>
+                Enter the chip stacks to see the deal — at least one player
+                needs chips in front of them.
+              </Text>
+            )}
+
             {result && (
               <View style={styles.section}>
                 <Text style={styles.heading}>The deal</Text>

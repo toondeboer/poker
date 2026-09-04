@@ -93,6 +93,29 @@ const coerceResults = (raw: unknown): GameResult[] => {
             : [],
         )
       : [];
+    // **Carried, or a bounty game loses its money on every relaunch.** The
+    // key is omitted rather than defaulted to `[]`: absent means "recorded by
+    // hand, nobody knows", and an empty array would claim nobody knocked
+    // anybody out. Same validation as `mergeBoard.isResult`, which is the
+    // other reader of this field.
+    const knockouts = Array.isArray(entry.knockouts)
+      ? entry.knockouts.flatMap((knockout) =>
+          isObject(knockout) &&
+          typeof knockout.playerId === "string" &&
+          typeof knockout.count === "number" &&
+          Number.isFinite(knockout.count) &&
+          typeof knockout.bounty === "number" &&
+          Number.isFinite(knockout.bounty)
+            ? [
+                {
+                  playerId: knockout.playerId,
+                  count: knockout.count,
+                  bounty: knockout.bounty,
+                },
+              ]
+            : [],
+        )
+      : undefined;
     results.push({
       id: entry.id,
       playedAt:
@@ -103,6 +126,7 @@ const coerceResults = (raw: unknown): GameResult[] => {
       placings,
       buyIn: typeof entry.buyIn === "number" ? entry.buyIn : 0,
       bounty: typeof entry.bounty === "number" ? entry.bounty : 0,
+      ...(knockouts ? { knockouts } : {}),
     });
   }
   return results;

@@ -196,6 +196,25 @@ describe("sending", () => {
     expect(await publisher.send([publication])).toBe(false);
   });
 
+  it("reports a failure rather than throwing when the send never lands", async () => {
+    // **The table is already written by the time this runs.** A rejected fetch
+    // — DNS, a reset connection, a socket timeout — used to escape
+    // `Promise.all` and out of the action handler, so the client was told its
+    // action failed for an action that had actually landed, then retried and
+    // got a 409. `handler` documents that a failed publish leaves the table
+    // correct and the screens stale; this is what makes that true.
+    const publisher = createPublisher(
+      "https://abc.example.com",
+      "eu-west-1",
+      (async () => {
+        throw new TypeError("network request failed");
+      }) as unknown as typeof fetch,
+    );
+    process.env.AWS_ACCESS_KEY_ID = "AKIDEXAMPLE";
+    process.env.AWS_SECRET_ACCESS_KEY = "secret";
+    await expect(publisher.send([publication])).resolves.toBe(false);
+  });
+
   it("refuses to publish with no credentials rather than unsigned", async () => {
     const before = process.env.AWS_ACCESS_KEY_ID;
     delete process.env.AWS_ACCESS_KEY_ID;

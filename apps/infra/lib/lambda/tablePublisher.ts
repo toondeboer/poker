@@ -22,9 +22,6 @@ import { publicView, privateView, type StoredTable } from "./tableAction";
 import { signRequest, credentialsFromEnvironment } from "./sigv4";
 import { log } from "./logging";
 
-/** AppSync Events takes at most five events in one publish. */
-export const MAX_EVENTS_PER_PUBLISH = 5;
-
 export type Publication = {
   channel: string;
   /** Already the shape that goes on the wire. */
@@ -136,11 +133,26 @@ export const createPublisher = (
           new Date(),
         );
 
-        const response = await fetcher(url, {
-          method: "POST",
-          headers,
-          body,
-        });
+        // **A publish that cannot be sent is a failed publish, not a failed
+        // action.** The table is already written by the time this runs, so
+        // letting a rejected fetch escape would reject the request for an
+        // action that actually landed — the client then retries with the same
+        // `expectedVersion` and is told it is stale. Reported the same way a
+        // refusal is, which is what `handler` already documents happens.
+        let response: Response;
+        try {
+          response = await fetcher(url, {
+            method: "POST",
+            headers,
+            body,
+          });
+        } catch (error) {
+          log("error", "publish could not be sent", {
+            channel: publication.channel,
+            error: String(error),
+          });
+          return false;
+        }
         if (!response.ok) {
           // The channel, never the event: a private event is somebody's hole
           // cards, and a log is not where those go.

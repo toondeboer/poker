@@ -368,7 +368,12 @@ export type {
   RefusedWrite,
   SyncQueue,
 } from "./sync/pendingWrites";
-export { cancel, cancelBoard, describeWrite } from "./sync/pendingWrites";
+export {
+  cancel,
+  cancelBoard,
+  clearBoardRefusals,
+  describeWrite,
+} from "./sync/pendingWrites";
 export type { WriteSubject } from "./sync/pendingWrites";
 export {
   addBoard,

@@ -37,16 +37,25 @@ export function RecordResultSheet({
   visible: boolean;
   onClose: () => void;
   players: Player[];
+  /**
+   * Record the game, saying whether it was actually taken.
+   *
+   * **Returns the answer, because this sheet is about to clear the evening's
+   * entry.** `recordResult` refuses for reasons invisible from out here — a
+   * duplicate placing, a place out of range — and closing on a refusal loses
+   * every tap with nothing on screen saying why.
+   */
   onRecord: (params: {
     playerIds: string[];
     placings: Placing[];
     buyIn: number;
     bounty: number;
-  }) => void;
+  }) => boolean;
 }) {
   const { settings } = usePayouts();
   const [playedIds, setPlayedIds] = useState<string[]>([]);
   const [order, setOrder] = useState<string[]>([]);
+  const [refused, setRefused] = useState<string | null>(null);
 
   /**
    * The saved setup, with the field replaced by who actually turned up.
@@ -81,6 +90,7 @@ export function RecordResultSheet({
   const reset = () => {
     setPlayedIds([]);
     setOrder([]);
+    setRefused(null);
   };
 
   const close = () => {
@@ -111,7 +121,7 @@ export function RecordResultSheet({
 
   const handleSave = () => {
     if (order.length === 0) return;
-    onRecord({
+    const saved = onRecord({
       playerIds: playedIds,
       placings: order.map((playerId, index) => ({
         playerId,
@@ -121,6 +131,14 @@ export function RecordResultSheet({
       buyIn: settings.buyIn,
       bounty: settings.bounty,
     });
+    // **Only clear the evening's entry if it was actually recorded.** Closing
+    // on a refusal wipes every tap and puts nothing on the board, with no way
+    // to tell that from a save that worked. `GameScreen` already handles this
+    // return value; this path used to discard it.
+    if (!saved) {
+      setRefused("That game couldn't be saved. Nothing has been recorded.");
+      return;
+    }
     reset();
     onClose();
   };
@@ -153,6 +171,7 @@ export function RecordResultSheet({
         </Text>
       ) : (
         <View style={styles.sections}>
+          {refused !== null && <Text style={styles.refused}>{refused}</Text>}
           <View style={styles.section}>
             <Text style={styles.heading}>Who played?</Text>
             <View style={styles.list}>
@@ -218,5 +237,6 @@ const styles = StyleSheet.create({
   heading: text.cardTitle,
   hint: { ...text.meta, lineHeight: 18 },
   empty: { ...text.body, color: colors.textMuted },
+  refused: { ...text.body, color: colors.danger },
   list: { gap: space.md },
 });
