@@ -358,6 +358,12 @@ platform-tagged heading (e.g. `## [1.1.3] - 2026-07-20 — Android`) when you cu
   corrupt-value and storage-unavailable fallbacks in every loader, the shared store/entitlement ids,
   and blind-maths edges at the top and bottom of the chip ladder.
 
+### Changed
+- **The app now talks to a real server.** Accounts, board sharing and leaderboard sync were built
+  and tested throughout this release against a development backend, but every shipped build had
+  them switched off at the source — so none of it did anything. This release points at production,
+  which is what turns those features from code into something you can use.
+
 ### Fixed
 - Leaderboard: a board you delete stays deleted. Creating another board, joining one by link, or
   simply letting a pull discover a board you are on wiped the record of what had been deleted — so

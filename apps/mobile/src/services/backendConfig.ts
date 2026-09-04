@@ -80,26 +80,38 @@ export const DEV_BACKEND: BackendConfig = {
  */
 export const PROD_BACKEND: BackendConfig = {
   region: "us-east-1",
-  userPoolId: "replace-me",
-  clientId: "replace-me",
-  // The name is already decided even though the stack is not deployed — see
-  // `hostNameFor` in `apps/infra/lib/apiDomain.ts`. Only the pool ids are
-  // unknown, and those are what make this fail loudly rather than reach dev.
+  // Read off `PokerBackend-prod`'s own outputs on 2026-09-04, not copied from
+  // anywhere they had already been written down:
+  //   aws cloudformation describe-stacks --stack-name PokerBackend-prod \
+  //     --query 'Stacks[0].Outputs'
+  userPoolId: "us-east-1_vJMiOQqvI",
+  clientId: "3qj1r450ssj3jba0g57dd8jnga",
+  // A name we own rather than the generated `execute-api` host, which is baked
+  // into every shipped build and belongs to the API Gateway resource — recreate
+  // the stack and every installed copy is permanently broken. See `hostNameFor`
+  // in `apps/infra/lib/apiDomain.ts`.
   apiUrl: "https://poker-api.toondeboer.com",
 };
 
 /**
- * Which backend a build talks to. **`null` ships.**
+ * Which backend a build talks to. **`PROD_BACKEND` ships, as of 1.2.0.**
  *
- * `DEV_BACKEND` is real and reachable now, so this is no longer "there is
- * nothing to point at" — it is a deliberate choice not to point 1.2.0 at a
- * development stack. A release build with this set to `DEV_BACKEND` would put
- * real users' accounts in a user pool whose whole purpose is being thrown away
- * and stood up again, and `/account` is reachable by URL, so "nothing links to
- * it" is not the same as "nobody can reach it".
+ * This was `null` for the whole of 1.2.0's development, deliberately: with no
+ * prod stack to point at, the only other value was `DEV_BACKEND`, and a release
+ * build set to that would have put real users' accounts in a user pool whose
+ * whole purpose is being thrown away and stood up again.
  *
- * Set it to `DEV_BACKEND` **locally, uncommitted**, to work on the account
- * screens against the real thing. It goes to `PROD_BACKEND` for good when prod
- * is deployed and the Settings entry point lands with it.
+ * Both reasons are now gone. `PokerBackend-prod` is deployed, and SES granted
+ * production access on 2026-09-04 — which was the real gate, because until then
+ * a sign-up code only reached addresses verified by hand, so pointing at prod
+ * would have shipped a sign-up form that silently fails for everybody.
+ *
+ * **This line is what makes 1.2.0 mean anything.** Sharing, accounts and the
+ * shared leaderboard are the release; with this `null` every one of them is
+ * dead code behind a feature flag that never turns on.
+ *
+ * Set it to `DEV_BACKEND` **locally, uncommitted**, to work against the throwaway
+ * stack. Never commit that — see `README.md`'s release process, and note that
+ * the ids above were read off prod's own stack outputs rather than trusted.
  */
-export const backendConfig: BackendConfig | null = null;
+export const backendConfig: BackendConfig | null = PROD_BACKEND;
