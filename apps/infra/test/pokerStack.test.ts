@@ -190,6 +190,133 @@ describe("a name for the API that we own", () => {
   });
 });
 
+describe("where confirmation emails come from", () => {
+  /**
+   * Why this is tested at all: Cognito's own sender is capped around 50 a day
+   * and lands in spam — observed here — so an app whose sign-up depends on a
+   * code arriving cannot ship on it.
+   */
+  const withMail = (stage: "dev" | "prod" = "prod", verified = true): Template => {
+    const app = new App({
+      context: {
+        mailDomain: "example.test",
+        hostedZoneId: "Z0000000000000000000",
+        hostedZoneName: "example.test",
+        region: "us-east-1",
+        // **The string, as `-c` gives it.** Setting the boolean here is what
+        // let a version through that could not be switched on from a command
+        // line at all: the test agreed with the code rather than with the CLI.
+        ...(verified ? { mailVerified: "true" } : {}),
+      },
+    });
+    return Template.fromStack(
+      new PokerStack(app, `Mailed${stage}${verified}`, { settings: settingsFor(stage) }),
+    );
+  };
+
+  it("is absent unless it is asked for", () => {
+    template().resourceCountIs("AWS::SES::EmailIdentity", 0);
+  });
+
+  /** The same context, minus the region — which is the thing under test. */
+  const withoutRegionContext = (id: string): Template => {
+    const app = new App({
+      context: {
+        mailDomain: "example.test",
+        hostedZoneId: "Z0000000000000000000",
+        hostedZoneName: "example.test",
+        mailVerified: "true",
+      },
+    });
+    return Template.fromStack(new PokerStack(app, id));
+  };
+
+  it("is absent without a region anywhere, rather than throwing", () => {
+    // **The property CI depends on.** `withSES` refuses to synthesise against
+    // an environment-agnostic stack, and throwing there would break the
+    // credential-free synth the whole test suite runs on.
+    delete process.env.CDK_DEFAULT_REGION;
+    expect(() => withoutRegionContext("NoRegion")).not.toThrow();
+  });
+
+  it("takes the region from the environment, which is how deploys set it", () => {
+    /**
+     * **`bin/app.ts` documents `CDK_DEFAULT_REGION` as the normal path** and
+     * `-c region=` as the override, so reading only the context flag meant a
+     * plain `npm run deploy` — and the documented `-c mailVerified=true`
+     * follow-up if it omitted the region — dropped the SES identity and its
+     * DKIM records and quietly put the pool back on Cognito's sender. There is
+     * no error in that case: the identity is only built when all four values
+     * are present, so the mail just starts going to spam again.
+     */
+    process.env.CDK_DEFAULT_REGION = "us-east-1";
+    try {
+      const t = withoutRegionContext("RegionFromEnv");
+      t.resourceCountIs("AWS::SES::EmailIdentity", 1);
+      t.hasResourceProperties(
+        "AWS::Cognito::UserPool",
+        Match.objectLike({
+          EmailConfiguration: Match.objectLike({ EmailSendingAccount: "DEVELOPER" }),
+        }),
+      );
+    } finally {
+      delete process.env.CDK_DEFAULT_REGION;
+    }
+  });
+
+  it("verifies the sending subdomain and publishes its DKIM", () => {
+    const t = withMail();
+    t.hasResourceProperties(
+      "AWS::SES::EmailIdentity",
+      Match.objectLike({ EmailIdentity: "poker.example.test" }),
+    );
+    // Three, which is how many keys SES rotates through. Without them the
+    // identity never verifies and every send fails.
+    expect(
+      Object.values(t.findResources("AWS::Route53::RecordSet")).filter(
+        (r) => (r.Properties as { Type?: string }).Type === "CNAME",
+      ),
+    ).toHaveLength(3);
+  });
+
+  it("does not move the pool onto an identity nobody has confirmed", () => {
+    /**
+     * **Cognito checks the identity when it is updated, and verification is
+     * asynchronous** — so pointing the pool at a brand-new identity rolls the
+     * whole stack back with "Email address is not verified". Observed, twice.
+     * The identity is still created; only the switch waits.
+     */
+    const t = withMail("dev", false);
+    t.resourceCountIs("AWS::SES::EmailIdentity", 1);
+    t.hasResourceProperties(
+      "AWS::Cognito::UserPool",
+      Match.objectLike({
+        EmailConfiguration: Match.objectLike({ EmailSendingAccount: "COGNITO_DEFAULT" }),
+      }),
+    );
+  });
+
+  it("keeps dev's sending reputation off the production domain", () => {
+    // A dev stack mailing throwaway inboxes must not be able to spend the
+    // deliverability production's sign-up depends on.
+    withMail("dev").hasResourceProperties(
+      "AWS::SES::EmailIdentity",
+      Match.objectLike({ EmailIdentity: "poker-dev.example.test" }),
+    );
+  });
+
+  it("sends from the domain it verified, which Cognito insists on", () => {
+    withMail().hasResourceProperties(
+      "AWS::Cognito::UserPool",
+      Match.objectLike({
+        EmailConfiguration: Match.objectLike({
+          From: "Poker Blinds Timer <noreply@poker.example.test>",
+        }),
+      }),
+    );
+  });
+});
+
 describe("accounts", () => {
   it("signs people in by email, case-insensitively", () => {
     template().hasResourceProperties("AWS::Cognito::UserPool", {
@@ -346,10 +473,11 @@ describe("the action handler", () => {
     // call PutRetentionPolicy on another function's log group; an explicit log
     // group does that with no function at all.
     template().resourceCountIs("Custom::LogRetention", 0);
-    // Four: the action handler, the identity route that proves the API chain
-    // works, the subscribe authorizer, and the group routes. Update this
-    // deliberately when a fifth is written.
-    template().resourceCountIs("AWS::Lambda::Function", 4);
+    // Five: the action handler, the identity route that proves the API chain
+    // works, the subscribe authorizer, the group routes, and the public config
+    // route carrying the kill switch. Update this deliberately when a sixth is
+    // written.
+    template().resourceCountIs("AWS::Lambda::Function", 5);
   });
 
   it("has no secondary index at all", () => {

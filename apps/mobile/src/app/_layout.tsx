@@ -10,6 +10,7 @@ import { PremiumProvider } from "@/src/contexts/PremiumContext";
 import { SoundPackProvider } from "@/src/contexts/SoundPackContext";
 import { PayoutProvider } from "@/src/contexts/PayoutContext";
 import { LeaderboardProvider } from "@/src/contexts/LeaderboardContext";
+import { FeaturesProvider } from "@/src/contexts/FeaturesContext";
 import { GameProvider } from "@/src/contexts/GameContext";
 import { AuthProviderContext } from "@/src/contexts/AuthContext";
 import { SharedSessionProvider } from "@/src/contexts/SharedSessionContext";
@@ -44,6 +45,7 @@ export default function RootLayout() {
           <BlindsProvider>
             <SoundPackProvider>
               <PayoutProvider>
+                <FeaturesProvider>
                 <LeaderboardProvider>
                   <AuthProviderContext>
                   <GameProvider>
@@ -88,10 +90,11 @@ export default function RootLayout() {
                             headerBackTitle: "Settings",
                           }}
                         />
-                        {/* Deliberately reachable only by URL for now: the
-                            account screens run against a development stub that
-                            signs nobody up, so nothing links to them until the
-                            backend is deployed. See ROADMAP.md. */}
+                        {/* Reached from Settings via `AccountCard`, and
+                            still registered unconditionally: the route has to
+                            exist for the deep link a confirmation email lands
+                            on. Whether it does anything is `features.accounts`.
+                            */}
                         <Stack.Screen
                           name="account"
                           options={{
@@ -142,6 +145,7 @@ export default function RootLayout() {
                   </GameProvider>
                   </AuthProviderContext>
                 </LeaderboardProvider>
+                </FeaturesProvider>
               </PayoutProvider>
             </SoundPackProvider>
           </BlindsProvider>

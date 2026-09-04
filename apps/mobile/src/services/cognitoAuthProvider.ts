@@ -19,6 +19,7 @@ import {
   type CognitoTokens,
   type SignUpResult,
 } from "@poker/core";
+import { backendConfig } from "@/src/services/backendConfig";
 import { asyncStorageAdapter } from "@/src/services/storageAdapter";
 import { logger } from "@/src/utils/logger";
 
@@ -39,6 +40,16 @@ export class CognitoFailure extends Error {
 }
 
 /** Send one built request. The only place in the app that talks to Cognito. */
+/**
+ * Where `DELETE /me` lives, or `null` when there is no backend.
+ *
+ * Read from `backendConfig` rather than taken as an argument because the
+ * provider is handed a `CognitoConfig`, which knows about the user pool and
+ * nothing about the API. Same import `groupApi` makes, for the same reason.
+ */
+const deleteMeUrl = (): string | null =>
+  backendConfig ? `${backendConfig.apiUrl.replace(/\/$/, "")}/me` : null;
+
 const send = async (call: CognitoCall): Promise<unknown> => {
   let response: Response;
   try {
@@ -151,14 +162,73 @@ export const createCognitoAuthProvider = (
       }
     },
 
+    /**
+     * **Server-side, and the ordering is the whole point.**
+     *
+     * Calling Cognito's `DeleteUser` directly — which this used to do — removes
+     * the login and leaves every membership, claim, player and result behind.
+     * Permanently: once the user is gone there is no token left to authenticate
+     * a cleanup with, so those rows can never be reached again by anybody. That
+     * was fine while the backend held nothing durable per account. It has not
+     * been since boards landed.
+     *
+     * `DELETE /me` clears the data first and the user last, server-side, with
+     * credentials of its own, and every step before Cognito is idempotent so a
+     * half-finished deletion can be finished by asking again.
+     *
+     * Tokens are forgotten only once the server confirms. Forgetting first
+     * would leave an account nobody can sign into to delete — the mirror of the
+     * bug above, and just as final.
+     */
     async deleteAccount(): Promise<void> {
       const tokens = await readTokens();
       if (!tokens) throw new CognitoFailure("session-expired");
-      // Here the order is the other way round: forgetting first and failing to
-      // delete would leave an account nobody can reach to delete.
-      const fresh = await provider.accessToken();
-      if (!fresh) throw new CognitoFailure("session-expired");
-      await send(deleteAccountCall(config, fresh));
+      const backend = deleteMeUrl();
+      if (!backend) {
+        // No API to ask. Nothing durable exists to strand either, so the old
+        // path is still correct for this build.
+        const fresh = await provider.accessToken();
+        if (!fresh) throw new CognitoFailure("session-expired");
+        await send(deleteAccountCall(config, fresh));
+        await forgetTokens();
+        return;
+      }
+      // **The id token**, not the access token: the API's authorizer is a JWT
+      // authorizer over the id token, which is what carries `sub` and `email`.
+      const id = await provider.idToken();
+      if (!id) throw new CognitoFailure("session-expired");
+      let response: Response;
+      try {
+        response = await fetch(backend, {
+          method: "DELETE",
+          headers: { Authorization: id },
+        });
+      } catch (error) {
+        logger.warn("Account deletion unreachable:", error);
+        throw new CognitoFailure("network");
+      }
+      // **Nothing is forgotten unless the server actually did it.** A failure
+      // here leaves the account intact and signed in, which is the state it can
+      // be asked from again — every step behind `DELETE /me` is idempotent
+      // precisely so a second attempt finishes the job.
+      /**
+       * **Which failure it was, because the advice differs.** Every non-OK
+       * answer used to become `network`, so an expired session on the one
+       * screen somebody cannot simply retry — App Store 5.1.1(v) deletion —
+       * told them to check their connection while the connection was fine.
+       *
+       * A 401 is the authorizer refusing the token: sign in again. A 429 is the
+       * one worth waiting out. Everything else, 5xx included, is retryable and
+       * says so.
+       */
+      if (!response.ok) {
+        if (response.status === 401 || response.status === 403) {
+          throw new CognitoFailure("session-expired");
+        }
+        if (response.status === 429) throw new CognitoFailure("too-many-attempts");
+        logger.warn("Account deletion refused:", response.status);
+        throw new CognitoFailure("network");
+      }
       await forgetTokens();
     },
 

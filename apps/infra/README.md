@@ -367,6 +367,48 @@ Prod is never automatic. It holds the leaderboards.
 dev is deployed by hand with `npm run deploy:dev`, and the `cdk diff` job on a pull request is the
 part that already runs — which is also the thing that proves the OIDC round trip works.
 
+## Turning a feature off without a release
+
+**The only recovery a solo developer can actually use.** Every other way of
+stopping a misbehaving feature is a new build and a store review — days, during
+which it stays broken for everybody. `GET /config` is a flag on the server, read
+at launch, and changing it is a stack update:
+
+```bash
+npm run deploy:dev -- -c featureSharing=off     # or featureAccounts=off
+curl -s https://poker-api-dev.toondeboer.com/config
+# {"accounts":true,"sharing":false}
+```
+
+Redeploying without the flag turns it back on. Verified in both directions
+against dev; about 90 seconds each way.
+
+**What each one actually does in the app**, because a switch nothing reads is a
+string in a Lambda's environment:
+
+- `featureSharing=off` — nothing syncs, and no board can be shared or joined.
+  The outbox stops accepting writes, and minting or redeeming a link is refused
+  rather than being allowed to write a membership for a board that can never
+  then sync.
+- `featureAccounts=off` — the Account row disappears from Settings. The
+  `/account` route itself stays registered, because a confirmation email is a
+  deep link that has to land somewhere. The case this is here for is concrete:
+  sign-up depends on a code arriving, and until SES is out of its sandbox it
+  reaches only addresses verified by hand.
+
+- **The app treats unreachable as off** (`readFeatures`). That is the only safe
+  direction: a backend that cannot be reached is one where none of this works
+  anyway, so refusing early turns a queue of failing requests into a feature that
+  is simply absent. The reverse would also stop it being a switch — turning
+  something off would require every phone to successfully ask permission to stop.
+- **It is the one unauthenticated route**, declared with an explicit
+  `HttpNoneAuthorizer` rather than by omission, because a phone must be able to
+  ask before it has an account — otherwise somebody signed out could never learn
+  that sign-in has been switched off, which is the state it exists for. It says
+  two booleans that are identical for everybody.
+- Cached for 60 seconds. Long enough to cost nothing, short enough that throwing
+  the switch takes effect while somebody is still watching.
+
 ## Checking it still works
 
 ```bash

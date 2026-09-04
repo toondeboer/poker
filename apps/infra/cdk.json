@@ -11,6 +11,7 @@
     "monthlyBudgetUsd": 25,
     "apiDomain": "poker-api.toondeboer.com",
     "hostedZoneId": "Z09937423M47OIIZLJ34Y",
-    "hostedZoneName": "toondeboer.com"
+    "hostedZoneName": "toondeboer.com",
+    "mailDomain": "toondeboer.com"
   }
 }

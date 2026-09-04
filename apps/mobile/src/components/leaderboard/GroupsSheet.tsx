@@ -10,6 +10,7 @@ import {
 } from "@poker/core";
 import { useLeaderboard } from "@/src/contexts/LeaderboardContext";
 import { accountsAreReal, useAuth } from "@/src/contexts/AuthContext";
+import { useFeatures } from "@/src/contexts/FeaturesContext";
 import { usePremium } from "@/src/contexts/PremiumContext";
 import { colors, space, text } from "@/src/theme";
 import { Button } from "@/src/components/ui/Button";
@@ -72,7 +73,17 @@ export function GroupsSheet({
    * says "still checking", which is true and recoverable; a missing button
    * explains nothing and cannot be retried.
    */
-  const mayShare = hasClub || !entitlementsKnown;
+  /**
+   * **And the server's own switch**, which nothing here consulted.
+   *
+   * `featureSharing=off` gated the requests but left both controls on screen,
+   * so the documented behaviour — a cold launch showing no share button and no
+   * join field — was not what the app did. Offering a button whose only
+   * possible outcome is a refusal is the exact thing `mayShare` above already
+   * argues against.
+   */
+  const features = useFeatures();
+  const mayShare = features.sharing && (hasClub || !entitlementsKnown);
   const [sharingId, setSharingId] = useState<string | null>(null);
   const sharing = useRef(false);
   const [joinCode, setJoinCode] = useState("");
@@ -417,7 +428,7 @@ export function GroupsSheet({
         </>
       ) : null}
 
-      {accountsAreReal && account ? (
+      {accountsAreReal && account && features.sharing ? (
         <>
           <TextField
             label="Join a board"

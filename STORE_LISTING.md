@@ -199,21 +199,29 @@ the Pro feature lists in both stores need updating too, not just these notes —
 was found still selling the 1.1.4 feature set during this cycle, and the store copy has exactly the
 same failure mode one level out. See `ROADMAP.md`'s Play listing item.
 
-**A good deal is in the binary and deliberately unreachable**, and none of it is mentioned here,
-because none of it is something anybody can use: the account screens, the shared clock, and the
-whole of shared boards — syncing, invite codes, joining, and the Club subscription. Two separate
-switches keep them off, and both are deliberate: `backendConfig` is `null` in
-`apps/mobile/src/services/backendConfig.ts`, and nothing grants the `club` entitlement because the
-subscription does not exist in either store yet.
+**Accounts and shared boards are now in scope**, which they were not when the notes below were
+drafted — so the bullets need a pass before they go in. What changed is a decision, not a
+capability: the code shipped switched off because there was no production backend to point it at,
+and now there is going to be. Three things gate it, and **none of them is code**:
 
-**The backend itself is deployed now** — this section used to say it never had been. It is real, in
-`096695166445`/`us-east-1`, and 1.2.0 simply does not point at it. That distinction matters when
-somebody reads this while writing a submission: nothing here is waiting on infrastructure, it is
-waiting on a deliberate switch that belongs to a later release.
+- **SES production access.** Cognito's own sender is capped and lands in spam, so real sign-up
+  depends on it. It is a support request with a queue, and until it is granted SES delivers only to
+  addresses that have themselves been verified. **This is the one that cannot be patched afterwards**
+  — shipping before it is granted means account creation is broken and a store update does not fix
+  it, because the wait is on AWS either way.
+- **`PokerBackend-prod` deployed**, and `backendConfig` pointed at it. A 1.2.0 build must never put
+  real accounts in the development pool, which exists to be thrown away.
+- **The Club subscription created in both stores.** Sharing is unreachable without it, so the
+  bullets must not promise it until the products exist.
 
-The **website already describes this feature set** (PR #155, merged), so store copy and landing-page
-copy are in step. Check it still reads true before submitting rather than assuming — it describes
-the app that ships, not the one in the repository.
+**There is a kill switch**, and it is worth knowing about before writing anything that promises
+these features: `GET /config` on the backend turns accounts or sharing off in about ninety seconds,
+without a store release. If something misbehaves after submission, that is the recovery — not a
+patch.
+
+**Two things stay out of the notes either way**: the shared clock, which still has no transport, and
+Sign in with Apple and Google, which need credentials nobody has created. Neither is something a
+person can use.
 
 ### iOS — "What's New in This Version" (App Store Connect)
 
@@ -230,6 +238,12 @@ the app that ships, not the one in the repository.
 • Progressive bounties (Pro). Knock somebody out and half their bounty is yours in cash; the other half goes on your own head. Whoever is winning becomes the one worth beating. It is the format nobody can run on paper, and the app keeps the whole ledger.
 
 • A leaderboard for every group you play with (Pro). Thursdays and the office game are different seasons, kept apart, each with their own players and history.
+
+• Share a board with the people you play with (Club). Send them a code, they paste it in, and the board — every player, every night already on it — is on their phone too. Whoever recorded the game does not have to be the one who reads it out. Joining is free: only the person who shares a board subscribes.
+
+• Your boards follow your account, not your phone (Club). Sign in somewhere else, or reinstall, and they come back. Record a night with no signal and it is kept and sent when there is some, so the pub with one bar of reception stops being a problem.
+
+• An account, if you want one. Email and a password, a code to confirm it, and you can delete the account and everything on our servers from inside the app.
 
 • Payouts and the chop (Pro). Set a buy-in and see exactly what each place wins, bounties, rebuys and add-ons included. When the table agrees to end it early, the chop splits what is left by chip stack without anybody dropping below the place they had already locked up.
 
@@ -250,14 +264,20 @@ Re-count in App Store Connect before saving; the limit is 4000 characters and th
 🏆 A dealt game saves itself to the leaderboard, knockouts and all.
 💰 Progressive bounties (Pro): half in cash, half onto your own head.
 👥 A leaderboard per group — Thursdays and the office game kept apart.
-♻️ Games survive the app closing.
+🔗 Share a board with your table (Club). Joining one is free.
+♻️ Games survive the app closing, and sync when you have signal again.
 ```
-`323` chars — fits the 500-char Play Console limit. Re-count in the
+`421` chars — fits the 500-char Play Console limit. Re-count in the
 console before saving, since emoji and locale can shift it.
 
-**Deliberately not mentioned:** the account and shared-clock screens, which are in the binary but
-unreachable; the record-a-game prompt's conditions; and that progressive bounties only work for a
-game the app deals. Those nuances belong in the app, not in 500 characters of store copy.
+**"Joining one is free" earns its place in 500 characters**, because the misunderstanding most
+likely to kill the feature is a table assuming all six of them need a subscription. One line, and it
+is the line that decides whether anybody tries it.
+
+**Deliberately not mentioned:** the shared clock, which has no transport and is unreachable; Sign in
+with Apple and Google, which need credentials nobody has created; the record-a-game prompt's
+conditions; and that progressive bounties only work for a game the app deals. Those nuances belong
+in the app, not in 500 characters of store copy.
 
 ---
 
