@@ -14,7 +14,8 @@
     "hostedZoneName": "toondeboer.com",
     "mailDomain": "toondeboer.com",
     "mailVerified": {
-      "dev": true
+      "dev": true,
+      "prod": true
     }
   }
 }

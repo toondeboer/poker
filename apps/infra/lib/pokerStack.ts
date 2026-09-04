@@ -335,6 +335,24 @@ export class PokerStack extends Stack {
         pointInTimeRecoveryEnabled: settings.pointInTimeRecovery,
       },
       removalPolicy: settings.dataRemovalPolicy,
+      /**
+       * **And the table's own guard, which is not the same thing as `RETAIN`.**
+       *
+       * `removalPolicy` is a CloudFormation instruction: it stops a stack
+       * update or a `cdk destroy` taking the table with it. It says nothing
+       * about a direct `DeleteTable` call, which is the one an accident or a
+       * stray script makes — and this account runs two other projects, so it is
+       * not a hypothetical hand on the keyboard.
+       *
+       * The user pool has had exactly this since the beginning (`settings.
+       * deletionProtection`, applied below). The table holding every board and
+       * every game ever recorded had not, which was an omission rather than a
+       * decision — found by reading prod back after its first deploy.
+       *
+       * Off in dev, deliberately: dev exists to be thrown away and rebuilt, and
+       * a protected table makes `cdk destroy` a two-step job for no benefit.
+       */
+      deletionProtection: settings.deletionProtection,
       // Live table state is worth keeping only while a hand is being played,
       // and a tombstone only until every phone that might resurrect the thing
       // it deleted has seen it — see SYNC.md.
