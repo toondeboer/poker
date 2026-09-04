@@ -11,93 +11,91 @@ are removed from this file when a release is cut rather than accumulating as ✅
 
 **Legend:** 🚧 in progress · 🔍 investigated, not yet fixed · 🟡 known gap, accepted · ⬜ not started
 
-## When you are back: the week, in order
+## The week, in order
 
-Everything below was built while you were away and **none of it has been run by a human**. That is
-the whole shape of the week: there is no more code that can be usefully written without somebody at
-a keyboard with a phone and an AWS account, and there is a lot that cannot be trusted until there is.
+**1.2.0 ships *with* the backend.** This section used to say the opposite — "ship 1.2.0 before
+touching the backend" — which was written when 1.2.0 had no server features in it and is now exactly
+backwards. Sharing, accounts and the shared leaderboard are the release. Submitting a build whose
+headline features are inert because `backendConfig` is `null` would be shipping the wrapper without
+the thing inside it.
 
-The order matters. Each step is cheap to do and expensive to skip, and the later ones are worthless
-if an earlier one is broken.
+So the backend has to be live *before* the build is cut, not after. The order below reflects that,
+and each step is cheap to do and expensive to skip.
 
-### 1. Ship 1.2.0, before touching the backend
+### 1. Ask for SES production access — today, before anything else
 
-The release is the thing with a date on it, and the backend is the thing that can wait. Doing them
-the other way round means a half-deployed backend competing for attention with an App Store review.
+**The only step here with a queue and no code path around it.** A new SES account is in the
+*sandbox*, where mail reaches only addresses that have themselves been verified — so every real
+sign-up would send a confirmation code that never arrives. It takes a day or two to be granted, it
+is per account and region (so `us-east-1` covers both stages), and **nothing else you do this week
+shortens it**.
 
-- **Run the manual pass.** ~212 unrun rows in [RELEASE_TESTING.md](./RELEASE_TESTING.md), heaviest
-  in _Play a hand_ (64), _Leaderboard_ (49), the blind editor (30), _Payouts_ (29) and shared boards
-  (16). §1 billing blocks submission and cannot be exercised from a local build at all. **§14–§17
-  are new and need setting up**: a backend to point `backendConfig` at, `FORCE_PRO_IN_DEV` to force
-  the Club entitlement nothing grants yet, and **two devices** — one phone cannot see any of the
-  sharing failures worth finding.
-- **Android has seen almost none of this.** Eight features were looked at on an iOS simulator only,
-  and simulator synthetic taps do not work here — so **nothing in the new UI has ever been pressed
-  by hand on either platform**. Assume the first real tap finds something.
-- Then the cutting steps in [CLAUDE.md](./CLAUDE.md): roll the changelog, clear the finished items
-  out of this file and reset `RELEASE_TESTING.md`, build and submit from the release branch to the
-  **testing track**, promote, merge PR #147, tag the built commit, delete the branch.
+It is also the one gate that cannot be patched after release. Everything else here is recoverable:
+a misbehaving feature is `-c featureSharing=off` and a 90-second stack update; this is not.
 
-### 2. ✅ The backend is standing up
+Wording and where to file it: [`apps/infra/README.md`](./apps/infra/README.md#standing-up-production).
 
-Done, in `096695166445` / `us-east-1`. Bootstrap, `PokerDeployment` (reusing the account's existing
-GitHub OIDC provider), `PokerBackend-dev`, the GitHub variables, and the approval environment —
-which is named `backend-production`, not `production`, because the latter turned out to belong to
-Vercel. Details and the exact outputs are in [`apps/infra/README.md`](./apps/infra/README.md).
+### 2. Stand up prod
 
-**The first deploy did fail**, as predicted, on a missing CloudFormation dependency between the
-channel namespace and its authorizer data source — a fault that can only appear on the first deploy
-of a fresh environment, and is invisible to `cdk synth`. Fixed with a regression test.
+Never deployed. The runbook is in the same section, and the two things in it that are easy to get
+wrong are both deliberate:
 
-### 3. Then, and only then, the things that need a deployment
+- **The first deploy leaves the pool on Cognito's own sender**, and must. Cognito validates the SES
+  identity at the moment the pool is updated while SES verifies asynchronously, so doing both at
+  once rolls the whole stack back with *"Email address is not verified"*. It cost two deploys on
+  dev. Add `"prod": true` to `mailVerified` in `cdk.json` once SES says the identity is good, and
+  deploy again — **in the file, not as a `-c` flag**, because CDK context is not sticky and the CI
+  job passes only account and region.
+- **Confirm the SNS subscription email.** Until somebody clicks that link, every alarm in prod fires
+  into nothing.
 
-1. ✅ **`GET /me` with a real token.** Works, all three ways: the ID token answers 200, an access
-   token is refused with `send the id token`, and no token is 401 from the authorizer. The
-   `identified` log line and the API access log both appear. Sign-up used a real emailed code, so
-   Cognito's email delivery is proven too. **Delete this line when 1.2.0 is cut.**
-2. ✅ **The ADOT cold start is measured, and it ended the OpenTelemetry export.** n=6 per function:
-   Identity 142.9 → **1889.2 ms**, TableAction 302.0 → **2267.5 ms**, SubscribeAuthorizer
-   277.4 → **2160.9 ms**, against a published 50–200 ms. Telemetry now goes through X-Ray
-   `Tracing.ACTIVE` instead, at 127.0 / 310.2 / 315.0 ms — within noise of no telemetry at all.
-   **Delete this line when 1.2.0 is cut.**
-3. ✅ **Observability is AWS-native, and that is the second answer to this question.** Grafana Cloud
-   was set up, exported traces successfully, and was removed: the collector cost ~1.9 s of cold
-   start on an app where almost every invocation is a cold start, and the CloudWatch scrape needed
-   to see API Gateway 5xx and DynamoDB throttles would have cost **$3–9/month against an account
-   that spends $0.64** — to copy metrics out of the place they already were. What replaced it:
-   X-Ray traces, CloudWatch metrics and logs, seven alarms, and a `poker-<stage>` dashboard built in
-   CDK from the alarm definitions so the two cannot drift. **Delete this line when 1.2.0 is cut.**
-   - 🟡 **The dashboard is generated, not designed.** An alarm status row over a graph per alarm. It
-     is a starting point and will want a real layout once somebody has used it during a game night.
-   - The vendor-neutrality argument that originally chose Grafana is recorded in
-     [`apps/infra/README.md`](./apps/infra/README.md) decision 2, along with what it would take to
-     go back — one layer, one config file, and the esbuild footer that ADOT's handler wrap needs.
-4. ✅ **Break something on purpose.** The action handler was pointed at a table it cannot read;
-   `ActionErrors` went to `ALARM` about a minute later and emailed, carrying its description.
-   Recovery is _not_ `cdk deploy` — that answered "no changes" and left it broken, because
-   CloudFormation compares templates rather than live resources. **Delete this line when 1.2.0 is
-   cut.**
-5. ✅ **The subscribe guard, from the wrong account.** A second signed-in account is refused on the
-   shared channel with `not a member of this table`, and on somebody else's private channel by the
-   APPSYNC_JS guard. Both are asserted by `npm run smoke -w @poker/infra -- --as-stranger`, so it is
-   a check that can be re-run rather than a thing that was once true. **Delete this line when 1.2.0
-   is cut.**
-6. ⬜ **Resolve the Cognito federated-MAU question** before wiring Apple or Google — $0 against
-   roughly $14/month at 1,000 users, and the pricing page names neither provider.
+### 3. Point the app at prod
 
-### 4. What is still code, for when you want me building again
+`backendConfig` is `null` in git so that no build can ship pointing at dev. **This is the line that
+makes the release mean anything** — with it null, every new feature in 1.2.0 is dead code. Set it to
+`PROD_BACKEND` in the release commit and check the ids against the prod stack's outputs rather than
+trusting they were filled in correctly.
 
-Nothing below needs you present once the above is done:
+### 4. Club products
 
-- **The app side of the shared leaderboard** — the offline queue, the merge, and somewhere to say a
-  queued write was refused. The server half is built and deployed (see below); this is the half that
-  will actually exercise it, and the replay and merge rules are what six review rounds could not
-  validate.
-- The app side of the table: subscribe, apply events, predict optimistically, reconcile.
+App Store Connect and Play Console, plus the RevenueCat entitlement mapping. Do this before the
+build reaches a tester: a paywall whose products do not exist cannot be bought, and that is one of
+the rows in the testing pass.
+
+### 5. The testing pass
+
+~386 unchecked cells over ~193 rows and two platforms in
+[RELEASE_TESTING.md](./RELEASE_TESTING.md), heaviest in *Play a hand*, *Leaderboard*, the blind
+editor and *Payouts*.
+
+- **§14–§17 are new** and need the setup above plus **two devices** — one phone cannot see any of
+  the sharing failures worth finding.
+- **16 rows are blocked until the app is on a store track.** Play Billing cannot be exercised from a
+  local build at all, so purchase, restore and cancel are unverifiable until then. That is why the
+  submission goes to the **testing track first, never straight to production**.
+- **Android has seen almost none of this.** Several features were looked at on an iOS simulator
+  only, and synthetic taps do not work here — so assume the first real tap finds something.
+
+### 6. Cut the release
+
+The steps in [CLAUDE.md](./CLAUDE.md): roll the changelog into a dated heading, clear the finished
+items out of this file and reset `RELEASE_TESTING.md`, build and submit **from the release branch**
+to the testing track, promote once the blocked rows pass, merge PR #147, tag the built commit, then
+delete the branch.
+
+### Still open, not blocking the release
+
+- ⬜ **The Cognito federated-MAU question**, before wiring Apple or Google — $0 against roughly
+  $14/month at 1,000 users, and the pricing page names neither provider.
+- 🟡 **The dashboard is generated, not designed.** An alarm status row over a graph per alarm. Fine
+  as a starting point; it will want a real layout once somebody has watched it during a game night.
+
+### What is still code, for when you want me building again
+
+- The app side of the multiplayer table: subscribe, apply events, predict optimistically, reconcile.
 - The real `SessionTransport`, replacing the shared clock's loopback — which also needs a `session`
   namespace in the stack, since only `table` and `player` exist.
-- Linking the account screens into Settings.
-- Sign in with Apple and Google, once the credentials exist.
+- Sign in with Apple and Google, once the credentials exist and the MAU question above is answered.
 
 ## Carried over from 1.1.4 — needs verification
 
@@ -182,20 +180,24 @@ Nothing below needs you present once the above is done:
   about — but it is still not a cryptographic source. Accepted for a table passing one phone
   around; online play deals on the server, which is where a CSPRNG belongs.
 
-## Accounts — screens built, entry point deliberately absent
+## Accounts — built and reachable, never run from the app
 
-- 🚧 **Nothing links to `/account`, and the reason has changed.** The screens are written and wired
-  to Cognito — sign up, the emailed confirmation code, sign in, refresh, global sign-out and account
-  deletion, with every Cognito error mapped to something a person can act on. **There is now a real
-  backend to point them at**: `DEV_BACKEND` in `apps/mobile/src/services/backendConfig.ts` holds
-  the live dev user pool, and sign-up/confirm/sign-in have been run against it from a script.
-  - What is _not_ done is running them **from the app** — flip `backendConfig` to `DEV_BACKEND`
-    locally, open `pokerkit://account`, and walk sign-up → emailed code → sign-in → sign-out →
-    delete on a simulator. No dev-client rebuild is needed; nothing native changed.
-  - `backendConfig` stays `null` in git deliberately. It is no longer "there is nothing to point
-    at" — it is that a shipped 1.2.0 build must not put real accounts in a development pool that
-    exists to be thrown away, and `/account` is reachable by URL. It goes to `PROD_BACKEND` when
-    prod is deployed and the Settings row lands with it.
+- 🚧 **Never run from the app, which is now the only thing missing.** The screens are written and
+  wired to Cognito — sign up, the emailed confirmation code, sign in, refresh, global sign-out and
+  account deletion, with every Cognito error mapped to something a person can act on. Sign-up,
+  confirm and sign-in have been exercised against the live dev pool **from a script**, and a real
+  confirmation email was delivered. Settings has an Account row leading to them.
+  - What is left is walking it **by hand**: flip `backendConfig` to `DEV_BACKEND` locally, open
+    Settings → Account, and go sign-up → emailed code → sign-in → sign-out → delete on a device. No
+    dev-client rebuild is needed; nothing native changed. Every one of those paths has only ever
+    been typechecked from the UI side.
+  - `backendConfig` stays `null` in git deliberately: a shipped build must not put real accounts in
+    a development pool that exists to be thrown away. **It goes to `PROD_BACKEND` in the release
+    commit** — see §3 of the week plan. With it null, the Account row is absent and every server
+    feature in 1.2.0 is dead code.
+  - The Account row is also gated on the server's `features.accounts`, so if SES production access
+    is refused or delayed, `-c featureAccounts=off` hides the row rather than shipping a sign-up
+    whose codes never arrive.
   - **No client library.** Cognito's user-pool API is JSON over HTTPS and the calls an app needs
     are unauthenticated in the SigV4 sense, so the request shaping lives in `@poker/core` with
     tests and the app supplies `fetch`. The alternative, `aws-amplify`, brings native modules —
