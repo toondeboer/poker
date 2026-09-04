@@ -2,14 +2,40 @@
 
 AWS CDK. Accounts, groups, cloud sync, the shared clock and the multiplayer table.
 
-**`PokerBackend-dev` is deployed and has been exercised end to end** — account `096695166445`,
-region `us-east-1`. Sign-up with a real emailed code, sign-in, `GET /me`, a hand seeded and acted
-on, events arriving on both channels, and a non-member refused: 19 checks, run by
-[`scripts/smoke.ts`](./scripts/smoke.ts). Prod has still never been deployed.
+**Both stages are deployed** — account `096695166445`, region `us-east-1`.
+
+Dev has been exercised end to end: sign-up with a real emailed code, sign-in, `GET /me`, a hand
+seeded and acted on, events arriving on both channels, a replay refused as stale, and a non-member
+refused from both channels. **35 checks**, run by [`scripts/smoke.ts`](./scripts/smoke.ts) with
+`--as-stranger`.
+
+**Prod exists as of 2026-09-04** and was stood up by walking *Standing up production* below, in two
+deploys as that section requires. It answers `200` on `/config` and `401` on `/me` without a token,
+sends from its own DKIM-verified domain, and holds zero users and zero rows. The smoke script
+**refuses to run against it** by design — it writes a hand into the table — so what has been checked
+there is the configuration, read back from the live resources, and the two public routes.
 
 `cdk synth` and the tests still run with no credentials, which is what lets CI check the whole stack
 without anybody holding a key. What the first deploy proved is that this is necessary and not
 sufficient — see _What only a deploy could tell us_, below.
+
+## Where prod is
+
+| Output             | Value                                                                     |
+| ------------------ | ------------------------------------------------------------------------- |
+| `ApiUrl`           | `https://poker-api.toondeboer.com`                                        |
+| `UserPoolId`       | `us-east-1_vJMiOQqvI`                                                     |
+| `UserPoolClientId` | `3qj1r450ssj3jba0g57dd8jnga`                                              |
+| `EventApiDns`      | `rmwfm4dlvnh5flzrm7mznoauvu.appsync-realtime-api.us-east-1.amazonaws.com` |
+| `TableName`        | `PokerBackend-prod-TableCD117FA1-R5UX8NJ0TCR2`                            |
+| `MailFrom`         | `Poker Blinds Timer <noreply@poker.toondeboer.com>`                       |
+| `DashboardName`    | `poker-prod`                                                              |
+
+**Still in the SES sandbox.** `aws sesv2 get-account` reports
+`ProductionAccessEnabled: false`, so prod signs its mail correctly and will only *deliver* it to
+addresses that have themselves been verified. A stranger's sign-up code goes nowhere. That is a
+support request with a queue of a day or two, it is the last thing between this backend and real
+users, and no amount of deploying fixes it — see step 1 of *Standing up production*.
 
 ## Where dev is
 
@@ -44,8 +70,10 @@ stack.
 
 ## What only a deploy could tell us
 
-Four things, none of which a synth, a unit test or a review had any way to catch. They are the
-argument for standing dev up before writing anything else against it.
+Six things, none of which a synth, a unit test or a review had any way to catch. They are the
+argument for standing an environment up before writing anything else against it — and items 5 and 6
+came from **prod**, months after dev was working, which is the argument for reading a new
+environment back rather than assuming it matches the one you already trust.
 
 1. **`TableNamespace` failed with `DataSource not found`, and rolled the whole stack back.** The
    channel namespace names its data source with a plain string — that is the shape AppSync's API
@@ -68,6 +96,22 @@ argument for standing dev up before writing anything else against it.
    forced with `cdk deploy --force`. A green deploy is not evidence the resource matches the code.
 
 ---
+
+5. **The prod table had no deletion protection, while the user pool did.** `settings.
+   deletionProtection` existed and was already `true` for prod; it was passed to the pool and never
+   to the table. Nothing failed, no test caught it, and `RETAIN` looked like it covered the case —
+   it does not. `RETAIN` is a CloudFormation instruction that stops a stack update or a `cdk
+   destroy`; a direct `DeleteTable` call is untouched by it, and this account also runs
+   `sailor-prod` and `investments-tracker-prod`. **Found by reading the live table back**, not by
+   reading the code. Two tests now assert the pair together so they cannot drift apart again.
+
+6. **The alarm subscription sits at `PendingConfirmation` until somebody clicks the email.** The
+   stack reports `CREATE_COMPLETE`, all ten alarms report `OK`, `ActionsEnabled` is `true` — and
+   every one of them is firing into nothing. There is no state anywhere in CloudFormation that says
+   so; the only way to know is
+   `aws sns list-subscriptions-by-topic`, where the subscription ARN is the literal string
+   `PendingConfirmation`. Worth checking after **any** deploy that creates a topic, because
+   everything about it looks finished.
 
 ## What exists today
 
@@ -92,8 +136,11 @@ sitting on a namespace those channels never touch.
 
 ## What does not exist
 
-1. **Prod has never been deployed.** Dev has, and everything below is written from that side of the
-   line now.
+1. **Production access for SES.** Prod is deployed and sends signed mail from its own verified
+   domain, but the account is still in the sandbox — `ProductionAccessEnabled: false` — so it will
+   only *deliver* to addresses that have themselves been verified. A stranger's sign-up code goes
+   nowhere. It is a support request rather than a resource, it has a queue of a day or two, and it
+   is the only gate here that cannot be worked around in code.
 2. **No third-party telemetry, deliberately.** This exported OpenTelemetry to Grafana Cloud, it
    worked, and it was removed once there was a number attached to it. Measured, n=6 per function,
    forced parallel cold starts:
@@ -365,13 +412,28 @@ Prod is never automatic. It holds the leaderboards.
 **Deploy-on-merge does not fire yet**, and not for a broken reason: every `apps/infra` commit is on
 `release/1.2.0`, and `main` has none of them. It starts working when that branch merges. Until then
 dev is deployed by hand with `npm run deploy:dev`, and the `cdk diff` job on a pull request is the
-part that already runs — which is also the thing that proves the OIDC round trip works.
+part that already runs.
+
+**The prod path, by contrast, is fully proven.** Both of prod's deploys went through
+*Actions → Infra → Run workflow → prod*: the job held at `waiting` on the `backend-production`
+environment, an approval released it, and the run assumed the prod role over OIDC and deployed. That
+gate is not decoration — the prod role's trust policy only accepts a token whose subject names that
+environment, so the approval is what makes the credentials issuable at all. It had never been
+exercised before this.
 
 ## Standing up production
 
-**Not done.** Dev has been deployed and exercised; prod has never existed. This is the order, and
-the order matters — two of these steps cannot be undone by the next deploy, and one of them has a
+**Walked on 2026-09-04, and it held.** Prod was created in two deploys exactly as written below,
+with no rollback: the first left the pool on Cognito's sender while the SES identity verified, the
+second moved it across. Kept as the runbook because it is what a rebuild, or a second account,
+would need — and because **step 1 is still outstanding**.
+
+The order matters: two of these steps cannot be undone by the next deploy, and one of them has a
 queue measured in days.
+
+What it cost, for calibration: about fifteen minutes of wall time, most of it CloudFormation. Two
+things turned up that no synth could show — see items 5 and 6 of *What only a deploy could tell
+us*.
 
 ### Before touching AWS: ask for SES production access
 
