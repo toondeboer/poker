@@ -595,12 +595,43 @@ The stack tags every resource it creates:
 | `stage` | `dev` / `prod` | Splitting the two stacks |
 | `billingScope` | `poker-dev` / `poker-prod` | What the budget filters on |
 
-**Activate them once, by hand, before any of it does anything.** Billing → Cost
-allocation tags → select `project`, `stage` and `billingScope` → Activate.
-CloudFormation cannot do this — the API is account-level, not stack-level — and
-**activation is not retroactive**: spend before the day you activate stays
-unattributed forever. It is worth doing on an empty prod for exactly that
-reason. AWS takes up to 24 hours to start populating them.
+**Activate them once, by hand, before any of it does anything.** CloudFormation
+cannot do this — the API is account-level, not stack-level — and **activation is
+not retroactive**: spend before the day you activate stays unattributed forever,
+which is why it is worth doing while prod is still empty. Either Billing → Cost
+allocation tags → Activate, or:
+
+```bash
+aws ce update-cost-allocation-tags-status \
+  --cost-allocation-tags-status TagKey=project,Status=Active TagKey=stage,Status=Active
+aws ce list-cost-allocation-tags --status Active --output table
+```
+
+`Status=Inactive` undoes it. Nothing here costs anything or touches data.
+
+**A tag key cannot be activated until AWS has seen it on billed usage**, which
+takes up to 24 hours after the deploy that first applies it — it is simply
+absent from `list-cost-allocation-tags` until then, which reads like the command
+being wrong rather than the key being new.
+
+### State, as of 2026-09-04
+
+| Tag | Status |
+| --- | --- |
+| `project` | **Active** |
+| `stage` | **Active** |
+| `billingScope` | **Not yet activatable** — applied to dev by the deploy that day, and AWS had not discovered the key |
+
+**Outstanding**, and the only thing between here and a working dev budget alert:
+
+```bash
+aws ce update-cost-allocation-tags-status \
+  --cost-allocation-tags-status TagKey=billingScope,Status=Active
+```
+
+Until that runs, `poker-dev`'s filter matches nothing, so **it does not alarm at
+all** rather than alarming wrongly. Safe, but it is not a budget alert yet.
+`poker-prod` keeps forecasting the whole account until prod is next deployed.
 
 Then, for poker-only spend: Cost Explorer → Group by → Tag → `project`, or filter
 to `project = poker` and group by `stage` to see the two stacks apart.
