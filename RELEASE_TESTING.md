@@ -111,6 +111,114 @@ A fix landing never upgrades a row on its own: ❌ becomes 🔧, and only a re-t
 
 ---
 
+## Running the pass: what needs what
+
+~193 rows, each wanting both platforms. Almost none of it is hard; the cost is **setup churn** —
+flipping entitlements, switching backends, finding a second phone. Grouped so each setup is paid
+for once.
+
+Two switches decide what a build can see, and they are the axis everything below is sorted on:
+
+- **`FORCE_PRO_IN_DEV`** in `PremiumContext.tsx` — forces Pro **and** Club together, from one
+  literal. It is the only way to exercise either without a real purchase.
+- **`backendConfig`** in `backendConfig.ts` — `DEV_BACKEND` for the pass, per §0.
+
+**Session A — one device, both switches off.** Nothing here is entitlement-gated, so it is the
+block to start with while the build is as checked out.
+
+| § | Rows |
+| --- | --- |
+| 2. Blind editor | 15 |
+| 5. Keyboard | 13 |
+| 3. Generator | 7 |
+| 4. Round duration | 5 |
+| 8. Small phones | 4 |
+
+Do §5 first. Its failure mode — a field under the keypad, a header behind the status bar — recurs
+in §12 and elsewhere, and you will recognise it faster having just looked for it.
+
+**Session B — a real device, both switches still off.** A simulator cannot answer these: iOS has no
+auto-lock in the Simulator, and notifications do not work there.
+
+| § | Rows |
+| --- | --- |
+| 6. Notifications & Live Activity | 15 |
+| 10. Screen stays awake | 4 |
+| 9. Cold launch | 3 |
+
+**Session C — one device, `FORCE_PRO_IN_DEV = true`.** The biggest block in the pass, and the
+newest code in the release.
+
+| § | Rows |
+| --- | --- |
+| 13. Play a hand | 38 |
+| 12. Leaderboard | 25 |
+| 11. Payouts | 15 |
+
+**Session D — one device, `FORCE_PRO_IN_DEV = true`, `backendConfig = DEV_BACKEND`.**
+
+| § | Rows | Note |
+| --- | --- | --- |
+| 14. Accounts | 13 | **Never once run from the app.** Read the `email_verified` note first |
+| 17. Kill switch | 4 | Run against **prod**, not dev — see §0 |
+
+**Session E — two devices, same switches as D.** The most expensive setup, so do it in one sitting.
+A third device is wanted for the "boards follow the account" row.
+
+| § | Rows |
+| --- | --- |
+| 15. Shared boards | 16 |
+| 16. Club, Pro, and what each unlocks | 7 |
+
+**Session F — blocked until the build is on a store track.** Play Billing cannot be exercised from
+a local build at all, so this cannot be brought forward. It is why submission goes to the testing
+track first.
+
+| § | Rows |
+| --- | --- |
+| 1. Billing | 13 (16 cells marked 🚫) |
+
+**Session G — a tablet.** §7, 7 rows.
+
+### The switch trap
+
+**Some rows test the *locked* state, and those need the switch back off.** §16 in particular asks
+what a non-subscriber sees, and the whole point of the share button being hidden without Club is
+that it is invisible — which `FORCE_PRO_IN_DEV = true` destroys. `FORCE_FREE_IN_DEV` exists for the
+opposite case, when the store account signed into the device already owns `pro_lifetime` and you
+want the ad-supported UI anyway. **Only one of the two may be true at a time.** Plan on running §16
+twice, once each way, rather than discovering halfway through that every locked-state row passed
+because everything was unlocked.
+
+### Where the risk actually is
+
+- **§11–§13 are 78 of the ~193 rows** and cover what this release invented. If time runs short,
+  short-change something else.
+- **§14 and §15 have never been run at all**, from any build, on any platform.
+- **Android has seen almost none of this.** Several features were checked on an iOS Simulator only,
+  and synthetic taps do not exist here — assume the first real Android tap finds something.
+- **§1 blocks submission** and cannot start until the build is uploaded. It is the long pole, not
+  the big one.
+
+### Rows that cover a fix made on 2026-09-04
+
+Thirteen defects were fixed on the release branch the day before this pass, **found by review
+rather than by testing** — so these are rows this checklist previously let through. Worth running
+deliberately rather than waiting for them to come up in sequence.
+
+| Fix | Where it shows up |
+| --- | --- |
+| A deleted board came back on the next pull | §12 deleting a group · §15 a board rejoined by link |
+| Bounty knockouts dropped on every relaunch | §13 a bounty game, then **relaunch and re-read the standings** |
+| A refused game closed the sheet and lost the entry | §12 recording a game |
+| Renaming to a duplicate or empty name | §12 — the rename rows already exist |
+| A refusal notice shown on the wrong board | §15 two boards, one refusal |
+| Identical chip stacks split unevenly | §11 a chop with two equal stacks |
+| Chop sheet blank with every stack cleared | §11 clear all stacks to 0 |
+| A half-written token signed you out silently | §14 force-quit mid-sign-up |
+
+---
+
 ## 1. Billing — the highest risk in any release · **blocks submission**
 
 Nothing in development can exercise this fully: the Android emulator has no Play Billing
