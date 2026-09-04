@@ -451,6 +451,26 @@ export function LeaderboardProvider({
   const board = activeEntry ?? EMPTY_GROUP;
 
   /**
+   * The active board's refusals, not every board's.
+   *
+   * `SyncNotice` is rendered inside these standings and its copy says "the
+   * other players will not see it" — a sentence about the board on screen.
+   * Handed the whole queue it would name a player who is on some other board,
+   * which is a true statement about a board nobody is looking at and a false
+   * one about the board they are. Each board shows its own; switching boards
+   * is what surfaces the rest.
+   */
+  const refusedHere = useMemo(
+    () =>
+      state.activeGroupId === null
+        ? []
+        : sync.queue.refused.filter(
+            (entry) => entry.write.groupId === state.activeGroupId,
+          ),
+    [sync.queue.refused, state.activeGroupId],
+  );
+
+  /**
    * Apply a change to the active group, creating one first if there isn't one.
    *
    * The implicit first group is what keeps groups invisible until somebody
@@ -705,7 +725,15 @@ export function LeaderboardProvider({
   const renameGroupById = useCallback(
     (id: string, name: string) => {
       const current = latestState.current;
-      persist(renameGroup(current, id, name));
+      const renamed = renameGroup(current, id, name);
+      // **Refused renames stop here.** `renameGroup` returns the state
+      // untouched for an empty or duplicate name, and the queue rewrite below
+      // used to run anyway — leaving the board named one thing on this phone
+      // while the server was told to create it under the name just rejected.
+      // `GroupsSheet` happens to pre-check, but the guard belongs on the
+      // method rather than in one of its callers.
+      if (renamed === current) return;
+      persist(renamed);
       /**
        * A board still waiting to be created should be created under its new
        * name. Replacing the queued write is the whole of what can be done here:
@@ -714,11 +742,21 @@ export function LeaderboardProvider({
        * keeps the local one rather than reverting somebody's rename. See
        * SYNC.md — it needs a `PATCH /groups/{id}`.
        */
+      // From the renamed state, so the queued name is the trimmed one that was
+      // actually stored rather than the raw text typed into the field.
+      const entry = renamed.groups.find((candidate) => candidate.group.id === id);
+      // Only a board the server has never heard of has a creation to rewrite.
+      // One it already has (`role` set) settled its `createGroup` long ago, and
+      // queueing a fresh one on every rename sends a creation for a group that
+      // exists — which cannot rename it, for the reason above.
+      if (!entry || entry.role !== undefined) return;
       cancelWrite({ kind: "createGroup", groupId: id });
-      const group = current.groups.find((entry) => entry.group.id === id)?.group;
-      if (group) {
-        recordWrite({ kind: "createGroup", groupId: id, name, createdAt: group.createdAt });
-      }
+      recordWrite({
+        kind: "createGroup",
+        groupId: id,
+        name: entry.group.name,
+        createdAt: entry.group.createdAt,
+      });
     },
     [persist, cancelWrite, recordWrite],
   );
@@ -781,6 +819,12 @@ export function LeaderboardProvider({
       // back, so the dismissal goes.
       const added = addBoard(undismiss(current, redeemed.groupId), board);
       persist(setActiveGroup(added, board.group.id));
+      // And so do the refusals it left behind. A refusal blocks its subject
+      // until a person says otherwise; without this, a board that was refused
+      // and deleted would never announce itself again after being re-joined,
+      // and everything queued behind its `createGroup` would come back as
+      // "no such group".
+      sync.clearRefusals(redeemed.groupId);
       return { ok: true as const, name: board.group.name };
     },
     [sync, persist],
@@ -823,7 +867,7 @@ export function LeaderboardProvider({
         claimPlayerAs,
         releasePlayer,
         releaseAllFor,
-        refusedWrites: sync.queue.refused,
+        refusedWrites: refusedHere,
         acknowledgeRefusal: sync.acknowledge,
         inviteToBoard,
         joinBoard,

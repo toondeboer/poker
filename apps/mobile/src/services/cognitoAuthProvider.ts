@@ -82,7 +82,26 @@ const readTokens = async (): Promise<CognitoTokens | null> => {
     const parsed: unknown = JSON.parse(raw);
     if (typeof parsed !== "object" || parsed === null) return null;
     const tokens = parsed as CognitoTokens;
-    return typeof tokens.refreshToken === "string" ? tokens : null;
+    /**
+     * **Every field, not just the refresh token.** A blob that survived a
+     * partial write with only some of them fails later and silently: a missing
+     * `idToken` makes `accountFromIdToken` do `.split(".")` on `undefined` and
+     * throw on every launch, which `AuthContext` catches into a signed-out
+     * state with nothing said. A missing `expiresAt` is worse — `now >= NaN`
+     * is `false`, so the expired token is never refreshed, every call 401s,
+     * and `resultForStatus` reads that as unreachable and quietly stops
+     * draining the outbox.
+     *
+     * Returning `null` here signs the person out honestly instead, which is
+     * the one recoverable outcome of the three.
+     */
+    return typeof tokens.idToken === "string" &&
+      typeof tokens.accessToken === "string" &&
+      typeof tokens.refreshToken === "string" &&
+      typeof tokens.expiresAt === "number" &&
+      Number.isFinite(tokens.expiresAt)
+      ? tokens
+      : null;
   } catch {
     return null;
   }

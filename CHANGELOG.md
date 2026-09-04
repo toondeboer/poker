@@ -359,6 +359,39 @@ platform-tagged heading (e.g. `## [1.1.3] - 2026-07-20 — Android`) when you cu
   and blind-maths edges at the top and bottom of the chip ladder.
 
 ### Fixed
+- Leaderboard: a board you delete stays deleted. Creating another board, joining one by link, or
+  simply letting a pull discover a board you are on wiped the record of what had been deleted — so
+  the next time the app came to the foreground, every board you had ever removed came back, and
+  wiped the record again on its way in. It could not be got rid of.
+- Leaderboard: a bounty game keeps its knockouts. Games the app dealt recorded who knocked whom
+  out, and every one of them was dropped the next time the leaderboard was read back off the phone
+  — so knockout counts and bounty money read as zero for everybody after a restart, and the next
+  save wrote the emptied game back permanently.
+- Leaderboard: recording a game that cannot be saved now says so instead of closing. A refused
+  result cleared the whole evening's entry and put nothing on the board, with nothing to
+  distinguish it from a save that worked.
+- Leaderboard: a refusal notice now only appears on the board it is about. On any other board it
+  named a player who was not there, under a heading promising it was about the board on screen.
+- Leaderboard: joining a board by link works again after that board had a change refused and was
+  deleted. The stale refusal blocked the board from ever announcing itself, and everything queued
+  behind it came back as "no such group".
+- Leaderboard: renaming a board to an empty or duplicate name no longer tells the server to create
+  it under the name the app just rejected.
+- Payouts: two players with identical chip stacks now come out within one note of each other when a
+  chop leaves money that will not divide. The leftover went to whoever was typed in first, and when
+  the rounding had already favoured that same player it widened the gap instead of closing it.
+- Payouts: clearing every chip stack in the chop sheet now says what is missing, instead of the
+  deal silently vanishing.
+- Accounts: a half-written sign-in no longer leaves the app permanently unable to talk to the
+  server. A stored token blob missing some of its fields was accepted and then failed on every
+  launch — either signing you out with no explanation, or never refreshing and quietly stopping the
+  leaderboard from syncing at all.
+- Tables: only players actually seated at a table can act on it. Any signed-in account holding a
+  table id could learn that the table existed, follow its version as the game went, and be told the
+  account id of whoever was to act next.
+- Tables: an action that lands but cannot be broadcast is no longer reported as having failed. A
+  network blip reaching the broadcast service rejected the whole request for a move that had
+  already been applied, and the retry was then told it was out of date.
 - Mobile: Android no longer asks twice for notification permission. The request passed a
   `rationale` object, and React Native responds to that by showing **its own** explanatory alert
   before the system permission sheet whenever `shouldShowRequestPermissionRationale` returns true —

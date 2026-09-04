@@ -6,6 +6,7 @@ import {
   MAX_REFUSALS,
   cancel,
   cancelBoard,
+  clearBoardRefusals,
   describeWrite,
   dismiss,
   enqueue,
@@ -287,6 +288,36 @@ describe("withdrawing a whole board", () => {
     const after = cancelBoard(q, "g1");
     expect(after.pending).toHaveLength(1);
     expect(after.pending[0].groupId).toBe("g2");
+  });
+
+  it("frees a board's refusals when somebody joins it again", () => {
+    // A refusal blocks its subject until a person says otherwise, and joining
+    // by link is that. Without this a board that was refused, deleted and
+    // re-joined could never announce itself: its own `createGroup` stayed
+    // blocked, and every player and game queued behind it came back as "no
+    // such group".
+    const q = queueOf(
+      { kind: "createGroup", groupId: "g1", name: "T", createdAt: 1 },
+      { kind: "addPlayer", groupId: "g2", player: player("p3") },
+    );
+    const refused = refuse(q, q.pending[0].id, "nope", 5);
+    const other = refuse(refused, refused.pending[0].id, "nope", 6);
+
+    const freed = clearBoardRefusals(other, "g1");
+    expect(freed.refused).toHaveLength(1);
+    expect(freed.refused[0].write.groupId).toBe("g2");
+
+    // And the subject is queueable again, which is the whole point.
+    const requeued = enqueue(freed, {
+      ...q.pending[0],
+      name: "T again",
+    });
+    expect(requeued.pending).toHaveLength(1);
+  });
+
+  it("is the same queue when a join freed nothing", () => {
+    const q = queueOf({ kind: "addPlayer", groupId: "g1", player: player("p2") });
+    expect(clearBoardRefusals(q, "g1")).toBe(q);
   });
 
   it("leaves refusals alone, because somebody still has not read them", () => {

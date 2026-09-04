@@ -342,6 +342,9 @@ export const computePayouts = (
  * first*: two identical 1-chip stacks came out 10 apart, and a 1-chip stack
  * typed first beat a 1000-chip stack. Keying on the weight makes the result
  * depend on the stacks rather than on data entry.
+ *
+ * Exactly equal largest stacks are the one case the weights cannot settle; see
+ * the comment at the bottom for how far that is taken and where it stops.
  */
 export const distribute = (
   pool: number,
@@ -374,9 +377,24 @@ export const distribute = (
 
   const amounts = floors.map((value) => value * denomination);
 
+  // Largest weight takes it, and where several are exactly equal the one the
+  // rounding above treated worst — `floors` differ by at most one unit between
+  // equal weights, so this hands the leftover to whichever of them is a unit
+  // short and closes the gap instead of widening it.
+  //
+  // Two identical stacks that also rounded identically are indistinguishable
+  // in the numbers this is given, so that last case does still fall back to
+  // the earlier of them. It is the only remaining entry-order dependence, and
+  // it cannot be resolved here: telling those two apart needs something that
+  // isn't a chip count.
   let heaviest = 0;
   for (let i = 1; i < weights.length; i += 1) {
-    if (weights[i] > weights[heaviest]) heaviest = i;
+    if (
+      weights[i] > weights[heaviest] ||
+      (weights[i] === weights[heaviest] && floors[i] < floors[heaviest])
+    ) {
+      heaviest = i;
+    }
   }
   amounts[heaviest] += indivisible;
   return amounts;

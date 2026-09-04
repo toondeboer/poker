@@ -335,6 +335,67 @@ describe("reading a grouped board back", () => {
     expect(loaded.groups[0].group.createdAt).toBe(0);
   });
 
+  it("carries knockouts back, so a bounty game keeps its money", async () => {
+    // **They used to be dropped on every read.** `coerceResults` rebuilt each
+    // result field by field and never named `knockouts`, so a game the app
+    // dealt came back with none — `computeStandings` reported 0 bounties won
+    // for everybody, and the next save wrote the stripped result back.
+    const raw = grouped({
+      groups: [
+        {
+          group: { id: "g1", name: "Thursday", createdAt: 1 },
+          players: [],
+          results: [
+            {
+              id: "r1",
+              playedAt: 2,
+              playerIds: ["a", "b"],
+              placings: [{ playerId: "a", place: 1, winnings: 10 }],
+              buyIn: 20,
+              bounty: 5,
+              knockouts: [
+                { playerId: "a", count: 2, bounty: 10 },
+                { playerId: "b", count: "no", bounty: 1 },
+              ],
+            },
+          ],
+        },
+      ],
+      activeGroupId: "g1",
+    });
+    const loaded = await seeded(raw).loadLeaderboard();
+    // The unusable row goes; the good one survives whole.
+    expect(loaded.groups[0].results[0].knockouts).toEqual([
+      { playerId: "a", count: 2, bounty: 10 },
+    ]);
+  });
+
+  it("leaves knockouts absent for a game recorded by hand", async () => {
+    // Absent, never `[]`: an empty list would claim nobody knocked anybody
+    // out, which is false of every game ever played.
+    const raw = grouped({
+      groups: [
+        {
+          group: { id: "g1", name: "Thursday", createdAt: 1 },
+          players: [],
+          results: [
+            {
+              id: "r1",
+              playedAt: 2,
+              playerIds: ["a"],
+              placings: [],
+              buyIn: 20,
+              bounty: 0,
+            },
+          ],
+        },
+      ],
+      activeGroupId: "g1",
+    });
+    const loaded = await seeded(raw).loadLeaderboard();
+    expect("knockouts" in loaded.groups[0].results[0]).toBe(false);
+  });
+
   it("re-points a selection at a group that didn't survive", async () => {
     // Otherwise the app opens on an empty board indistinguishable from a real
     // one, with no way for the user to tell anything was lost.

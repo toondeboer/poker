@@ -152,6 +152,25 @@ describe("groups", () => {
     expect(undismiss(gone, "other")).toBe(gone);
   });
 
+  it("keeps its dismissals when another board is added", () => {
+    // **`addGroup` and `addBoard` used to rebuild the state field by field**,
+    // which dropped `dismissed` — so creating a group, joining a link, or a
+    // pull discovering a board on another device wiped the record of every
+    // deleted board, and the next pull brought them all back. Forever, since
+    // each rediscovery wiped it again.
+    const gone = removeGroup(addGroup(EMPTY_LEADERBOARD, group("g1")), "g1");
+
+    const added = addGroup(gone, group("g2"));
+    expect(wasDismissed(added, "g1")).toBe(true);
+
+    const joined = addBoard(gone, {
+      group: group("g3"),
+      players: [],
+      results: [],
+    });
+    expect(wasDismissed(joined, "g1")).toBe(true);
+  });
+
   it("ignores a delete for a group that isn't there", () => {
     const state = addGroup(EMPTY_LEADERBOARD, group("g1"));
     expect(removeGroup(state, "nope")).toBe(state);

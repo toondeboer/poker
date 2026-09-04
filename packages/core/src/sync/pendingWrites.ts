@@ -235,6 +235,34 @@ export const cancelBoard = (queue: SyncQueue, groupId: string): SyncQueue => ({
   pending: queue.pending.filter((write) => write.groupId !== groupId),
 });
 
+/**
+ * Free every refused subject on a board, because somebody just joined it.
+ *
+ * `enqueue` treats a standing refusal as a block on its subject, and that is
+ * deliberate — see the note there. What frees a subject is a person choosing
+ * to try again, and until now dismissing a refusal one at a time was the only
+ * way to say so.
+ *
+ * **Redeeming a link is the same choice, made for the whole board at once.**
+ * Without this, a board that was refused, deleted, and later joined again by
+ * link would never re-announce itself: `createGroup` is blocked by its own
+ * stale refusal, and every player and game queued behind it is then refused as
+ * "no such group". The refusals survive a `cancelBoard` on purpose — they are
+ * news nobody has read — so joining is the only place left to clear them.
+ */
+export const clearBoardRefusals = (
+  queue: SyncQueue,
+  groupId: string,
+): SyncQueue => {
+  const refused = queue.refused.filter(
+    (entry) => entry.write.groupId !== groupId,
+  );
+  // Same reference when nothing matched, so a caller that persists on change
+  // is not made to write for a join that freed nothing.
+  if (refused.length === queue.refused.length) return queue;
+  return { ...queue, refused };
+};
+
 export const cancel = (queue: SyncQueue, subject: WriteSubject): SyncQueue => {
   const key = keyOf(subject);
   return {
