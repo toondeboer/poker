@@ -31,11 +31,15 @@ sufficient — see _What only a deploy could tell us_, below.
 | `MailFrom`         | `Poker Blinds Timer <noreply@poker.toondeboer.com>`                       |
 | `DashboardName`    | `poker-prod`                                                              |
 
-**Still in the SES sandbox.** `aws sesv2 get-account` reports
-`ProductionAccessEnabled: false`, so prod signs its mail correctly and will only *deliver* it to
-addresses that have themselves been verified. A stranger's sign-up code goes nowhere. That is a
-support request with a queue of a day or two, it is the last thing between this backend and real
-users, and no amount of deploying fixes it — see step 1 of *Standing up production*.
+**Out of the SES sandbox as of 2026-09-04.** `aws sesv2 get-account` reports
+`ReviewStatus: GRANTED` and a `Max24HourSend` of 50,000 against the sandbox's 200 — that quota is
+the signal worth checking, because `ProductionAccessEnabled` reads `true` from the moment the
+request is *filed* and says nothing about whether it was granted. Prod can now deliver a sign-up
+code to an address nobody has verified by hand, which is what makes real users possible at all.
+
+It was granted in minutes rather than the day or two budgeted for it, which is worth knowing but
+not worth planning around: it is still a review, and a different account or a less transactional
+use case can still wait. Ask first anyway — see step 1 of *Standing up production*.
 
 ## Where dev is
 
@@ -136,11 +140,9 @@ sitting on a namespace those channels never touch.
 
 ## What does not exist
 
-1. **Production access for SES.** Prod is deployed and sends signed mail from its own verified
-   domain, but the account is still in the sandbox — `ProductionAccessEnabled: false` — so it will
-   only *deliver* to addresses that have themselves been verified. A stranger's sign-up code goes
-   nowhere. It is a support request rather than a resource, it has a queue of a day or two, and it
-   is the only gate here that cannot be worked around in code.
+1. ~~**Production access for SES.**~~ **Done, 2026-09-04.** Requested with
+   `aws sesv2 put-account-details` and granted the same day; `ReviewStatus` is `GRANTED` and the
+   daily quota is 50,000. Prod delivers to any address, so a stranger's sign-up code now arrives.
 2. **No third-party telemetry, deliberately.** This exported OpenTelemetry to Grafana Cloud, it
    worked, and it was removed once there was a number attached to it. Measured, n=6 per function,
    forced parallel cold starts:
@@ -442,12 +444,41 @@ is in the *sandbox*, where mail is delivered only to addresses that have themsel
 That is fine for the smoke accounts and useless for real users: every sign-up would send a code
 that never arrives.
 
-Support → *Account and billing* → *Service limit increase* → *SES Sending Limits*, or the "Request
-production access" button in the SES console. Say what the mail is (transactional confirmation
-codes for a mobile app's sign-up), how somebody stops receiving it (they never receive another one
-— there is no list to unsubscribe from), and how bounces are handled. It is usually granted within
-a day or two, and it is **per account and region**, so granting it for `us-east-1` covers both
-stages.
+There is a console route — Support → *Account and billing* → *Service limit increase* → *SES
+Sending Limits*, or the "Request production access" button — but the CLI files the same request and
+keeps the wording in a file worth revising:
+
+```bash
+aws sesv2 put-account-details \
+  --production-access-enabled \
+  --mail-type TRANSACTIONAL \
+  --website-url "https://poker-timer.toondeboer.com" \
+  --contact-language EN \
+  --use-case-description "file://ses-usecase.txt" \
+  --additional-contact-email-addresses "poker.blinds.buzzer@gmail.com"
+```
+
+Say what the mail is (transactional confirmation codes for a mobile app's sign-up), who receives it
+(only somebody who just typed their own address into the app), how they stop receiving it — they
+never receive another one, there is no list to unsubscribe from — and how bounces are handled.
+**Do not claim monitoring that does not exist**: the honest answer today is the SES account-level
+suppression list plus the fact that mail is only ever sent on a live user action, so no queue or
+retry can repeat delivery to a bad address. There are no SES alarms yet.
+
+It is **per account and region**, so `us-east-1` covers both stages. Budget a day or two; the
+2026-09-04 request came back granted in minutes, which is not a promise.
+
+**Check the quota, not the flag.** `ProductionAccessEnabled` flips to `true` the moment the request
+is *filed*, so it does not distinguish "asked" from "granted". `Details.ReviewDetails.Status` and
+`SendQuota.Max24HourSend` do — 200/day is the sandbox, 50,000 is production:
+
+```bash
+aws sesv2 get-account --query \
+  '{Status:Details.ReviewDetails.Status,Max24Hour:SendQuota.Max24HourSend}'
+```
+
+Re-running `put-account-details` while a review is pending updates it in place rather than opening
+a second case, which is how the contact address was corrected without disturbing the request.
 
 The request is stronger once the dev identity has been sending, which it has.
 
@@ -508,7 +539,7 @@ build that reaches a tester before the products exist shows a paywall that canno
 
 | | |
 | --- | --- |
-| SES sandbox | **Cannot be rushed.** Days, and no code fixes it. Ask first. |
+| SES sandbox | Out of it since 2026-09-04. Was never rushable by code — if a future account lands back in it, asking is the only move. |
 | A feature misbehaving in prod | `-c featureSharing=off` — a stack update, about 90 seconds |
 | The table or the user pool | `RemovalPolicy.RETAIN` on prod, so a stack delete does not take them |
 | A bad prod deploy | Roll forward. There is no undo, and the data is real. |
@@ -539,8 +570,8 @@ string in a Lambda's environment:
 - `featureAccounts=off` — the Account row disappears from Settings. The
   `/account` route itself stays registered, because a confirmation email is a
   deep link that has to land somewhere. The case this is here for is concrete:
-  sign-up depends on a code arriving, and until SES is out of its sandbox it
-  reaches only addresses verified by hand.
+  sign-up depends on a code arriving, and this was the switch for the weeks when
+  SES was still sandboxed and a code reached only addresses verified by hand.
 
 - **The app treats unreachable as off** (`readFeatures`). That is the only safe
   direction: a backend that cannot be reached is one where none of this works
@@ -595,12 +626,43 @@ The stack tags every resource it creates:
 | `stage` | `dev` / `prod` | Splitting the two stacks |
 | `billingScope` | `poker-dev` / `poker-prod` | What the budget filters on |
 
-**Activate them once, by hand, before any of it does anything.** Billing → Cost
-allocation tags → select `project`, `stage` and `billingScope` → Activate.
-CloudFormation cannot do this — the API is account-level, not stack-level — and
-**activation is not retroactive**: spend before the day you activate stays
-unattributed forever. It is worth doing on an empty prod for exactly that
-reason. AWS takes up to 24 hours to start populating them.
+**Activate them once, by hand, before any of it does anything.** CloudFormation
+cannot do this — the API is account-level, not stack-level — and **activation is
+not retroactive**: spend before the day you activate stays unattributed forever,
+which is why it is worth doing while prod is still empty. Either Billing → Cost
+allocation tags → Activate, or:
+
+```bash
+aws ce update-cost-allocation-tags-status \
+  --cost-allocation-tags-status TagKey=project,Status=Active TagKey=stage,Status=Active
+aws ce list-cost-allocation-tags --status Active --output table
+```
+
+`Status=Inactive` undoes it. Nothing here costs anything or touches data.
+
+**A tag key cannot be activated until AWS has seen it on billed usage**, which
+takes up to 24 hours after the deploy that first applies it — it is simply
+absent from `list-cost-allocation-tags` until then, which reads like the command
+being wrong rather than the key being new.
+
+### State, as of 2026-09-04
+
+| Tag | Status |
+| --- | --- |
+| `project` | **Active** |
+| `stage` | **Active** |
+| `billingScope` | **Not yet activatable** — applied to dev by the deploy that day, and AWS had not discovered the key |
+
+**Outstanding**, and the only thing between here and a working dev budget alert:
+
+```bash
+aws ce update-cost-allocation-tags-status \
+  --cost-allocation-tags-status TagKey=billingScope,Status=Active
+```
+
+Until that runs, `poker-dev`'s filter matches nothing, so **it does not alarm at
+all** rather than alarming wrongly. Safe, but it is not a budget alert yet.
+`poker-prod` keeps forecasting the whole account until prod is next deployed.
 
 Then, for poker-only spend: Cost Explorer → Group by → Tag → `project`, or filter
 to `project = poker` and group by `stage` to see the two stacks apart.
