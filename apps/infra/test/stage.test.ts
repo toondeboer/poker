@@ -45,6 +45,41 @@ describe("prod keeps what cannot be recreated", () => {
     prod.hasResource("AWS::Cognito::UserPool", { DeletionPolicy: "Retain" });
   });
 
+  it("guards both the table and the pool against a direct delete", () => {
+    /**
+     * **Not the same guarantee as `Retain` above.** That is a CloudFormation
+     * instruction and stops a stack update or a `cdk destroy`; it says nothing
+     * about somebody calling `DeleteTable` or `DeleteUserPool` directly, which
+     * is the call an accident makes — and this account runs other projects.
+     *
+     * The pool had this from the start and the table did not, which was an
+     * omission nobody noticed until prod was read back after its first deploy.
+     * Asserted together so the pair cannot drift apart again.
+     */
+    const prod = templateFor("prod");
+    // Per replica, not top-level: `TableV2` synthesises a `GlobalTable`, which
+    // carries this beside `PointInTimeRecoverySpecification` above.
+    prod.hasResourceProperties("AWS::DynamoDB::GlobalTable", {
+      Replicas: Match.arrayWith([
+        Match.objectLike({ DeletionProtectionEnabled: true }),
+      ]),
+    });
+    prod.hasResourceProperties("AWS::Cognito::UserPool", {
+      DeletionProtection: "ACTIVE",
+    });
+  });
+
+  it("leaves dev disposable, which is what dev is for", () => {
+    // A protected table makes `cdk destroy` a two-step job, and rebuilding dev
+    // from nothing is a thing worth being able to do in one command.
+    const dev = templateFor("dev");
+    dev.hasResourceProperties("AWS::DynamoDB::GlobalTable", {
+      Replicas: Match.arrayWith([
+        Match.objectLike({ DeletionProtectionEnabled: false }),
+      ]),
+    });
+  });
+
   it("can restore the table to a point in time", () => {
     templateFor("prod").hasResourceProperties("AWS::DynamoDB::GlobalTable", {
       Replicas: Match.arrayWith([
