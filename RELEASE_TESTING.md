@@ -83,10 +83,25 @@ A fix landing never upgrades a row on its own: ❌ becomes 🔧, and only a re-t
 - [⬜] If the app behaves strangely in ways that don't match the code, check
       `pgrep -fl GradleDaemon` — VS Code's Java extension replants the broken expo shims.
       `node apps/mobile/scripts/clean-expo-shims.js` fixes it; lint/typecheck now self-heal.
-- [⬜] **Anything in §14–§17 needs a backend to point at.** `backendConfig` in
-      `apps/mobile/src/services/backendConfig.ts` ships as `null`, so accounts and sharing are
-      absent — correctly and silently. Set it to `DEV_BACKEND` (or `PROD_BACKEND` once that exists)
-      or every row in those sections passes by being invisible.
+- [⬜] **Point the build at `DEV_BACKEND`, locally and uncommitted, before running any of this.**
+      `backendConfig` in `apps/mobile/src/services/backendConfig.ts` now ships as **`PROD_BACKEND`**
+      — it was `null` for most of 1.2.0 and this note used to say so. The consequence is the other
+      way round from what it used to be: nothing is silently absent any more, and a pass run as
+      checked out writes **real accounts, boards and games into the production user pool**, which
+      today holds none. Test accounts are deletable from inside the app, so this is recoverable
+      rather than fatal — but it is much easier not to do it.
+
+      ```diff
+      -export const backendConfig: BackendConfig | null = PROD_BACKEND;
+      +export const backendConfig: BackendConfig | null = DEV_BACKEND;
+      ```
+
+      **Put it back before the build is cut**, or the release ships pointing at a stack whose whole
+      purpose is being thrown away. `git diff apps/mobile/src/services/backendConfig.ts` before
+      `eas build` is the check.
+- [⬜] **Run §17, the kill switch, against prod rather than dev**, since that is the one section
+      whose whole point is the production stack answering. `curl https://poker-api.toondeboer.com/config`
+      should say `{"accounts":true,"sharing":true}` — it did on 2026-09-04.
 - [⬜] **And §15–§16 need the Club entitlement**, which nothing grants until the subscription exists
       in both stores. Until then set `FORCE_PRO_IN_DEV` in `PremiumContext.tsx`, which forces Pro
       **and** Club. Without it the share button and join field are simply not there, which reads
