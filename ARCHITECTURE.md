@@ -115,6 +115,74 @@ shared leaderboard. **It is deployed to a development environment and every rout
 exercised by hand — and nothing in the app calls any of it.** `backendConfig` is `null` on purpose,
 so a shipped build cannot put real accounts in a stack that exists to be thrown away.
 
+```mermaid
+flowchart LR
+  subgraph Phone["Phone (apps/mobile)"]
+    UI["Timer · Payouts · Leaderboard<br/><i>work with no backend at all</i>"]
+    OB[("Outbox<br/><i>local-first queue</i>")]
+  end
+
+  subgraph AWS["PokerBackend-&lt;stage&gt;"]
+    COG["Cognito<br/>user pool"]
+    API["HTTP API<br/><i>JWT authorizer</i>"]
+    CFG["Config λ<br/><b>kill switch</b><br/><i>public, no auth</i>"]
+    IDN["Identity λ<br/>GET /me"]
+    GRP["Groups λ<br/>/groups/* · /invites/*"]
+    ACT["TableAction λ<br/><i>the only writer</i>"]
+    SUB["Subscribe<br/>authorizer λ"]
+    DDB[("DynamoDB<br/><i>single table</i>")]
+    EV(["AppSync Events"])
+  end
+
+  UI --> OB
+  OB -->|"replays on foreground,<br/>sign-in, cold launch"| API
+  UI -->|"asks at launch;<br/>unreachable ⇒ off"| CFG
+  UI -.->|"sign up / in"| COG
+  API --> IDN & GRP & ACT
+  COG -.->|"verifies token"| API
+  IDN & GRP --> DDB
+  ACT -->|"read · rules · write<br/>on a version check"| DDB
+  ACT -->|"publishes<br/><i>IAM only</i>"| EV
+  EV -->|"subscribe"| SUB
+  SUB -->|"member?"| DDB
+  EV -.->|"public view<br/><i>hole cards stripped</i>"| UI
+```
+
+Everything above the outbox works with no network. Only the table (one clock across several phones)
+is inherently online — it is server-authoritative by design, which is the same reason hole cards are
+safe.
+
+The single table holds several item types in one keyspace, and that shape *is* the permission model
+— which is the part worth having a picture of:
+
+```mermaid
+flowchart TB
+  subgraph G["pk = GROUP#&lt;groupId&gt;"]
+    GM["sk = META<br/><i>the board</i>"]
+    GP["sk = PLAYER#&lt;playerId&gt;"]
+    GR["sk = RESULT#&lt;gameId&gt;<br/><i>keyed by id alone</i>"]
+    GB["sk = MEMBER#&lt;accountId&gt;<br/><i>+ role</i>"]
+  end
+
+  subgraph A["pk = ACCOUNT#&lt;accountId&gt;"]
+    AM["sk = GROUP#&lt;groupId&gt;<br/><i>the same membership,<br/>written twice</i>"]
+    AC["sk = CLAIM#&lt;groupId&gt;<br/><b>one seat per board,<br/>enforced by the key</b>"]
+  end
+
+  subgraph I["pk = INVITE#&lt;token&gt;"]
+    IM["sk = META<br/><i>its own partition — the<br/>redeemer has no groupId yet</i>"]
+  end
+
+  GB <-.->|"one transaction"| AM
+  IM -.->|"redeems to"| GB
+```
+
+Three rules are held by the shape rather than by code: one seat per board is a key collision rather
+than a check, membership written under both the group and the account makes "who is here" a
+strongly consistent read, and "is there another admin?" is a `ConditionCheck` on a named account
+inside the transaction rather than a counter. [`SYNC.md`](./apps/infra/SYNC.md) records the first
+schema and why it was replaced — worth reading before changing any of this.
+
 That gap is the thing to hold on to when reading the rest: what is proven is that the routes answer
 correctly to a person with `curl`. What is unproven is everything about a _phone_ using them — a
 queue replaying writes after a bad evening's signal, a merge against local state, two people at one

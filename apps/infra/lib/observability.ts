@@ -113,6 +113,36 @@ export class Observability extends Construct {
         budget: {
           budgetName: `poker-${settings.stage}`,
           budgetType: "COST",
+          /**
+           * **This stack's spend, not the whole account's.**
+           *
+           * Without a filter a budget measures every resource in the account,
+           * which is wrong in both directions the moment anything else is
+           * deployed beside it: another project's bill alone can hold the
+           * forecast over the limit, so the alarm is permanently on and says
+           * nothing — while this stack running away stays invisible inside a
+           * much larger number. Both stages had one, so the account was
+           * measured twice and attributed to neither.
+           *
+           * **One tag, not two, because Budgets ORs within a dimension.**
+           * `TagKeyValue` takes a list, and a resource matching *any* entry is
+           * counted. Passing `project$poker` and `stage$dev` would therefore
+           * bill the dev budget for everything poker (prod included) plus
+           * anything else in the account somebody happened to tag `stage=dev`
+           * — broader than no filter in one direction and wrong in the other.
+           * So the filter uses `billingScope`, which `PokerStack` sets to a
+           * value unique per stack for exactly this reason. `project` and
+           * `stage` stay as they are: they are for grouping in Cost Explorer,
+           * which *can* combine two tags, and this cannot.
+           *
+           * **The tag must be activated once, by hand**, under Billing → Cost
+           * allocation tags — CloudFormation cannot do it, and until it is done
+           * a tag-filtered budget matches nothing at all. Activation is not
+           * retroactive either. See the README.
+           */
+          costFilters: {
+            TagKeyValue: [`user:billingScope$poker-${settings.stage}`],
+          },
           timeUnit: "MONTHLY",
           budgetLimit: { amount: props.monthlyBudgetUsd, unit: "USD" },
         },

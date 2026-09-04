@@ -555,6 +555,72 @@ string in a Lambda's environment:
 - Cached for 60 seconds. Long enough to cost nothing, short enough that throwing
   the switch takes effect while somebody is still watching.
 
+**Faster, when 90 seconds is 90 seconds too many.** The deploy above is the
+version that leaves a diff behind and is the one to reach for normally. When
+something is actively going wrong, the flag is just an environment variable on
+one Lambda, and it can be set directly:
+
+```bash
+CONFIG_FN=$(aws cloudformation list-stack-resources --stack-name PokerBackend-prod \
+  --query "StackResourceSummaries[?ResourceType=='AWS::Lambda::Function' \
+           && starts_with(LogicalResourceId,'Config')].PhysicalResourceId" \
+  --output text)
+
+aws lambda update-function-configuration --function-name "$CONFIG_FN" \
+  --environment 'Variables={FEATURE_SHARING=off,FEATURE_ACCOUNTS=on,NODE_OPTIONS=--enable-source-maps}'
+```
+
+Three things to know before using it. The lookup is a **prefix match, not the
+construct name** — CDK appends a hash, so the logical id is `Config57D1D894` and
+`--logical-resource-id Config` finds nothing. `--environment` **replaces the
+whole map**, so every variable has to be listed; dropping `NODE_OPTIONS` costs
+source maps in the traces. And the next `cdk deploy` puts the context value
+back, so this is a stop-the-bleeding move and not a state anything should be
+left in: follow it with the deploy that makes it real, or with the fix.
+
+**What the switch does not do.** It stops *the app* using a feature; it does not
+stop anything reaching the API. A client stuck in a retry loop, or anybody with
+the URL, still gets as far as API Gateway — that is what the per-route throttle
+is for, and it protects the bill rather than availability. If the problem is
+spend rather than behaviour, the switch is the wrong lever; see the section
+below.
+
+## Seeing what this costs, on an account running other things
+
+The stack tags every resource it creates:
+
+| Tag | Value | For |
+| --- | --- | --- |
+| `project` | `poker` | Grouping in Cost Explorer |
+| `stage` | `dev` / `prod` | Splitting the two stacks |
+| `billingScope` | `poker-dev` / `poker-prod` | What the budget filters on |
+
+**Activate them once, by hand, before any of it does anything.** Billing → Cost
+allocation tags → select `project`, `stage` and `billingScope` → Activate.
+CloudFormation cannot do this — the API is account-level, not stack-level — and
+**activation is not retroactive**: spend before the day you activate stays
+unattributed forever. It is worth doing on an empty prod for exactly that
+reason. AWS takes up to 24 hours to start populating them.
+
+Then, for poker-only spend: Cost Explorer → Group by → Tag → `project`, or filter
+to `project = poker` and group by `stage` to see the two stacks apart.
+
+**The budget is scoped to match.** Each stage's `CfnBudget` filters on its own
+`billingScope`, so `poker-dev` forecasts the dev stack and nothing else. It did
+not always: with no filter at all it forecast the *whole account*, which on an
+account running other projects is wrong in both directions — another project's
+bill alone can hold the forecast over the limit so the warning is permanently on
+and means nothing, while this stack running away stays invisible inside a much
+larger number.
+
+**One tag and not three, deliberately.** Budgets' `TagKeyValue` filter ORs the
+values it is given, so listing `project$poker` beside `stage$dev` would match
+either — every poker resource including prod, plus anything else in the account
+somebody tagged `stage=dev`. That is why `billingScope` exists as a third tag
+whose value is already unique per stack: it is the only shape that filter can
+hold. Cost Explorer has no such limitation, which is why `project` and `stage`
+are still the ones to read the bill with.
+
 ## Checking it still works
 
 ```bash

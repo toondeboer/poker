@@ -75,6 +75,13 @@ and [ARCHITECTURE.md](./ARCHITECTURE.md) for the full design.
     positioned outside the sheet frame. This defect is only visible in a screenshot, so verify it
     with pixels. It's the standing example of why layout is on the manual checklist rather than
     automated (see [RELEASE_TESTING.md](./RELEASE_TESTING.md)).
+- **The two diagrams in [ARCHITECTURE.md](./ARCHITECTURE.md) are hand-maintained, and go stale
+  silently.** They are mermaid fences, so GitHub renders them in the diff and a syntax error is
+  visible on the PR — but nothing checks whether they are still *true*. Update them in the same PR
+  whenever the route table in `apps/infra/lib/pokerStack.ts` gains or loses a route, a Lambda is
+  added or removed, or the key schema in `apps/infra/lib/lambda/groupKeys.ts` changes shape. Those
+  three are the only things they claim, deliberately — a diagram that tried to show more would need
+  updating for changes that do not affect it, which is how diagrams stop being trusted.
 - **Only one scroller per screen.** Settings is a single `ScrollView`, the blind editor a single
   `FlatList`. A nested scroll region (`nestedScrollEnabled`) was the defect the Settings redesign
   removed — don't reintroduce one. A `ScrollView` inside a `Modal`/`Sheet` is fine: a modal is its
