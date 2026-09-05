@@ -5,6 +5,18 @@ on:
   push:
     branches: [main]
 
+# **Read the repository, and nothing else.** With no block at all the
+# `GITHUB_TOKEN` takes the repository's default, which on a public repo can be
+# read *and write* to contents, issues, pull requests and packages — handed to
+# every step, including everything `npm ci` executes. This job only checks out
+# and runs typecheck, lint and tests, so it needs exactly one permission, and a
+# compromised dependency then has a token that cannot change anything.
+#
+# `infra.yml` sets its own for the same reason and adds `id-token: write` for
+# OIDC; this one deliberately does not, because nothing here talks to AWS.
+permissions:
+  contents: read
+
 concurrency:
   group: ci-${{ github.ref }}
   cancel-in-progress: true
