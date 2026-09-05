@@ -52,8 +52,9 @@ describe("being told when it stops", () => {
 
   it("watches the handful of things worth being woken for", () => {
     // Deliberately few. An alarm nobody acts on trains everybody to ignore the
-    // next one.
-    expect(alarms()).toHaveLength(10);
+    // next one. Ten on the backend itself, plus the two SES reputation alarms
+    // that exist on prod only — this template is the prod one.
+    expect(alarms()).toHaveLength(12);
   });
 
   it("says what each one means, because that is what arrives in the email", () => {
@@ -103,6 +104,49 @@ describe("being told when it stops", () => {
           Notification: Match.objectLike({ NotificationType: "FORECASTED" }),
         }),
       ]),
+    });
+  });
+
+  it("watches mail reputation in prod, and only in prod", () => {
+    // **The metric is account-wide.** SES publishes one bounce rate for the
+    // whole account and region, not one per stack, so watching it from both
+    // stages would put two alarms on the same number and send two emails about
+    // one problem. Prod owns the consequence, so prod watches it.
+    const sesAlarms = (t: Template) =>
+      Object.values(t.findResources("AWS::CloudWatch::Alarm"))
+        .map((a) => a.Properties as { Namespace?: string; MetricName?: string })
+        .filter((a) => a.Namespace === "AWS/SES")
+        .map((a) => a.MetricName)
+        .sort();
+
+    expect(sesAlarms(template())).toEqual([
+      "Reputation.BounceRate",
+      "Reputation.ComplaintRate",
+    ]);
+
+    const dev = Template.fromStack(
+      new PokerStack(new App(), "SesDev", {
+        settings: settingsFor("dev"),
+        alertEmail: "someone@example.com",
+      }),
+    );
+    expect(sesAlarms(dev)).toEqual([]);
+  });
+
+  it("alarms at AWS's review thresholds, not at the pause thresholds", () => {
+    // Sustained bounce over 5% or complaints over 0.1% puts an account under
+    // review; roughly double either pauses sending. The alarm has to arrive
+    // while there is still room to act.
+    template().hasResourceProperties("AWS::CloudWatch::Alarm", {
+      MetricName: "Reputation.BounceRate",
+      Threshold: 0.05,
+      // A rate, so `Sum` would be meaningless.
+      Statistic: "Maximum",
+    });
+    template().hasResourceProperties("AWS::CloudWatch::Alarm", {
+      MetricName: "Reputation.ComplaintRate",
+      Threshold: 0.001,
+      Statistic: "Maximum",
     });
   });
 
@@ -235,8 +279,10 @@ describe("the dashboard", () => {
     const widgets = (type: string) =>
       (body.match(new RegExp(`\\\\"type\\\\":\\\\"${type}\\\\"`, "g")) ?? [])
         .length;
-    // The status row first, then one graph per alarm.
+    // The status row first, then one graph per alarm — including the two SES
+    // ones, which is the point of the dashboard being built from the same
+    // `watch` call rather than maintained beside it.
     expect(widgets("alarm")).toBe(1);
-    expect(widgets("metric")).toBe(10);
+    expect(widgets("metric")).toBe(12);
   });
 });

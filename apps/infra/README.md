@@ -461,9 +461,16 @@ aws sesv2 put-account-details \
 Say what the mail is (transactional confirmation codes for a mobile app's sign-up), who receives it
 (only somebody who just typed their own address into the app), how they stop receiving it — they
 never receive another one, there is no list to unsubscribe from — and how bounces are handled.
-**Do not claim monitoring that does not exist**: the honest answer today is the SES account-level
-suppression list plus the fact that mail is only ever sent on a live user action, so no queue or
-retry can repeat delivery to a bad address. There are no SES alarms yet.
+**Do not claim monitoring that does not exist.** The answer for the 2026-09-04 request was the SES
+account-level suppression list plus the fact that mail is only ever sent on a live user action, so
+no queue or retry can repeat delivery to a bad address — and an undertaking to add alarms, which
+[`observability.ts`](./lib/observability.ts) now honours: `Reputation.BounceRate` at 5% and
+`Reputation.ComplaintRate` at 0.1%, AWS's own review thresholds rather than its pause thresholds, so
+there is still room to act when one arrives.
+
+Those two are **prod only**, deliberately. SES publishes one reputation figure per account and
+region rather than one per stack, so watching it from both stages would put two alarms on the same
+number and send two emails about one problem.
 
 It is **per account and region**, so `us-east-1` covers both stages. Budget a day or two; the
 2026-09-04 request came back granted in minutes, which is not a promise.

@@ -941,6 +941,57 @@ export class PokerStack extends Stack {
         "Subscriptions to a table are failing server-side — which is the subscribe authorizer erroring, not refusing. A refusal is a client error and is the guard working.",
     });
 
+    /**
+     * Mail reputation — **prod only, and that is not a shortcut.**
+     *
+     * `Reputation.BounceRate` and `Reputation.ComplaintRate` are account-wide
+     * and region-wide: SES publishes one figure for the whole account, not one
+     * per stack. Both stages live in the same account, so watching them from
+     * each would put two alarms on the same number and send two emails about
+     * one problem. Prod is the stack that owns the consequence, so prod is
+     * where it is watched.
+     *
+     * The thresholds are AWS's own review points rather than numbers picked
+     * here: sustained bounce above 5% or complaints above 0.1% puts an account
+     * under review, and roughly double either gets sending paused. The alarm
+     * has to fire while there is still room to act, so it sits at the review
+     * line and not at the pause line.
+     *
+     * **This is what the production-access request said would exist.** That
+     * request described relying on the suppression list plus the fact that
+     * nothing here can retry to a bad address, and undertook to add these.
+     *
+     * `Maximum`, not `Sum` — these are rates, and a sum of rates is not a
+     * number that means anything. Over an hour, because the figure is a rolling
+     * reputation that moves slowly and a five-minute window is noise.
+     */
+    if (settings.stage === "prod") {
+      observability.watch("MailBounceRate", {
+        metric: serviceMetric({
+          namespace: "AWS/SES",
+          metricName: "Reputation.BounceRate",
+          dimensions: {},
+          statistic: "Maximum",
+          period: Duration.hours(1),
+        }),
+        threshold: 0.05,
+        meaning:
+          "SES bounce rate is above 5%, which is the point AWS puts an account under review; near 10% it pauses sending. Every message here is a sign-up or password-reset code somebody asked for, so a real bounce rate means addresses are being accepted that should not be — check for sign-up abuse before anything else.",
+      });
+      observability.watch("MailComplaintRate", {
+        metric: serviceMetric({
+          namespace: "AWS/SES",
+          metricName: "Reputation.ComplaintRate",
+          dimensions: {},
+          statistic: "Maximum",
+          period: Duration.hours(1),
+        }),
+        threshold: 0.001,
+        meaning:
+          "SES complaint rate is above 0.1% — AWS's review threshold. People are marking a confirmation code they requested as spam, which usually means somebody is putting other people's addresses into the sign-up form.",
+      });
+    }
+
     // Everything watched above, laid out. After the last `watch`, or the
     // dashboard is missing whatever came later.
     observability.summarise();
