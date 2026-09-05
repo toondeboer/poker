@@ -48,8 +48,10 @@ import {
   UserPool,
   UserPoolClient,
   UserPoolEmail,
+  UserPoolOperation,
 } from "aws-cdk-lib/aws-cognito";
 import {
+  Policy,
   PolicyStatement,
   Role,
   ServicePrincipal,
@@ -298,6 +300,68 @@ export class PokerStack extends Stack {
       // are keyed by.
       deletionProtection: settings.deletionProtection,
     });
+
+    /**
+     * One person, one account, however they signed in.
+     *
+     * **Cognito does not merge identities**, so somebody who signed up with a
+     * password and later taps *Continue with Google* becomes a second, empty
+     * account — and since every board and claim is keyed by `sub`, their season
+     * looks deleted. `linkAccounts` is the `PreSignUp` trigger that attaches the
+     * provider identity to the account that already exists instead.
+     *
+     * **Attached unconditionally, not with the providers.** It costs nothing
+     * while nobody is federated — the `PreSignUp_SignUp` path only reads and
+     * allows — and wiring it at the same time as the first provider would mean
+     * the one deploy that introduces federated sign-in is also the one that
+     * introduces the thing protecting it. The order matters more than the
+     * saving.
+     */
+    const linkHandler = new NodejsFunction(this, "LinkAccounts", {
+      entry: path.join(__dirname, "lambda", "linkAccounts.ts"),
+      runtime: Runtime.NODEJS_20_X,
+      logGroup: new LogGroup(this, "LinkAccountsLogs", {
+        retention: settings.logRetention,
+        removalPolicy: RemovalPolicy.DESTROY,
+      }),
+      environment: functionEnvironment,
+      tracing: Tracing.ACTIVE,
+      bundling: handlerBundling,
+    });
+    userPool.addTrigger(UserPoolOperation.PRE_SIGN_UP, linkHandler);
+    /**
+     * Scoped to this pool, and to the two calls the trigger makes.
+     *
+     * **Attached as its own policy rather than through `addToRolePolicy`, and
+     * that is the whole reason this is three lines longer than it looks.** The
+     * pool depends on the function — it is the trigger — and CDK makes a
+     * function depend on its role's *default* policy, so putting a statement
+     * naming `userPoolArn` there closes the loop:
+     *
+     *     UserPool → LinkAccounts → LinkAccountsServiceRoleDefaultPolicy → UserPool
+     *
+     * `cdk synth` does not notice. `Template.fromStack` does, which is the only
+     * reason it was caught before a deploy failed on it.
+     *
+     * A separate `Policy` hangs off the same role without the function
+     * depending on it, so the cycle is gone and the permission stays scoped to
+     * this pool. The alternative — a `userpool/*` wildcard — has no cycle
+     * either and hands the trigger every pool in the account, which is a worse
+     * trade for a saving of one construct.
+     */
+    linkHandler.role?.attachInlinePolicy(
+      new Policy(this, "LinkAccountsPolicy", {
+        statements: [
+          new PolicyStatement({
+            actions: [
+              "cognito-idp:ListUsers",
+              "cognito-idp:AdminLinkProviderForUser",
+            ],
+            resources: [userPool.userPoolArn],
+          }),
+        ],
+      }),
+    );
 
     const userPoolClient = new UserPoolClient(this, "MobileClient", {
       userPool,

@@ -400,6 +400,41 @@ describe("accounts", () => {
       PreventUserExistenceErrors: "ENABLED",
     });
   });
+
+  it("runs the account-linking trigger before it creates anybody", () => {
+    // **Without this, social sign-in silently forks an account.** Cognito does
+    // not merge identities, so somebody who signed up with a password and later
+    // taps Continue with Google becomes a second, empty user — and every board
+    // is keyed by `sub`, so their season looks deleted.
+    const pools = template().findResources("AWS::Cognito::UserPool");
+    const triggers = (Object.values(pools)[0].Properties as {
+      LambdaConfig?: { PreSignUp?: unknown };
+    }).LambdaConfig;
+    expect(triggers?.PreSignUp).toBeDefined();
+  });
+
+  it("lets the trigger read and link only in this pool", () => {
+    // Scoped to the two calls it makes and to this pool. `ListUsers` on a
+    // wildcard would be every pool in the account.
+    const policies = Object.values(
+      template().findResources("AWS::IAM::Policy"),
+    ).map((policy) => policy.Properties as { PolicyDocument: { Statement: unknown[] } });
+
+    const linking = policies
+      .flatMap((policy) => policy.PolicyDocument.Statement as Record<string, unknown>[])
+      .filter((statement) => {
+        const actions = statement.Action;
+        const list = Array.isArray(actions) ? actions : [actions];
+        return list.includes("cognito-idp:AdminLinkProviderForUser");
+      });
+
+    expect(linking).toHaveLength(1);
+    expect(linking[0].Action).toEqual([
+      "cognito-idp:ListUsers",
+      "cognito-idp:AdminLinkProviderForUser",
+    ]);
+    expect(linking[0].Resource).not.toBe("*");
+  });
 });
 
 describe("stored data", () => {
@@ -527,11 +562,12 @@ describe("the action handler", () => {
     // call PutRetentionPolicy on another function's log group; an explicit log
     // group does that with no function at all.
     template().resourceCountIs("Custom::LogRetention", 0);
-    // Five: the action handler, the identity route that proves the API chain
-    // works, the subscribe authorizer, the group routes, and the public config
-    // route carrying the kill switch. Update this deliberately when a sixth is
-    // written.
-    template().resourceCountIs("AWS::Lambda::Function", 5);
+    // Six: the action handler, the identity route that proves the API chain
+    // works, the subscribe authorizer, the group routes, the public config
+    // route carrying the kill switch, and the `PreSignUp` trigger that keeps
+    // one person to one account across sign-in methods. Update this
+    // deliberately when a seventh is written.
+    template().resourceCountIs("AWS::Lambda::Function", 6);
   });
 
   it("has no secondary index at all", () => {

@@ -359,6 +359,12 @@ platform-tagged heading (e.g. `## [1.1.3] - 2026-07-20 — Android`) when you cu
   and blind-maths edges at the top and bottom of the chip ladder.
 
 ### Changed
+- **Signing in a different way finds the same account.** Somebody who created an account with an
+  email and password and later signs in with Apple or Google lands on the account they already
+  have, with their boards and their season, rather than on an empty one. This is groundwork for
+  social sign-in and does nothing visible on its own.
+
+### Changed
 - **The app now talks to a real server.** Accounts, board sharing and leaderboard sync were built
   and tested throughout this release against a development backend, but every shipped build had
   them switched off at the source — so none of it did anything. This release points at production,
