@@ -401,11 +401,15 @@ Actions over OIDC, and **accounts end-to-end as the first deployable slice**.
 - ⬜ **Sign in with Apple and Google.** Both need real client ids and secrets, and App Store
   guideline 4.8 requires Sign in with Apple alongside any other third-party provider — so they are
   a credential-bearing decision rather than something to scaffold with placeholders.
-- 🔍 **Cognito's federated-MAU pricing is unresolved.** Users arriving via a SAML/OIDC provider bill
-  on a separate free tier of 50 MAU and then $0.015/MAU, against 10,000 free on Essentials. Whether
-  Apple and Google land in the normal tier or that one is the difference between $0 and ~$14/month
-  at 1,000 users, and the pricing page names neither. Confirm against the docs or a throwaway pool
-  before committing to the design.
+- ✅ **Cognito's federated-MAU pricing — resolved 2026-09-05, and the answer is the cheap one.**
+  Social providers are *not* federated for billing: AWS's pricing page puts them explicitly with
+  direct sign-in — "users who sign in directly with their credentials from a user pool (includes
+  social identity providers)" — so Apple and Google draw on the **10,000 free MAU** of Essentials,
+  not the 50-MAU SAML/OIDC tier. Both pools are already `ESSENTIALS`, which is the default and is
+  not set in the CDK. **The trap is a config choice, not the bill:** adding Google as a generic
+  OIDC provider rather than the built-in Google one is billed federated and looks identical on the
+  login screen. Use `UserPoolIdentityProviderGoogle`/`...Apple`, never `...Oidc`. See
+  [`apps/infra/README.md`](./apps/infra/README.md#social-sign-in-bills-on-the-normal-tier--resolved-2026-09-05).
 
 ## Apple Watch companion app
 
