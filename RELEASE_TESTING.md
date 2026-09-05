@@ -83,16 +83,139 @@ A fix landing never upgrades a row on its own: ❌ becomes 🔧, and only a re-t
 - [⬜] If the app behaves strangely in ways that don't match the code, check
       `pgrep -fl GradleDaemon` — VS Code's Java extension replants the broken expo shims.
       `node apps/mobile/scripts/clean-expo-shims.js` fixes it; lint/typecheck now self-heal.
-- [⬜] **Anything in §14–§17 needs a backend to point at.** `backendConfig` in
-      `apps/mobile/src/services/backendConfig.ts` ships as `null`, so accounts and sharing are
-      absent — correctly and silently. Set it to `DEV_BACKEND` (or `PROD_BACKEND` once that exists)
-      or every row in those sections passes by being invisible.
+- [⬜] **Point the build at `DEV_BACKEND`, locally and uncommitted, before running any of this.**
+      `backendConfig` in `apps/mobile/src/services/backendConfig.ts` now ships as **`PROD_BACKEND`**
+      — it was `null` for most of 1.2.0 and this note used to say so. The consequence is the other
+      way round from what it used to be: nothing is silently absent any more, and a pass run as
+      checked out writes **real accounts, boards and games into the production user pool**, which
+      today holds none. Test accounts are deletable from inside the app, so this is recoverable
+      rather than fatal — but it is much easier not to do it.
+
+      ```diff
+      -export const backendConfig: BackendConfig | null = PROD_BACKEND;
+      +export const backendConfig: BackendConfig | null = DEV_BACKEND;
+      ```
+
+      **Put it back before the build is cut**, or the release ships pointing at a stack whose whole
+      purpose is being thrown away. `git diff apps/mobile/src/services/backendConfig.ts` before
+      `eas build` is the check.
+- [⬜] **Run §17, the kill switch, against prod rather than dev**, since that is the one section
+      whose whole point is the production stack answering. `curl https://poker-api.toondeboer.com/config`
+      should say `{"accounts":true,"sharing":true}` — it did on 2026-09-04.
 - [⬜] **And §15–§16 need the Club entitlement**, which nothing grants until the subscription exists
       in both stores. Until then set `FORCE_PRO_IN_DEV` in `PremiumContext.tsx`, which forces Pro
       **and** Club. Without it the share button and join field are simply not there, which reads
       exactly like sync being broken.
 - [⬜] **§15 needs two devices**, and a third for the "boards follow the account" row. One phone
       cannot see any of the failures worth finding.
+
+---
+
+## Running the pass: what needs what
+
+~193 rows, each wanting both platforms. Almost none of it is hard; the cost is **setup churn** —
+flipping entitlements, switching backends, finding a second phone. Grouped so each setup is paid
+for once.
+
+Two switches decide what a build can see, and they are the axis everything below is sorted on:
+
+- **`FORCE_PRO_IN_DEV`** in `PremiumContext.tsx` — forces Pro **and** Club together, from one
+  literal. It is the only way to exercise either without a real purchase.
+- **`backendConfig`** in `backendConfig.ts` — `DEV_BACKEND` for the pass, per §0.
+
+**Session A — one device, both switches off.** Nothing here is entitlement-gated, so it is the
+block to start with while the build is as checked out.
+
+| § | Rows |
+| --- | --- |
+| 2. Blind editor | 15 |
+| 5. Keyboard | 13 |
+| 3. Generator | 7 |
+| 4. Round duration | 5 |
+| 8. Small phones | 4 |
+
+Do §5 first. Its failure mode — a field under the keypad, a header behind the status bar — recurs
+in §12 and elsewhere, and you will recognise it faster having just looked for it.
+
+**Session B — a real device, both switches still off.** A simulator cannot answer these: iOS has no
+auto-lock in the Simulator, and notifications do not work there.
+
+| § | Rows |
+| --- | --- |
+| 6. Notifications & Live Activity | 15 |
+| 10. Screen stays awake | 4 |
+| 9. Cold launch | 3 |
+
+**Session C — one device, `FORCE_PRO_IN_DEV = true`.** The biggest block in the pass, and the
+newest code in the release.
+
+| § | Rows |
+| --- | --- |
+| 13. Play a hand | 38 |
+| 12. Leaderboard | 25 |
+| 11. Payouts | 15 |
+
+**Session D — one device, `FORCE_PRO_IN_DEV = true`, `backendConfig = DEV_BACKEND`.**
+
+| § | Rows | Note |
+| --- | --- | --- |
+| 14. Accounts | 13 | **Never once run from the app.** Read the `email_verified` note first |
+| 17. Kill switch | 4 | Run against **prod**, not dev — see §0 |
+
+**Session E — two devices, same switches as D.** The most expensive setup, so do it in one sitting.
+A third device is wanted for the "boards follow the account" row.
+
+| § | Rows |
+| --- | --- |
+| 15. Shared boards | 16 |
+| 16. Club, Pro, and what each unlocks | 7 |
+
+**Session F — blocked until the build is on a store track.** Play Billing cannot be exercised from
+a local build at all, so this cannot be brought forward. It is why submission goes to the testing
+track first.
+
+| § | Rows |
+| --- | --- |
+| 1. Billing | 13 (16 cells marked 🚫) |
+
+**Session G — a tablet.** §7, 7 rows.
+
+### The switch trap
+
+**Some rows test the *locked* state, and those need the switch back off.** §16 in particular asks
+what a non-subscriber sees, and the whole point of the share button being hidden without Club is
+that it is invisible — which `FORCE_PRO_IN_DEV = true` destroys. `FORCE_FREE_IN_DEV` exists for the
+opposite case, when the store account signed into the device already owns `pro_lifetime` and you
+want the ad-supported UI anyway. **Only one of the two may be true at a time.** Plan on running §16
+twice, once each way, rather than discovering halfway through that every locked-state row passed
+because everything was unlocked.
+
+### Where the risk actually is
+
+- **§11–§13 are 78 of the ~193 rows** and cover what this release invented. If time runs short,
+  short-change something else.
+- **§14 and §15 have never been run at all**, from any build, on any platform.
+- **Android has seen almost none of this.** Several features were checked on an iOS Simulator only,
+  and synthetic taps do not exist here — assume the first real Android tap finds something.
+- **§1 blocks submission** and cannot start until the build is uploaded. It is the long pole, not
+  the big one.
+
+### Rows that cover a fix made on 2026-09-04
+
+Thirteen defects were fixed on the release branch the day before this pass, **found by review
+rather than by testing** — so these are rows this checklist previously let through. Worth running
+deliberately rather than waiting for them to come up in sequence.
+
+| Fix | Where it shows up |
+| --- | --- |
+| A deleted board came back on the next pull | §12 deleting a group · §15 a board rejoined by link |
+| Bounty knockouts dropped on every relaunch | §13 a bounty game, then **relaunch and re-read the standings** |
+| A refused game closed the sheet and lost the entry | §12 recording a game |
+| Renaming to a duplicate or empty name | §12 — the rename rows already exist |
+| A refusal notice shown on the wrong board | §15 two boards, one refusal |
+| Identical chip stacks split unevenly | §11 a chop with two equal stacks |
+| Chop sheet blank with every stack cleared | §11 clear all stacks to 0 |
+| A half-written token signed you out silently | §14 force-quit mid-sign-up |
 
 ---
 
