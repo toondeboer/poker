@@ -363,6 +363,31 @@ export class PokerStack extends Stack {
       }),
     );
 
+    /**
+     * Cognito's hosted OAuth endpoint.
+     *
+     * **Federated sign-in on a *user pool* cannot skip this.** There is no call
+     * that trades a Google or Apple id token for user-pool tokens — the phone
+     * opens this domain, the provider redirects back to `/oauth2/idpresponse`
+     * here, and Cognito mints its own tokens from that. (An *identity* pool
+     * does take a provider token directly, but it hands back AWS credentials
+     * rather than the pool tokens every route in this API authorises against.)
+     *
+     * So the domain has to exist **before** either provider can be configured:
+     * its callback URL is what gets pasted into Google Cloud Console and the
+     * Apple developer portal, and neither can be saved without it.
+     *
+     * The prefix is global across every AWS customer, not per account — which
+     * is why it is a chosen name rather than something derived. Separate
+     * prefixes per stage for the same reason the mail domains are separate: a
+     * dev callback must not be a valid redirect for the production pool.
+     */
+    const authDomain = userPool.addDomain("AuthDomain", {
+      cognitoDomain: {
+        domainPrefix: settings.stage === "prod" ? "pokerkit" : "pokerkit-dev",
+      },
+    });
+
     const userPoolClient = new UserPoolClient(this, "MobileClient", {
       userPool,
       // A phone cannot keep a secret, so it does not get one.
@@ -1091,6 +1116,20 @@ export class PokerStack extends Stack {
     new CfnOutput(this, "UserPoolId", { value: userPool.userPoolId });
     new CfnOutput(this, "UserPoolClientId", {
       value: userPoolClient.userPoolClientId,
+    });
+    new CfnOutput(this, "AuthDomain", {
+      value: authDomain.baseUrl(),
+      description: "Cognito's hosted OAuth endpoint. Federated sign-in goes through it.",
+    });
+    new CfnOutput(this, "AuthCallbackUrl", {
+      /**
+       * **The value that gets pasted into Google and Apple**, published so it
+       * is read off the stack rather than assembled by hand from a domain and a
+       * path somebody half-remembers. A wrong redirect URI fails at the
+       * provider with a message that does not name the mismatch.
+       */
+      value: `${authDomain.baseUrl()}/oauth2/idpresponse`,
+      description: "Redirect URI to register with each identity provider.",
     });
     new CfnOutput(this, "TableName", { value: table.tableName });
     new CfnOutput(this, "EventApiDns", {

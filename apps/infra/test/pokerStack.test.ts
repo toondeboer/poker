@@ -401,6 +401,26 @@ describe("accounts", () => {
     });
   });
 
+  it("has a hosted OAuth domain, because federated sign-in needs one", () => {
+    // There is no call that trades a Google or Apple id token for user-pool
+    // tokens — the provider redirects to `/oauth2/idpresponse` on this domain
+    // and Cognito mints its own from that. Without it neither provider can even
+    // be configured: its callback URL is what they are given.
+    template().hasResourceProperties("AWS::Cognito::UserPoolDomain", {
+      Domain: "pokerkit",
+    });
+  });
+
+  it("keeps the stages on separate prefixes", () => {
+    // A dev callback must not be a valid redirect for the production pool.
+    const dev = Template.fromStack(
+      new PokerStack(new App(), "DomainDev", { settings: settingsFor("dev") }),
+    );
+    dev.hasResourceProperties("AWS::Cognito::UserPoolDomain", {
+      Domain: "pokerkit-dev",
+    });
+  });
+
   it("runs the account-linking trigger before it creates anybody", () => {
     // **Without this, social sign-in silently forks an account.** Cognito does
     // not merge identities, so somebody who signed up with a password and later
