@@ -398,14 +398,67 @@ Actions over OIDC, and **accounts end-to-end as the first deployable slice**.
     holds a credential for.
   - Make the data half idempotent and retryable: if the user delete fails after the data is gone,
     the account has to be deletable again on a second attempt rather than wedged.
-- ⬜ **Sign in with Apple and Google.** Both need real client ids and secrets, and App Store
-  guideline 4.8 requires Sign in with Apple alongside any other third-party provider — so they are
-  a credential-bearing decision rather than something to scaffold with placeholders.
-- 🔍 **Cognito's federated-MAU pricing is unresolved.** Users arriving via a SAML/OIDC provider bill
-  on a separate free tier of 50 MAU and then $0.015/MAU, against 10,000 free on Essentials. Whether
-  Apple and Google land in the normal tier or that one is the difference between $0 and ~$14/month
-  at 1,000 users, and the pricing page names neither. Confirm against the docs or a throwaway pool
-  before committing to the design.
+### Sign in with Apple and Google — decided, not started
+
+**Social becomes the primary path and email/password the fallback.** Not because it is fashionable,
+but for one measurable reason: the emailed confirmation code is the highest-drop-off step in any
+sign-up, and Apple and Google have already verified the address. It also takes SES off the critical
+path, so a code that never arrives stops being the difference between having users and not.
+
+**Not social-only.** Keeping email/password costs little now that it is built, and buys three
+things: somebody who wants neither a Google nor an Apple account can still sign up, the website has
+a path if accounts ever reach it, and nobody is locked to a platform account for a board that is
+supposed to follow *them* across phones. Password reset stays SES's job — a much safer place for it
+than every new user.
+
+**Not before 1.2.0 ships.** It adds native modules, which invalidate every dev-client binary, to a
+release that is feature-complete with an unrun testing pass. Nothing here is urgent enough to
+reopen that.
+
+#### The order, and what only a person can do
+
+1. ⬜ **Credentials, and they gate everything below.** Google: an OAuth client in Google Cloud
+   Console. Apple: a Services ID, Team ID, Key ID and a `.p8` private key from the Apple Developer
+   portal. **The `.p8` is a real secret** — `.gitignore` already excludes `*.p8`, and it belongs in
+   context or Secrets Manager, never in the repository.
+2. ⬜ **Both, or neither, on iOS.** App Store guideline 4.8 requires Sign in with Apple wherever
+   another third-party provider is offered. There is no ship-Google-first increment.
+3. ⬜ **CDK: `UserPoolIdentityProviderGoogle` and `UserPoolIdentityProviderApple`.** Never
+   `UserPoolIdentityProviderOidc` — it works, looks identical on the login screen, and bills every
+   user on the 50-MAU federated tier instead of the 10,000-MAU one (see below). Follow
+   `mailIdentity`/`apiDomain`: opt-in through `cdk.json` context, so `cdk synth` and the tests keep
+   working with no credentials.
+4. ⬜ **Decide account linking before writing the app half. This is the trap.** Cognito treats
+   `Google_1234` and the email/password user as **two different accounts** even with the same
+   address — so somebody who signed up with a password in 1.2.0 and later taps *Continue with
+   Google* silently gets a second, empty one, and their boards appear to have vanished. Either link
+   on first federated sign-in with `AdminLinkProviderForUser`, or refuse and tell them to use their
+   password. **Whichever is chosen needs a test**: the failure is silent, looks exactly like data
+   loss, and only affects users who predate the feature — which by then is everybody.
+5. ⬜ **App: `expo-apple-authentication`, plus Google.** Both native, so `npm run pods -w
+   @poker/mobile` and a rebuilt dev client on both platforms before anything on screen means
+   anything.
+6. ⬜ **`AuthProvider` grows one method, not a parallel path.** `AuthContext.tsx` already swaps
+   `stubAuthProvider` for `createCognitoAuthProvider` behind that seam and nothing above it knows
+   which it got. A `signInWithProvider(provider, idToken)` beside the existing `signIn` keeps that
+   true; a second context beside it would not.
+7. ⬜ **The account screen re-orders rather than grows.** Apple and Google above the fold, email and
+   password behind a *Use email instead* disclosure. The screens exist — layout, not new UI.
+8. ⬜ **Hide My Email is not an error case.** Apple relays give a `@privaterelay.appleid.com`
+   address that works and can later be revoked. Identity keys on the Cognito subject and survives
+   that; anything assuming a reachable address does not. Nothing today emails users outside sign-up
+   and reset, and that is now worth keeping deliberately.
+9. ⬜ **Testing rows for §14** — first federated sign-up, returning federated sign-in, the linking
+   case from step 4, Hide My Email, and cancelling the provider sheet halfway.
+- ✅ **Cognito's federated-MAU pricing — resolved 2026-09-05, and the answer is the cheap one.**
+  Social providers are *not* federated for billing: AWS's pricing page puts them explicitly with
+  direct sign-in — "users who sign in directly with their credentials from a user pool (includes
+  social identity providers)" — so Apple and Google draw on the **10,000 free MAU** of Essentials,
+  not the 50-MAU SAML/OIDC tier. Both pools are already `ESSENTIALS`, which is the default and is
+  not set in the CDK. **The trap is a config choice, not the bill:** adding Google as a generic
+  OIDC provider rather than the built-in Google one is billed federated and looks identical on the
+  login screen. Use `UserPoolIdentityProviderGoogle`/`...Apple`, never `...Oidc`. See
+  [`apps/infra/README.md`](./apps/infra/README.md#social-sign-in-bills-on-the-normal-tier--resolved-2026-09-05).
 
 ## Apple Watch companion app
 

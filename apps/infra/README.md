@@ -753,11 +753,29 @@ plausible subscription price. Observability adds about **$1/month** — seven al
 dashboard — with X-Ray free at this volume. Exporting to Grafana Cloud instead would have added
 $3-9/month for the CloudWatch scrape alone, which is what settled it.
 
-The one unresolved number: **Cognito bills users arriving through a SAML/OIDC identity provider on a
-separate 50-MAU free tier**, then $0.015/MAU, against 10,000 free on Essentials. Whether Sign in
-with Apple and Google land in the normal tier or that one is the difference between $0 and roughly
-$14/month at 1,000 users, and the pricing page names neither provider. **Confirm it against the docs
-or a throwaway pool before step E**, not after.
+### Social sign-in bills on the normal tier — resolved 2026-09-05
+
+This was open, and the difference was $0 against roughly $14/month at 1,000 users. **Sign in with
+Apple, Google, Facebook and Amazon count as ordinary user-pool MAUs**, not as federated ones. AWS's
+pricing page settles it in a parenthesis:
+
+> There is separate pricing for users who sign in directly with their credentials from a user pool
+> **(includes social identity providers)**
+
+So social sign-in draws on the **10,000 free MAU** of Essentials. The separate **50 free MAU, then
+$0.015/MAU** applies to SAML and OIDC *enterprise* federation, which this app has no use for.
+
+Both pools are on **`ESSENTIALS`** — AWS's default for a pool created new, and not set in the CDK,
+so nothing has to be changed to get this. `aws cognito-idp describe-user-pool --user-pool-id <id>
+--query 'UserPool.UserPoolTier'` confirms it.
+
+**The one way to get this wrong is a configuration choice, not a pricing surprise.** Cognito can
+add Google *either* as its built-in **Google** provider *or* as a generic **OIDC** provider, and
+both work — the login screen is identical. The second bills every user on the 50-MAU federated
+tier. So when Apple and Google are added, use the **built-in social provider types**
+(`UserPoolIdentityProviderGoogle`, `UserPoolIdentityProviderApple` in CDK) and never
+`UserPoolIdentityProviderOidc`, whatever a tutorial says. There is nothing to check afterwards on
+the bill until it is already wrong.
 
 ## What still cannot be done from here
 
