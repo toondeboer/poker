@@ -15,6 +15,8 @@ import {
 } from "@/src/theme";
 import { useKeyboardFocusScroll } from "@/src/hooks/useKeyboardFocusScroll";
 import { Paywall } from "@/src/components/paywall/Paywall";
+import { AccountCard } from "./AccountCard";
+import { NotificationsBlockedCard } from "./NotificationsBlockedCard";
 import { ProCard } from "./ProCard";
 import { TournamentCard } from "./TournamentCard";
 import { PresetsCard } from "./PresetsCard";
@@ -76,6 +78,12 @@ export function SettingsScreen() {
         // in the manifest, so no wrapper (KeyboardAvoidingView) is needed here.
         automaticallyAdjustKeyboardInsets={true}
       >
+        {/* First, because it is the only card here that means something is
+            broken — and somebody who came to Settings wondering why the timer
+            went quiet should not have to scroll past four working features to
+            find out. Renders nothing at all when notifications are fine. */}
+        <NotificationsBlockedCard />
+
         <ProCard onRequestPro={openPaywall} />
 
         <View style={[styles.pair, isTablet && styles.pairTablet]}>
@@ -92,6 +100,11 @@ export function SettingsScreen() {
         </View>
 
         <SoundPackCard onRequestPro={openPaywall} />
+
+        {/* Last, because it is optional and everything above it is not — the
+            timer works with no account at all. Renders nothing in a build
+            with no backend. */}
+        <AccountCard />
       </ScrollView>
 
       <Paywall visible={showPaywall} onClose={() => setShowPaywall(false)} />

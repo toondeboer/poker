@@ -1,0 +1,482 @@
+// src/hooks/useGroupSync.ts
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { AppState } from "react-native";
+import {
+  EMPTY_QUEUE,
+  MAX_REFUSALS,
+  applyReport,
+  cancel,
+  cancelBoard,
+  clearBoardRefusals,
+  mergeBoard,
+  dismiss,
+  drain,
+  enqueue,
+  type GroupState,
+  type RemoteBoard,
+  type PendingWrite,
+  type SyncQueue,
+  type WriteSubject,
+} from "@poker/core";
+import { createSyncQueueStorage } from "@poker/core";
+import { asyncStorageAdapter } from "@/src/services/storageAdapter";
+import { createGroupApi, type GroupApi } from "@/src/services/groupApi";
+import { apiToken, onSignedIn } from "@/src/contexts/AuthContext";
+import { backendConfig } from "@/src/services/backendConfig";
+import { useFeatures } from "@/src/contexts/FeaturesContext";
+import { generateId } from "@/src/utils/id";
+import { logger } from "@/src/utils/logger";
+
+const QueueStorage = createSyncQueueStorage(asyncStorageAdapter);
+const api = createGroupApi(apiToken);
+
+/**
+ * The outbox: what this phone has done to a shared board and not yet sent.
+ *
+ * **The board is written first and this is told second**, which is what makes
+ * the queue safe to lose — see `pendingWrites.ts`. Nothing here touches the
+ * leaderboard; it only remembers what the server still needs to hear.
+ */
+export type GroupSync = {
+  queue: SyncQueue;
+  /** Remember a write, and try to send it. */
+  record: (write: PendingWrite) => void;
+  /** Send whatever is waiting. Safe to call when there is nothing. */
+  syncNow: () => void;
+  /** Somebody has read a refusal. */
+  acknowledge: (id: string) => void;
+  /**
+   * Tell the server about boards it may not know.
+   *
+   * **The whole board, not just its existence.** Announcing only the group left
+   * it on the server *empty*: the outbox carries writes made from now on, and
+   * the pull only merges downward, so a board with a season on it appeared to
+   * everybody else as a board with nothing on it, permanently. Somebody
+   * subscribing and then sharing is exactly when that gets looked at.
+   *
+   * Needed for every board that predates syncing — an upgrader's, the default
+   * group the app makes on its own, and one created in the second before the
+   * store said whether there was a subscription.
+   */
+  announce: (boards: readonly GroupState[]) => void;
+  /**
+   * Withdraw a write nobody has sent, because what it was about is gone.
+   *
+   * Deleting a player added offline has to take the queued add with it, or the
+   * add lands anyway and only an admin can undo it.
+   */
+  cancel: (subject: WriteSubject) => void;
+  /** The same, for a whole board that has just been deleted. */
+  cancelBoard: (groupId: string) => void;
+  /** Free a board's refusals so a join can announce it again. */
+  clearRefusals: (groupId: string) => void;
+  /**
+   * Read a board back, merged with what this phone has and has not sent.
+   *
+   * `null` when there is nothing to apply — no backend, no session, no signal,
+   * or a board this account cannot see. The caller keeps what it has.
+   */
+  fetchBoard: (groupId: string) => Promise<RemoteBoard | null>;
+  /**
+   * Merge a fetched board into a local one, against the queue as it is *now*.
+   *
+   * Split from the fetch so a caller can read its local board **after** the
+   * request comes back rather than before. A game recorded while the request
+   * was in flight is only on this phone, and merging against the copy the fetch
+   * started with writes it back out of the board.
+   */
+  mergeInto: (local: GroupState, remote: RemoteBoard) => GroupState;
+  /** Every board this account is on, server-side. `null` when it could not ask. */
+  myBoards: () => Promise<string[] | null>;
+  /** Mint a link for a board. Admin only; `null` when that is refused. */
+  createInvite: (groupId: string) => Promise<string | null>;
+  /** Redeem somebody's link, saying which board or why not. */
+  redeemInvite: GroupApi["redeemInvite"];
+  /**
+   * Somebody should pull, because something changed on the server side of this
+   * phone's world: it came to the foreground, or the outbox just drained.
+   *
+   * A counter rather than a callback, so the board can watch it without this
+   * hook needing to know what a board is.
+   */
+  pullsWanted: number;
+};
+
+export const useGroupSync = (): GroupSync => {
+  /**
+   * **Whether there is a server at all** — and nothing more.
+   *
+   * The subscription decides which *boards* belong on the server, which is a
+   * per-board question and is answered by `boardSyncs` where the boards live.
+   * It deliberately does not belong here: a guest with nothing bought still has
+   * to pull the board somebody shared with them and write to it, and gating
+   * this hook would make them a spectator.
+   */
+  /**
+   * What the server currently allows — the kill switch.
+   *
+   * **Starts off and is asked once at launch.** Nothing syncs until the server
+   * has said it may, which is a second or two of delay against the ability to
+   * stop a misbehaving feature without a store release. The effect below turns
+   * everything on the moment the answer arrives, so the cost of starting
+   * closed is that delay and nothing else.
+   */
+  const features = useFeatures();
+  const enabled = backendConfig !== null && features.sharing;
+
+
+
+
+  const [queue, setQueue] = useState<SyncQueue>(EMPTY_QUEUE);
+  /**
+   * The queue as it is *right now*, for the drain to work from.
+   *
+   * React state is a snapshot per render and a drain takes as long as the
+   * network does, so reading `queue` inside it would work from whatever was
+   * true when the effect was created. The ref is the live one; the state is
+   * what renders.
+   */
+  const latest = useRef(queue);
+  const draining = useRef(false);
+  /**
+   * Bumped whenever it is worth reading boards back.
+   *
+   * **Not a pull itself**, because this hook holds the outbox and not the
+   * board. It says *when*; `LeaderboardContext` knows *what*.
+   */
+  const [pullsWanted, setPullsWanted] = useState(0);
+  const wantPull = useCallback(() => setPullsWanted((n) => n + 1), []);
+
+  const update = useCallback((next: (current: SyncQueue) => SyncQueue) => {
+    /**
+     * **The ref is computed here, not inside the `setQueue` updater.**
+     *
+     * React defers an updater to the render pass, so assigning the ref inside
+     * one leaves it stale for the rest of the current tick — and `record` calls
+     * `syncNow` on the very next line. It read `pending.length === 0` and
+     * returned, so nothing was ever sent at the moment it was recorded and the
+     * outbox ran a write behind, catching up only on the next foreground.
+     *
+     * The ref is the live value; state is what renders.
+     */
+    const value = next(latest.current);
+    // **Nothing changed means nothing to write.** Core returns the same queue
+    // when a write is a duplicate or a refusal blocks it, and `announce` runs
+    // once per player and once per game on every launch — on a board with a
+    // season on it that is a few hundred calls, all of them serializing and
+    // re-writing a queue byte-for-byte identical to the one on disk.
+    if (value === latest.current) return;
+    latest.current = value;
+    setQueue(value);
+    // Persisted on every change rather than on a timer: the writes worth
+    // queueing are the ones made when the app is about to be put in a pocket.
+    QueueStorage.saveQueue(value).catch((error) =>
+      logger.error("Failed to save the sync queue:", error),
+    );
+  }, []);
+
+  const syncNow = useCallback(() => {
+    // **One at a time.** Two drains would send the same writes twice — harmless
+    // on the server, which is idempotent, and confusing here, because both
+    // would apply reports built from different snapshots.
+    if (draining.current) return;
+    if (!enabled) return;
+    if (latest.current.pending.length === 0) return;
+
+    draining.current = true;
+    void (async () => {
+      /**
+       * Round again while writes keep arriving.
+       *
+       * Anything recorded *during* a drain hits the guard above and is skipped,
+       * so without this it would wait for the next foreground — which for a
+       * weekly game is a week. The loop ends: every pass either sends or
+       * refuses everything it found, so it only goes round for writes made
+       * since it started.
+       */
+      while (latest.current.pending.length > 0) {
+        const report = await drain(latest.current, api.send);
+        if (report.settled.length > 0 || report.refused.length > 0) {
+          update((current) => applyReport(current, report, Date.now()));
+        }
+        // Unreachable. Going round again just fails the same way; the
+        // foreground and sign-in listeners are what try next.
+        if (report.stopped) break;
+      }
+      /**
+       * **After the writes, not before.** Pulling first would hand back a board
+       * that does not yet contain what this phone just sent, and the merge
+       * would then have to be trusted to put it back — which it does, but only
+       * for writes still queued. One that settled mid-pull would be in neither.
+       */
+      wantPull();
+    })()
+      .catch((error) => logger.error("Sync failed unexpectedly:", error))
+      .finally(() => {
+        draining.current = false;
+      });
+  }, [update, enabled]);
+
+  const record = useCallback(
+    (write: PendingWrite) => {
+      // Nothing to tell, nobody to tell it to, or nothing paid for. A build in
+      // any of those states behaves exactly as it did before any of this
+      // existed — and does not queue writes that will never be sent.
+      if (!enabled) return;
+      update((current) =>
+        enqueue(current, { ...write, id: generateId(), queuedAt: Date.now() }),
+      );
+      syncNow();
+    },
+    [update, syncNow, enabled],
+  );
+
+  const announce = useCallback(
+    (boards: readonly GroupState[]) => {
+      if (!enabled) return;
+      for (const board of boards) {
+        // Safe to repeat: `enqueue` ignores a subject already queued, and every
+        // one of these three routes answers *ok* to being told the same thing
+        // twice — so this can run on every load without piling up.
+        record({
+          kind: "createGroup",
+          groupId: board.group.id,
+          name: board.group.name,
+          createdAt: board.group.createdAt,
+        });
+        /**
+         * **The contents too, but only for a board the server has never
+         * answered about.** A `role` means it has been pulled, so the server
+         * has it and its contents are already up there — re-sending a season of
+         * game nights every launch would be a few hundred requests for nothing.
+         *
+         * Without this the board arrives on the server *empty*: the outbox only
+         * carries writes made from now on and the pull only merges downward, so
+         * a board with a year on it looked, to everybody it was shared with,
+         * like a board with nothing on it. Permanently.
+         */
+        if (board.role !== undefined) continue;
+        for (const player of board.players) {
+          record({ kind: "addPlayer", groupId: board.group.id, player });
+        }
+        for (const result of board.results) {
+          record({ kind: "recordGame", groupId: board.group.id, result });
+        }
+      }
+    },
+    [record, enabled],
+  );
+
+  const cancelWrite = useCallback(
+    (subject: WriteSubject) => {
+      if (!enabled) return;
+      update((current) => cancel(current, subject));
+    },
+    [update, enabled],
+  );
+
+  const cancelWholeBoard = useCallback(
+    (groupId: string) => {
+      if (!enabled) return;
+      update((current) => cancelBoard(current, groupId));
+    },
+    [update, enabled],
+  );
+
+  /**
+   * Let a board be announced again, because somebody just joined it by link.
+   *
+   * A refusal blocks its subject until a person says otherwise, and joining is
+   * that — see `clearBoardRefusals`.
+   */
+  const clearRefusalsForBoard = useCallback(
+    (groupId: string) => {
+      if (!enabled) return;
+      update((current) => clearBoardRefusals(current, groupId));
+    },
+    [update, enabled],
+  );
+
+  const fetchBoard = useCallback(
+    async (groupId: string): Promise<RemoteBoard | null> =>
+      enabled ? api.board(groupId) : null,
+    [enabled],
+  );
+
+  // `latest.current`, so the queue is the one that exists when the merge runs
+  // rather than the one that existed when the request went out.
+  const mergeInto = useCallback(
+    (local: GroupState, remote: RemoteBoard) => mergeBoard(local, remote, latest.current),
+    [],
+  );
+
+  const myBoards = useCallback(
+    () => (enabled ? api.myBoards() : Promise.resolve(null)),
+    [enabled],
+  );
+  /**
+   * **Gated like everything else, which they were not.**
+   *
+   * Both write memberships server-side, so with sharing switched off they went
+   * on minting and redeeming links for boards that could then never sync — the
+   * one state the switch exists to prevent. `redeemInvite` refuses in words,
+   * because unlike a queued write somebody is watching this one happen.
+   */
+  const createInvite = useCallback(
+    (groupId: string) => (enabled ? api.createInvite(groupId) : Promise.resolve(null)),
+    [enabled],
+  );
+  const redeemInvite = useCallback(
+    (token: string): ReturnType<GroupApi["redeemInvite"]> =>
+      enabled
+        ? api.redeemInvite(token)
+        : Promise.resolve({ ok: false, reason: "Sharing is unavailable right now." }),
+    [enabled],
+  );
+
+  const acknowledge = useCallback(
+    (id: string) => update((current) => dismiss(current, id)),
+    [update],
+  );
+
+  /**
+   * Try again whenever the app comes back to the foreground.
+   *
+   * **The moment a phone most likely has signal again**, and the one the queue
+   * is written for: somebody records a game at a table with two bars, pockets
+   * the phone, and opens it on the way home. Without this the writes sit until
+   * the next one is made, which for a weekly game is a week.
+   */
+  useEffect(() => {
+    const subscription = AppState.addEventListener("change", (next) => {
+      if (next !== "active") return;
+      syncNow();
+      // Somebody else's phone has had all the time the app was closed to change
+      // a board. This is the moment to find out.
+      wantPull();
+    });
+    return () => subscription.remove();
+  }, [syncNow]);
+
+  /**
+   * And whenever somebody signs in.
+   *
+   * Every write made while signed out came back *unreachable* — `send` has no
+   * token to use — so the queue after a sign-in is exactly the backlog that
+   * could not have gone before it.
+   */
+  useEffect(
+    () =>
+      onSignedIn(() => {
+        syncNow();
+        // **Separately from `syncNow`**, which returns at its empty-queue guard
+        // long before it reaches `wantPull` — so signing in with nothing waiting
+        // to send read no boards at all, which is the ordinary case on a fresh
+        // install and exactly when there is most to fetch.
+        wantPull();
+      }),
+    [syncNow, wantPull],
+  );
+
+  /**
+   * Start the moment the kill switch says we may.
+   *
+   * **Two halves, and they are split for a lint rule with a real reason behind
+   * it.** `syncNow` is safe in an effect body — it does network work behind a
+   * ref guard and sets no state synchronously. `wantPull` is a `setState`, and
+   * calling one in an effect body is the cascading render `set-state-in-effect`
+   * exists to stop, so the pull is bumped during render behind a previous-value
+   * comparison instead: React re-runs this without committing the intermediate
+   * result, exactly as `DurationField` does.
+   *
+   * Both are needed. The drain alone returns at its empty-queue guard long
+   * before it reaches `wantPull`, so a phone with nothing waiting to send would
+   * read no boards at all — which is the ordinary case on a fresh install and
+   * precisely when there is most to fetch.
+   */
+  const [syncedEnabled, setSyncedEnabled] = useState(enabled);
+  if (syncedEnabled !== enabled) {
+    setSyncedEnabled(enabled);
+    if (enabled) setPullsWanted((n) => n + 1);
+  }
+
+  useEffect(() => {
+    if (enabled) syncNow();
+  }, [enabled, syncNow]);
+
+  useEffect(() => {
+    let active = true;
+    QueueStorage.loadQueue()
+      .then((loaded) => {
+        if (!active) return;
+        /**
+         * **Merged under what is already here, not swapped in.**
+         *
+         * This read races two others: the board loads on its own promise and
+         * announces every group, and a person can record something before
+         * either lands. Replacing the queue threw those away and then persisted
+         * the result over them.
+         *
+         * The stored writes are the older ones, so they go first and anything
+         * recorded meanwhile is enqueued on top — which also dedupes it, since
+         * an announce made twice is one write.
+         */
+        update((current) => {
+          const merged = current.pending.reduce(
+            (queue, write) => enqueue(queue, write),
+            loaded,
+          );
+          return {
+            ...merged,
+            refused: [...loaded.refused, ...current.refused].slice(-MAX_REFUSALS),
+          };
+        });
+        // Whatever an earlier session could not send is the first thing to try.
+        syncNow();
+      })
+      .catch((error) => logger.error("Failed to load the sync queue:", error));
+    return () => {
+      active = false;
+    };
+    // Once, on mount: `syncNow` and `update` are stable and re-running this
+    // would re-read a queue that state already holds.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Memoised so consumers can depend on the whole thing without re-running on
+  // every render of the provider that holds it.
+  return useMemo(
+    () => ({
+      queue,
+      record,
+      syncNow,
+      acknowledge,
+      announce,
+      cancel: cancelWrite,
+      cancelBoard: cancelWholeBoard,
+      clearRefusals: clearRefusalsForBoard,
+      fetchBoard,
+      mergeInto,
+      myBoards,
+      createInvite,
+      redeemInvite,
+      pullsWanted,
+    }),
+    [
+      queue,
+      record,
+      syncNow,
+      acknowledge,
+      announce,
+      cancelWrite,
+      cancelWholeBoard,
+      clearRefusalsForBoard,
+      fetchBoard,
+      mergeInto,
+      myBoards,
+      createInvite,
+      redeemInvite,
+      pullsWanted,
+    ],
+  );
+};

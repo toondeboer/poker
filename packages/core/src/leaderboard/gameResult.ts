@@ -1,0 +1,258 @@
+/**
+ * The leaderboard's record of who played what and how it finished.
+ *
+ * **Local-first and single-device by design.** There are no accounts and
+ * nothing leaves the phone: the host's device is the source of truth for their
+ * group. Syncing between players' phones would mean a backend, sign-in, and a
+ * change to the app's data-collection disclosures — a different and much larger
+ * product than "track who's won the most at our game night".
+ *
+ * Framework-agnostic like the rest of @poker/core: the app supplies `id` and
+ * `now`, since there's no clock or crypto in here.
+ */
+
+/**
+ * Someone who plays in this group.
+ *
+ * **A player is not an account.** Most people at a home game will never install
+ * anything — someone who turns up once on holiday still belongs on the board —
+ * so a name is all this needs, and `accountId` is the optional extra for the
+ * ones who do sign in. Modelling it the other way round, with accounts as the
+ * roster, would mean nobody can be scored until they have downloaded the app.
+ *
+ * Because every {@link Placing} and {@link GameResult} refers to `id` and never
+ * to an account, attaching one later **never rewrites history**: the account
+ * simply inherits everything that player has already done.
+ */
+export type Player = {
+  id: string;
+  name: string;
+  /** The account that has claimed this player, if any. */
+  accountId?: string;
+};
+
+/** One player's paid finish in a game. */
+export type Placing = {
+  playerId: string;
+  /** 1 = winner. Only paid places are recorded. */
+  place: number;
+  /** Prize money won. Bounties are not included — see {@link GameResult}. */
+  winnings: number;
+};
+
+export type GameResult = {
+  id: string;
+  /** Epoch ms the game was played (newest-first ordering). */
+  playedAt: number;
+  /**
+   * Everyone who bought in. This is what makes "games played" honest: a
+   * player who never cashes still played, and recording only the paid finishes
+   * would leave them off the board entirely.
+   */
+  playerIds: string[];
+  /** The paid finishes, a subset of `playerIds`. */
+  placings: Placing[];
+  /** What each player paid, carried over from the payout setup. */
+  buyIn: number;
+  /**
+   * The per-knockout bounty in force.
+   *
+   * **A game recorded by hand does not track who won them, deliberately.** A
+   * flat bounty changes hands in cash the moment someone busts, a dozen times
+   * over an evening, usually while the host isn't watching — by the time a
+   * result is being written down nobody can say who collected what. A field
+   * filled in with a guess, rendered as a total, is worse than no total.
+   *
+   * A game the *app dealt* is the exception, and {@link knockouts} is why: it
+   * watched every hand and knows exactly whose chips went where.
+   */
+  bounty: number;
+  /**
+   * How many players each person knocked out, when that is actually known.
+   *
+   * Present only for a game the app dealt. Absent — not zero — for one
+   * recorded by hand, and the difference matters: zero would say "nobody
+   * knocked anybody out", which is false of every game ever played, and any
+   * total built on it would be wrong rather than merely missing.
+   */
+  knockouts?: KnockoutCount[];
+};
+
+/** One player, how many people they helped put out, and what it paid. */
+export type KnockoutCount = {
+  playerId: string;
+  /**
+   * Eliminations this player had a hand in.
+   *
+   * Not divided when a chopped pot busts somebody: both players took a hand in
+   * it, and "half a knockout" is not a thing anybody says at a table. The money
+   * is what divides — see {@link bounty}.
+   */
+  count: number;
+  /**
+   * Bounty money actually collected, already split where a pot was.
+   *
+   * Carried rather than derived from `count × bounty`, because that
+   * multiplication is wrong exactly when it matters: a chopped pot pays one
+   * bounty between two people, and multiplying would hand out money nobody put
+   * in.
+   */
+  bounty: number;
+};
+
+/** Keep storage small and the list scannable. */
+export const MAX_GAME_RESULTS = 200;
+export const MAX_PLAYERS = 50;
+
+export const createPlayer = (params: {
+  id: string;
+  name: string;
+  accountId?: string;
+}): Player => ({
+  id: params.id,
+  name: params.name.trim(),
+  ...(params.accountId === undefined ? {} : { accountId: params.accountId }),
+});
+
+/**
+ * A name is usable when it's non-empty and not a case-insensitive duplicate —
+ * two "Dave"s on one leaderboard are indistinguishable in every view that
+ * matters, so the save button can disable on it.
+ */
+export const isValidPlayerName = (name: string, players: Player[]): boolean => {
+  const trimmed = name.trim();
+  if (trimmed.length === 0) return false;
+  return !players.some(
+    (player) => player.name.toLowerCase() === trimmed.toLowerCase(),
+  );
+};
+
+/** Add a player, enforcing {@link MAX_PLAYERS}. */
+export const addPlayer = (players: Player[], player: Player): Player[] =>
+  players.length >= MAX_PLAYERS ? players : [...players, player];
+
+/** Remove a player from the roster. Past results keep their id — see below. */
+export const removePlayer = (players: Player[], id: string): Player[] =>
+  players.filter((player) => player.id !== id);
+
+/** Reasons a recorded result can't be stored. */
+export type GameResultValidationError =
+  | "no-players"
+  | "duplicate-players"
+  | "placing-not-in-field"
+  | "duplicate-placing"
+  | "duplicate-place"
+  | "place-out-of-range"
+  | "negative-winnings"
+  | "knockout-not-in-field"
+  | "duplicate-knockout"
+  | "impossible-knockout";
+
+/**
+ * Check a result before recording it. Each failure is a distinct value so the
+ * UI can say which one it hit rather than just refusing.
+ */
+export const validateGameResult = (
+  result: Pick<GameResult, "playerIds" | "placings"> &
+    Partial<Pick<GameResult, "knockouts">>,
+): GameResultValidationError | null => {
+  const { playerIds, placings, knockouts } = result;
+
+  if (playerIds.length === 0) return "no-players";
+  if (new Set(playerIds).size !== playerIds.length) return "duplicate-players";
+
+  const field = new Set(playerIds);
+  const seenPlayers = new Set<string>();
+  const seenPlaces = new Set<number>();
+
+  for (const placing of placings) {
+    if (!field.has(placing.playerId)) return "placing-not-in-field";
+    if (seenPlayers.has(placing.playerId)) return "duplicate-placing";
+    if (seenPlaces.has(placing.place)) return "duplicate-place";
+    if (
+      !Number.isFinite(placing.place) ||
+      placing.place < 1 ||
+      placing.place > playerIds.length
+    ) {
+      return "place-out-of-range";
+    }
+    if (!Number.isFinite(placing.winnings) || placing.winnings < 0) {
+      return "negative-winnings";
+    }
+    seenPlayers.add(placing.playerId);
+    seenPlaces.add(placing.place);
+  }
+
+  // Checked here as well as everywhere else, because this is money that lands
+  // in a total and stays there: a knockout crediting somebody who was not even
+  // in the field would quietly add bounty winnings to their name forever.
+  const seenKnockouts = new Set<string>();
+  for (const knockout of knockouts ?? []) {
+    if (!field.has(knockout.playerId)) return "knockout-not-in-field";
+    if (seenKnockouts.has(knockout.playerId)) return "duplicate-knockout";
+    seenKnockouts.add(knockout.playerId);
+    if (!Number.isFinite(knockout.count) || knockout.count < 0) {
+      return "impossible-knockout";
+    }
+    if (!Number.isFinite(knockout.bounty) || knockout.bounty < 0) {
+      return "impossible-knockout";
+    }
+    // More eliminations than there were people to eliminate.
+    if (knockout.count > playerIds.length - 1) return "impossible-knockout";
+  }
+
+  return null;
+};
+
+export const createGameResult = (params: {
+  id: string;
+  playerIds: string[];
+  placings: Placing[];
+  buyIn: number;
+  bounty: number;
+  now: number;
+  knockouts?: readonly KnockoutCount[];
+}): GameResult => ({
+  id: params.id,
+  playedAt: params.now,
+  playerIds: [...params.playerIds],
+  // Stored in finishing order regardless of the order they were entered, so
+  // every reader gets the same shape without re-sorting.
+  placings: [...params.placings].sort((a, b) => a.place - b.place),
+  buyIn: params.buyIn,
+  bounty: params.bounty,
+  // Left off entirely when unknown rather than stored as an empty list: an
+  // empty list is a claim that nobody knocked anybody out.
+  ...(params.knockouts
+    ? {
+        knockouts: [...params.knockouts]
+          // Nothing to record is *both* nothing: a progressive winner collects
+          // the bounty from their own head without knocking anybody out with
+          // it, so they legitimately have money and a count of zero. Filtering
+          // on the count alone threw that money away.
+          .filter((entry) => entry.count > 0 || entry.bounty > 0)
+          // Ordered, so a stored result reads the same way twice.
+          .sort(
+            (a, b) =>
+              b.count - a.count ||
+              (a.playerId < b.playerId ? -1 : a.playerId > b.playerId ? 1 : 0),
+          ),
+      }
+    : {}),
+});
+
+/** What one player collected in bounties, or 0 when the game never tracked them. */
+export const bountiesWon = (result: GameResult, playerId: string): number =>
+  result.knockouts?.find((k) => k.playerId === playerId)?.bounty ?? 0;
+
+/** Add a result (newest first), enforcing {@link MAX_GAME_RESULTS}. */
+export const addGameResult = (
+  results: GameResult[],
+  result: GameResult,
+): GameResult[] => [result, ...results].slice(0, MAX_GAME_RESULTS);
+
+/** Remove a result by id. */
+export const removeGameResult = (
+  results: GameResult[],
+  id: string,
+): GameResult[] => results.filter((result) => result.id !== id);

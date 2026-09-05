@@ -316,3 +316,19 @@ describe("inferSmallestChip", () => {
     expect(inferSmallestChip([])).toBe(5);
   });
 });
+
+describe("nextChipDenominationAbove beyond the chip ladder", () => {
+  it("falls back to the next whole number above a value larger than any denomination", () => {
+    // A long turbo structure runs past the largest published chip, and the
+    // generator still has to be able to take a step. Returning the value
+    // unchanged would stall the schedule.
+    // The ladder tops out at 5e9 (5 * 10^9); go above it.
+    const huge = 6_000_000_000;
+    expect(nextChipDenominationAbove(huge)).toBeGreaterThan(huge);
+  });
+
+  it("still returns something strictly greater for a fractional value past the ladder", () => {
+    const huge = 6_000_000_000.5;
+    expect(nextChipDenominationAbove(huge)).toBeGreaterThan(huge);
+  });
+});

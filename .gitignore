@@ -9,6 +9,11 @@ apps/*/package-lock.json
 # Turborepo
 .turbo
 
+# Coverage reports. `@poker/core`'s vitest config writes an HTML reporter, so
+# running the tests leaves ~22k lines of generated markup in the working tree —
+# which is easy to sweep into a commit with `git add -A`, and was.
+coverage/
+
 # Build outputs
 dist/
 .next/
@@ -56,3 +61,4 @@ npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 .pnpm-debug.log*
+coverage/

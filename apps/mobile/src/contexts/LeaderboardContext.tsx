@@ -1,0 +1,887 @@
+// src/contexts/LeaderboardContext.tsx
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
+import {
+  addGameResult,
+  addGroup,
+  claimPlayer,
+  addPlayer,
+  computeStandings,
+  createGameResult,
+  createGroup,
+  createPlayer,
+  EMPTY_LEADERBOARD,
+  isValidGroupName,
+  MAX_GROUPS,
+  removeGameResult,
+  playerForAccount,
+  removeGroup,
+  addBoard,
+  boardFromRemote,
+  boardSyncs,
+  type PendingWrite,
+  joinRefusal,
+  noteDeleted,
+  removePlayer,
+  replaceBoard,
+  renameGroup,
+  setActiveGroup,
+  undismiss,
+  wasDismissed,
+  unclaimPlayer,
+  updateGroup,
+  validateGameResult,
+  ClaimError,
+  GameResult,
+  GroupedLeaderboard,
+  GroupState,
+  LeaderboardStanding,
+  Placing,
+  Player,
+  type KnockoutCount,
+  type RefusedWrite,
+} from "@poker/core";
+import {
+  DEFAULT_GROUP_NAME,
+  LeaderboardStorage,
+} from "@/src/services/LeaderboardStorage";
+import { generateId } from "@/src/utils/id";
+import { logger } from "@/src/utils/logger";
+import { useGroupSync } from "@/src/hooks/useGroupSync";
+import { usePremium } from "@/src/contexts/PremiumContext";
+// Module-level, because `AuthProviderContext` is mounted *inside* this one —
+// the same reason `useGroupSync` reads the token this way.
+import { apiToken } from "@/src/contexts/AuthContext";
+
+/** One group as the picker needs it: enough to list without loading a board. */
+export type GroupSummary = {
+  id: string;
+  name: string;
+  playerCount: number;
+  gameCount: number;
+  /**
+   * Whether this account can invite people to it.
+   *
+   * `true` until the server says otherwise, which covers every board made on
+   * this phone and every board before its first pull. **The optimistic default
+   * is deliberate**: offering an action that turns out to be refused costs one
+   * clear message, where hiding one somebody is allowed to take leaves them
+   * unable to share their own board with no explanation at all.
+   */
+  canInvite: boolean;
+};
+
+type LeaderboardContextValue = {
+  /** Every group, oldest first, for the picker. */
+  groups: GroupSummary[];
+  activeGroupId: string | null;
+  /** The active group's name, or `""` when there is no group yet. */
+  activeGroupName: string;
+  canAddGroup: boolean;
+  /**
+   * Whether the board on screen is **somebody else's** — one you joined.
+   *
+   * The leaderboard is Pro; a board somebody else keeps is not, or "guests join
+   * free" would be a lie. **`member`, not merely "the server knows it"**: the
+   * server answers `admin` for a board you created, and treating that as shared
+   * would unlock Pro for anybody whose own boards had synced once. See
+   * `boardIsVisible`.
+   */
+  activeBoardIsGuest: boolean;
+  /** Whether a name is free to use, ignoring the group being renamed. */
+  isGroupNameAvailable: (name: string, exceptId?: string) => boolean;
+  selectGroup: (id: string) => void;
+  createNewGroup: (name: string) => void;
+  renameGroupById: (id: string, name: string) => void;
+  deleteGroup: (id: string) => void;
+  /** The active group's roster. Empty when there is no group yet. */
+  players: Player[];
+  /** The active group's game history. */
+  results: GameResult[];
+  /** Derived from the two above; ranked and tie-broken in @poker/core. */
+  standings: LeaderboardStanding[];
+  isLoading: boolean;
+  addNewPlayer: (name: string) => void;
+  deletePlayer: (id: string) => void;
+  /** Returns false when the result was refused, so a caller can say so
+   * instead of reporting a save that never happened. */
+  recordResult: (params: {
+    playerIds: string[];
+    placings: Placing[];
+    buyIn: number;
+    bounty: number;
+    /**
+     * Who knocked out how many, when that is actually known — which is only
+     * ever a game the app dealt. Left off by the record-a-game sheet, because
+     * nobody can say afterwards.
+     */
+    knockouts?: readonly KnockoutCount[];
+  }) => boolean;
+  deleteResult: (id: string) => void;
+  /** The player this account holds on the active board, if any. */
+  claimedPlayer: (accountId: string) => Player | null;
+  /**
+   * Say that a player on the board is you.
+   *
+   * Returns why not, if not. The account id is passed in rather than read from
+   * a context here, because the auth provider is mounted *inside* this one —
+   * and reordering the tree to read it would put every leaderboard consumer
+   * behind an account it does not need.
+   */
+  claimPlayerAs: (playerId: string, accountId: string) => ClaimError | null;
+  /**
+   * Unlink whatever account holds this player.
+   *
+   * Deliberately **not** guarded on which account it is, unlike
+   * {@link claimPlayerAs}, which refuses two of its cases. Claiming guards
+   * because two claims genuinely conflict; releasing does not — and orphan
+   * recovery *requires* releasing a claim that is not the current account's,
+   * since a board is device-local while account ids are not. Sign out, sign
+   * back in, and the id may differ; delete the account and no id matches at
+   * all. Without this the player would be stuck: unclaimable because it is
+   * claimed, unreleasable because the claim is not yours.
+   */
+  releasePlayer: (playerId: string) => void;
+  /** Unlink every player this account holds, across every board on the device. */
+  releaseAllFor: (accountId: string) => void;
+
+  /**
+   * Writes the server would not take.
+   *
+   * **A write is checked when it syncs, not when it was made**, so a game
+   * recorded on Tuesday can be refused on Thursday because an admin removed you
+   * on Wednesday. Silently dropping it loses somebody's evening and silently
+   * applying it is a lie, so it surfaces here for a screen to show and for
+   * somebody to acknowledge.
+   */
+  refusedWrites: RefusedWrite[];
+  acknowledgeRefusal: (id: string) => void;
+  /**
+   * Make a link that puts somebody on the active board.
+   *
+   * `null` when the server refused — you are not an admin of it, or the board
+   * has never reached the server at all.
+   */
+  inviteToBoard: (groupId: string) => Promise<string | null>;
+  /**
+   * Redeem a link somebody sent, and put the board on this device.
+   *
+   * Says the board's name so a screen can say what happened, or why not.
+   */
+  joinBoard: (token: string) => Promise<
+    { ok: true; name: string } | { ok: false; reason: string }
+  >;
+};
+
+const LeaderboardContext = createContext<LeaderboardContextValue | null>(null);
+
+const EMPTY_GROUP: Pick<GroupState, "players" | "results"> = {
+  players: [],
+  results: [],
+};
+
+/**
+ * The group's players and game history (Pro feature).
+ *
+ * A context because the leaderboard screen and Settings' summary row both read
+ * it, for the same reason as {@link PayoutProvider} — a stack push leaves the
+ * screen underneath mounted, so two local copies would disagree the moment a
+ * game is recorded.
+ *
+ * **Stored as groups; read here as one board.** The data model holds a board
+ * per set of friends, but everything above this reads the *active* one, so the
+ * screens are unchanged and a host who only ever plays with one crowd never
+ * meets the concept. A board that already existed before groups is migrated on
+ * load and stays selected.
+ *
+ * Everything is written under one key, so a save that adds a player and the
+ * game they just played in can't half-land.
+ */
+export function LeaderboardProvider({
+  children,
+}: Readonly<{ children: React.ReactNode }>) {
+  const [state, setState] = useState<GroupedLeaderboard>(EMPTY_LEADERBOARD);
+  const [isLoading, setIsLoading] = useState(true);
+  /**
+   * What the server has not been told yet.
+   *
+   * **Deliberately beside the board rather than inside it.** The board is what
+   * somebody sees and is written first; this only remembers what still needs
+   * sending, so losing it costs the news and never the night.
+   */
+  // Available because `PremiumProvider` is mounted outside this one.
+  // Only the hosting entitlement is decided here. Pro decides what is *shown*,
+  // which is the screens' business, and joining needs neither.
+  const { hasClub } = usePremium();
+  const sync = useGroupSync();
+  // The stable half of it. `sync` itself changes whenever the queue does, and a
+  // callback that depended on the object would be rebuilt on every write.
+  const announceGroups = sync.announce;
+  const cancelWrite = sync.cancel;
+  const cancelBoardWrites = sync.cancelBoard;
+  const fetchBoard = sync.fetchBoard;
+  const listBoards = sync.myBoards;
+  const mergeInto = sync.mergeInto;
+  const { pullsWanted } = sync;
+
+  /**
+   * The board as it is *right now*, for the pull to fold its answer back into.
+   *
+   * A pull takes as long as the network does, and `state` inside the effect is
+   * the snapshot from when it started — so a game recorded while boards were in
+   * flight would be overwritten by a copy that predates it.
+   */
+  const latestState = useRef(state);
+
+  const persist = useCallback((next: GroupedLeaderboard) => {
+    // **Set here, not in an effect.** React defers the re-render, so without
+    // this the ref is stale for the rest of the tick — and the pull loop reads
+    // it again on its very next iteration. The same mistake the outbox made,
+    // where it cost every write a foreground's delay. (The lint rule forbids
+    // writing a ref from an effect body, so this is also the only place it can
+    // go.)
+    latestState.current = next;
+    setState(next);
+    LeaderboardStorage.saveLeaderboard(next).catch((error) =>
+      logger.error("Failed to save leaderboard:", error),
+    );
+  }, []);
+
+  useEffect(() => {
+    let active = true;
+    LeaderboardStorage.loadLeaderboard()
+      .then((loaded) => {
+        if (!active) return;
+        latestState.current = loaded;
+        setState(loaded);
+        /**
+         * **Every board, not only the ones made from now on.**
+         *
+         * Only newly created groups were announced, so a board that existed
+         * before any of this — including the implicit first one the app makes
+         * on its own, which nobody ever "creates" — was unknown to the server,
+         * and every player and game recorded on it would have been refused *no
+         * such group*, permanently, with nothing that would ever have fixed it.
+         *
+         * Cheap to repeat: the server answers *ok* to a board this account is
+         * already on, and the queue ignores one it is already carrying.
+         *
+         * Done in an effect below rather than here, because whether a board
+         * belongs on the server depends on the subscription — which is `false`
+         * at mount and becomes the store's answer a moment later.
+         */
+
+      })
+      .catch((error) => logger.error("Failed to load leaderboard:", error))
+      .finally(() => {
+        if (active) setIsLoading(false);
+      });
+    return () => {
+      active = false;
+    };
+    // Once, on mount: the board is read here exactly once, and re-running
+    // would re-read storage over live state.
+  }, []);
+
+  /**
+   * Whether a board belongs on the server.
+   *
+   * **Any board the server already has keeps syncing** — including one of your
+   * own, where the role comes back as `admin`. Cutting a board off because a
+   * subscription lapsed would strand every member reading it, which is a worse
+   * failure than the cost it saves; `ROADMAP.md` records that the lapsed case
+   * is genuinely undecided.
+   *
+   * A purely local board only belongs there if you host, and one that does not
+   * must never be announced *or* written to: a queued write for a board the
+   * server has never heard of is a refusal waiting to happen.
+   */
+  const syncsFor = useCallback(
+    (groupId: string): boolean => {
+      const entry = latestState.current.groups.find(
+        (candidate) => candidate.group.id === groupId,
+      );
+      /**
+       * **No `entitlementsKnown` guard here, unlike every other refusal**, and
+       * that is deliberate rather than an oversight.
+       *
+       * A board the server already has syncs regardless, so the only thing the
+       * default can affect is a purely local board in the second before the
+       * store answers. Anything written to one of those is recovered: it has no
+       * `role`, so the moment the subscription lands the announce effect
+       * backfills its whole roster and season, that write included. Queueing
+       * optimistically instead would mean every free user's local board
+       * collecting refusals on every cold launch.
+       */
+      return boardSyncs({ hasClub, isOnServer: entry?.role !== undefined });
+    },
+    [hasClub],
+  );
+
+  const record = sync.record;
+  const recordWrite = useCallback(
+    (write: PendingWrite) => {
+      // A board that does not sync must not queue writes either — see
+      // `syncsFor`.
+      if (syncsFor(write.groupId)) record(write);
+    },
+    [record, syncsFor],
+  );
+
+
+
+  /**
+   * Read every board back from the server and merge it in.
+   *
+   * **Merged, never replaced** — see `mergeBoard`. A board that predates
+   * syncing has a history nothing has told the server about, so the server's
+   * copy is legitimately emptier and overwriting would delete a season.
+   *
+   * Runs when the app comes forward and again after the outbox drains, which
+   * is what `pullsWanted` counts. Boards are pulled one at a time rather than
+   * in parallel: there are at most a handful, and a phone that has just woken
+   * up on a bad connection should not open five requests at once.
+   */
+  useEffect(() => {
+    if (pullsWanted === 0 || isLoading) return;
+    let active = true;
+    void (async () => {
+      /**
+       * **Boards joined elsewhere, first.** A membership is written on the
+       * server, so a board redeemed on one phone exists only on that phone
+       * until something asks for the list — a reinstall, or the same person's
+       * second device, would show nothing at all.
+       *
+       * `null` means it could not be asked, which is not the same as "you are
+       * on no boards" and must not be read as one.
+       */
+      const mine = await listBoards();
+      if (!active) return;
+      const before = latestState.current;
+      const here = new Set(before.groups.map((entry) => entry.group.id));
+      for (const id of mine ?? []) {
+        // Already here, or deliberately gone. Deleting a board cannot tell the
+        // server anything, so without the second check the whole board comes
+        // back on every foreground, forever.
+        if (here.has(id) || wasDismissed(before, id)) continue;
+        const arrived = await fetchBoard(id);
+        if (!active) return;
+        // Added without stealing the screen: somebody is looking at a board and
+        // this runs on every foreground.
+        // Same constructor as the join path. The merge loop below walks the
+        // boards that were here *before* this one, so a dropped role here
+        // would survive an entire extra pull.
+        if (arrived) persist(addBoard(latestState.current, boardFromRemote(arrived)));
+      }
+
+      // **The boards that were here when this started**, not what is here now:
+      // anything the loop above just discovered was fetched a moment ago and
+      // would otherwise be fetched a second time in the same pull.
+      for (const id of before.groups.map((entry) => entry.group.id)) {
+        const remote = await fetchBoard(id);
+        // **Superseded, so stop.** Carrying on would fetch every remaining
+        // board alongside its replacement, doubling the requests on exactly the
+        // bad connection this loop goes one at a time to avoid.
+        if (!active) return;
+        if (!remote) continue;
+        /**
+         * The local board is read **here**, after the request came back, not
+         * when the loop started. Somebody can record a game while boards are in
+         * flight, and merging into the copy the fetch began with writes that
+         * game straight back out of the board.
+         */
+        const current = latestState.current;
+        const mine = current.groups.find((entry) => entry.group.id === id);
+        // Deleted while the request was in flight. Nothing to merge into, and
+        // `replaceBoard` would ignore it anyway.
+        if (!mine) continue;
+        persist(replaceBoard(current, mergeInto(mine, remote)));
+      }
+    })();
+    return () => {
+      active = false;
+    };
+  }, [pullsWanted, isLoading, listBoards, fetchBoard, mergeInto, persist]);
+
+
+  /**
+   * Every change to the board goes through here.
+   *
+   * **Reading `latestState.current` rather than the render snapshot** is what
+   * stops an action taken while a pull is in flight from being applied to a
+   * board that predates the merge — `persist` sets the ref synchronously and
+   * the state a render later, and a tap can land in that window. It also keeps
+   * these callbacks out of the render's dependency graph, so they are built
+   * once instead of on every state change.
+   */
+  const mutate = useCallback(
+    (change: (current: GroupedLeaderboard) => GroupedLeaderboard) => {
+      const current = latestState.current;
+      const next = change(current);
+      if (next !== current) persist(next);
+    },
+    [persist],
+  );
+
+  /**
+   * Tell the server about the boards that belong there.
+   *
+   * Keyed on the subscription rather than done once at load, because `hasClub`
+   * is `false` until the store answers — and somebody who subscribes mid-session
+   * should not have to relaunch before their boards appear.
+   */
+  useEffect(() => {
+    if (isLoading) return;
+    announceGroups(
+      latestState.current.groups.filter((entry) => syncsFor(entry.group.id)),
+    );
+  }, [isLoading, syncsFor, announceGroups]);
+
+  const activeEntry = useMemo(
+    () => state.groups.find((entry) => entry.group.id === state.activeGroupId),
+    [state],
+  );
+  const board = activeEntry ?? EMPTY_GROUP;
+
+  /**
+   * The active board's refusals, not every board's.
+   *
+   * `SyncNotice` is rendered inside these standings and its copy says "the
+   * other players will not see it" — a sentence about the board on screen.
+   * Handed the whole queue it would name a player who is on some other board,
+   * which is a true statement about a board nobody is looking at and a false
+   * one about the board they are. Each board shows its own; switching boards
+   * is what surfaces the rest.
+   */
+  const refusedHere = useMemo(
+    () =>
+      state.activeGroupId === null
+        ? []
+        : sync.queue.refused.filter(
+            (entry) => entry.write.groupId === state.activeGroupId,
+          ),
+    [sync.queue.refused, state.activeGroupId],
+  );
+
+  /**
+   * Apply a change to the active group, creating one first if there isn't one.
+   *
+   * The implicit first group is what keeps groups invisible until somebody
+   * wants them: adding a player to an empty leaderboard works exactly as it did
+   * before, rather than demanding a group be named up front for a feature the
+   * user hasn't asked for yet.
+   */
+  const withActiveGroup = useCallback(
+    (update: (entry: GroupState) => GroupState): string => {
+      /**
+       * **The ref, not the render snapshot.** A pull writes through `persist`,
+       * which sets the ref synchronously and the state a render later — so an
+       * action taken in that window would have been applied to a board that
+       * predates the merge, throwing away whatever the pull just brought in.
+       */
+      const current = latestState.current;
+      const active = current.groups.find(
+        (entry) => entry.group.id === current.activeGroupId,
+      );
+      if (active) {
+        persist(updateGroup(current, active.group.id, update));
+        return active.group.id;
+      }
+      const group = createGroup({
+        id: generateId(),
+        name: DEFAULT_GROUP_NAME,
+        now: Date.now(),
+      });
+      const seeded = addGroup(current, group);
+      persist(updateGroup(seeded, group.id, update));
+      // **The group is announced before anything in it.** This one was created
+      // implicitly by somebody adding a player to an empty leaderboard, so the
+      // server has never heard of it and would refuse the player that follows.
+      recordWrite({
+        kind: "createGroup",
+        groupId: group.id,
+        name: group.name,
+        createdAt: group.createdAt,
+      });
+      return group.id;
+    },
+    [persist, recordWrite],
+  );
+
+  const addNewPlayer = useCallback(
+    (name: string) => {
+      const player = createPlayer({ id: generateId(), name });
+      // **The board first, the queue second**, which is what makes the queue
+      // safe to lose: it carries the news that a player was added, never the
+      // only record of it.
+      const groupId = withActiveGroup((entry) => ({
+        ...entry,
+        players: addPlayer(entry.players, player),
+      }));
+      recordWrite({ kind: "addPlayer", groupId, player });
+    },
+    [withActiveGroup, recordWrite],
+  );
+
+  const deletePlayer = useCallback(
+    (id: string) => {
+      // Results keep the id. The games still happened, and everyone else's
+      // history depends on the field sizes they were part of; computeStandings
+      // simply ignores placings for players no longer on the roster.
+      const groupId = withActiveGroup((entry) =>
+        // Noted as deleted, or the next pull reads it back off the server and
+        // faithfully puts it back — nothing tells the server about a removal.
+        noteDeleted({ ...entry, players: removePlayer(entry.players, id) }, "players", id),
+      );
+      /**
+       * **A name added with no signal and deleted before it went must not go.**
+       *
+       * Removing a player from a shared board is admin-only and deliberately
+       * not a thing the queue can carry, so an add that survives its own
+       * deletion is permanent: the typo appears on every member's board on the
+       * next foreground and only an admin can take it off again.
+       *
+       * Cancels nothing that has already been sent — there is no recalling
+       * that, and the board here has diverged from the server either way,
+       * which is the same state a build with no backend has always been in.
+       */
+      cancelWrite({ kind: "addPlayer", groupId, playerId: id });
+    },
+    [withActiveGroup, cancelWrite],
+  );
+
+  const recordResult = useCallback(
+    (params: {
+      playerIds: string[];
+      placings: Placing[];
+      buyIn: number;
+      bounty: number;
+      knockouts?: readonly KnockoutCount[];
+    }) => {
+      // Guard the persistence boundary, not just the UI. The sheet already
+      // constrains what it can build, but this is the one store whose data
+      // can't be recreated by retyping it, so a malformed result must not reach
+      // it if that ever stops being true.
+      const invalid = validateGameResult({
+        playerIds: params.playerIds,
+        placings: params.placings,
+        knockouts: params.knockouts ? [...params.knockouts] : undefined,
+      });
+      if (invalid) {
+        logger.error("Refusing to record an invalid game result:", invalid);
+        return false;
+      }
+      const result = createGameResult({
+        id: generateId(),
+        playerIds: params.playerIds,
+        placings: params.placings,
+        buyIn: params.buyIn,
+        bounty: params.bounty,
+        now: Date.now(),
+        knockouts: params.knockouts,
+      });
+      const groupId = withActiveGroup((entry) => ({
+        ...entry,
+        results: addGameResult(entry.results, result),
+      }));
+      recordWrite({ kind: "recordGame", groupId, result });
+      return true;
+    },
+    [withActiveGroup, recordWrite],
+  );
+
+  const deleteResult = useCallback(
+    (id: string) => {
+      const groupId = withActiveGroup((entry) =>
+        noteDeleted(
+          { ...entry, results: removeGameResult(entry.results, id) },
+          "results",
+          id,
+        ),
+      );
+      // Same as deleting a player: a game recorded at the table and deleted
+      // before there was any signal should not turn up later on everybody
+      // else's board, where removing it is somebody else's job.
+      cancelWrite({ kind: "recordGame", groupId, resultId: id });
+    },
+    [withActiveGroup, cancelWrite],
+  );
+
+  const claimedPlayer = useCallback(
+    (accountId: string) =>
+      state.activeGroupId
+        ? playerForAccount(state, state.activeGroupId, accountId)
+        : null,
+    [state],
+  );
+
+  const claimPlayerAs = useCallback(
+    (playerId: string, accountId: string): ClaimError | null => {
+      const current = latestState.current;
+      if (!current.activeGroupId) return "no-such-group";
+      const result = claimPlayer(current, {
+        groupId: current.activeGroupId,
+        playerId,
+        accountId,
+      });
+      if (!result.ok) return result.error;
+      persist(result.state);
+      return null;
+    },
+    [persist],
+  );
+
+  const releasePlayer = useCallback(
+    (playerId: string) =>
+      mutate((current) =>
+        current.activeGroupId
+          ? unclaimPlayer(current, {
+              groupId: current.activeGroupId,
+              playerId,
+            })
+          : current,
+      ),
+    [mutate],
+  );
+
+  /**
+   * Let go of every player an account holds, everywhere on this device.
+   *
+   * Called when that account signs out or is deleted. Without it the claims
+   * survive the account and point at nothing: the player cannot be claimed
+   * (something holds it) and cannot be released (it is not yours), which is a
+   * dead end reachable through the account deletion the App Store requires.
+   */
+  const releaseAllFor = useCallback(
+    (accountId: string) =>
+      mutate((current) => {
+      let next = current;
+      for (const entry of current.groups) {
+        const held = entry.players.find(
+          (player) => player.accountId === accountId,
+        );
+        if (!held) continue;
+        next = unclaimPlayer(next, {
+          groupId: entry.group.id,
+          playerId: held.id,
+        });
+      }
+      return next;
+      }),
+    [mutate],
+  );
+
+  const standings = useMemo(
+    () => computeStandings(board.players, board.results),
+    [board.players, board.results],
+  );
+
+  const groups = useMemo<GroupSummary[]>(
+    () =>
+      state.groups.map((entry) => ({
+        canInvite: entry.role !== "member",
+        id: entry.group.id,
+        name: entry.group.name,
+        playerCount: entry.players.length,
+        gameCount: entry.results.length,
+      })),
+    [state.groups],
+  );
+
+  const isGroupNameAvailable = useCallback(
+    (name: string, exceptId?: string) =>
+      isValidGroupName(name, state.groups, exceptId),
+    [state.groups],
+  );
+
+  const selectGroup = useCallback(
+    (id: string) => mutate((current) => setActiveGroup(current, id)),
+    [mutate],
+  );
+
+  const createNewGroup = useCallback(
+    (name: string) => {
+      const current = latestState.current;
+      if (!isValidGroupName(name, current.groups)) return;
+      const group = createGroup({ id: generateId(), name, now: Date.now() });
+      persist(setActiveGroup(addGroup(current, group), group.id));
+      recordWrite({
+        kind: "createGroup",
+        groupId: group.id,
+        name: group.name,
+        createdAt: group.createdAt,
+      });
+    },
+    [persist, recordWrite],
+  );
+
+  const renameGroupById = useCallback(
+    (id: string, name: string) => {
+      const current = latestState.current;
+      const renamed = renameGroup(current, id, name);
+      // **Refused renames stop here.** `renameGroup` returns the state
+      // untouched for an empty or duplicate name, and the queue rewrite below
+      // used to run anyway — leaving the board named one thing on this phone
+      // while the server was told to create it under the name just rejected.
+      // `GroupsSheet` happens to pre-check, but the guard belongs on the
+      // method rather than in one of its callers.
+      if (renamed === current) return;
+      persist(renamed);
+      /**
+       * A board still waiting to be created should be created under its new
+       * name. Replacing the queued write is the whole of what can be done here:
+       * **there is no route that renames a board**, so one the server already
+       * has keeps the name it was created with, and the merge deliberately
+       * keeps the local one rather than reverting somebody's rename. See
+       * SYNC.md — it needs a `PATCH /groups/{id}`.
+       */
+      // From the renamed state, so the queued name is the trimmed one that was
+      // actually stored rather than the raw text typed into the field.
+      const entry = renamed.groups.find((candidate) => candidate.group.id === id);
+      // Only a board the server has never heard of has a creation to rewrite.
+      // One it already has (`role` set) settled its `createGroup` long ago, and
+      // queueing a fresh one on every rename sends a creation for a group that
+      // exists — which cannot rename it, for the reason above.
+      if (!entry || entry.role !== undefined) return;
+      cancelWrite({ kind: "createGroup", groupId: id });
+      recordWrite({
+        kind: "createGroup",
+        groupId: id,
+        name: entry.group.name,
+        createdAt: entry.group.createdAt,
+      });
+    },
+    [persist, cancelWrite, recordWrite],
+  );
+
+  const inviteToBoard = useCallback(
+    (groupId: string) => sync.createInvite(groupId),
+    [sync],
+  );
+
+  const joinBoard = useCallback(
+    async (token: string) => {
+      /**
+       * **Checked before redeeming, not after.** Refusing afterwards leaves the
+       * account on a board server-side that this device will not show and will
+       * re-fetch on every pull — a membership somebody cannot see or get rid of.
+       */
+      /**
+       * **Joining needs nothing bought — the host pays.** Asking a guest to
+       * subscribe before they can see a board somebody sent them is how this
+       * feature ends up unused. See `joinRefusal`.
+       */
+      const refusal = joinRefusal({ signedIn: (await apiToken()) !== null });
+      if (refusal) return { ok: false as const, reason: refusal };
+
+      if (latestState.current.groups.length >= MAX_GROUPS) {
+        return {
+          ok: false as const,
+          reason: `You already have ${MAX_GROUPS} boards on this device. Delete one to join another.`,
+        };
+      }
+      const redeemed = await sync.redeemInvite(token);
+      if (!redeemed.ok) return redeemed;
+      /**
+       * **Joined, then read.** Redeeming writes the membership and says which
+       * board; it does not hand the board back. Without the read that follows,
+       * somebody taps a link and arrives at an empty leaderboard — which is
+       * indistinguishable from the link not having worked.
+       */
+      const remote = await sync.fetchBoard(redeemed.groupId);
+      if (!remote) {
+        return {
+          ok: false as const,
+          reason: "Joined, but the board could not be loaded. Try again in a moment.",
+        };
+      }
+      const current = latestState.current;
+      const mine = current.groups.find((entry) => entry.group.id === redeemed.groupId);
+      // Merged when it is already here — redeeming a link for a board you are
+      // on is ordinary — and taken whole when it is not.
+      const board = mine
+        ? sync.mergeInto(mine, remote)
+        // Built in core, because spreading `remote.state` by hand drops the
+        // `role` beside it — which is how a brand-new member ended up with a
+        // share button that can only ever be refused.
+        : boardFromRemote(remote, redeemed.groupId);
+      // Selected here rather than by `addBoard`, which no longer steals the
+      // screen — but somebody who has just tapped a link is looking for this
+      // board and nothing else.
+      // Tapping a link for a board this device once deleted is asking for it
+      // back, so the dismissal goes.
+      const added = addBoard(undismiss(current, redeemed.groupId), board);
+      persist(setActiveGroup(added, board.group.id));
+      // And so do the refusals it left behind. A refusal blocks its subject
+      // until a person says otherwise; without this, a board that was refused
+      // and deleted would never announce itself again after being re-joined,
+      // and everything queued behind its `createGroup` would come back as
+      // "no such group".
+      sync.clearRefusals(redeemed.groupId);
+      return { ok: true as const, name: board.group.name };
+    },
+    [sync, persist],
+  );
+
+  const deleteGroup = useCallback(
+    (id: string) => {
+      persist(removeGroup(latestState.current, id));
+      // **Everything queued for it, not just its creation.** A board made with
+      // no signal and deleted before it synced would otherwise be created on
+      // the server, with its players — and no route deletes a board, so it
+      // would be there for good.
+      cancelBoardWrites(id);
+    },
+    [persist, cancelBoardWrites],
+  );
+
+  return (
+    <LeaderboardContext.Provider
+      value={{
+        groups,
+        activeGroupId: state.activeGroupId,
+        activeGroupName: activeEntry?.group.name ?? "",
+        canAddGroup: state.groups.length < MAX_GROUPS,
+        activeBoardIsGuest: activeEntry?.role === "member",
+        isGroupNameAvailable,
+        selectGroup,
+        createNewGroup,
+        renameGroupById,
+        deleteGroup,
+        players: board.players,
+        results: board.results,
+        standings,
+        isLoading,
+        addNewPlayer,
+        deletePlayer,
+        recordResult,
+        deleteResult,
+        claimedPlayer,
+        claimPlayerAs,
+        releasePlayer,
+        releaseAllFor,
+        refusedWrites: refusedHere,
+        acknowledgeRefusal: sync.acknowledge,
+        inviteToBoard,
+        joinBoard,
+      }}
+    >
+      {children}
+    </LeaderboardContext.Provider>
+  );
+}
+
+export function useLeaderboard() {
+  const context = useContext(LeaderboardContext);
+  if (!context) {
+    throw new Error("useLeaderboard must be used within a LeaderboardProvider");
+  }
+  return context;
+}

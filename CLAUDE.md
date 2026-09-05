@@ -61,7 +61,8 @@ and [ARCHITECTURE.md](./ARCHITECTURE.md) for the full design.
     like the blocker lifting, and it isn't. The whole diff to `getPositioningStyle()` between the
     two versions is the removal of a now-redundant `rnMinorVersion >= 82` check; the
     `allowedDetents !== 'fitToContents'` condition is untouched, so on iOS:
-    - **`sheetAllowedDetents: "fitToContents"`** (what `feat/native-form-sheets` uses) short-circuits
+    - **`sheetAllowedDetents: "fitToContents"`** (what the attempt used — archived at the
+      `archive/native-form-sheets` tag, the branch is gone) short-circuits
       that condition and still gets `absoluteWithNoBottom` **regardless of the flag**. Observed: the
       sheet frame draws correctly — grabber, corner radius, dimmed backdrop — and is then **empty**,
       with the content stranded below it, half off the bottom of the screen. Identical to 4.25.2.
@@ -69,10 +70,18 @@ and [ARCHITECTURE.md](./ARCHITECTURE.md) for the full design.
       **entirely empty sheet** — worse, since the content isn't visible anywhere.
     - RNS's own source says of the no-bottom-constraint style: *"It was tested reliably only on
       Android."* Take that at face value.
-  - **A passing `assertVisible` does not mean this works.** Maestro asserted "Generate structure"
-    visible on the `fitToContents` run and passed — the node is in the hierarchy, just positioned
-    outside the sheet. This defect is only visible in a screenshot, so verify it with pixels, not
-    with a flow.
+  - **An element being "visible" to a test does not mean this works.** An `assertVisible` on
+    "Generate structure" passed on the `fitToContents` run — the node is in the view hierarchy, just
+    positioned outside the sheet frame. This defect is only visible in a screenshot, so verify it
+    with pixels. It's the standing example of why layout is on the manual checklist rather than
+    automated (see [RELEASE_TESTING.md](./RELEASE_TESTING.md)).
+- **The two diagrams in [ARCHITECTURE.md](./ARCHITECTURE.md) are hand-maintained, and go stale
+  silently.** They are mermaid fences, so GitHub renders them in the diff and a syntax error is
+  visible on the PR — but nothing checks whether they are still *true*. Update them in the same PR
+  whenever the route table in `apps/infra/lib/pokerStack.ts` gains or loses a route, a Lambda is
+  added or removed, or the key schema in `apps/infra/lib/lambda/groupKeys.ts` changes shape. Those
+  three are the only things they claim, deliberately — a diagram that tried to show more would need
+  updating for changes that do not affect it, which is how diagrams stop being trusted.
 - **Only one scroller per screen.** Settings is a single `ScrollView`, the blind editor a single
   `FlatList`. A nested scroll region (`nestedScrollEnabled`) was the defect the Settings redesign
   removed — don't reintroduce one. A `ScrollView` inside a `Modal`/`Sheet` is fine: a modal is its
@@ -132,6 +141,15 @@ Mobile releases are batched on a short-lived branch per version, not shipped str
     dependency bumps. Docs and Dependabot may be **pushed straight to `main` without a PR** — they
     can't change a binary, and a PR for a typo fix is ceremony. (Everything touching `apps/mobile`
     or `packages/core` still goes through review.)
+  - **The one exception: web copy that describes an unreleased app targets the release branch.**
+    The rule above exists so web *fixes* aren't held hostage to App Store review. It does not
+    follow that a landing page advertising features nobody can download yet should go to `main`,
+    where Vercel deploys it immediately. Point that PR at `release/<version>` instead and it goes
+    live exactly when the release does — the RC merge at cutting step 8 is the deploy — instead of
+    sitting open on a promise to remember. 1.2.0's website PR (#155) was held open this way for
+    weeks before being retargeted. The cost is web files in the mobile RC diff, which is noise and
+    nothing more: `apps/web` cannot change a binary. **A web fix still goes straight to `main`** —
+    this is only for copy that would be lying until the store catches up.
   - **Dependabot targets `main`, and that's correct** — don't set `target-branch` in
     `.github/dependabot.yml` to redirect it. Two reasons: a per-version branch is deleted at ship
     time, so the pin goes stale every cycle and errors in between; and `target-branch` only
@@ -147,11 +165,30 @@ Mobile releases are batched on a short-lived branch per version, not shipped str
     `npx expo install --fix` set them at SDK-upgrade time. `expo` and `react-native` are already in
     the ignore list for this reason; the rest of the family still gets proposed and still needs the
     check run against it.
+- **Merging a stack of dependent PRs: never `--delete-branch` one that another PR is based on, and
+  rebase the children rather than merging into them.** Both bite, and both did:
+  - `gh pr merge <n> --squash --delete-branch` **closes** any PR whose base was that branch instead
+    of retargeting it, and a closed PR can't have its base changed. Recovery is possible but ugly —
+    push the deleted branch back, `gh pr reopen`, `gh pr edit --base`, delete the branch again. Merge
+    without `--delete-branch` while anything is stacked on it, and clean up at the end.
+  - After a squash merge the parent's content is on the release branch as a **different commit**, so
+    `git merge release/<version>` into a child conflicts the child against its own changes. Replay
+    only the child's own commits instead:
+    `git rebase --onto origin/release/<version> <parent-branch-tip-before-the-merge> <child>`. Note
+    *before the merge*: if you already rebased and force-pushed the parent, the tip you need is the
+    one the child was actually branched from, not the rebased one.
 - Every change still gets a `CHANGELOG.md` entry under `[Unreleased]` in the same commit/PR that
   lands it (Keep a Changelog format) — no exceptions, don't defer this to release time, or the
   changelog stops being a reliable diff of what changed. Entries keep accumulating there across
   however many PRs land before the release ships; don't roll them into a dated heading until the
   release is actually being cut (last step below).
+- **Renaming a release branch closes its standing RC PR — it does not retarget it.** GitHub's
+  branch-rename API (`gh api -X POST repos/{owner}/{repo}/branches/<old>/rename -f new_name=<new>`)
+  moves the branch and retargets pull requests that *point at* it, but the RC PR's **head** is that
+  branch, and that one is **closed**. It cannot be recovered either: a closed PR can't have its head
+  changed, and can't be reopened once its branch is gone. Renaming `release/1.1.5` → `release/1.2.0`
+  cost PR #129 exactly this way; #147 replaces it. If you rename, expect to open a fresh RC PR and
+  leave a comment on the old one pointing at it.
 - **Open the `release/<version>` → `main` PR as soon as the first change lands on the branch, and
   leave it open** (`gh pr create --base main --head release/<version>`). Not *immediately* after
   cutting, as this used to say — GitHub refuses with "No commits between main and
@@ -181,9 +218,8 @@ Mobile releases are batched on a short-lived branch per version, not shipped str
      that shipped is described in the changelog and reasoned about in its commit; keeping it here
      just buries what's actually open — the file was 1,044 lines and almost none of it was work),
      and reset `RELEASE_TESTING.md`'s rows to ⬜, dropping the defect write-ups and the pass log.
-     What survives in both is only what's still open, accepted (🟡), or durable — an automated
-     Maestro flow's 🤖 coverage, a known-and-accepted entry, a blocker explaining *why* a row can't
-     be run locally. Anything carried into the next version (a fix that shipped untested, say)
+     What survives in both is only what's still open, accepted (🟡), or durable — a
+     known-and-accepted entry, a blocker explaining *why* a row can't be run locally. Anything carried into the next version (a fix that shipped untested, say)
      moves to a "Carried over from `<version>`" section at the top of `ROADMAP.md`, so it can't be
      lost between cycles.
   4. Commit those release-prep changes on the release branch.
@@ -300,8 +336,53 @@ Mobile releases are batched on a short-lived branch per version, not shipped str
     `node_modules` regardless — a declaration was never what made it resolvable. If you hit a
     resolution error, check `require.resolve('next/package.json', { paths: ['apps/web'] })` before
     adding anything to the root.
+- **`expo lint` caches module resolution, so a file created after a failed run stays "unresolvable".**
+  Symptom: `import/no-unresolved` on a path that exists, typechecks, and lints clean when eslint is
+  run directly on that one file. The cache is **not** `.eslintcache` — `expo lint` passes
+  `--cache-location=apps/mobile/.expo/cache/eslint/`, so `rm -rf apps/mobile/.expo/cache/eslint`
+  is the fix. Reached by creating `src/app/account.tsx` before the component it imports; the
+  component appeared a minute later and lint kept insisting it did not exist.
+- **A route file added while Metro is running is "Unmatched Route" until Metro restarts.** Same
+  family as the `expo lint` cache above, and it costs an afternoon because the failure looks like a
+  broken deep link rather than a stale process: `pokerkit://join/<token>` rendered expo-router's
+  **"Unmatched Route — Page could not be found"** with `src/app/join/[token].tsx` present, typechecking,
+  linting clean and committed. `expo-router` builds its route table from a `require.context` that
+  the running bundler has already resolved, so a **new directory** in particular is not picked up.
+  Restarting with `npx expo start --clear` fixed it instantly and nothing else did. Suspect this
+  before suspecting the link, the scheme, or the native config — especially on a dev client, where
+  the launcher owning `pokerkit://` is the *other* known trap and makes it easy to blame the wrong
+  one.
 - **`@types/node` leaks to mobile via hoisting** — use `ReturnType<typeof setInterval>` for interval
   refs, not `number`.
+- **`expo-router` does not hoist to the root `node_modules`, and the expo CLI can't find it without
+  `NODE_PATH`.** This is why `start`/`android`/`android:device`/`ios`/`ios:device` in
+  `apps/mobile/package.json` are all prefixed `NODE_PATH=node_modules`. Remove it and every one of
+  them dies before Metro serves anything:
+  ```
+  Error: Cannot find module 'expo-router/_ctx-shared'
+    at typedRoutes (…/@expo/cli/build/src/start/server/type-generation/routes.js:77)
+  ```
+  - **The path matters more than the package.** npm installs `expo-router` to
+    `apps/mobile/node_modules/expo-router`, but `@expo/router-server` — which does the bare
+    `require('expo-router/_ctx-shared')` — lives at
+    `node_modules/expo/node_modules/@expo/cli/node_modules/@expo/router-server`. Node walks *up*
+    from there, so it sees `node_modules/expo/node_modules` and the root `node_modules`, and never
+    `apps/mobile/node_modules`. `NODE_PATH` is appended *after* that chain, so it fixes the lookup
+    without shadowing anything — which also means it can't reintroduce the shim problem below, and
+    the `pre*` hooks have cleaned those out by then anyway.
+  - **It's `app.json`'s `experiments.typedRoutes: true` that makes this fatal** rather than a
+    warning. Turning that off also "fixes" it — don't. It's a real feature, and the generated
+    `.expo/types/router.d.ts` is gitignored, so CI never notices either way.
+  - **Not lockfile rot — don't try to fix it by regenerating.** A full
+    `rm -rf node_modules package-lock.json && npm install` nests it exactly the same way. It's
+    `apps/web`'s presence in the workspace that does it: an identical install with only
+    `apps/mobile` + `packages/core` hoists `expo-router` to the root. Nothing in expo-router's
+    dependencies or its *required* peers conflicts with root by then, so this is npm's placement
+    heuristic, not a declaration of ours to correct — which is why the fix is `NODE_PATH` and not a
+    root dependency (forbidden, see below) or an `override` (also forbidden).
+  - It regressed in `45c1573` (the SDK 56 alignment): before it, `expo-router@56.2.11` sat at
+    `node_modules/expo-router`; after, `56.2.19` sits under `apps/mobile` and the root entry is gone.
+    Nothing about that commit was wrong — the version bump just changed what npm decided to hoist.
 - **Metro monorepo config** is in `apps/mobile/metro.config.js`; if Metro can't resolve a hoisted
   dep or `@poker/core`, check `watchFolders`/`nodeModulesPaths` there.
 - **Mobile is a bare Expo workflow** — `apps/mobile/ios` and `apps/mobile/android` are committed.

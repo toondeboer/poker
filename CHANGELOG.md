@@ -9,6 +9,443 @@ platform-tagged heading (e.g. `## [1.1.3] - 2026-07-20 — Android`) when you cu
 
 ## [Unreleased]
 
+### Added
+- **A finished game asks before it is thrown away.** Start a new game with an unsaved one on screen
+  and the app offers to put it on the leaderboard first — it dealt every hand, so it already knows
+  who finished where. Nothing is lost either way: a finished game survives the app closing, and its
+  Save button is still there next time.
+- **Android tells you when notifications are blocked, and how to fix it.** Turn the permission down
+  and the timer cannot alert you when the blinds go up in the background — previously with no
+  explanation and no way back. Settings now says so and opens the right page, and the message goes
+  as soon as it is fixed.
+- **A leaderboard now survives having no signal.** Adding a player or recording a game writes the
+  board on the phone first and tells the server second, keeping what could not be sent in an outbox
+  that is retried when the app comes back to the foreground, when somebody signs in, and on the
+  next cold launch. The night at a table with one bar of reception is the case the whole thing is
+  built for: nothing waits on a network, and nothing is silently lost when the network never comes.
+  A write the server *refuses* — a board somebody removed you from between Tuesday and Thursday —
+  is kept aside to be shown rather than dropped or silently applied, and anything that depended on
+  it is held back with it, so a game can never be recorded naming a player who was never added.
+  The leaderboard says so plainly when that happens — what was not saved, why, and the part that
+  matters: it is on your phone and the other players will not see it.
+- **Boards can be shared.** A board's row in the groups sheet has a share button that makes an
+  invite code and hands it to the usual share sheet; whoever gets it pastes it into *Join a board*
+  in the same list, and the board arrives with its whole roster and season. Paste the code on its
+  own or the entire message it came in — either works. The code never expires, so sharing again
+  replaces the last one, which is the only way to take one back from somebody you did not mean to
+  send it to. Boards follow the account rather than the phone: sign in on a second device, or
+  reinstall, and every board you are on comes back. The share button only appears on boards you can
+  actually invite people to. **The host pays and guests do not**: sharing a board of your own is a
+  subscription, and joining one somebody sent you costs nothing at all — no account purchase, not
+  even Pro, because a board you were invited to is visible without it. Everything Pro unlocks stays
+  exactly as it is and nobody who has bought it loses anything — and the subscription includes Pro,
+  so hosting is one purchase rather than two — and once a subscription has unlocked Pro it stays
+  unlocked, so stopping it costs you the sharing and nothing else.
+- **A board now reads back what other people did to it.** When the app comes to the foreground, and
+  again once anything queued has been sent, each board is fetched and merged with what is already
+  on the phone. Merged rather than replaced, which is the whole of the design: a board that
+  existed before any of this has a history the server has never been told about, so trusting the
+  server's copy would delete a season of game nights. Somebody else's additions arrive, removals
+  they made are applied, and a game recorded thirty seconds ago does not flicker off the screen
+  while the request is in flight. A game or player you delete stays deleted, and a board you rename
+  keeps the name you gave it.
+- **Deleting your account now deletes what is on the server too.** Every board membership, claim
+  and shared result goes first and the login goes last — the other order leaves rows nobody can
+  ever reach again, because once the login is gone there is no way to prove they were yours. If it
+  is interrupted, asking again finishes the job.
+- **Confirmation codes now come from an address that belongs to this app**, signed so mail
+  providers can prove it. They were arriving in spam, which for a code that expires is the same as
+  not arriving.
+- **Anything that needs the server can be switched off without a store release.** If sharing or
+  sign-in misbehaves after a release, they can be turned off from a laptop in a minute rather than
+  through a review that takes days — and turned back on the same way. The app asks at every launch,
+  and treats an unreachable server as off rather than queueing work at a server that is not there.
+- **Claim yourself on a leaderboard.** Signed in, a player on the board can be linked to your
+  account — and because every game ever recorded refers to the person rather than to an account,
+  the whole season becomes yours with nothing rewritten. It can be undone, so a mis-tap costs
+  nothing. Two things are refused rather than guessed at: a person somebody else has already
+  claimed, and holding a second seat on the same board, since one person is one seat and holding
+  two would double-count their nights. **Only visible while signed in**, which nobody can be yet.
+  Signing out or deleting an account lets go of the players it had claimed, so nobody is left linked
+  to an account that no longer exists — and if one ever is, it can still be unlinked rather than
+  being stuck for good.
+- The Pro sheet lists what Pro actually buys now. It was still selling the previous version's
+  feature set — the screen where somebody decides to pay was describing an app with fewer things in
+  it than the one they had just been using, and dealing a hand, the headline of this release, was
+  missing from it entirely.
+- The website describes the app that exists: dealing a hand when nobody brought cards, progressive
+  bounties, and a dealt game putting itself on the leaderboard with knockouts included.
+- Accounts can now talk to a real server. The sign-in screens are wired to Amazon Cognito, including
+  the step nobody thinks about until they meet it: creating an account sends a code to your email
+  and does **not** sign you in until it comes back, so the screen asks for it rather than saying
+  "welcome" to somebody who is not logged in. Every refusal says what to do about it — that address
+  is already taken, that code has expired, wait a minute and try again — rather than "that didn't
+  work". Settings has an Account row that leads to them, and they run against a real
+  user pool rather than the development stub they were written against.
+- **Progressive bounties (Pro).** Knock somebody out and half their bounty is yours in cash — the
+  other half goes onto your own head, so whoever is winning becomes the one worth beating. It is the
+  format nobody can run on paper: the bounty on every head changes a dozen times an evening, and
+  nobody is keeping that straight between hands. The app deals the game, so it keeps the ledger —
+  who is worth what, who collected it, and the last player standing takes the bounty on their own
+  head, which is theirs and came out of their own buy-in. The odd unit of an odd split goes into the
+  pocket rather than onto the head, so somebody is handed real money tonight. If a pot goes unclaimed
+  the bounty on that head has nowhere to go, and the app says so at the end rather than leaving
+  somebody to count the cash and find it short. Flat bounties are unchanged and stay the default:
+  one number, understood by everyone, settled at the table.
+- **A game the app dealt now knows who knocked whom out (Pro).** A bounty is money that changes
+  hands the moment somebody busts, a dozen times over an evening, usually while the host isn't
+  watching — which is why a game written down afterwards has never tracked it, and why the
+  leaderboard's money column was prize money only. A game the app deals watched every hand, so it
+  knows exactly whose chips took whom out, and the board now counts knockouts and pays the bounty
+  into the total. The credit goes to whoever won the pot the busted player's last chips were in,
+  which with side pots is frequently *not* whoever won the most money that hand. A split pot splits
+  the bounty — one bounty between the two of them, since only one was ever collected, divided the
+  same way the pot itself was. A pot nobody could claim pays no bounty to anybody, rather than
+  picking a winner.
+  Games recorded by hand show nothing here rather than zeros — nobody can say, and a guess rendered
+  as a total is worse than no total.
+- **A way back when the app breaks.** Instead of a blank screen or the app closing on itself, there
+  is now a page saying what went wrong, with the message on it — the only place that message exists,
+  and what makes a bug report useful. Trying again is the first offer. The second is for the case
+  that trying again cannot fix: something the app saved that it can no longer read, which is loaded
+  again on every launch and so fails the same way forever. Starting fresh clears the round in
+  progress, the blind structure, the payout setup, presets and the sound choice — and **keeps the
+  leaderboard**, because deleting the app is what somebody stuck does otherwise, and that takes
+  seasons of game nights with it. It says exactly what it will take before it takes it.
+- Groundwork for one clock on several phones: a screen that starts a shared clock or joins one with
+  a code, and the whole loop behind it — a local pause, resume, reset or level change goes out to
+  the table, and anybody else's comes back and moves this phone. There is no host: whoever is
+  nearest the phone presses it, and two people pressing at once settle on the same answer rather
+  than the table quietly splitting in two. It says plainly when it has lost touch, and keeps
+  counting down while it has, because the phone still knows how much of the round is left — it just
+  no longer knows whether somebody paused it. **Nothing links to it yet**: there is no server behind
+  it, and a join code nobody else can join is worse than no join code.
+- Groundwork for one clock on several phones: the protocol a shared session runs on, and the join
+  code that gets read out across the table. The code leaves out every character that can be misread
+  — no `O`/`0`, no `I`/`1`, no `S`/`5` — and refuses a typo rather than guessing, because guessing
+  can drop somebody into a stranger's game night with a plausible countdown on it. What travels
+  between phones is **how much of the round is left**, never when it ends: two phones whose clocks
+  disagree by half a minute would otherwise show different countdowns on the same table, so each
+  one anchors what it receives to its own clock as it arrives. **Nothing in the app uses this yet**
+  — there is no server behind it, and the wiring into the timer comes next.
+- Groundwork for accounts: the sign-in, sign-out and delete-account screens exist and work, and the
+  seam an identity provider plugs into is defined in `@poker/core`. **Nothing links to them and no
+  account is real yet** — they run against a development stub with no server behind it, so the way
+  in stays closed until there is. Account deletion is built in from the start rather than added
+  later, since an app that lets people create an account has to let them delete it from inside the
+  app.
+- **A game the app dealt puts itself on the leaderboard (Pro).** When the last chip changes hands,
+  one button saves the night: everybody's finishing position is already known, because the app dealt
+  every hand and watched them go out. Winnings come from the payout structure you set, priced for
+  the field that actually sat down. It records the top three even when fewer places pay, so a
+  friendly game still has a winner and the board's tie-breaks still work — the same rule the
+  record-a-game sheet follows by hand.
+- A game in progress now survives the app being closed. Shut the app between hands — or have the
+  phone die mid-evening — and reopening it puts you back at the same table, same stacks, same cards
+  in the middle. A stored game is checked whole before it is trusted, and dropped entirely if
+  anything about it no longer adds up: unlike the leaderboard, where one bad row is dropped and a
+  season of history kept, a half-restored game is a table paying the wrong person from stacks that
+  do not balance. Losing an evening you can deal again is the better of the two.
+- Raising in a dealt hand now takes any amount, not just the minimum or everything. Type it, or tap
+  Min, Pot or All in to fill it in — and then confirm, because a raise is the one thing on that
+  screen that can end somebody's night by mis-tap. "Pot" is the size players actually name at a
+  table: call first, then raise by what is in the middle after that. It only appears when it lands
+  somewhere between the two ends, since a Pot button that quietly means "all in" is worse than no
+  Pot button.
+- **Play a hand from the phone (Pro).** For a table that has chips but no cards — on holiday, or
+  when the deck is somewhere nobody can remember. The phone deals a real hand of hold'em: everyone
+  can see the board, the pot and every stack, and only the player to act can see their own two
+  cards, after tapping to reveal them. That last part is why the reveal is a tap rather than
+  automatic: one phone goes round the table, and cards that appear by themselves are cards the
+  previous player has already seen. Blinds, betting, side pots when somebody is all-in for less,
+  and who wins at the showdown are all decided by the same rules the rest of the app is built on.
+- Repo docs and store copy brought up to what 1.2.0 actually contains — the `README`, the
+  architecture notes, and both stores' long descriptions and Pro feature lists, which all still
+  described a timer whose only paid extras were presets and alarm sounds.
+- Groundwork for accounts and online play: the backend is now defined as code in a new `apps/infra`
+  workspace — accounts, one small database, and a realtime channel for a shared poker table.
+  **Nothing in the app talks to it.** Two decisions are worth recording
+  because they are hard to change later: hole cards are kept private by *where they are published*
+  rather than by the app choosing not to draw them, so a card you should not see never reaches your
+  phone at all; and only the server may publish, so every change to a table goes through the poker
+  rules once — the same rules the phone runs, which is what stops the two disagreeing. The channel
+  names both sides use are defined once and shared, because the app and the server disagreeing
+  about them is the kind of mistake that is silent rather than obvious.
+- Groundwork for leaderboards that several people share. A group can now live on the server rather
+  than only on the host's phone: more than one person can be an admin, anybody at the table can add
+  a player or record a game, and only an admin can remove one — because writing down a name should
+  be easy and making a season disappear should not. People join by a link that does not expire, so
+  it can be pinned in the group chat, and an admin can rotate it if it ever goes somewhere it should
+  not. It is deliberately built so the app keeps
+  working with no signal at a table: the things that only need your own phone — the timer, dealing,
+  writing down who won — carry on offline and catch up later, and only the things that genuinely
+  need everybody else wait for a connection. When an account is deleted, the players you
+  claimed are let go but the games stay on the board, because a night of poker belongs to the table
+  rather than to whoever wrote it down — and if you were the last person who could manage a group,
+  somebody else is put in charge of it rather than it being left with nobody.
+- That backend now actually runs. A development environment is deployed and has been exercised end
+  to end: an account created from a real emailed code, signed in, a hand dealt and acted on, and the
+  cards arriving on the right screens — including the part that matters, which is that a player's
+  hole cards never travel to anybody else's phone and somebody not at the table cannot watch it at
+  all. **Nothing in the app points at it**, deliberately: this release still ships with accounts
+  switched off, because a development server is a thing that gets deleted and rebuilt, and nobody's
+  account should live there. Two faults were found by deploying that no amount of testing beforehand
+  could have: one that would only ever appear on the very first deploy of a fresh environment, and
+  one that would have put an approval step in front of every website update.
+- The server watches itself, and can say so: traces of every request, the numbers behind them, and
+  seven alarms that email when something is actually wrong — one of which has been deliberately set
+  off to check the email arrives. This was first built on an outside monitoring service and then
+  moved onto Amazon's own, because measuring it showed the outside route was adding nearly two
+  seconds to the first request after an idle period — on an app whose whole traffic pattern is one
+  evening a week, so almost every request is that first one. Nobody would have seen a bug; they
+  would have seen the app feeling slow to wake up.
+
+### Removed
+- The Maestro end-to-end suite (26 flows) is gone. It had rotted while nothing referenced it: a
+  hardcoded LAN address and stale selectors, no npm script, and no CI job — running it would have
+  meant a ~20-minute cold Gradle build per PR, which is why it never got wired up. Verification now splits along a clearer line: logic is unit-tested in `@poker/core`,
+  and everything a unit test structurally cannot see (layout, real platform behaviour, purchases) is
+  a human pass driven by [RELEASE_TESTING.md](./RELEASE_TESTING.md), which now spells those rows out
+  instead of deferring them to a flow.
+
+### Added
+- Groundwork for the multiplayer game mode: a card model, a **seeded** shuffle and a hand
+  evaluator in `@poker/core`. Nothing user-facing yet. Randomness is injected rather than
+  generated, so a deal is reproducible from its seed — which is what lets the same hand be replayed
+  exactly in a test, and lets a server prove after the fact that a shuffle wasn't rigged. The
+  evaluator finds the best five cards out of seven by checking all 21 combinations rather than
+  consulting a lookup table: there is no generated data to get wrong, and the correctness argument
+  fits in a sentence. Hand strength is packed into a single integer so that comparing two hands and
+  asking whether they *tie* are the same operation — split pots turn on exact equality, and a
+  multi-field comparison is one wrong branch away from paying the wrong player. It is checked
+  against the published five-card frequencies across all 2,598,960 hands in the deck, and against
+  the number of genuinely different hands in each category, so every hand is verified rather than
+  the handful someone thought to write down.
+  The seeded shuffle is for **tests and replay only, never for dealing a real hand.** It carries
+  32 bits of state, which is about four billion possible shuffles — a space one processor core can
+  sweep in a quarter of an hour. Someone holding two cards and looking at the flop could narrow
+  that to a few candidates and the turn would settle it, handing them the river and everybody
+  else's cards. Choosing the seed carefully doesn't help, because the weakness is how few seeds
+  there are. A real deal has to come from the platform's cryptographic random source, which the
+  game will pass in; `@poker/core` deliberately doesn't ship one, since it has no platform to take
+  it from and a guess would put a fake in the one place that can't have one.
+- **Multiple leaderboards (Pro).** Keep a separate board for each set of people you play with —
+  the regular Thursday game and the friends you only play with on holiday don't have to share one
+  list of names and one set of standings any more. The leaderboard screen shows which board you're
+  looking at and switches between them in two taps; groups can be renamed, and deleting one asks
+  first and says how many games go with it. Players and games belong to the group they were added
+  to, so nothing bleeds between them.
+- The leaderboard is now stored as **groups** — a board per set of friends rather than one list for
+  everybody. A leaderboard that already exists is turned into a group the first time the app opens
+  after updating, keeping every player and every game, and it stays the one you are looking at, so
+  nothing changes on screen. The migration is written back straight away rather than being redone
+  every launch, and the board is also saved in the old format alongside the new one — so if this
+  version ever had to be rolled back, the previous one would still find everybody's history rather
+  than an empty board it would then overwrite. There is still only one board visible for now: a host who plays with one crowd
+  never meets the concept, and the picker for switching between groups comes next.
+- Groundwork for **poker groups** in `@poker/core` — a separate board for each set of friends you
+  play with, instead of one list for everybody. Nothing user-facing yet. The important decision is
+  that a group's roster is *people*, not accounts: someone who turns up to one game night on holiday
+  and will never install anything still belongs on the board, so a name is all that is needed and
+  signing in is an optional extra on top. Modelling it the other way round would mean nobody can be
+  scored until they have downloaded the app, which is backwards for a game played in someone's
+  kitchen. Because every recorded game refers to the person rather than to an account, **signing up
+  later never rewrites anything**: you claim the name you have been playing under and every night
+  you were ever part of is already yours. Two things are refused rather than guessed at — a person
+  somebody else has already claimed, and holding two seats in the same group, since one person is
+  one seat and holding two would double-count their nights. Claiming can also be undone, so a
+  mistake doesn't mean rebuilding the group. An existing single board becomes a group when the time
+  comes, keeping every player and every game, and someone who never used the leaderboard gets no
+  group at all rather than an empty one to delete. The stored leaderboard already carries the
+  account a player has been claimed by, so the first claim to be saved survives the next launch
+  instead of quietly vanishing.
+- A whole **game** in `@poker/core`, hand after hand until somebody has all the chips. Nothing
+  user-facing yet. The button moves round, players who run out are left out of the next deal, and
+  the order people went out in is kept as it happens — which is the part that cannot be worked out
+  afterwards, since once everyone is on zero the final chip counts say nothing about who went out
+  first. Two players busting in the same hand are separated by the stack they started it with, the
+  bigger one finishing higher, which is what a table does. The point of all this is the last step:
+  a finished game turns straight into a leaderboard entry, with everyone's finishing position and
+  winnings already known, instead of the host tapping them in afterwards from memory. It records the
+  top three finishers even when the game paid fewer places or no money at all, so a friendly game
+  still has a winner and the board's tie-breaks still have something to work from — the same rule
+  the record-a-game sheet already follows by hand.
+- A whole hand of Texas hold'em in `@poker/core` — the piece that joins the others up. Nothing
+  user-facing yet, but this is the first time the cards, the betting and the pots play a hand from
+  the shuffle to the chips being pushed. It deals, posts the blinds, runs each street, deals the
+  flop, turn and river, and settles: the last player standing takes it without showing, or the
+  hands are compared and the pots — including side pots — go to whoever can win them. When everyone
+  is all-in the rest of the board runs out with no more betting, the way a table does it. The
+  heads-up exception is handled, because it is the one everybody forgets: with two players the
+  button posts the small blind and acts first before the flop, then acts last on every street after
+  it. There are no burn cards: a dealer burns one so a marked or glimpsed top card can't be read,
+  and with a shuffle nobody can see it would remove a card for no gain. Asserted over two thousand
+  randomly played hands — every hand finishes, no chip is created or destroyed, no card is ever
+  dealt twice, every showdown is judged on a full five-card board, and what is paid out is exactly
+  what went in. A player too short to cover the big blind is all-in for less and everybody behind
+  still has to call the full amount, which is the rule rather than the easier thing to write.
+- The betting round for the multiplayer game mode, in `@poker/core`. Nothing user-facing yet. It
+  decides whose turn it is, what they may legally do, and when the round is over — including the
+  three rules people actually get wrong at the table: a raise must be at least as big again as the
+  last one; a player can always put their last chip in even when that falls short of a legal raise;
+  and **going all-in for less than a full raise does not reopen the betting** — everyone still has
+  to match it, but players who have already acted may only call or fold rather than raise again.
+  A betting round that could never end would be the worst possible failure here, so termination is
+  asserted over thousands of randomly played-out rounds, along with chip conservation and the
+  guarantee that everyone still in has either matched the bet or is all-in.
+- Side pots for the multiplayer game mode, in `@poker/core`. Nothing user-facing yet. When someone
+  is all-in for less than the bet, the money splits into a main pot they can win and side pots they
+  can't, so the biggest stack can't win chips nobody had to match — and a player who folds leaves
+  their chips behind without being able to win them back. A pot that won't divide evenly hands its
+  odd chips out one at a time starting to the left of the button, the way a dealer does it, rather
+  than to whoever happens to be first in a list: the result is identical however the players are
+  ordered, which is asserted by shuffling every input and comparing. What is paid out always adds
+  up to exactly what went in.
+- **Payouts (Pro).** Set a buy-in and the app works out what each place wins, so the split is agreed
+  before the first hand instead of argued about heads-up. Bounties come **out of** the buy-in rather
+  than sitting on top of it — a 20 buy-in with a 5 bounty is still 20 out of each pocket, 15 to the
+  prize pool and 5 to knockouts — because the alternative means collecting more than the buy-in you
+  advertised. Every payout is rounded to a note you can actually hand over (1, 5, 10 or 25) while
+  the table still sums to *exactly* the prize pool: the split uses the largest-remainder method, so
+  nothing is quietly lost to rounding and nothing is quietly handed to the winner. If the pool can't
+  stretch to the usual number of places at your chosen note size, it pays fewer places rather than
+  announcing one that wins nothing. Paid places
+  follow the field size by default — roughly the top fifth, the home-game convention rather than a
+  casino's tenth — and can be pinned instead. Bounties are flat by default: the app states the
+  per-knockout figure and players settle it between themselves at the table. A game the app deals
+  can do better than that — see the knockout and progressive-bounty entries above. The maths is in
+  `@poker/core`, with the
+  sums-to-the-pool invariant asserted across the whole realistic range of buy-ins, field sizes,
+  bounties and denominations rather than at a handful of points.
+  - **Rebuys and add-ons** are counted too. A rebuy is another buy-in — it grows the prize pool and
+    re-arms that player's bounty, exactly as buying in did. An add-on is different: it buys chips,
+    not a bounty, so all of it goes to the prize pool and it can carry its own price. How many
+    places get paid still follows the number of *players* rather than the number of entries —
+    thirteen players with five rebuys is thirteen people to pay, not eighteen — though the extra
+    money can fund a place a thinner pool couldn't have paid at your chosen note size.
+- **The timer offers to record a game when one ends (Pro).** Reset the timer after the blinds have
+  climbed and the app asks whether to add the result to the leaderboard, opening the record sheet
+  straight from the prompt. There is no true "tournament over" signal in a blinds timer — reset
+  deliberately clears the round and leaves the blind level alone — so this is a deliberate
+  heuristic: resetting *after progressing* is someone starting fresh, which almost always means the
+  last game just finished. Resetting on level one is a mis-tap and is left alone, and the prompt
+  stays quiet unless Pro is unlocked and there is someone on the roster to record against.
+- **Chop the remaining money (Pro).** When the players still in agree to end it there, the payouts
+  screen works out the deal: everyone left keeps the lowest prize still live, and whatever is above
+  that is split by chip stack. A purely chip-proportional split is the obvious version and it's
+  wrong — a short stack can come out below the place they'd already locked up, which no table would
+  accept. The shares always add up to exactly the money still on the table.
+- **Share the payouts or the standings to your group chat (Pro).** A button on each screen hands the
+  table a plain-text message — buy-in, field, what each place wins and the bounty; or who's winning
+  after however many nights. Plain text on purpose, since chat apps render no formatting, and with
+  no app link appended: you're telling your table what the payouts are, not advertising.
+- **Leaderboard (Pro).** Keep score across game nights: who has won most, who turns up, and what
+  everyone has taken home. **Local-first and single-device** — no accounts, no sign-in, and nothing
+  leaves the phone; the host's device is the source of truth for their group. Recording a game is
+  two taps per player and no typing: tap who bought in, then tap them in the order they finished.
+  Winnings are never entered by hand — they come from the payout structure above, recomputed for the
+  field that actually turned up rather than the one you planned for. Games played counts everyone
+  who bought in, not just who cashed, so a player on a bad run still appears on the board. The board
+  ranks by wins and breaks ties predictably (podiums, then money, then fewer games). It shows money
+  **won**, deliberately not net profit: a bounty settled by hand changes hands in cash during play
+  and can't be reconstructed at the end of the night, so a profit figure would be confidently wrong
+  for anyone in a bounty game. Bounties from a game the app dealt *are* counted, because it watched
+  them happen.
+- `@poker/core` coverage is now measured across **every** source file and enforced by a threshold in
+  CI, so a module with no test at all fails the build instead of being invisible. Coverage read 97%
+  before this and was really 86% — v8 only reports files a test imports. It is now 99% statements /
+  100% functions, with 38 new tests covering preset, review and sound-pack persistence, the
+  corrupt-value and storage-unavailable fallbacks in every loader, the shared store/entitlement ids,
+  and blind-maths edges at the top and bottom of the chip ladder.
+
+### Changed
+- **The app now talks to a real server.** Accounts, board sharing and leaderboard sync were built
+  and tested throughout this release against a development backend, but every shipped build had
+  them switched off at the source — so none of it did anything. This release points at production,
+  which is what turns those features from code into something you can use.
+
+### Fixed
+- Leaderboard: a board you delete stays deleted. Creating another board, joining one by link, or
+  simply letting a pull discover a board you are on wiped the record of what had been deleted — so
+  the next time the app came to the foreground, every board you had ever removed came back, and
+  wiped the record again on its way in. It could not be got rid of.
+- Leaderboard: a bounty game keeps its knockouts. Games the app dealt recorded who knocked whom
+  out, and every one of them was dropped the next time the leaderboard was read back off the phone
+  — so knockout counts and bounty money read as zero for everybody after a restart, and the next
+  save wrote the emptied game back permanently.
+- Leaderboard: recording a game that cannot be saved now says so instead of closing. A refused
+  result cleared the whole evening's entry and put nothing on the board, with nothing to
+  distinguish it from a save that worked.
+- Leaderboard: a refusal notice now only appears on the board it is about. On any other board it
+  named a player who was not there, under a heading promising it was about the board on screen.
+- Leaderboard: joining a board by link works again after that board had a change refused and was
+  deleted. The stale refusal blocked the board from ever announcing itself, and everything queued
+  behind it came back as "no such group".
+- Leaderboard: renaming a board to an empty or duplicate name no longer tells the server to create
+  it under the name the app just rejected.
+- Payouts: two players with identical chip stacks now come out within one note of each other when a
+  chop leaves money that will not divide. The leftover went to whoever was typed in first, and when
+  the rounding had already favoured that same player it widened the gap instead of closing it.
+- Payouts: clearing every chip stack in the chop sheet now says what is missing, instead of the
+  deal silently vanishing.
+- Accounts: a half-written sign-in no longer leaves the app permanently unable to talk to the
+  server. A stored token blob missing some of its fields was accepted and then failed on every
+  launch — either signing you out with no explanation, or never refreshing and quietly stopping the
+  leaderboard from syncing at all.
+- Tables: only players actually seated at a table can act on it. Any signed-in account holding a
+  table id could learn that the table existed, follow its version as the game went, and be told the
+  account id of whoever was to act next.
+- Tables: an action that lands but cannot be broadcast is no longer reported as having failed. A
+  network blip reaching the broadcast service rejected the whole request for a move that had
+  already been applied, and the retry was then told it was out of date.
+- Mobile: Android no longer asks twice for notification permission. The request passed a
+  `rationale` object, and React Native responds to that by showing **its own** explanatory alert
+  before the system permission sheet whenever `shouldShowRequestPermissionRationale` returns true —
+  which it does on every launch after the first denial. So a fresh install saw one dialog and
+  everyone who had ever tapped "Don't allow" saw two, for the rest of the app's life. The rationale
+  is dropped: this is a timer whose entire job is to notify you, and the sheet says as much on its
+  own. The service method behind the status check is also renamed
+  `requestNotificationPermission` → `hasNotificationPermission`, because it only ever read the
+  status and never prompted.
+- Mobile: iOS no longer collects a stack of stale Live Activities. The app can only hold one, but
+  its record of *which* one lived in memory alone — so force-quitting mid-round left iOS running a
+  card the next launch knew nothing about, and the app started a second one beside it rather than
+  taking the first one over. Do that across a few game nights and Notification Centre fills up with
+  rounds that ended days ago. Every path that touches a Live Activity now reduces however many
+  exist to exactly one first: it keeps the app's own card if it is still live, adopts the single
+  survivor of a force-quit rather than replacing a perfectly good card, and otherwise ends
+  everything and starts fresh. Stopping the timer now clears every card rather than only the
+  remembered one. The decision itself moved into `@poker/core` with tests, because it has four
+  cases and the previous version got one of them wrong — with no stored id it adopted whichever
+  activity the platform happened to list first, and ActivityKit documents no ordering for that
+  array, so it could keep a stale card and end the live one.
+  - Three further faults in the same area, found reviewing the fix. **iOS reported activities that
+    were no longer on screen**: the app read `Activity.activities` unfiltered, which keeps listing
+    cards that have ended, been dismissed, or been closed by iOS itself at the eight-hour limit — so
+    the app could adopt a dead card, update it to no effect, and leave the user staring at a frozen
+    round while believing all was well. **Updating an activity always reported success**, even when
+    the id named nothing, so the app's own fallback for that case could never run. And **ending an
+    activity raced the timer reset**: resetting both ends the card and redraws it, and the two ran
+    concurrently, so the redraw could land after the end had already looked for cards to close and
+    found none — leaving a card on screen for a tournament that had finished. Every Live Activity
+    operation now runs one at a time, the same way the screen-wake lock already did.
+- Mobile: sheets no longer stretch the full width of a tablet. The generator and Pro sheets are
+  capped at 640pt and centred, like every other tablet surface in the app — previously `Sheet.tsx`
+  had no tablet handling at all, so a form's fields ran the entire width of an iPad. This was
+  accepted as a known gap for 1.1.4 partly on the expectation that moving to native form sheets
+  would fix it for free; that move is still blocked, so it's fixed here instead.
+- Mobile: on iOS, the generator sheet's title and its Done button no longer sit underneath the status
+  bar and Dynamic Island when the keypad is up. The sheet sized its scroll region from the full
+  window height, so with the keyboard's share subtracted it grew to exactly the window height and
+  its top edge landed at y=0 — putting the first row of the sheet behind the clock. It stayed
+  scrollable and its footer still cleared the keypad, which is why 1.1.4's keyboard pass didn't
+  catch it.
+- Mobile: `npm start` / `npm run ios` / `npm run android` work again. Since the SDK 56 alignment,
+  npm has installed `expo-router` under `apps/mobile/node_modules` instead of hoisting it, and the
+  expo CLI resolves that package from its own nested location — so every one of those commands died
+  with `Cannot find module 'expo-router/_ctx-shared'` before Metro served anything. The scripts now
+  set `NODE_PATH`, which appends the workspace's own `node_modules` to the CLI's lookup path.
+
 ### Changed
 - Mobile: brought every Expo package up to the version SDK 56 actually expects — the project had
   drifted 12 packages behind, including `expo` itself, the router, notifications, the splash screen

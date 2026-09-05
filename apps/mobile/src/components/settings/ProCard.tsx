@@ -16,7 +16,8 @@ export function ProCard({ onRequestPro }: { onRequestPro: () => void }) {
       <Card style={styles.unlockedCard}>
         <View style={styles.unlockedRow}>
           <Text style={styles.unlockedText}>
-            Pro unlocked — no ads, presets, and your pick of alarm sound.
+            Pro unlocked — no ads, payouts, leaderboard, presets, and your
+            pick of alarm sound.
           </Text>
           <Badge label="Unlocked" tone="live" />
         </View>
@@ -29,8 +30,9 @@ export function ProCard({ onRequestPro }: { onRequestPro: () => void }) {
       <CardHeader icon="star" title="Pro" />
       <CardContent>
         <Text style={styles.description}>
-          Remove ads, save tournament presets, choose your alarm sound, and
-          support the app — a one-time purchase.
+          Remove ads, work out payouts, keep a leaderboard, save tournament
+          presets, choose your alarm sound, and support the app — a one-time
+          purchase.
         </Text>
         <Button
           label="Unlock Pro / Remove Ads"

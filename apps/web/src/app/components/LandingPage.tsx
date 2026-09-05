@@ -10,11 +10,17 @@ import {
   Smartphone,
   Monitor,
   Sparkles,
+  Coins,
+  Handshake,
+  ListOrdered,
+  Share2,
+  Spade,
   LucideIcon,
 } from "lucide-react";
 import Image, { StaticImageData } from "next/image";
 import AdSlot from "@/components/ads/AdSlot";
 import { ADSENSE_SLOT_LANDING } from "@/lib/monetization";
+import { CONTACT_EMAIL } from "@/lib/contact";
 import icon from "../../assets/icon.png";
 import screenshot_1 from "../../assets/screenshots/screenshot_1.jpeg";
 import screenshot_2 from "../../assets/screenshots/screenshot_2.jpeg";
@@ -303,8 +309,9 @@ const LandingPage: React.FC = () => {
               Everything You Need for Perfect Poker Tournaments
             </h2>
             <p className="text-xl text-gray-300 max-w-3xl mx-auto">
-              Professional-grade features designed for poker enthusiasts,
-              tournament organizers, and casual players alike.
+              A clock that keeps the blinds honest, and the rest of the
+              arguments a home game has — what each place pays, how to end it
+              early, and who&apos;s actually winning — settled before they start.
             </p>
           </div>
 
@@ -334,6 +341,36 @@ const LandingPage: React.FC = () => {
                   title: "Tournament Structures",
                   description:
                     "Edit every level on its own screen, insert or duplicate levels anywhere, and jump straight to any level mid-game. Save what you build as a preset and reuse it. From cash games to deep stack tournaments.",
+                },
+                {
+                  icon: Spade,
+                  title: "No Cards? The App Deals",
+                  description:
+                    "Somebody forgot the deck, or there isn't one. Pass the phone round and the app runs the whole game — blinds, betting, side pots, the showdown, and who's out. Your cards stay hidden until you tap, and hide again the moment the turn passes. When the last chip changes hands the night goes onto the leaderboard by itself, because it watched every hand: it knows who went out fourth and who knocked them out.",
+                },
+                {
+                  icon: Coins,
+                  title: "Payouts, Worked Out",
+                  description:
+                    "Set a buy-in and see what every place wins, so the split is agreed before the first hand instead of argued about heads-up. Bounties, rebuys and add-ons all count — flat, or progressive, where knocking somebody out puts half their bounty in your pocket and the other half on your own head. Pick the smallest note you want to hand over and every place below the winner comes out a round number you can count straight out of the pot — the winner takes what's left, so the table still adds up to exactly the prize pool.",
+                },
+                {
+                  icon: Handshake,
+                  title: "Chop the Last Pot",
+                  description:
+                    "When everyone left agrees to end it there, the app works out the deal: each player keeps the lowest prize still live, and what's above that is split by chip stack. Nobody ends up with less than the place they'd already locked up.",
+                },
+                {
+                  icon: ListOrdered,
+                  title: "Keep Score Across Nights",
+                  description:
+                    "A leaderboard for your group — who's won most, who turns up, and what everyone has taken home. Keep a separate board for each set of people you play with. Recording a game is two taps per player and no typing: the winnings come from your payout structure, and a game the app dealt records itself, knockouts included.",
+                },
+                {
+                  icon: Share2,
+                  title: "Straight to the Group Chat",
+                  description:
+                    "Send the table the payouts before you start, or the standings after. Plain text that reads properly wherever you paste it, with no app link tacked on the end.",
                 },
                 {
                   icon: Shield,
@@ -512,6 +549,12 @@ const LandingPage: React.FC = () => {
                 className="hover:text-white transition-colors"
               >
                 Web Timer
+              </a>
+              <a
+                href={`mailto:${CONTACT_EMAIL}`}
+                className="hover:text-white transition-colors"
+              >
+                Contact
               </a>
               <span className="text-sm">
                 © 2025 Poker Blinds Buzzer. All rights reserved.

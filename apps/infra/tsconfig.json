@@ -1,0 +1,22 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    // The base sets no `target`, which means ES5 — and ES5 makes `for (const x
+    // of someSet)` and spreading a Map's values into an array compile errors.
+    // CDK code and the Lambda handlers both use them, and Lambda runs a modern
+    // Node, so the target is set here rather than changing it for web and
+    // mobile at the same time.
+    "target": "es2022",
+    "module": "commonjs",
+    "moduleResolution": "node",
+    "lib": ["es2022"],
+    "types": ["node"],
+    "noEmit": true
+  },
+  "include": [
+    "bin/**/*.ts",
+    "lib/**/*.ts",
+    "test/**/*.ts",
+    "scripts/**/*.ts"
+  ]
+}

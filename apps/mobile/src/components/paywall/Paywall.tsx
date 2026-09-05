@@ -10,8 +10,20 @@ import {
 import { usePremium } from "@/src/contexts/PremiumContext";
 import { Sheet } from "@/src/components/ui/Sheet";
 
+/**
+ * What Pro actually buys, in the order somebody decides by.
+ *
+ * **This list has to be checked against the app every release.** It was found
+ * selling the previous version's feature set during 1.2.0 — the screen where
+ * people decide to pay was describing an app with fewer things in it than the
+ * one they had just been using. Dealing a hand is the headline of this release
+ * and was missing from here entirely.
+ */
 const PRO_FEATURES = [
   "Remove all ads — a clean, full-screen timer",
+  "Deal the cards when you have chips but nothing to deal",
+  "Work out buy-ins, payouts and bounties",
+  "Keep a leaderboard for every group you play with",
   "Save & load tournament presets",
   "Choose your alarm sound",
   "Support an indie developer",
@@ -37,6 +49,8 @@ export function Paywall({
 }) {
   const {
     isPremium,
+    hasClub,
+    ownsProOutright,
     purchasing,
     proPriceString,
     refreshProPrice,
@@ -94,33 +108,44 @@ export function Paywall({
 
       {isPremium ? (
         <View style={styles.unlockedBox}>
-          <Text style={styles.unlockedText}>✓ Pro unlocked — thank you!</Text>
+          <Text style={styles.unlockedText}>
+            {hasClub && !ownsProOutright
+              ? "✓ Pro is included with Club — thank you!"
+              : "✓ Pro unlocked — thank you!"}
+          </Text>
         </View>
       ) : (
-        <>
-          <TouchableOpacity
-            style={[styles.buyButton, purchasing && styles.disabled]}
-            onPress={() => run(purchasePro)}
-            disabled={purchasing}
-            activeOpacity={0.85}
-          >
-            {purchasing ? (
-              <ActivityIndicator color="#1f2937" />
-            ) : (
-              <Text style={styles.buyButtonText}>{buyLabel}</Text>
-            )}
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={styles.restoreButton}
-            onPress={() => run(restore)}
-            disabled={purchasing}
-            activeOpacity={0.7}
-          >
-            <Text style={styles.restoreText}>Restore purchases</Text>
-          </TouchableOpacity>
-        </>
+        <TouchableOpacity
+          style={[styles.buyButton, purchasing && styles.disabled]}
+          onPress={() => run(purchasePro)}
+          disabled={purchasing}
+          activeOpacity={0.85}
+        >
+          {purchasing ? (
+            <ActivityIndicator color="#1f2937" />
+          ) : (
+            <Text style={styles.buyButtonText}>{buyLabel}</Text>
+          )}
+        </TouchableOpacity>
       )}
+
+      {/**
+       * **Always offered, never hidden behind `isPremium`.**
+       *
+       * Apple requires a restore path for a non-consumable, and hiding it from
+       * anybody the app *believes* is unlocked is precisely backwards: the
+       * person who most needs it is the one whose purchase this device has not
+       * recognised. Club made that reachable — a subscriber reads as unlocked,
+       * so a Pro purchase made on another device had no way back.
+       */}
+      <TouchableOpacity
+        style={styles.restoreButton}
+        onPress={() => run(restore)}
+        disabled={purchasing}
+        activeOpacity={0.7}
+      >
+        <Text style={styles.restoreText}>Restore purchases</Text>
+      </TouchableOpacity>
 
       {error && <Text style={styles.error}>{error}</Text>}
 

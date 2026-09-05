@@ -1,0 +1,21 @@
+{
+  "app": "npx tsx bin/app.ts",
+  "watch": {
+    "exclude": [
+      "**/*.test.ts",
+      "node_modules/**"
+    ]
+  },
+  "context": {
+    "alertEmail": "poker.blinds.buzzer@gmail.com",
+    "monthlyBudgetUsd": 25,
+    "apiDomain": "poker-api.toondeboer.com",
+    "hostedZoneId": "Z09937423M47OIIZLJ34Y",
+    "hostedZoneName": "toondeboer.com",
+    "mailDomain": "toondeboer.com",
+    "mailVerified": {
+      "dev": true,
+      "prod": true
+    }
+  }
+}

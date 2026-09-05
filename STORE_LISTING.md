@@ -59,7 +59,8 @@ No more arguments about when blinds should go up or when the next break starts �
 
 **Drafted replacement** — mirrors the Play long description's structure (glanceable timer, custom
 blinds, background alerts, Pro bullets, CTA), swapping in Live Activities for the iOS-specific
-Lock Screen bullet already promised in the promotional text above. `1279` chars:
+Lock Screen bullet already promised in the promotional text above. **`2064` chars** as of 1.2.0,
+against a 4,000 limit:
 ```
 The simple poker timer & tournament clock for home poker night. A big, easy-to-read blinds timer and a loud buzzer mean nobody has to squint at their phone mid-hand to know when it's time to raise.
 
@@ -70,12 +71,16 @@ Built for real Texas Hold'em tournament nights, not a casino app full of setting
 • Loud buzzer & notification when a level ends, even if your phone is locked or the app is in the background
 • Live Activities on the Lock Screen — check the current blind level without unlocking your phone
 • Clean, distraction-free interface — no account, no sign-up, no clutter
+• Work out the payouts (Pro) — enter the buy-in and the app splits the pool across the places that pay, with bounties, rebuys and add-ons counted. Every place below the winner is a round number you can count straight out of the pot
+• Chop the last pot (Pro) — ending early? Everyone left keeps the lowest prize still live and the rest splits by chip stack, so nobody drops below the place they'd locked up
+• Keep a leaderboard (Pro) — who's won most across the season, with a separate board for each group you play with. Recording a night is two taps per player and no typing
+• Share to the group chat (Pro) — send the table the payouts before you start, or the standings after
 • Save tournament presets (Pro) — store your blind structure & round length, load them in one tap
 • Choose your alarm sound (Pro) — pick from a few bundled alarm packs beyond the default
 
-Whether it's a casual poker night with friends or a bigger home tournament, Poker Blinds Buzzer keeps the blinds clock visible and on schedule so everyone can focus on the cards, not the clock.
+Whether it's a casual poker night with friends or a bigger home tournament, Poker Blinds Buzzer keeps the blinds clock visible and on schedule so everyone can focus on the cards, not the clock — and settles the money before it turns into an argument.
 
-Go Pro to remove ads, save tournament presets, and pick your alarm sound — or just support an indie developer. Everything else stays free.
+Go Pro to remove ads, work out the payouts, chop the last pot, keep a leaderboard, save presets and pick your alarm sound — or just support an indie developer. The timer itself stays free.
 ```
 
 ## Android — Google Play (reuse at launch — P1 item 4)
@@ -107,47 +112,174 @@ Go Pro to remove ads, save tournament presets, and pick your alarm sound — or 
   • Loud buzzer & notification when a level ends, even if your phone is locked or the app is in the background
   • Keeps timing in the background — the clock won't drop out mid-tournament
   • Clean, distraction-free interface — no account, no sign-up, no clutter
+  • Work out the payouts (Pro) — enter the buy-in and the app splits the pool across the places that pay, with bounties, rebuys and add-ons counted. Every place below the winner is a round number you can count straight out of the pot
+  • Chop the last pot (Pro) — ending early? Everyone left keeps the lowest prize still live and the rest splits by chip stack, so nobody drops below the place they'd locked up
+  • Keep a leaderboard (Pro) — who's won most across the season, with a separate board for each group you play with. Recording a night is two taps per player and no typing
+  • Share to the group chat (Pro) — send the table the payouts before you start, or the standings after
   • Save tournament presets (Pro) — store your blind structure & round length, load them in one tap
   • Choose your alarm sound (Pro) — pick from a few bundled alarm packs beyond the default
 
-  Whether it's a casual poker night with friends or a bigger home tournament, Poker Blinds Timer & Buzzer keeps the blinds clock visible and on schedule so everyone can focus on the cards, not the clock.
+  Whether it's a casual poker night with friends or a bigger home tournament, Poker Blinds Timer & Buzzer keeps the blinds clock visible and on schedule so everyone can focus on the cards, not the clock — and settles the money before it turns into an argument.
 
-  Go Pro to remove ads, save tournament presets, and pick your alarm sound — or just support an indie developer. Everything else stays free.
+  Go Pro to remove ads, work out the payouts, chop the last pot, keep a leaderboard, save presets and pick your alarm sound — or just support an indie developer. The timer itself stays free.
   ```
-  `1264` chars. Updated for v1.1.3: previously deliberately omitted tournament
-  presets since that feature was iOS-only as of v1.1.2 (Android was still on
-  1.1.1) — now that presets **and** Sound Packs both ship to Android in
-  **v1.1.3**, both are called out as Pro bullets above.
+  Updated for **v1.2.0**: the four capabilities that release adds behind the
+  paywall — payouts, the chop, the leaderboard and sharing — are now called out
+  as bullets. They are also the reason the closing line changed from
+  "everything else stays free" to "the timer itself stays free": Pro is no
+  longer a cosmetic tier, and describing it as if it were sets up a refund
+  request.
+
+  `2077` chars, against a 4,000 limit — up from ~1,264, and still less than
+  two-thirds of the way there. Play mines keywords from the first two
+  sentences (the part visible before "Read more"), which are deliberately
+  unchanged.
 
 ## In-app purchase — `pro_lifetime` description (keep in sync with the paywall)
 
 The paywall (`PRO_FEATURES` in `apps/mobile/src/components/paywall/Paywall.tsx`)
-now promises **four** things — **remove ads · save & load tournament presets ·
+promises **six** things as of 1.2.0 — **remove ads · buy-ins, payouts and
+bounties · a leaderboard across game nights · save & load tournament presets ·
 choose your alarm sound · support the dev**. Update the store IAP copy in all
-three consoles to match (this is the P4 sync item). Presets shipped in v1.1.2
-(iOS)/v1.1.3 (Android); Sound Packs are new in v1.1.3 on both platforms — the
-copy below adds the sound-pack mention that was still missing.
+three consoles to match.
+
+This has now drifted twice: the paywall was found still selling the 1.1.4
+feature set during the 1.2.0 cycle, and the store copy one level out had the
+same problem. **The paywall is the source of truth** — read `PRO_FEATURES` and
+work outwards, rather than editing these fields from memory.
 
 ### App Store Connect — In-App Purchase → `pro_lifetime`
-- **Display Name (≤30 chars):** `Pro — Ads, Presets & Sounds` (`27`)
+- **Display Name (≤30 chars):** `Pro — Payouts, Board & More` (`27`)
 - **Description** (short field — **verify the limit in the console**, it's tight):
   ```
-  No ads, presets & custom sounds.
+  No ads, payouts, leaderboard.
   ```
-  `32` chars.
+  `29` chars.
 
 ### Google Play — Monetize → Products → `pro_lifetime`
-- **Name (≤55 chars):** `Pro — Remove Ads, Presets & Sound Packs` (`39`)
+- **Name (≤55 chars):** `Pro — Payouts, Leaderboard & No Ads` (`35`)
 - **Description (≤200 chars):**
   ```
-  Unlock Pro: remove all ads for a clean full-screen timer, save & load tournament presets, choose your alarm sound from bundled packs, and support an indie developer. One-time purchase.
+  Unlock Pro: work out payouts and bounties, chop the last pot, keep a leaderboard per group, save presets, pick your alarm sound, and remove all ads. One-time purchase.
   ```
-  `184` chars.
+  `166` chars.
+
+### App Store Connect — Auto-Renewable Subscription → `club_monthly` **and** `club_yearly`
+
+**Not created yet** — the price is decided (€2–3/month, €12–15/year) and nothing else here is.
+See `ROADMAP.md` for why the figure sits well below the category's subscription medians.
+
+- **Reference Name / Display Name:** Club — the working name; "Pro+" is deliberately avoided
+  because it would say the thing people already bought had been demoted, and it has not changed.
+- **Two SKUs in one subscription group**, monthly and annual, because both prices are decided.
+- **Must grant both `club` and `pro` entitlements in RevenueCat.** A shared board is a leaderboard
+  and the leaderboard is Pro, so a subscriber without it hosts a board they cannot open. The app
+  enforces this too (`entitlementsFrom`), so a missed checkbox is survivable rather than shipped —
+  but set it anyway, or restores and receipts disagree with the app.
+- **Description must say joining is free**, or it reads as though every player at the table needs a
+  subscription, which is the misunderstanding most likely to kill the feature.
+
+### Google Play — Monetize → Subscriptions → `club_monthly` **and** `club_yearly`
+
+Same product, same entitlements, same copy. **Both stores or neither** — one platform able to
+subscribe and the other not is worse than neither.
 
 ### RevenueCat
 - The `pro_lifetime` product description mirrors the store; if you keep an
   internal description/notes field, match the copy above so the dashboard reads
   the same. No entitlement/offering changes — just the text.
+
+## Release notes — v1.2.0
+
+**Both platforms together**, as in 1.1.4.
+
+This is a much bigger release than 1.1.4, and **most of it is behind the paywall**: dealing a hand,
+payouts, the chop calculator, leaderboards, groups and sharing are all Pro. The long description and
+the Pro feature lists in both stores need updating too, not just these notes — the in-app paywall
+was found still selling the 1.1.4 feature set during this cycle, and the store copy has exactly the
+same failure mode one level out. See `ROADMAP.md`'s Play listing item.
+
+**Accounts and shared boards are now in scope**, which they were not when the notes below were
+drafted — so the bullets need a pass before they go in. What changed is a decision, not a
+capability: the code shipped switched off because there was no production backend to point it at,
+and now there is going to be. Three things gate it, and **none of them is code**:
+
+- **SES production access.** Cognito's own sender is capped and lands in spam, so real sign-up
+  depends on it. It is a support request with a queue, and until it is granted SES delivers only to
+  addresses that have themselves been verified. **This is the one that cannot be patched afterwards**
+  — shipping before it is granted means account creation is broken and a store update does not fix
+  it, because the wait is on AWS either way.
+- **`PokerBackend-prod` deployed**, and `backendConfig` pointed at it. A 1.2.0 build must never put
+  real accounts in the development pool, which exists to be thrown away.
+- **The Club subscription created in both stores.** Sharing is unreachable without it, so the
+  bullets must not promise it until the products exist.
+
+**There is a kill switch**, and it is worth knowing about before writing anything that promises
+these features: `GET /config` on the backend turns accounts or sharing off in about ninety seconds,
+without a store release. If something misbehaves after submission, that is the recovery — not a
+patch.
+
+**Two things stay out of the notes either way**: the shared clock, which still has no transport, and
+Sign in with Apple and Google, which need credentials nobody has created. Neither is something a
+person can use.
+
+### iOS — "What's New in This Version" (App Store Connect)
+
+**No emoji in this field** — see [the note below](#ios-metadata-emoji). Bullets are the typographic
+`•` (U+2022), which is punctuation rather than emoji and renders everywhere.
+
+```
+• Play a hand (Pro). The app deals. When you have chips but no cards — or nobody can find the deck — pass the phone round the table and it runs the whole game: blinds, betting, side pots, the showdown, and who is out. Your cards stay hidden until you tap, and hide again the moment the turn passes.
+
+• A game the app deals puts itself on the leaderboard (Pro). It watched every hand, so it already knows who went out fourth. One button saves the night, priced from your payout setup for the field that actually sat down.
+
+• Knockouts are tracked, and bounties finally add up (Pro). The app knows whose chips took whom out — including which side pot the last of them went into — so bounty money lands on the leaderboard instead of being remembered wrong at the end of the night.
+
+• Progressive bounties (Pro). Knock somebody out and half their bounty is yours in cash; the other half goes on your own head. Whoever is winning becomes the one worth beating. It is the format nobody can run on paper, and the app keeps the whole ledger.
+
+• A leaderboard for every group you play with (Pro). Thursdays and the office game are different seasons, kept apart, each with their own players and history.
+
+• Share a board with the people you play with (Club). Send them a code, they paste it in, and the board — every player, every night already on it — is on their phone too. Whoever recorded the game does not have to be the one who reads it out. Joining is free: only the person who shares a board subscribes.
+
+• Your boards follow your account, not your phone (Club). Sign in somewhere else, or reinstall, and they come back. Record a night with no signal and it is kept and sent when there is some, so the pub with one bar of reception stops being a problem.
+
+• An account, if you want one. Email and a password, a code to confirm it, and you can delete the account and everything on our servers from inside the app.
+
+• Payouts and the chop (Pro). Set a buy-in and see exactly what each place wins, bounties, rebuys and add-ons included. When the table agrees to end it early, the chop splits what is left by chip stack without anybody dropping below the place they had already locked up.
+
+• Share the payouts or the standings straight to your group chat.
+
+• A game in progress now survives the app closing. Shut it between hands, or have the phone die mid-evening, and reopening puts you back at the same table with the same stacks.
+
+• Android no longer asks twice for notification permission, and stale Live Activities are cleared away instead of piling up on the lock screen.
+
+Thanks for playing — feedback always welcome.
+```
+
+Re-count in App Store Connect before saving; the limit is 4000 characters and this is well inside it.
+
+### Android — "Release notes" (Play Console, ≤500 chars per language)
+```
+🃏 Play a hand (Pro): no cards? The app deals. Blinds, betting, side pots, showdown.
+🏆 A dealt game saves itself to the leaderboard, knockouts and all.
+💰 Progressive bounties (Pro): half in cash, half onto your own head.
+👥 A leaderboard per group — Thursdays and the office game kept apart.
+🔗 Share a board with your table (Club). Joining one is free.
+♻️ Games survive the app closing, and sync when you have signal again.
+```
+`421` chars — fits the 500-char Play Console limit. Re-count in the
+console before saving, since emoji and locale can shift it.
+
+**"Joining one is free" earns its place in 500 characters**, because the misunderstanding most
+likely to kill the feature is a table assuming all six of them need a subscription. One line, and it
+is the line that decides whether anybody tries it.
+
+**Deliberately not mentioned:** the shared clock, which has no transport and is unreachable; Sign in
+with Apple and Google, which need credentials nobody has created; the record-a-game prompt's
+conditions; and that progressive bounties only work for a game the app deals. Those nuances belong
+in the app, not in 500 characters of store copy.
+
+---
 
 ## Release notes — v1.1.4
 
