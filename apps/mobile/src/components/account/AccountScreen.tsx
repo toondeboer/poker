@@ -341,7 +341,14 @@ export function AccountScreen() {
     </Card>
   );
 
-  const emailForm = !showEmail ? null : (
+  /**
+   * **Not while the code card is up.** `content` switches to "check your email"
+   * once a sign-up is awaiting confirmation, and this used to keep rendering
+   * underneath it — so the screen asked for a code and still showed the email
+   * and password that had just been submitted, with a Create-an-account button
+   * that would start the whole thing again.
+   */
+  const emailForm = !showEmail || awaitingCode ? null : (
     <Card>
       <CardHeader icon="mail" title="Email and password" />
       <CardContent>
