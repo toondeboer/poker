@@ -423,6 +423,16 @@ export class PokerStack extends Stack {
           attributeMapping: {
             email: ProviderAttribute.GOOGLE_EMAIL,
             givenName: ProviderAttribute.GOOGLE_GIVEN_NAME,
+            /**
+             * **The account-linking trigger refuses to link without this**, and
+             * it is not decoration on either side. Cognito only passes a
+             * federated attribute to a trigger if it is *mapped*, so leaving
+             * this out means `email_verified` is simply absent from the event —
+             * and the trigger, correctly, treats absent as unverified and
+             * declines to link. The result is the silent duplicate account the
+             * whole trigger exists to prevent.
+             */
+            emailVerified: ProviderAttribute.GOOGLE_EMAIL_VERIFIED,
           },
         }),
         new UserPoolIdentityProviderApple(this, "Apple", {
@@ -434,6 +444,9 @@ export class PokerStack extends Stack {
           scopes: ["email", "name"],
           attributeMapping: {
             email: ProviderAttribute.APPLE_EMAIL,
+            // See the note on Google above: unmapped means absent from the
+            // trigger event, which the trigger reads as unverified.
+            emailVerified: ProviderAttribute.APPLE_EMAIL_VERIFIED,
           },
         }),
       );

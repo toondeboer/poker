@@ -80,7 +80,7 @@ export type ExistingUser = {
 /** What to do about this sign-up. */
 export type LinkDecision =
   /** Let Cognito create the user as it normally would. */
-  | { action: "allow" }
+  | { action: "allow"; why: AllowReason }
   /**
    * Attach this provider identity to `username`, an account that already
    * exists, so the two share one `sub`.
@@ -146,6 +146,22 @@ export const canonicalProvider = (prefix: string): string | null => {
  * normally none, sometimes one, and more than one only if a previous version of
  * this let it happen.
  */
+/**
+ * Why a sign-up was allowed through untouched.
+ *
+ * **Carried so the quiet path is not silent.** Every interesting outcome here
+ * logs, and `allow` did not — so a trigger that ran, decided not to link, and
+ * returned looked exactly like a trigger that never fired. Diagnosing the
+ * missing `email_verified` mapping meant proving invocation from CloudWatch
+ * metrics because the logs said nothing at all.
+ */
+export type AllowReason =
+  | "not-federated"
+  | "no-email"
+  | "email-unverified"
+  | "unknown-provider"
+  | "no-account-to-link";
+
 export const decideLink = (
   event: PreSignUpEvent,
   existing: readonly ExistingUser[],
@@ -156,7 +172,7 @@ export const decideLink = (
   // No address, nothing to match on. A federated identity without one is
   // unusual but not wrong — it gets its own account, which is the honest
   // outcome of knowing nothing that ties it to another.
-  if (!email) return { action: "allow" };
+  if (!email) return { action: "allow", why: "no-email" };
 
   if (!federated) {
     // Ordinary sign-up. Refuse only when the address already belongs to a
@@ -169,7 +185,7 @@ export const decideLink = (
         reason: `You already have an account with this email. Sign in with ${provider.origin} instead.`,
       };
     }
-    return { action: "allow" };
+    return { action: "allow", why: "not-federated" };
   }
 
   /**
@@ -178,14 +194,14 @@ export const decideLink = (
    * controls it. Missing counts as unverified.
    */
   if (event.request?.userAttributes?.email_verified !== "true") {
-    return { action: "allow" };
+    return { action: "allow", why: "email-unverified" };
   }
 
   const parsed = parseFederatedUsername(event.userName);
-  if (!parsed) return { action: "allow" };
+  if (!parsed) return { action: "allow", why: "unknown-provider" };
 
   const native = existing.find((user) => user.origin === "native");
-  if (!native) return { action: "allow" };
+  if (!native) return { action: "allow", why: "no-account-to-link" };
 
   return {
     action: "link",
@@ -311,6 +327,18 @@ export const handler = async (
   }
 
   const decision = decideLink(event, existing);
+
+  if (decision.action === "allow") {
+    // **Every decision says something.** Nothing here is noisy — a sign-up is
+    // rare — and the alternative is what happened once already: a trigger that
+    // ran and declined to link was indistinguishable in the logs from one that
+    // never fired at all.
+    log("info", "sign-up allowed without linking", {
+      why: decision.why,
+      triggerSource: event.triggerSource,
+      matches: existing.length,
+    });
+  }
 
   if (decision.action === "refuse") {
     log("warn", "sign-up refused", { reason: decision.reason });

@@ -47,6 +47,26 @@ describe("signing in with Apple and Google", () => {
     expect(providers).not.toContain("OIDC");
   });
 
+  it("maps email_verified, without which nothing ever links", () => {
+    // **Cognito only passes a federated attribute to a trigger if it is
+    // mapped.** Unmapped, `email_verified` is absent from the PreSignUp event —
+    // and the linking trigger correctly reads absent as unverified and
+    // declines. The result is the silent duplicate account the trigger exists
+    // to prevent, with nothing in the logs to say so. Observed on a real Apple
+    // sign-in against dev on 2026-09-06.
+    const mappings = Object.values(
+      configured().findResources("AWS::Cognito::UserPoolIdentityProvider"),
+    ).map(
+      (p) =>
+        (p.Properties as { AttributeMapping?: Record<string, string> })
+          .AttributeMapping ?? {},
+    );
+    expect(mappings).toHaveLength(2);
+    for (const mapping of mappings) {
+      expect(mapping.email_verified).toBeDefined();
+    }
+  });
+
   it("takes both secrets from Secrets Manager, never the template", () => {
     // Parameter Store cannot do this job: `ssm-secure` is only honoured in a
     // fixed list of resource properties and Cognito is not on it, so the
