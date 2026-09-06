@@ -17,7 +17,10 @@
       "dev": true,
       "prod": true
     },
-    "googleClientId": "297500120995-h5f8t8dqsrkmbvaast1og9p0cmhegrro.apps.googleusercontent.com",
+    "googleClientId": {
+      "prod": "297500120995-h5f8t8dqsrkmbvaast1og9p0cmhegrro.apps.googleusercontent.com",
+      "dev": "297500120995-9q1nhlar6ujun5h8av0o6p3b7vng7chb.apps.googleusercontent.com"
+    },
     "appleServicesId": {
       "prod": "com.toondeboer.pokerkit.signin",
       "dev": "com.toondeboer.pokerkit.signin.dev"

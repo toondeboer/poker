@@ -378,6 +378,11 @@ platform-tagged heading (e.g. `## [1.1.3] - 2026-07-20 — Android`) when you cu
   which is what turns those features from code into something you can use.
 
 ### Fixed
+- Accounts: signing in as a different person on the same phone no longer tries to move the previous
+  account's boards over to them. It used to produce two red errors that contradicted each other —
+  "the board was not created: group exists" beside "a player was not added: no such group" — and the
+  board then quietly stopped syncing. Boards now stay with the account that put them on the server,
+  and a board made before you ever signed in still belongs to whoever signs in first.
 - Accounts: the sign-up screen no longer shows the email and password fields underneath the "check
   your email" step, where a second Create-an-account button invited starting the whole thing again.
 - Leaderboard: a board you delete stays deleted. Creating another board, joining one by link, or
