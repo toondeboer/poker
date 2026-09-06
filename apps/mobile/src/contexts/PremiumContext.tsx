@@ -14,7 +14,7 @@ import { revenueCatProvider } from "@/src/services/revenueCatProvider";
 // real purchases aren't testable in the Simulator without StoreKit Testing +
 // RevenueCat dashboard setup. Never true in a release build since __DEV__ is
 // false there regardless of this literal.
-const FORCE_PRO_IN_DEV: boolean = __DEV__ && true;
+const FORCE_PRO_IN_DEV: boolean = __DEV__ && false;
 // Flip to true to force the free/ad experience locally, bypassing the real
 // RevenueCat entitlement check — useful when the Apple/Google account signed
 // into the test device already owns `pro_lifetime` (a one-time purchase, so
