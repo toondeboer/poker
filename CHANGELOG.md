@@ -378,6 +378,8 @@ platform-tagged heading (e.g. `## [1.1.3] - 2026-07-20 — Android`) when you cu
   which is what turns those features from code into something you can use.
 
 ### Fixed
+- Accounts: the sign-up screen no longer shows the email and password fields underneath the "check
+  your email" step, where a second Create-an-account button invited starting the whole thing again.
 - Leaderboard: a board you delete stays deleted. Creating another board, joining one by link, or
   simply letting a pull discover a board you are on wiped the record of what had been deleted — so
   the next time the app came to the foreground, every board you had ever removed came back, and

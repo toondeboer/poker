@@ -83,6 +83,9 @@ describe("the provider's name as Cognito registered it", () => {
     // Linking to a name nothing registered cannot succeed, and guessing at the
     // capitalisation of a provider added later is how this breaks again.
     expect(parseFederatedUsername("Facebook_123")).toBeNull();
+    expect(
+      decideLink(federated({ userName: "Facebook_123" }), [nativeUser]),
+    ).toEqual({ action: "allow", why: "unknown-provider" });
   });
 
   it("still links with the corrected name end to end", () => {
@@ -111,14 +114,20 @@ describe("a provider arriving for somebody who already has a password", () => {
   });
 
   it("allows a brand-new person through untouched", () => {
-    expect(decideLink(federated(), [])).toEqual({ action: "allow" });
+    expect(decideLink(federated(), [])).toEqual({
+      action: "allow",
+      why: "no-account-to-link",
+    });
   });
 
   it("does not link a second provider onto the first", () => {
     // Two providers for one address is not this trigger's business — there is
     // no native account to be the destination, and picking one federated
     // account to absorb another is a decision nothing here is entitled to make.
-    expect(decideLink(federated(), [googleUser])).toEqual({ action: "allow" });
+    expect(decideLink(federated(), [googleUser])).toEqual({
+      action: "allow",
+      why: "no-account-to-link",
+    });
   });
 });
 
@@ -132,14 +141,20 @@ describe("the email_verified guard", () => {
         userAttributes: { email: "ann@example.com", email_verified: "false" },
       },
     });
-    expect(decideLink(unverified, [nativeUser])).toEqual({ action: "allow" });
+    expect(decideLink(unverified, [nativeUser])).toEqual({
+      action: "allow",
+      why: "email-unverified",
+    });
   });
 
   it("treats a missing claim as unverified", () => {
     const absent = federated({
       request: { userAttributes: { email: "ann@example.com" } },
     });
-    expect(decideLink(absent, [nativeUser])).toEqual({ action: "allow" });
+    expect(decideLink(absent, [nativeUser])).toEqual({
+      action: "allow",
+      why: "email-unverified",
+    });
   });
 
   it("is not satisfied by a truthy-looking value", () => {
@@ -151,7 +166,10 @@ describe("the email_verified guard", () => {
           userAttributes: { email: "ann@example.com", email_verified: value },
         },
       });
-      expect(decideLink(odd, [nativeUser])).toEqual({ action: "allow" });
+      expect(decideLink(odd, [nativeUser])).toEqual({
+        action: "allow",
+        why: "email-unverified",
+      });
     }
   });
 });
@@ -167,20 +185,29 @@ describe("a password sign-up for an address a provider already owns", () => {
   });
 
   it("allows an ordinary sign-up for an address nobody has", () => {
-    expect(decideLink(native(), [])).toEqual({ action: "allow" });
+    expect(decideLink(native(), [])).toEqual({
+      action: "allow",
+      why: "not-federated",
+    });
   });
 
   it("allows one for an address only a native account has", () => {
     // Cognito's own duplicate-email handling owns this case; refusing here
     // would change an error it already reports well into a different one.
-    expect(decideLink(native(), [nativeUser])).toEqual({ action: "allow" });
+    expect(decideLink(native(), [nativeUser])).toEqual({
+      action: "allow",
+      why: "not-federated",
+    });
   });
 });
 
 describe("an event with no email at all", () => {
   it("is allowed rather than guessed at", () => {
     const anonymous = federated({ request: { userAttributes: {} } });
-    expect(decideLink(anonymous, [nativeUser])).toEqual({ action: "allow" });
+    expect(decideLink(anonymous, [nativeUser])).toEqual({
+      action: "allow",
+      why: "no-email",
+    });
   });
 });
 
