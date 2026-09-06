@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  boardBelongsToAnotherAccount,
   boardIsVisible,
   entitlementsFrom,
   boardSyncs,
@@ -161,5 +162,60 @@ describe("what a purchase grants", () => {
       // Their Pro survives the subscription ending; that is what they paid for.
       ownsProOutright: true,
     });
+  });
+});
+
+describe("whose board is it, on the server", () => {
+  it("is somebody else's when a different account owns it", () => {
+    // The case that produced two contradictory-looking refusals on one screen:
+    // `createGroup` refused "group exists" — it does, under the other account —
+    // and every player behind it refused "no such group", because this account
+    // cannot see it.
+    expect(
+      boardBelongsToAnotherAccount({ ownerAccountId: "acct-a", accountId: "acct-b" }),
+    ).toBe(true);
+  });
+
+  it("is not somebody else's when the same account owns it", () => {
+    expect(
+      boardBelongsToAnotherAccount({ ownerAccountId: "acct-a", accountId: "acct-a" }),
+    ).toBe(false);
+  });
+
+  it("is adoptable when nobody owns it yet", () => {
+    // A board made offline, or made before this field existed. Answering `true`
+    // would strand every board on an upgraded install.
+    expect(
+      boardBelongsToAnotherAccount({ ownerAccountId: undefined, accountId: "acct-a" }),
+    ).toBe(false);
+  });
+
+  it("is not somebody else's merely because nobody is signed in", () => {
+    // Nothing is going to be sent anyway, and `true` here would have the UI
+    // describe a board as another person's purely for want of a session.
+    expect(
+      boardBelongsToAnotherAccount({ ownerAccountId: "acct-a", accountId: null }),
+    ).toBe(false);
+  });
+});
+
+describe("a board that belongs to another account", () => {
+  it("does not sync, even for a subscriber", () => {
+    // **Club is not permission to re-home somebody else's board.** Without this
+    // the outbox re-announces the previous account's boards on every launch.
+    expect(
+      boardSyncs({ hasClub: true, isOnServer: true, belongsToAnotherAccount: true }),
+    ).toBe(false);
+    expect(
+      boardSyncs({ hasClub: true, isOnServer: false, belongsToAnotherAccount: true }),
+    ).toBe(false);
+  });
+
+  it("behaves exactly as before when ownership is not passed", () => {
+    // The flag defaults to false so an untaught caller is unchanged rather than
+    // silently stranding every board.
+    expect(boardSyncs({ hasClub: false, isOnServer: true })).toBe(true);
+    expect(boardSyncs({ hasClub: true, isOnServer: false })).toBe(true);
+    expect(boardSyncs({ hasClub: false, isOnServer: false })).toBe(false);
   });
 });

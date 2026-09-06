@@ -396,6 +396,46 @@ describe("reading a grouped board back", () => {
     expect("knockouts" in loaded.groups[0].results[0]).toBe(false);
   });
 
+  it("carries which account a board is on the server under", async () => {
+    // **Useless unless it survives a relaunch.** It is what stops a board being
+    // re-announced under a second account signed in on the same phone — and
+    // that re-announce happens on launch, so a field that did not persist would
+    // protect nothing at all.
+    const raw = grouped({
+      groups: [
+        {
+          group: { id: "g1", name: "Thursday", createdAt: 1 },
+          players: [],
+          results: [],
+          role: "admin",
+          ownerAccountId: "acct-a",
+        },
+      ],
+      activeGroupId: "g1",
+    });
+    const loaded = await seeded(raw).loadLeaderboard();
+    expect(loaded.groups[0].ownerAccountId).toBe("acct-a");
+  });
+
+  it("leaves the owner absent for a board nobody has synced", async () => {
+    // Absent means adoptable by the first account that syncs it. Storing an
+    // empty string instead would make an upgraded install look owned by nobody
+    // in particular, and strand every board on it.
+    const raw = grouped({
+      groups: [
+        {
+          group: { id: "g1", name: "Thursday", createdAt: 1 },
+          players: [],
+          results: [],
+          ownerAccountId: "",
+        },
+      ],
+      activeGroupId: "g1",
+    });
+    const loaded = await seeded(raw).loadLeaderboard();
+    expect("ownerAccountId" in loaded.groups[0]).toBe(false);
+  });
+
   it("re-points a selection at a group that didn't survive", async () => {
     // Otherwise the app opens on an empty board indistinguishable from a real
     // one, with no way for the user to tell anything was lost.
