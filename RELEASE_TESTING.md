@@ -96,9 +96,23 @@ A fix landing never upgrades a row on its own: ❌ becomes 🔧, and only a re-t
       +export const backendConfig: BackendConfig | null = DEV_BACKEND;
       ```
 
-      **Put it back before the build is cut**, or the release ships pointing at a stack whose whole
-      purpose is being thrown away. `git diff apps/mobile/src/services/backendConfig.ts` before
-      `eas build` is the check.
+      **Put both testing toggles back before the build is cut.** There are two, and checking only
+      the first is how one of them ships:
+
+      | File | Testing value | Must ship as |
+      | --- | --- | --- |
+      | `src/services/backendConfig.ts` | `DEV_BACKEND` | **`PROD_BACKEND`** |
+      | `src/contexts/PremiumContext.tsx` | `__DEV__ && true` | `__DEV__ && false` |
+
+      ```bash
+      git status --short apps/mobile/src   # must be empty before `eas build`
+      ```
+
+      **A clean `git diff` is not proof.** These reached `release/1.2.0` once already, staged by a
+      `git add -A` run while they were flipped — at which point the very check this step describes
+      comes back clean because the change is committed rather than pending. `git status` on the
+      working tree only catches the uncommitted case; the committed case needs the table above read
+      against the branch.
 - [⬜] **Run §17, the kill switch, against prod rather than dev**, since that is the one section
       whose whole point is the production stack answering. `curl https://poker-api.toondeboer.com/config`
       should say `{"accounts":true,"sharing":true}` — it did on 2026-09-04.
