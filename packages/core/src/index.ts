@@ -369,6 +369,19 @@ export type {
   SyncQueue,
 } from "./sync/pendingWrites";
 export {
+  authorizeUrl,
+  hostedTokensFrom,
+  isValidCodeVerifier,
+  readRedirect,
+  tokenExchangeCall,
+  HOSTED_SCOPES,
+} from "./auth/hostedUi";
+export type {
+  HostedProvider,
+  HostedUiConfig,
+  RedirectResult,
+} from "./auth/hostedUi";
+export {
   cancel,
   cancelBoard,
   clearBoardRefusals,
