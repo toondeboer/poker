@@ -11,15 +11,17 @@ import {
   signUpCall,
   tokensFrom,
   accountFromIdToken,
+  hostedTokensFrom,
+  tokenExchangeCall,
   type Account,
   type AuthProvider,
   type CognitoCall,
-  type CognitoConfig,
   type CognitoError,
   type CognitoTokens,
   type SignUpResult,
 } from "@poker/core";
-import { backendConfig } from "@/src/services/backendConfig";
+import { backendConfig, type BackendConfig } from "@/src/services/backendConfig";
+import { AUTH_REDIRECT_URI } from "@/src/services/socialSignIn";
 import { asyncStorageAdapter } from "@/src/services/storageAdapter";
 import { logger } from "@/src/utils/logger";
 
@@ -122,7 +124,10 @@ const forgetTokens = () => asyncStorageAdapter.multiRemove([TOKENS_KEY]);
  * the trade there is written up in `@poker/core`'s `cognito.ts`.
  */
 export const createCognitoAuthProvider = (
-  config: CognitoConfig,
+  // `BackendConfig`, not `CognitoConfig`: federated sign-in needs the hosted
+  // OAuth domain, which is a different host from the pool's own API and cannot
+  // be derived from the pool id.
+  config: BackendConfig,
 ): AuthProvider & {
   /** A valid access token, refreshing first if it is close to expiring. */
   accessToken: () => Promise<string | null>;
@@ -160,6 +165,43 @@ export const createCognitoAuthProvider = (
     async signIn(email: string, password: string): Promise<Account> {
       const body = await send(signInCall(config, email.trim(), password));
       const tokens = tokensFrom(body, Date.now());
+      if (!tokens) throw new CognitoFailure("unknown");
+      await writeTokens(tokens);
+      const account = accountFromIdToken(tokens.idToken);
+      if (!account) throw new CognitoFailure("unknown");
+      return account;
+    },
+
+    /**
+     * Finish a hosted-UI sign-in.
+     *
+     * The browser half — opening the provider, waiting for the redirect,
+     * checking the state — belongs to `socialSignIn.ts`, because it is
+     * platform work. What lands here is the code it came back with, and from
+     * this point on a federated sign-in and a password sign-in are the same
+     * thing: exchange, store, decode, return an `Account`.
+     *
+     * **The exchange answers a different shape from every other call here**,
+     * so it needs `hostedTokensFrom` rather than `tokensFrom` — the pool's own
+     * API returns `{AuthenticationResult: {…}}` and the OAuth endpoint returns
+     * flat snake_case. Passing one to the other's parser returns `null`, which
+     * is indistinguishable from a refused sign-in.
+     */
+    async signInWithProvider({
+      code,
+      codeVerifier,
+    }: {
+      code: string;
+      codeVerifier: string;
+    }): Promise<Account> {
+      const body = await send(
+        tokenExchangeCall(
+          config,
+          { domain: config.authDomain, redirectUri: AUTH_REDIRECT_URI },
+          { code, codeVerifier },
+        ),
+      );
+      const tokens = hostedTokensFrom(body, Date.now());
       if (!tokens) throw new CognitoFailure("unknown");
       await writeTokens(tokens);
       const account = accountFromIdToken(tokens.idToken);

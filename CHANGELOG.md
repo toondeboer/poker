@@ -358,6 +358,13 @@ platform-tagged heading (e.g. `## [1.1.3] - 2026-07-20 — Android`) when you cu
   corrupt-value and storage-unavailable fallbacks in every loader, the shared store/entitlement ids,
   and blind-maths edges at the top and bottom of the chip ladder.
 
+### Added
+- **Sign in with Apple or Google.** Two taps instead of typing an address, waiting for a code and
+  typing that too — the providers have already checked the address, so there is nothing to confirm.
+  Email and password is still there behind *Use email instead*, and signing in either way lands on
+  the same account: somebody who created one with a password and later taps Continue with Google
+  finds their boards and their season where they left them.
+
 ### Changed
 - **Signing in a different way finds the same account.** Somebody who created an account with an
   email and password and later signs in with Apple or Google lands on the account they already

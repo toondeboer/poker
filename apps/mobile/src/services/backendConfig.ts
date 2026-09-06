@@ -34,6 +34,15 @@ import type { CognitoConfig } from "@poker/core";
 export type BackendConfig = CognitoConfig & {
   /** The HTTP API's base URL, without a trailing slash. */
   apiUrl: string;
+  /**
+   * Cognito's hosted OAuth endpoint, without a trailing slash.
+   *
+   * **A different host from the pool's own API**, which is why it is stored
+   * rather than derived: the pool answers at
+   * `cognito-idp.<region>.amazonaws.com`, and this is a chosen global prefix
+   * with no relationship to the pool id. Only federated sign-in uses it.
+   */
+  authDomain: string;
 };
 
 /**
@@ -55,6 +64,7 @@ export const DEV_BACKEND: BackendConfig = {
   region: "us-east-1",
   userPoolId: "us-east-1_6iwLdpBIy",
   clientId: "2lahhup3m7il6iqusctitu6lbc",
+  authDomain: "https://pokerkit-dev.auth.us-east-1.amazoncognito.com",
   /**
    * **A name we own, not the generated one.**
    *
@@ -86,6 +96,7 @@ export const PROD_BACKEND: BackendConfig = {
   //     --query 'Stacks[0].Outputs'
   userPoolId: "us-east-1_vJMiOQqvI",
   clientId: "3qj1r450ssj3jba0g57dd8jnga",
+  authDomain: "https://pokerkit.auth.us-east-1.amazoncognito.com",
   // A name we own rather than the generated `execute-api` host, which is baked
   // into every shipped build and belongs to the API Gateway resource — recreate
   // the stack and every installed copy is permanently broken. See `hostNameFor`
