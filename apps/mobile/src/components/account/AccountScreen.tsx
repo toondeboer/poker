@@ -22,6 +22,8 @@ import {
   TABLET_MAX_WIDTH_SETTINGS,
 } from "@/src/theme";
 import { Button } from "@/src/components/ui/Button";
+import type { HostedProvider } from "@poker/core";
+import { signInWithProvider as signInWithProviderFlow } from "@/src/services/socialSignIn";
 import { Card, CardContent, CardHeader } from "@/src/components/ui/Card";
 import { TextField } from "@/src/components/ui/TextField";
 
@@ -73,6 +75,7 @@ export function AccountScreen() {
     busy,
     signUp,
     signIn,
+    signInWithProvider,
     confirmSignUp,
     resendCode,
     signOut,
@@ -98,6 +101,8 @@ export function AccountScreen() {
   const [error, setError] = useState<AuthError | null>(null);
   /** True between creating an account and the code from the email coming back. */
   const [awaitingCode, setAwaitingCode] = useState(false);
+  /** Email and password, revealed on request. Providers are the default. */
+  const [showEmail, setShowEmail] = useState(false);
   const [code, setCode] = useState("");
 
   // Never leave the previous user's address and a filled password field on
@@ -135,6 +140,27 @@ export function AccountScreen() {
   /**
    * Sign in, which either works or says why.
    */
+  /**
+   * Sign in through Apple or Google.
+   *
+   * **Cancelling is not an error.** Closing the sheet, or declining at the
+   * provider, both arrive here as `cancelled` — showing a red message for
+   * something somebody chose to do is how a sign-in screen feels broken.
+   */
+  const attemptProvider = async (provider: HostedProvider) => {
+    setError(null);
+    const result = await signInWithProviderFlow(provider);
+    if (result.status === "cancelled") return;
+    if (result.status === "failed") {
+      setError("failed");
+      return;
+    }
+    // `busy` belongs to the context, which sets it around the exchange. The
+    // browser half is not covered by it — the sheet is modal, so there is
+    // nothing behind it to disable.
+    setError(await signInWithProvider(result));
+  };
+
   const attemptSignIn = async () => {
     setError(await signIn(email, password));
   };
@@ -279,6 +305,46 @@ export function AccountScreen() {
           An account is optional. Everything works without one — it&apos;s for
           keeping your groups and leaderboards across phones.
         </Text>
+        {/*
+          **Providers first, and email behind a disclosure.** The emailed
+          confirmation code is the step most people abandon, and Apple and
+          Google have already checked the address. Signing in either way lands
+          on the same account — see the linking trigger in `apps/infra`.
+        */}
+        <Button
+          label="Continue with Apple"
+          icon="logo-apple"
+          onPress={() => void attemptProvider("SignInWithApple")}
+          disabled={busy}
+        />
+        <Button
+          label="Continue with Google"
+          icon="logo-google"
+          variant="secondary"
+          onPress={() => void attemptProvider("Google")}
+          disabled={busy}
+        />
+        {!showEmail ? (
+          <Button
+            label="Use email instead"
+            variant="secondary"
+            icon="mail-outline"
+            onPress={() => {
+              setShowEmail(true);
+              setError(null);
+            }}
+            disabled={busy}
+          />
+        ) : null}
+        {error ? <Text style={styles.error}>{MESSAGE[error]}</Text> : null}
+      </CardContent>
+    </Card>
+  );
+
+  const emailForm = !showEmail ? null : (
+    <Card>
+      <CardHeader icon="mail" title="Email and password" />
+      <CardContent>
         <TextField
           label="Email"
           value={email}
@@ -341,6 +407,7 @@ export function AccountScreen() {
         automaticallyAdjustKeyboardInsets={true}
       >
         {content}
+        {emailForm}
       </ScrollView>
     </View>
   );

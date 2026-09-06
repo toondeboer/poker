@@ -38,7 +38,8 @@
           "iosAppId": "ca-app-pub-9738048037268359~7123618601"
         }
       ],
-      "react-native-edge-to-edge"
+      "react-native-edge-to-edge",
+      "expo-web-browser"
     ],
     "extra": {
       "router": {},
@@ -55,7 +56,9 @@
         "usesNonExemptEncryption": false
       },
       "entitlements": {
-        "com.apple.security.application-groups": ["group.com.toondeboer.pokerkit"]
+        "com.apple.security.application-groups": [
+          "group.com.toondeboer.pokerkit"
+        ]
       }
     }
   }

@@ -571,6 +571,24 @@ the table can follow what is happening from across it.
 
 ## 14. Accounts · **new in 1.2.0, and never once run from the app**
 
+### 14b. Signing in with Apple and Google · **new, and never run**
+
+**Needs `backendConfig = DEV_BACKEND` and a rebuilt dev client** — `expo-web-browser` and
+`expo-crypto` are native, so a reloaded JS bundle talks to a binary that does not have them.
+
+| Row | iOS | Android |
+| --- | --- | --- |
+| **Continue with Apple** on a fresh install creates an account and signs in | ⬜ | ⬜ |
+| **Continue with Google** on a fresh install creates an account and signs in | ⬜ | ⬜ |
+| Signing out and back in with the same provider returns to the **same** account, not a new one | ⬜ | ⬜ |
+| **The linking case.** Sign up with email+password, sign out, then sign in with a provider on the *same address* — the boards and season are still there. This is the one that fails silently and looks exactly like data loss | ⬜ | ⬜ |
+| **Hide My Email** (Apple → "Hide My Email") signs in and gets its own account. Expected: it does *not* link to an existing one, because the relay address matches nothing | ⬜ | ⬜ |
+| Closing the provider sheet halfway leaves the screen usable, with **no red error** — cancelling is not a failure | ⬜ | ⬜ |
+| Declining at the provider does the same | ⬜ | ⬜ |
+| **Use email instead** reveals the email form, and email sign-in still works | ⬜ | ⬜ |
+| With the phone in aeroplane mode, tapping a provider says the network is unavailable rather than "that didn't work" | ⬜ | ⬜ |
+
+
 Every screen here was written, wired to Cognito and exercised from a script. **None of it has been
 used from inside the app**, which is a different thing — the script never mistyped a code, never
 backgrounded the phone mid-flow, and never had to find the entry point.

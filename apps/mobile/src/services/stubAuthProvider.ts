@@ -69,6 +69,18 @@ export const stubAuthProvider: AuthProvider = {
     // real provider, which is why the interface makes every provider answer.
   },
 
+  /**
+   * There is no provider to federate with, and pretending otherwise would make
+   * the account screen look tested when it is not.
+   *
+   * The real one exchanges a code the hosted UI handed back; a stub with no
+   * hosted UI has no code and cannot invent one that would mean anything. So
+   * it refuses, the same way it refuses anything else it cannot honestly do.
+   */
+  async signInWithProvider(): Promise<Account> {
+    throw new Error("signing in with a provider needs a real backend");
+  },
+
   async signIn(email: string): Promise<Account> {
     // No password check, because there is nothing to check it against. A real
     // provider rejects here; this one cannot, and pretending otherwise would

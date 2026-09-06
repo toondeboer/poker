@@ -108,6 +108,24 @@ export interface AuthProvider {
   confirmSignUp(email: string, code: string): Promise<void>;
   /** Send the code again, for the one that never arrived. */
   resendCode(email: string): Promise<void>;
+  /**
+   * Sign in through Apple or Google, given a code the hosted UI handed back.
+   *
+   * **One method on this interface rather than a path beside it.** Everything
+   * above `AuthProvider` — the screens, the context, the outbox that waits for
+   * a session — asks only whether there is an account. A second seam would
+   * make every one of those care *how* somebody signed in, and the answer is
+   * that they should not: a federated account and a password account are the
+   * same account, by design (see the linking trigger in `apps/infra`).
+   *
+   * The code, the verifier and the redirect come from the caller because
+   * opening a browser is a platform concern; this package has no way to do it
+   * and no business knowing it happened.
+   */
+  signInWithProvider(params: {
+    code: string;
+    codeVerifier: string;
+  }): Promise<Account>;
   signOut(): Promise<void>;
   /** Delete the account and everything the server holds for it. */
   deleteAccount(): Promise<void>;

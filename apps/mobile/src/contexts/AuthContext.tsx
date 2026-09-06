@@ -110,6 +110,17 @@ type AuthContextValue = {
   /** Send the code again. */
   resendCode: (email: string) => Promise<AuthError | null>;
   signIn: (email: string, password: string) => Promise<AuthError | null>;
+  /**
+   * Finish a hosted-UI sign-in with the code it handed back.
+   *
+   * Takes a code rather than opening the browser itself: opening it is
+   * platform work and lives in `socialSignIn.ts`, and a context that did both
+   * could not be reasoned about without a device.
+   */
+  signInWithProvider: (params: {
+    code: string;
+    codeVerifier: string;
+  }) => Promise<AuthError | null>;
   /** Resolves to an error when it failed, so the screen can say so. */
   signOut: () => Promise<AuthError | null>;
   deleteAccount: () => Promise<AuthError | null>;
@@ -256,6 +267,35 @@ export function AuthProviderContext({
     [attempt],
   );
 
+  const signInWithProvider = useCallback(
+    async (params: {
+      code: string;
+      codeVerifier: string;
+    }): Promise<AuthError | null> => {
+      setBusy(true);
+      try {
+        const account = await auth.signInWithProvider(params);
+        setAccount(account);
+        // Same as a password sign-in: the outbox has been waiting for a
+        // session, and nothing else tells it one arrived.
+        for (const listener of signInListeners) listener();
+        return null;
+      } catch (error) {
+        logger.error("Failed to sign in with a provider:", error);
+        // `network` survives as itself so the message can say the phone is
+        // offline rather than blaming the provider; everything else is
+        // `failed`, because a Cognito reason code means nothing to somebody
+        // who just tapped a button with an Apple logo on it.
+        return error instanceof CognitoFailure && error.reason === "network"
+          ? "network"
+          : "failed";
+      } finally {
+        setBusy(false);
+      }
+    },
+    [],
+  );
+
   /**
    * Run something that ends the session, reporting whether it worked.
    *
@@ -298,6 +338,7 @@ export function AuthProviderContext({
       busy,
       signUp,
       signIn,
+      signInWithProvider,
       confirmSignUp,
       resendCode,
       signOut,
@@ -309,6 +350,7 @@ export function AuthProviderContext({
       busy,
       signUp,
       signIn,
+      signInWithProvider,
       confirmSignUp,
       resendCode,
       signOut,
