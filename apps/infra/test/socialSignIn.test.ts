@@ -6,7 +6,7 @@ import { settingsFor } from "../lib/stage";
 
 /** The identifiers as `cdk.json` actually declares them. */
 const CONTEXT = {
-  googleClientId: "123-abc.apps.googleusercontent.com",
+  googleClientId: { prod: "prod-abc.apps.googleusercontent.com", dev: "dev-abc.apps.googleusercontent.com" },
   appleServicesId: {
     prod: "com.toondeboer.pokerkit.signin",
     dev: "com.toondeboer.pokerkit.signin.dev",
@@ -79,6 +79,19 @@ describe("signing in with Apple and Google", () => {
     // The values themselves are never in it.
     expect(rendered).not.toContain("BEGIN PRIVATE KEY");
     expect(rendered).not.toContain("ssm-secure");
+  });
+
+  it("gives each stage its own Google client", () => {
+    // **Both stages shared one client, and it did not fail quietly.** dev's
+    // Cognito sent Google the *prod* client id, whose allowed redirect list has
+    // no dev callback — so Google refused with `redirect_uri_mismatch` before
+    // sign-in, and the dev secret held prod's client secret to match.
+    const clientOf = (t: Template) =>
+      Object.values(t.findResources("AWS::Cognito::UserPoolIdentityProvider"))
+        .map((p) => p.Properties as { ProviderType: string; ProviderDetails: Record<string, string> })
+        .find((p) => p.ProviderType === "Google")?.ProviderDetails.client_id;
+    expect(clientOf(configured("prod"))).toBe("prod-abc.apps.googleusercontent.com");
+    expect(clientOf(configured("dev"))).toBe("dev-abc.apps.googleusercontent.com");
   });
 
   it("gives each stage its own Apple Services ID", () => {
