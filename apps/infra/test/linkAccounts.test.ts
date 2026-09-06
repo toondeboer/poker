@@ -58,6 +58,46 @@ describe("splitting a federated username", () => {
   });
 });
 
+describe("the provider's name as Cognito registered it", () => {
+  it("corrects the casing Cognito uses in the username", () => {
+    // **Observed, not guessed.** A real Apple sign-in against the dev pool on
+    // 2026-09-06 produced the username
+    // `signinwithapple_001004.951dcae980fd441fb4c4fbd2a30cd6d5.1603` — while
+    // the identity provider is registered as `SignInWithApple`.
+    // `AdminLinkProviderForUser` matches case-sensitively, so passing the
+    // prefix straight through fails, and the handler treats a failed link as
+    // allow-and-log — producing the silent duplicate this file exists to stop.
+    expect(parseFederatedUsername("signinwithapple_001004.abc.1603")).toEqual({
+      provider: "SignInWithApple",
+      sub: "001004.abc.1603",
+    });
+    expect(parseFederatedUsername("google_12345")).toEqual({
+      provider: "Google",
+      sub: "12345",
+    });
+    // Already correct stays correct.
+    expect(parseFederatedUsername("Google_12345")?.provider).toBe("Google");
+  });
+
+  it("refuses a provider this pool has not registered", () => {
+    // Linking to a name nothing registered cannot succeed, and guessing at the
+    // capitalisation of a provider added later is how this breaks again.
+    expect(parseFederatedUsername("Facebook_123")).toBeNull();
+  });
+
+  it("still links with the corrected name end to end", () => {
+    const decision = decideLink(federated({ userName: "signinwithapple_9" }), [
+      nativeUser,
+    ]);
+    expect(decision).toEqual({
+      action: "link",
+      to: "abc-123",
+      provider: "SignInWithApple",
+      providerSub: "9",
+    });
+  });
+});
+
 describe("a provider arriving for somebody who already has a password", () => {
   it("links the two rather than making a second account", () => {
     // The whole point. Without this the person signs in successfully and finds

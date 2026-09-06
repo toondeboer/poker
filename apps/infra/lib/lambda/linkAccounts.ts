@@ -106,7 +106,37 @@ export const parseFederatedUsername = (
   if (!userName) return null;
   const at = userName.indexOf("_");
   if (at <= 0 || at === userName.length - 1) return null;
-  return { provider: userName.slice(0, at), sub: userName.slice(at + 1) };
+  const provider = canonicalProvider(userName.slice(0, at));
+  if (!provider) return null;
+  return { provider, sub: userName.slice(at + 1) };
+};
+
+/**
+ * The provider's name **as Cognito registered it**, not as it appears in the
+ * username.
+ *
+ * **These are not the same string, and finding that out costs a duplicate
+ * account.** Cognito registers the provider as `SignInWithApple` and then names
+ * the shadow user `signinwithapple_001004.…` — lowercased. Observed, not
+ * guessed: that is the exact username a real Apple sign-in produced against
+ * the dev pool on 2026-09-06.
+ *
+ * `AdminLinkProviderForUser` matches `ProviderName` case-sensitively, so
+ * passing the username's prefix through fails. And it fails *quietly*: the
+ * handler treats a failed link as "allow and log", because a duplicate account
+ * is recoverable by hand and a sign-up nobody can complete is not — so the
+ * symptom is the exact silent duplicate this file exists to prevent.
+ *
+ * Matched case-insensitively against the providers this pool actually has.
+ * An unrecognised one returns `null` rather than being passed through: linking
+ * to a provider name nothing registered cannot succeed, and guessing at the
+ * capitalisation of a provider added later is how this breaks again.
+ */
+export const canonicalProvider = (prefix: string): string | null => {
+  const known = ["Google", "SignInWithApple"];
+  return (
+    known.find((name) => name.toLowerCase() === prefix.toLowerCase()) ?? null
+  );
 };
 
 /**
@@ -207,11 +237,25 @@ const realDirectory = (): Directory => ({
     return (answer.Users ?? []).flatMap((user) => {
       const username = user.Username;
       if (!username) return [];
-      // Cognito names a federated shadow user `<Provider>_<sub>`; anything
-      // else was created here. `identities` would be more direct and is not
-      // always populated on a list response.
-      const parsed = parseFederatedUsername(username);
-      return [{ username, origin: parsed ? parsed.provider : "native" }];
+      /**
+       * **Federated-or-not is a different question from which-provider**, and
+       * conflating them defeats the guard.
+       *
+       * `parseFederatedUsername` returns `null` for a provider this pool has
+       * not registered, because linking to a name nothing registered cannot
+       * succeed. Using it here would then classify that user as **native** —
+       * and a native-looking federated account is exactly what the "password
+       * onto provider: refuse" branch must not miss.
+       *
+       * So this asks only whether the username has a provider prefix at all,
+       * and keeps the raw one for the message. Cognito's own usernames here
+       * are generated UUIDs, which contain no underscore.
+       */
+      const at = username.indexOf("_");
+      const federated = at > 0 && at < username.length - 1;
+      return [
+        { username, origin: federated ? username.slice(0, at) : "native" },
+      ];
     });
   },
   async link({ userPoolId, username, provider, providerSub }) {
