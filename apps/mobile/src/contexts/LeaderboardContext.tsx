@@ -25,6 +25,7 @@ import {
   removeGroup,
   addBoard,
   boardFromRemote,
+  boardBelongsToAnotherAccount,
   boardSyncs,
   type PendingWrite,
   joinRefusal,
@@ -58,7 +59,7 @@ import { useGroupSync } from "@/src/hooks/useGroupSync";
 import { usePremium } from "@/src/contexts/PremiumContext";
 // Module-level, because `AuthProviderContext` is mounted *inside* this one —
 // the same reason `useGroupSync` reads the token this way.
-import { apiToken } from "@/src/contexts/AuthContext";
+import { apiToken, signedInAccountId } from "@/src/contexts/AuthContext";
 
 /** One group as the picker needs it: enough to list without loading a board. */
 export type GroupSummary = {
@@ -220,6 +221,7 @@ export function LeaderboardProvider({
   // Only the hosting entitlement is decided here. Pro decides what is *shown*,
   // which is the screens' business, and joining needs neither.
   const { hasClub } = usePremium();
+
   const sync = useGroupSync();
   // The stable half of it. `sync` itself changes whenever the queue does, and a
   // callback that depended on the object would be rebuilt on every write.
@@ -320,7 +322,25 @@ export function LeaderboardProvider({
        * optimistically instead would mean every free user's local board
        * collecting refusals on every cold launch.
        */
-      return boardSyncs({ hasClub, isOnServer: entry?.role !== undefined });
+      return boardSyncs({
+        hasClub,
+        isOnServer: entry?.role !== undefined,
+        /**
+         * **Somebody else's board is not ours to re-home.** Without this,
+         * signing in as a second account on the same phone re-announces the
+         * first account's boards: `createGroup` is refused "group exists" —
+         * it does, under the other account — and every player queued behind it
+         * is refused "no such group", because this account cannot see it.
+         */
+        belongsToAnotherAccount: boardBelongsToAnotherAccount({
+          ownerAccountId: entry?.ownerAccountId,
+          // **Read module-level, not from `useAuth`.** `AuthProvider` is
+          // mounted *inside* this one, so a hook here reads a context that does
+          // not exist yet — the same reason `apiToken` is exported this way and
+          // `claimPlayerAs` takes an id as an argument.
+          accountId: signedInAccountId(),
+        }),
+      });
     },
     [hasClub],
   );
@@ -336,6 +356,22 @@ export function LeaderboardProvider({
   );
 
 
+
+  /**
+   * Stamp a board with the account it is on the server under.
+   *
+   * Applied wherever the server has just confirmed a board *for this account* —
+   * a pull that returned it, or a link redeemed into it. That is the only
+   * moment ownership is actually known, and recording it is what stops the
+   * board being re-announced under a different account later.
+   *
+   * Signed out leaves it alone: nothing has been confirmed by anybody, and
+   * stamping `null` would strand the board for whoever signs in next.
+   */
+  const ownedByCurrentAccount = useCallback((board: GroupState): GroupState => {
+    const accountId = signedInAccountId();
+    return accountId ? { ...board, ownerAccountId: accountId } : board;
+  }, []);
 
   /**
    * Read every board back from the server and merge it in.
@@ -378,7 +414,14 @@ export function LeaderboardProvider({
         // Same constructor as the join path. The merge loop below walks the
         // boards that were here *before* this one, so a dropped role here
         // would survive an entire extra pull.
-        if (arrived) persist(addBoard(latestState.current, boardFromRemote(arrived)));
+        if (arrived) {
+          persist(
+            addBoard(
+              latestState.current,
+              ownedByCurrentAccount(boardFromRemote(arrived)),
+            ),
+          );
+        }
       }
 
       // **The boards that were here when this started**, not what is here now:
@@ -402,13 +445,15 @@ export function LeaderboardProvider({
         // Deleted while the request was in flight. Nothing to merge into, and
         // `replaceBoard` would ignore it anyway.
         if (!mine) continue;
-        persist(replaceBoard(current, mergeInto(mine, remote)));
+        persist(
+          replaceBoard(current, ownedByCurrentAccount(mergeInto(mine, remote))),
+        );
       }
     })();
     return () => {
       active = false;
     };
-  }, [pullsWanted, isLoading, listBoards, fetchBoard, mergeInto, persist]);
+  }, [pullsWanted, isLoading, listBoards, fetchBoard, mergeInto, persist, ownedByCurrentAccount]);
 
 
   /**
@@ -806,12 +851,14 @@ export function LeaderboardProvider({
       const mine = current.groups.find((entry) => entry.group.id === redeemed.groupId);
       // Merged when it is already here — redeeming a link for a board you are
       // on is ordinary — and taken whole when it is not.
-      const board = mine
+      const board = ownedByCurrentAccount(
+        mine
         ? sync.mergeInto(mine, remote)
         // Built in core, because spreading `remote.state` by hand drops the
         // `role` beside it — which is how a brand-new member ended up with a
         // share button that can only ever be refused.
-        : boardFromRemote(remote, redeemed.groupId);
+        : boardFromRemote(remote, redeemed.groupId),
+      );
       // Selected here rather than by `addBoard`, which no longer steals the
       // screen — but somebody who has just tapped a link is looking for this
       // board and nothing else.
@@ -827,7 +874,7 @@ export function LeaderboardProvider({
       sync.clearRefusals(redeemed.groupId);
       return { ok: true as const, name: board.group.name };
     },
-    [sync, persist],
+    [sync, persist, ownedByCurrentAccount],
   );
 
   const deleteGroup = useCallback(

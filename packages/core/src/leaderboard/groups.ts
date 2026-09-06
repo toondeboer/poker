@@ -58,6 +58,28 @@ export type GroupState = {
    * than hiding one somebody is allowed to take.
    */
   role?: "admin" | "member";
+  /**
+   * The account this board is on the server **under**.
+   *
+   * **A board belongs to whoever created it up there, and a phone can be signed
+   * into more than one account over its life.** Without this, signing out and
+   * signing in as somebody else leaves the previous account's boards trying to
+   * re-home themselves: the outbox re-announces a board the server already has,
+   * `createGroup` comes back *"group exists"* — it does, under the other
+   * account — and every player queued behind it comes back *"no such group"*,
+   * because the new account is not a member and the board is invisible to it.
+   * Both refusals are correct and the pair reads like a contradiction.
+   *
+   * Observed on 2026-09-06, switching from an iCloud account to a Google one on
+   * the same simulator, which is not an exotic path: a shared phone, or anybody
+   * who makes a second account, reaches it.
+   *
+   * `undefined` means *nobody yet* — a board made before signing in, or before
+   * this field existed. Those are adoptable by the first account that syncs
+   * them, which is what makes an upgrade from an older build behave sensibly
+   * rather than stranding every board it finds.
+   */
+  ownerAccountId?: string;
 };
 
 /**

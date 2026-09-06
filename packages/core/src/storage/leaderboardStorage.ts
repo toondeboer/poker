@@ -179,11 +179,19 @@ const coerceGroups = (raw: unknown, fallbackName: string): GroupState[] => {
     // Kept across launches so the share button does not flicker back on for a
     // board this account is only a member of, until the first pull lands.
     const role = entry.role === "admin" || entry.role === "member" ? entry.role : null;
+    // Which account this board is on the server under. Omitted rather than
+    // stored empty, so a board from before this existed reads back adoptable
+    // rather than owned by nobody in particular — see `GroupState`.
+    const ownerAccountId =
+      typeof entry.ownerAccountId === "string" && entry.ownerAccountId.length > 0
+        ? entry.ownerAccountId
+        : null;
     groups.push({
       group,
       players: coercePlayers(entry.players),
       results: coerceResults(entry.results),
       ...(role ? { role } : {}),
+      ...(ownerAccountId ? { ownerAccountId } : {}),
       // Omitted rather than stored empty, so a board that has never deleted
       // anything round-trips to the same shape it had before this existed.
       ...(deleted && (deleted.players.length > 0 || deleted.results.length > 0)

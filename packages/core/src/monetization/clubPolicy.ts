@@ -93,7 +93,44 @@ export const boardSyncs = (context: {
    * silently strands other people's boards.
    */
   isOnServer: boolean;
-}): boolean => context.hasClub || context.isOnServer;
+  /**
+   * Whether this board is on the server under **somebody else's account**.
+   *
+   * A phone can be signed into more than one account over its life, and a board
+   * belongs to whoever created it up there. Without this check, signing in as a
+   * second account re-announces the first one's boards: `createGroup` is
+   * refused *"group exists"* — it does, under the other account — and every
+   * player queued behind it is refused *"no such group"*, because the new
+   * account cannot see it. Both refusals are correct, and together they read
+   * like a contradiction.
+   *
+   * Defaults to `false` so a caller that has not been taught about ownership
+   * behaves exactly as before rather than silently stranding every board.
+   */
+  belongsToAnotherAccount?: boolean;
+}): boolean =>
+  !context.belongsToAnotherAccount && (context.hasClub || context.isOnServer);
+
+/**
+ * Is this board somebody else's, as far as the server is concerned?
+ *
+ * **Only a board that has actually reached the server has an owner.** One made
+ * offline, or made before this field existed, has `ownerAccountId` undefined
+ * and is adoptable by the first account that syncs it — which is what keeps an
+ * upgrade from an older build sensible instead of stranding every board on the
+ * device.
+ *
+ * Signed out (`accountId` null) is *not* somebody else's: nothing is going to
+ * be sent anyway, and answering `true` would make the UI describe a board as
+ * belonging to another person purely because nobody is signed in.
+ */
+export const boardBelongsToAnotherAccount = (context: {
+  ownerAccountId: string | undefined;
+  accountId: string | null;
+}): boolean =>
+  context.ownerAccountId !== undefined &&
+  context.accountId !== null &&
+  context.ownerAccountId !== context.accountId;
 
 /**
  * Whether a board can be looked at without Pro.

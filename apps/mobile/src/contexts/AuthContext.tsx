@@ -54,6 +54,22 @@ export const apiToken = (): Promise<string | null> =>
  * out — every write that returned *unreachable* for want of a token — sat there
  * after signing in until something else happened to poke it.
  */
+/**
+ * The signed-in account's id, readable **without** being inside the provider.
+ *
+ * Same reason `apiToken` is module-level: `AuthProvider` is mounted *inside*
+ * `LeaderboardProvider`, so a consumer there cannot call `useAuth()` at all —
+ * it would read a context that does not exist yet. That is also why
+ * `claimPlayerAs` takes an account id as an argument rather than reading one.
+ *
+ * `null` when signed out, which is not the same as "somebody else": a board is
+ * only somebody else's when a *different* account owns it, and nothing syncs
+ * while there is no session anyway.
+ */
+let currentAccountId: string | null = null;
+
+export const signedInAccountId = (): string | null => currentAccountId;
+
 const signInListeners = new Set<() => void>();
 
 /** Listen for that. Returns the unsubscribe. */
@@ -143,7 +159,19 @@ const AuthContext = createContext<AuthContextValue | null>(null);
 export function AuthProviderContext({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
-  const [account, setAccount] = useState<Account | null>(null);
+  const [account, setAccountState] = useState<Account | null>(null);
+  /**
+   * Set the account, and the module-level mirror with it.
+   *
+   * **Both, always** — a consumer outside this provider reads `currentAccountId`
+   * and would otherwise see a stale account for the rest of the session. Doing
+   * it here rather than during render keeps it out of the render pass, which
+   * `react-hooks` rejects as a side effect and is right to.
+   */
+  const setAccount = useCallback((next: Account | null) => {
+    currentAccountId = next?.id ?? null;
+    setAccountState(next);
+  }, []);
   const [isLoading, setIsLoading] = useState(true);
   const [busy, setBusy] = useState(false);
 
@@ -161,7 +189,7 @@ export function AuthProviderContext({
     return () => {
       active = false;
     };
-  }, []);
+  }, [setAccount]);
 
   // Fired from an effect rather than from each `setAccount` call site, so no
   // future way of becoming signed in can forget to announce itself.
@@ -197,7 +225,7 @@ export function AuthProviderContext({
         setBusy(false);
       }
     },
-    [],
+    [setAccount],
   );
 
   // Wrapped rather than passed as `auth.signUp`: an unbound method only works
@@ -224,7 +252,7 @@ export function AuthProviderContext({
         setBusy(false);
       }
     },
-    [],
+    [setAccount],
   );
 
   /** Wraps a call that neither signs in nor signs out — just succeeds or does not. */
@@ -293,7 +321,7 @@ export function AuthProviderContext({
         setBusy(false);
       }
     },
-    [],
+    [setAccount],
   );
 
   /**
@@ -318,7 +346,7 @@ export function AuthProviderContext({
         setBusy(false);
       }
     },
-    [],
+    [setAccount],
   );
 
   const signOut = useCallback(
