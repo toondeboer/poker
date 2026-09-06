@@ -47,7 +47,12 @@ import {
   AccountRecovery,
   UserPool,
   UserPoolClient,
+  OAuthScope,
+  ProviderAttribute,
+  UserPoolClientIdentityProvider,
   UserPoolEmail,
+  UserPoolIdentityProviderApple,
+  UserPoolIdentityProviderGoogle,
   UserPoolOperation,
 } from "aws-cdk-lib/aws-cognito";
 import {
@@ -67,6 +72,11 @@ import { PLAYER_NAMESPACE, TABLE_NAMESPACE } from "@poker/core";
 import { settingsFor, type StageSettings } from "./stage";
 import { domainFor } from "./apiDomain";
 import { mailFor } from "./mailIdentity";
+import {
+  APP_CALLBACK_URLS,
+  APP_LOGOUT_URLS,
+  socialSignInFor,
+} from "./socialSignIn";
 import { Observability, serviceMetric } from "./observability";
 import { MathExpression } from "aws-cdk-lib/aws-cloudwatch";
 import { Construct } from "constructs";
@@ -388,6 +398,47 @@ export class PokerStack extends Stack {
       },
     });
 
+    /**
+     * Sign in with Apple and Google, when the credentials are configured.
+     *
+     * **Built-in provider constructs, never `UserPoolIdentityProviderOidc`.**
+     * The OIDC one works, looks identical on the login screen, and bills every
+     * user on Cognito's 50-MAU federated tier instead of the 10,000-MAU one
+     * that includes social providers. There is nothing on the bill to catch it
+     * until it is already wrong.
+     */
+    const social = socialSignInFor(this, settings.stage);
+    // Typed as constructs because that is all this needs them for: the client
+    // names these providers by string, so it must be created after them.
+    const socialProviders: Construct[] = [];
+    if (social) {
+      socialProviders.push(
+        new UserPoolIdentityProviderGoogle(this, "Google", {
+          userPool,
+          clientId: social.google.clientId,
+          clientSecretValue: social.google.clientSecret,
+          // `email` is what the linking trigger matches on, and `openid` is
+          // what makes it an id token rather than an access token.
+          scopes: ["openid", "email", "profile"],
+          attributeMapping: {
+            email: ProviderAttribute.GOOGLE_EMAIL,
+            givenName: ProviderAttribute.GOOGLE_GIVEN_NAME,
+          },
+        }),
+        new UserPoolIdentityProviderApple(this, "Apple", {
+          userPool,
+          clientId: social.apple.servicesId,
+          teamId: social.apple.teamId,
+          keyId: social.apple.keyId,
+          privateKeyValue: social.apple.privateKey,
+          scopes: ["email", "name"],
+          attributeMapping: {
+            email: ProviderAttribute.APPLE_EMAIL,
+          },
+        }),
+      );
+    }
+
     const userPoolClient = new UserPoolClient(this, "MobileClient", {
       userPool,
       // A phone cannot keep a secret, so it does not get one.
@@ -408,10 +459,46 @@ export class PokerStack extends Stack {
        * use — and because a future federated or hosted-UI flow may want it.
        */
       authFlows: { userSrp: true, userPassword: true },
-      // No `oAuth` block: the app signs in through SRP, not a hosted UI. CDK
-      // fills an omitted `callbackUrls` with `https://example.com`, which is
-      // inert without a hosted-UI domain and a perfectly valid redirect target
-      // the moment one exists.
+      /**
+       * **Named redirects, because there is a hosted-UI domain now.**
+       *
+       * This used to have no `oAuth` block at all, on the grounds that the app
+       * signs in through SRP — with a note that CDK fills an omitted
+       * `callbackUrls` with `https://example.com`, harmless while no hosted UI
+       * existed and "a perfectly valid redirect target the moment one exists".
+       * One exists. So the default is replaced rather than left: an authorised
+       * redirect to a domain we do not own is somewhere an authorisation code
+       * can be delivered.
+       *
+       * The app's own scheme, so finishing at a provider reopens the app
+       * instead of stranding somebody in a browser tab.
+       *
+       * `authorizationCodeGrant` only. The implicit flow puts tokens in a URL
+       * fragment, where they reach browser history and any handler on the way
+       * back; the code flow hands over something single-use instead.
+       */
+      oAuth: {
+        flows: { authorizationCodeGrant: true, implicitCodeGrant: false },
+        scopes: [OAuthScope.OPENID, OAuthScope.EMAIL, OAuthScope.PROFILE],
+        callbackUrls: APP_CALLBACK_URLS,
+        logoutUrls: APP_LOGOUT_URLS,
+      },
+      /**
+       * Cognito first, then whatever is configured.
+       *
+       * Email and password stays on the list whether or not the providers are:
+       * it is what everybody who has an account today uses, and dropping it
+       * would sign all of them out.
+       */
+      supportedIdentityProviders: [
+        UserPoolClientIdentityProvider.COGNITO,
+        ...(social
+          ? [
+              UserPoolClientIdentityProvider.GOOGLE,
+              UserPoolClientIdentityProvider.APPLE,
+            ]
+          : []),
+      ],
       // Long enough that a monthly player is not signed out between game
       // nights; the access token stays short.
       refreshTokenValidity: Duration.days(90),
@@ -419,6 +506,16 @@ export class PokerStack extends Stack {
       idTokenValidity: Duration.hours(1),
       preventUserExistenceErrors: true,
     });
+    /**
+     * **The client names the providers, so they have to exist first.**
+     * CloudFormation infers no dependency from `supportedIdentityProviders` —
+     * it is a list of strings — and creating the client first fails with
+     * "identity provider Google does not exist", intermittently, because it is
+     * a race rather than a rule.
+     */
+    for (const provider of socialProviders) {
+      userPoolClient.node.addDependency(provider);
+    }
 
     /**
      * Everything else, in one table.
