@@ -47,9 +47,16 @@ import {
   AccountRecovery,
   UserPool,
   UserPoolClient,
+  OAuthScope,
+  ProviderAttribute,
+  UserPoolClientIdentityProvider,
   UserPoolEmail,
+  UserPoolIdentityProviderApple,
+  UserPoolIdentityProviderGoogle,
+  UserPoolOperation,
 } from "aws-cdk-lib/aws-cognito";
 import {
+  Policy,
   PolicyStatement,
   Role,
   ServicePrincipal,
@@ -65,6 +72,11 @@ import { PLAYER_NAMESPACE, TABLE_NAMESPACE } from "@poker/core";
 import { settingsFor, type StageSettings } from "./stage";
 import { domainFor } from "./apiDomain";
 import { mailFor } from "./mailIdentity";
+import {
+  APP_CALLBACK_URLS,
+  APP_LOGOUT_URLS,
+  socialSignInFor,
+} from "./socialSignIn";
 import { Observability, serviceMetric } from "./observability";
 import { MathExpression } from "aws-cdk-lib/aws-cloudwatch";
 import { Construct } from "constructs";
@@ -299,6 +311,134 @@ export class PokerStack extends Stack {
       deletionProtection: settings.deletionProtection,
     });
 
+    /**
+     * One person, one account, however they signed in.
+     *
+     * **Cognito does not merge identities**, so somebody who signed up with a
+     * password and later taps *Continue with Google* becomes a second, empty
+     * account — and since every board and claim is keyed by `sub`, their season
+     * looks deleted. `linkAccounts` is the `PreSignUp` trigger that attaches the
+     * provider identity to the account that already exists instead.
+     *
+     * **Attached unconditionally, not with the providers.** It costs nothing
+     * while nobody is federated — the `PreSignUp_SignUp` path only reads and
+     * allows — and wiring it at the same time as the first provider would mean
+     * the one deploy that introduces federated sign-in is also the one that
+     * introduces the thing protecting it. The order matters more than the
+     * saving.
+     */
+    const linkHandler = new NodejsFunction(this, "LinkAccounts", {
+      entry: path.join(__dirname, "lambda", "linkAccounts.ts"),
+      runtime: Runtime.NODEJS_20_X,
+      logGroup: new LogGroup(this, "LinkAccountsLogs", {
+        retention: settings.logRetention,
+        removalPolicy: RemovalPolicy.DESTROY,
+      }),
+      environment: functionEnvironment,
+      tracing: Tracing.ACTIVE,
+      bundling: handlerBundling,
+    });
+    userPool.addTrigger(UserPoolOperation.PRE_SIGN_UP, linkHandler);
+    /**
+     * Scoped to this pool, and to the two calls the trigger makes.
+     *
+     * **Attached as its own policy rather than through `addToRolePolicy`, and
+     * that is the whole reason this is three lines longer than it looks.** The
+     * pool depends on the function — it is the trigger — and CDK makes a
+     * function depend on its role's *default* policy, so putting a statement
+     * naming `userPoolArn` there closes the loop:
+     *
+     *     UserPool → LinkAccounts → LinkAccountsServiceRoleDefaultPolicy → UserPool
+     *
+     * `cdk synth` does not notice. `Template.fromStack` does, which is the only
+     * reason it was caught before a deploy failed on it.
+     *
+     * A separate `Policy` hangs off the same role without the function
+     * depending on it, so the cycle is gone and the permission stays scoped to
+     * this pool. The alternative — a `userpool/*` wildcard — has no cycle
+     * either and hands the trigger every pool in the account, which is a worse
+     * trade for a saving of one construct.
+     */
+    linkHandler.role?.attachInlinePolicy(
+      new Policy(this, "LinkAccountsPolicy", {
+        statements: [
+          new PolicyStatement({
+            actions: [
+              "cognito-idp:ListUsers",
+              "cognito-idp:AdminLinkProviderForUser",
+            ],
+            resources: [userPool.userPoolArn],
+          }),
+        ],
+      }),
+    );
+
+    /**
+     * Cognito's hosted OAuth endpoint.
+     *
+     * **Federated sign-in on a *user pool* cannot skip this.** There is no call
+     * that trades a Google or Apple id token for user-pool tokens — the phone
+     * opens this domain, the provider redirects back to `/oauth2/idpresponse`
+     * here, and Cognito mints its own tokens from that. (An *identity* pool
+     * does take a provider token directly, but it hands back AWS credentials
+     * rather than the pool tokens every route in this API authorises against.)
+     *
+     * So the domain has to exist **before** either provider can be configured:
+     * its callback URL is what gets pasted into Google Cloud Console and the
+     * Apple developer portal, and neither can be saved without it.
+     *
+     * The prefix is global across every AWS customer, not per account — which
+     * is why it is a chosen name rather than something derived. Separate
+     * prefixes per stage for the same reason the mail domains are separate: a
+     * dev callback must not be a valid redirect for the production pool.
+     */
+    const authDomain = userPool.addDomain("AuthDomain", {
+      cognitoDomain: {
+        domainPrefix: settings.stage === "prod" ? "pokerkit" : "pokerkit-dev",
+      },
+    });
+
+    /**
+     * Sign in with Apple and Google, when the credentials are configured.
+     *
+     * **Built-in provider constructs, never `UserPoolIdentityProviderOidc`.**
+     * The OIDC one works, looks identical on the login screen, and bills every
+     * user on Cognito's 50-MAU federated tier instead of the 10,000-MAU one
+     * that includes social providers. There is nothing on the bill to catch it
+     * until it is already wrong.
+     */
+    const social = socialSignInFor(this, settings.stage);
+    // Typed as constructs because that is all this needs them for: the client
+    // names these providers by string, so it must be created after them.
+    const socialProviders: Construct[] = [];
+    if (social) {
+      socialProviders.push(
+        new UserPoolIdentityProviderGoogle(this, "Google", {
+          userPool,
+          clientId: social.google.clientId,
+          clientSecretValue: social.google.clientSecret,
+          // `email` is what the linking trigger matches on, and `openid` is
+          // what makes it an id token rather than an access token.
+          scopes: ["openid", "email", "profile"],
+          attributeMapping: {
+            email: ProviderAttribute.GOOGLE_EMAIL,
+            givenName: ProviderAttribute.GOOGLE_GIVEN_NAME,
+          },
+        }),
+        new UserPoolIdentityProviderApple(this, "Apple", {
+          userPool,
+          clientId: social.apple.servicesId,
+          teamId: social.apple.teamId,
+          keyId: social.apple.keyId,
+          privateKeyValue: social.apple.privateKey,
+          scopes: ["email", "name"],
+          attributeMapping: {
+            email: ProviderAttribute.APPLE_EMAIL,
+          },
+        }),
+      );
+    }
+
     const userPoolClient = new UserPoolClient(this, "MobileClient", {
       userPool,
       // A phone cannot keep a secret, so it does not get one.
@@ -319,10 +459,46 @@ export class PokerStack extends Stack {
        * use — and because a future federated or hosted-UI flow may want it.
        */
       authFlows: { userSrp: true, userPassword: true },
-      // No `oAuth` block: the app signs in through SRP, not a hosted UI. CDK
-      // fills an omitted `callbackUrls` with `https://example.com`, which is
-      // inert without a hosted-UI domain and a perfectly valid redirect target
-      // the moment one exists.
+      /**
+       * **Named redirects, because there is a hosted-UI domain now.**
+       *
+       * This used to have no `oAuth` block at all, on the grounds that the app
+       * signs in through SRP — with a note that CDK fills an omitted
+       * `callbackUrls` with `https://example.com`, harmless while no hosted UI
+       * existed and "a perfectly valid redirect target the moment one exists".
+       * One exists. So the default is replaced rather than left: an authorised
+       * redirect to a domain we do not own is somewhere an authorisation code
+       * can be delivered.
+       *
+       * The app's own scheme, so finishing at a provider reopens the app
+       * instead of stranding somebody in a browser tab.
+       *
+       * `authorizationCodeGrant` only. The implicit flow puts tokens in a URL
+       * fragment, where they reach browser history and any handler on the way
+       * back; the code flow hands over something single-use instead.
+       */
+      oAuth: {
+        flows: { authorizationCodeGrant: true, implicitCodeGrant: false },
+        scopes: [OAuthScope.OPENID, OAuthScope.EMAIL, OAuthScope.PROFILE],
+        callbackUrls: APP_CALLBACK_URLS,
+        logoutUrls: APP_LOGOUT_URLS,
+      },
+      /**
+       * Cognito first, then whatever is configured.
+       *
+       * Email and password stays on the list whether or not the providers are:
+       * it is what everybody who has an account today uses, and dropping it
+       * would sign all of them out.
+       */
+      supportedIdentityProviders: [
+        UserPoolClientIdentityProvider.COGNITO,
+        ...(social
+          ? [
+              UserPoolClientIdentityProvider.GOOGLE,
+              UserPoolClientIdentityProvider.APPLE,
+            ]
+          : []),
+      ],
       // Long enough that a monthly player is not signed out between game
       // nights; the access token stays short.
       refreshTokenValidity: Duration.days(90),
@@ -330,6 +506,16 @@ export class PokerStack extends Stack {
       idTokenValidity: Duration.hours(1),
       preventUserExistenceErrors: true,
     });
+    /**
+     * **The client names the providers, so they have to exist first.**
+     * CloudFormation infers no dependency from `supportedIdentityProviders` —
+     * it is a list of strings — and creating the client first fails with
+     * "identity provider Google does not exist", intermittently, because it is
+     * a race rather than a rule.
+     */
+    for (const provider of socialProviders) {
+      userPoolClient.node.addDependency(provider);
+    }
 
     /**
      * Everything else, in one table.
@@ -1027,6 +1213,20 @@ export class PokerStack extends Stack {
     new CfnOutput(this, "UserPoolId", { value: userPool.userPoolId });
     new CfnOutput(this, "UserPoolClientId", {
       value: userPoolClient.userPoolClientId,
+    });
+    new CfnOutput(this, "AuthDomain", {
+      value: authDomain.baseUrl(),
+      description: "Cognito's hosted OAuth endpoint. Federated sign-in goes through it.",
+    });
+    new CfnOutput(this, "AuthCallbackUrl", {
+      /**
+       * **The value that gets pasted into Google and Apple**, published so it
+       * is read off the stack rather than assembled by hand from a domain and a
+       * path somebody half-remembers. A wrong redirect URI fails at the
+       * provider with a message that does not name the mismatch.
+       */
+      value: `${authDomain.baseUrl()}/oauth2/idpresponse`,
+      description: "Redirect URI to register with each identity provider.",
     });
     new CfnOutput(this, "TableName", { value: table.tableName });
     new CfnOutput(this, "EventApiDns", {
