@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   authorizeUrl,
   hostedTokensFrom,
+  isCancellation,
   isValidCodeVerifier,
   readRedirect,
   tokenExchangeCall,
@@ -225,5 +226,32 @@ describe("tokens out of the hosted UI's answer", () => {
     expect(hostedTokensFrom({ error: "invalid_grant" }, 0)).toBeNull();
     expect(hostedTokensFrom(null, 0)).toBeNull();
     expect(hostedTokensFrom("nope", 0)).toBeNull();
+  });
+});
+
+describe("telling a cancellation from a failure", () => {
+  it("accepts what each provider actually sends", () => {
+    // **Observed, not guessed.** Apple sends `user_cancelled_authorize` when
+    // somebody declines at the "continue to …" prompt — which produced "That
+    // didn't work. Try again in a moment." on a screen where nothing had gone
+    // wrong, because only the OAuth-standard `access_denied` was handled.
+    expect(isCancellation("access_denied")).toBe(true);
+    expect(isCancellation("user_cancelled_authorize")).toBe(true);
+    expect(isCancellation("user_cancelled")).toBe(true);
+  });
+
+  it("is not fooled by case or surrounding space", () => {
+    expect(isCancellation("Access_Denied")).toBe(true);
+    expect(isCancellation("  user_cancelled_authorize  ")).toBe(true);
+  });
+
+  it("leaves a real failure alone", () => {
+    // **Not widened to "anything containing cancel".** A misconfiguration is
+    // also an error string, and swallowing those as cancellations hides the
+    // failures actually worth showing somebody.
+    expect(isCancellation("redirect_uri_mismatch")).toBe(false);
+    expect(isCancellation("invalid_client")).toBe(false);
+    expect(isCancellation("server_error")).toBe(false);
+    expect(isCancellation("")).toBe(false);
   });
 });

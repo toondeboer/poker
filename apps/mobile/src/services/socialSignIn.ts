@@ -3,6 +3,7 @@ import * as Crypto from "expo-crypto";
 import * as WebBrowser from "expo-web-browser";
 import {
   authorizeUrl,
+  isCancellation,
   isValidCodeVerifier,
   readRedirect,
   type HostedProvider,
@@ -123,9 +124,12 @@ export const signInWithProvider = async (
 
   const redirect = readRedirect(result.url);
   if (redirect.status === "error") {
-    // `access_denied` is somebody declining at the provider, which reads as a
-    // cancellation to them and should here too.
-    if (redirect.error === "access_denied") return { status: "cancelled" };
+    // Declining at the provider reads as a cancellation to the person doing it,
+    // and should here too. **Which string means that is the provider's
+    // choice** — Google says `access_denied`, Apple says
+    // `user_cancelled_authorize` — so the list lives in core with tests rather
+    // than as a comparison here that only ever met one of them.
+    if (isCancellation(redirect.error)) return { status: "cancelled" };
     logger.warn("Provider refused the sign-in:", redirect.error);
     return { status: "failed", reason: redirect.error };
   }

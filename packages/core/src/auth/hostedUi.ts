@@ -145,6 +145,33 @@ export const readRedirect = (url: string): RedirectResult => {
 };
 
 /**
+ * Did the person simply change their mind?
+ *
+ * **Providers disagree about how to say so, and getting it wrong shows an
+ * error for something somebody chose to do.** The OAuth spec has
+ * `access_denied`, which is what Google sends; Apple sends
+ * `user_cancelled_authorize` — observed on 2026-09-07, declining at the
+ * "continue to …" prompt, which produced *"That didn't work. Try again in a
+ * moment."* on a screen where nothing had gone wrong.
+ *
+ * Matched against a named list rather than a substring, and deliberately not
+ * widened to "anything containing cancel": a provider misconfiguration is also
+ * an error string, and swallowing those as cancellations would hide exactly
+ * the failures worth surfacing.
+ */
+const CANCELLATIONS: readonly string[] = [
+  // OAuth's own, and what Google sends.
+  "access_denied",
+  // Apple, at the consent prompt.
+  "user_cancelled_authorize",
+  // Seen from other providers; harmless to accept and unambiguous by name.
+  "user_cancelled",
+];
+
+export const isCancellation = (error: string): boolean =>
+  CANCELLATIONS.includes(error.trim().toLowerCase());
+
+/**
  * The request that turns a code into tokens.
  *
  * Form-encoded rather than JSON — the OAuth token endpoint takes
