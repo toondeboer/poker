@@ -592,15 +592,23 @@ the table can follow what is happening from across it.
 
 | Row | iOS | Android |
 | --- | --- | --- |
-| **Continue with Apple** on a fresh install creates an account and signs in | ⬜ | ⬜ |
-| **Continue with Google** on a fresh install creates an account and signs in | ⬜ | ⬜ |
-| Signing out and back in with the same provider returns to the **same** account, not a new one | ⬜ | ⬜ |
-| **The linking case.** Sign up with email+password, sign out, then sign in with a provider on the *same address* — the boards and season are still there. This is the one that fails silently and looks exactly like data loss | ⬜ | ⬜ |
+| **Continue with Apple** on a fresh install creates an account and signs in | ✅ | ⬜ |
+| **Continue with Google** on a fresh install creates an account and signs in | ✅ | ⬜ |
+| Signing out and back in with the same provider returns to the **same** account, not a new one | ✅ | ⬜ |
+| **The linking case.** Sign up with email+password, sign out, then sign in with a provider on the *same address* — the boards and season are still there. This is the one that fails silently and looks exactly like data loss | ✅ | ⬜ |
 | 🚫 **Hide My Email** — needs a **second Apple ID**, and cannot be run with one. See below | ⬜ | ⬜ |
-| Closing the provider sheet halfway leaves the screen usable, with **no red error** — cancelling is not a failure | ⬜ | ⬜ |
-| Declining at the provider does the same | ⬜ | ⬜ |
-| **Use email instead** reveals the email form, and email sign-in still works | ⬜ | ⬜ |
-| With no network, tapping a provider opens the sheet and **Safari** reports being offline; dismissing it leaves no app error | ⬜ | ⬜ |
+| Closing the provider sheet halfway leaves the screen usable, with **no red error** — cancelling is not a failure | ✅ | ⬜ |
+| Declining at the provider does the same | 🔧 | ⬜ |
+| **Use email instead** reveals the email form, and email sign-in still works | ✅ | ⬜ |
+| With no network, tapping a provider opens the sheet and **Safari** reports being offline; dismissing it leaves no app error | ✅ | ⬜ |
+
+**🔧 Declining is fixed but not re-run.** It failed on 2026-09-07 — Apple sends
+`user_cancelled_authorize` and only `access_denied` was handled, so the screen said *"That didn't
+work. Try again in a moment."* about something somebody chose to do. Fixed in #219 and covered by
+unit tests, but **nobody has watched it on a device since**, which is the only way this row counts.
+
+**Everything ✅ above was run on the iOS Simulator on 2026-09-07**, against `DEV_BACKEND`. Android
+is untouched, and its OAuth redirect is a different path.
 
 **Hide My Email needs a second Apple ID, and the obvious way to test it does not work.**
 Apple offers the Share/Hide choice only on *first* authorization and remembers the answer
