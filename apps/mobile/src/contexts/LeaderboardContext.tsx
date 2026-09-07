@@ -26,6 +26,7 @@ import {
   addBoard,
   boardFromRemote,
   boardBelongsToAnotherAccount,
+  boardOwnershipUnknown,
   boardSyncs,
   type PendingWrite,
   joinRefusal,
@@ -332,6 +333,19 @@ export function LeaderboardProvider({
          * it does, under the other account — and every player queued behind it
          * is refused "no such group", because this account cannot see it.
          */
+        /**
+         * **On the server, and nobody has said whose.** The case the check
+         * below cannot see: ownership is only learned from a pull that
+         * succeeds for the signed-in account, and somebody else's board never
+         * pulls for this one — so it would never be stamped and would
+         * re-announce forever. Every board predating the field is here too.
+         * Self-healing: the real owner's next pull stamps it.
+         */
+        ownershipUnknown: boardOwnershipUnknown({
+          ownerAccountId: entry?.ownerAccountId,
+          accountId: signedInAccountId(),
+          isOnServer: entry?.role !== undefined,
+        }),
         belongsToAnotherAccount: boardBelongsToAnotherAccount({
           ownerAccountId: entry?.ownerAccountId,
           // **Read module-level, not from `useAuth`.** `AuthProvider` is

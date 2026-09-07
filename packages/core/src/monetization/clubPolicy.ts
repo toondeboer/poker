@@ -108,8 +108,45 @@ export const boardSyncs = (context: {
    * behaves exactly as before rather than silently stranding every board.
    */
   belongsToAnotherAccount?: boolean;
+  /**
+   * Whether the board is on the server but **nobody has said whose it is**.
+   *
+   * The case `belongsToAnotherAccount` alone cannot see, and the one that
+   * produced the bug. Ownership is only learned from a pull that succeeds *for
+   * the signed-in account* — and a board belonging to somebody else never pulls
+   * for the new account, so it is never stamped, `belongsToAnotherAccount`
+   * stays false, and it re-announces exactly as before. Every board that
+   * predates the field is in this state too.
+   *
+   * Unknown is therefore treated as **not ours**: the board waits rather than
+   * announcing itself. Self-healing rather than permanent — the account that
+   * really owns it does have a membership, so its next pull stamps it and
+   * syncing resumes, usually within seconds of coming to the foreground.
+   */
+  ownershipUnknown?: boolean;
 }): boolean =>
-  !context.belongsToAnotherAccount && (context.hasClub || context.isOnServer);
+  !context.belongsToAnotherAccount &&
+  !context.ownershipUnknown &&
+  (context.hasClub || context.isOnServer);
+
+/**
+ * Is this board on the server with no idea whose it is?
+ *
+ * Only true while somebody is signed in: signed out, nothing is sent anyway,
+ * and answering true would stop a board syncing for the person about to sign in
+ * and own it.
+ *
+ * A board that has never reached the server is not unknown — it is plainly
+ * local, and `hasClub` decides it.
+ */
+export const boardOwnershipUnknown = (context: {
+  ownerAccountId: string | undefined;
+  accountId: string | null;
+  isOnServer: boolean;
+}): boolean =>
+  context.accountId !== null &&
+  context.isOnServer &&
+  context.ownerAccountId === undefined;
 
 /**
  * Is this board somebody else's, as far as the server is concerned?
