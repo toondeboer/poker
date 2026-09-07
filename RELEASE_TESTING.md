@@ -600,7 +600,7 @@ the table can follow what is happening from across it.
 | Closing the provider sheet halfway leaves the screen usable, with **no red error** — cancelling is not a failure | ⬜ | ⬜ |
 | Declining at the provider does the same | ⬜ | ⬜ |
 | **Use email instead** reveals the email form, and email sign-in still works | ⬜ | ⬜ |
-| With the phone in aeroplane mode, tapping a provider says the network is unavailable rather than "that didn't work" | ⬜ | ⬜ |
+| With no network, tapping a provider opens the sheet and **Safari** reports being offline; dismissing it leaves no app error | ⬜ | ⬜ |
 
 
 Every screen here was written, wired to Cognito and exercised from a script. **None of it has been

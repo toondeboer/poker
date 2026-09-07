@@ -373,6 +373,7 @@ export type {
 export {
   authorizeUrl,
   hostedTokensFrom,
+  isCancellation,
   isValidCodeVerifier,
   readRedirect,
   tokenExchangeCall,
