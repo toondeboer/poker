@@ -379,7 +379,8 @@ platform-tagged heading (e.g. `## [1.1.3] - 2026-07-20 — Android`) when you cu
 
 ### Fixed
 - Accounts: signing in as a different person on the same phone no longer tries to move the previous
-  account's boards over to them. It used to produce two red errors that contradicted each other —
+  account's boards over to them — including boards that were already on the phone before this
+  release, which were the ones actually affected. It used to produce two red errors that contradicted each other —
   "the board was not created: group exists" beside "a player was not added: no such group" — and the
   board then quietly stopped syncing. Boards now stay with the account that put them on the server,
   and a board made before you ever signed in still belongs to whoever signs in first.

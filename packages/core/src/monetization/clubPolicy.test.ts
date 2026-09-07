@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   boardBelongsToAnotherAccount,
+  boardOwnershipUnknown,
   boardIsVisible,
   entitlementsFrom,
   boardSyncs,
@@ -217,5 +218,63 @@ describe("a board that belongs to another account", () => {
     expect(boardSyncs({ hasClub: false, isOnServer: true })).toBe(true);
     expect(boardSyncs({ hasClub: true, isOnServer: false })).toBe(true);
     expect(boardSyncs({ hasClub: false, isOnServer: false })).toBe(false);
+  });
+});
+
+describe("a board on the server that nobody has claimed", () => {
+  const onServer = { hasClub: true, isOnServer: true };
+
+  it("does not sync, because it may be somebody else's", () => {
+    // **The case that produced the bug and that the owner check alone misses.**
+    // Ownership is only learned from a pull that succeeds for the signed-in
+    // account, and somebody else's board never pulls for this one — so it stays
+    // unstamped, `belongsToAnotherAccount` stays false, and it re-announces
+    // forever. Observed on 2026-09-06 and again on 09-07.
+    const unknown = boardOwnershipUnknown({
+      ownerAccountId: undefined,
+      accountId: "acct-b",
+      isOnServer: true,
+    });
+    expect(unknown).toBe(true);
+    expect(boardSyncs({ ...onServer, ownershipUnknown: unknown })).toBe(false);
+  });
+
+  it("syncs again as soon as a pull says whose it is", () => {
+    // Self-healing, and that is what makes blocking acceptable: the account
+    // that really owns it has a membership, so its next pull stamps the board
+    // and this stops being unknown.
+    const unknown = boardOwnershipUnknown({
+      ownerAccountId: "acct-a",
+      accountId: "acct-a",
+      isOnServer: true,
+    });
+    expect(unknown).toBe(false);
+    expect(boardSyncs({ ...onServer, ownershipUnknown: unknown })).toBe(true);
+  });
+
+  it("is not unknown while signed out", () => {
+    // Nothing is sent anyway, and `true` would stop a board syncing for the
+    // person about to sign in and own it.
+    expect(
+      boardOwnershipUnknown({
+        ownerAccountId: undefined,
+        accountId: null,
+        isOnServer: true,
+      }),
+    ).toBe(false);
+  });
+
+  it("is not unknown for a board that never reached the server", () => {
+    // Plainly local. `hasClub` decides those, as it always did.
+    expect(
+      boardOwnershipUnknown({
+        ownerAccountId: undefined,
+        accountId: "acct-b",
+        isOnServer: false,
+      }),
+    ).toBe(false);
+    expect(
+      boardSyncs({ hasClub: true, isOnServer: false, ownershipUnknown: false }),
+    ).toBe(true);
   });
 });

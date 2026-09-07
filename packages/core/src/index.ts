@@ -160,6 +160,7 @@ export { shouldShowAds } from "./monetization/adPolicy";
 export type { AdPolicyInput } from "./monetization/adPolicy";
 export {
   boardBelongsToAnotherAccount,
+  boardOwnershipUnknown,
   boardIsVisible,
   boardSyncs,
   entitlementsFrom,
