@@ -592,15 +592,42 @@ the table can follow what is happening from across it.
 
 | Row | iOS | Android |
 | --- | --- | --- |
-| **Continue with Apple** on a fresh install creates an account and signs in | ⬜ | ⬜ |
-| **Continue with Google** on a fresh install creates an account and signs in | ⬜ | ⬜ |
-| Signing out and back in with the same provider returns to the **same** account, not a new one | ⬜ | ⬜ |
-| **The linking case.** Sign up with email+password, sign out, then sign in with a provider on the *same address* — the boards and season are still there. This is the one that fails silently and looks exactly like data loss | ⬜ | ⬜ |
-| **Hide My Email** (Apple → "Hide My Email") signs in and gets its own account. Expected: it does *not* link to an existing one, because the relay address matches nothing | ⬜ | ⬜ |
-| Closing the provider sheet halfway leaves the screen usable, with **no red error** — cancelling is not a failure | ⬜ | ⬜ |
-| Declining at the provider does the same | ⬜ | ⬜ |
-| **Use email instead** reveals the email form, and email sign-in still works | ⬜ | ⬜ |
-| With no network, tapping a provider opens the sheet and **Safari** reports being offline; dismissing it leaves no app error | ⬜ | ⬜ |
+| **Continue with Apple** on a fresh install creates an account and signs in | ✅ | ⬜ |
+| **Continue with Google** on a fresh install creates an account and signs in | ✅ | ⬜ |
+| Signing out and back in with the same provider returns to the **same** account, not a new one | ✅ | ⬜ |
+| **The linking case.** Sign up with email+password, sign out, then sign in with a provider on the *same address* — the boards and season are still there. This is the one that fails silently and looks exactly like data loss | ✅ | ⬜ |
+| 🚫 **Hide My Email** — needs a **second Apple ID**, and cannot be run with one. See below | ⬜ | ⬜ |
+| Closing the provider sheet halfway leaves the screen usable, with **no red error** — cancelling is not a failure | ✅ | ⬜ |
+| Declining at the provider does the same | ✅ | ⬜ |
+| **Use email instead** reveals the email form, and email sign-in still works | ✅ | ⬜ |
+| With no network, tapping a provider opens the sheet and **Safari** reports being offline; dismissing it leaves no app error | ✅ | ⬜ |
+
+**Declining failed first time round**, on 2026-09-07: Apple sends `user_cancelled_authorize` and only
+`access_denied` was handled, so the screen said *"That didn't work. Try again in a moment."* about
+something somebody had chosen to do. Fixed in #219 and re-run on the device before being marked ✅ —
+which is the only thing that makes the mark mean anything.
+
+**Everything ✅ above was run on the iOS Simulator on 2026-09-07**, against `DEV_BACKEND`. Android
+is untouched, and its OAuth redirect is a different path.
+
+**Hide My Email needs a second Apple ID, and the obvious way to test it does not work.**
+Apple offers the Share/Hide choice only on *first* authorization and remembers the answer
+afterwards. Revoking at Settings → Apple ID → Sign in with Apple gets the prompt back — but it does
+**not** give a clean test, because Cognito identifies a federated user by the provider's *subject*,
+not by the address. That sub is stable for one Apple ID and team, so re-authorizing with a relay
+address matches the same Cognito user and signs you into the account you already have; only the
+email attribute changes.
+
+That is the correct behaviour and worth knowing: identity keys on the sub, so somebody toggling
+their relay settings does not fracture their account. What it means for testing is that
+"a relay address gets its own account" is only reachable on a **first** sign-in from an Apple ID
+that has never used the app.
+
+The code path is in any case the same one the Google row already covers — an address matching
+nothing in the pool, `no-account-to-link`, a new user. What Hide My Email adds beyond that is the
+**revocation** gap: if somebody later turns the relay off, mail to them stops and password reset
+fails silently. Apple's server-to-server notification endpoint is what would tell us, and it is
+deliberately not built — see `ROADMAP.md`.
 
 
 Every screen here was written, wired to Cognito and exercised from a script. **None of it has been
