@@ -378,6 +378,16 @@ platform-tagged heading (e.g. `## [1.1.3] - 2026-07-20 — Android`) when you cu
   which is what turns those features from code into something you can use.
 
 ### Fixed
+- **The privacy policy now describes the app that actually ships.** It claimed the app "does not
+  collect, transmit, or store any personal data on external servers", offered "Device-Only Storage"
+  and stated there were "No advertising networks or ad tracking" — three claims the binary
+  contradicted. The advertising one had been wrong for several releases, not just this one: AdMob
+  has been live with real ad units since well before 1.2.0. The page now sets out what an account
+  involves (an email address, held in Cognito, confirmed by a code sent through SES), what a shared
+  board stores and who can see it, how long a deletion is remembered, that ads are requested
+  non-personalized and what Google receives to serve one, every third party involved and what each
+  is for, and how to delete the account and its server-side data from inside the app. What stays on
+  the device is still called out as such, because most of the app genuinely never leaves it.
 - Accounts: declining at the Apple or Google prompt no longer shows an error. Changing your mind is
   not a failure, and the screen now says nothing at all — as it already did when you closed the
   sheet without signing in.
