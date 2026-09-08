@@ -11,6 +11,105 @@ are removed from this file when a release is cut rather than accumulating as ✅
 
 **Legend:** 🚧 in progress · 🔍 investigated, not yet fixed · 🟡 known gap, accepted · ⬜ not started
 
+## Gambling classification — blocking 1.2.0
+
+**The dealt game's betting engine is being removed before 1.2.0 ships.** This section is the record
+of why, because the engine is about to look like a half-finished feature somebody abandoned, and the
+next person to find it will be tempted to finish it. Don't.
+
+### What forced it
+
+The live app (1.1.4) is a timer and is rated **4+ Apple / 3+ Google**. Everything money-related is
+new in 1.2.0 and the rating has never been tested against any of it. Exactly one feature changes the
+classification.
+
+Apple defines **Simulated Gambling** as _"Betting or wagering without using real money or in-game
+currency that can be exchanged for real money"_ — 13+ if infrequent, 18+ if frequent. The betting
+engine (`bettingRound.ts`'s fold/check/call/raise, the Min/Pot/All-in controls) is betting, and as a
+headline Pro feature playable every game night it is frequent. Nothing else in the release triggers
+it: the timer, the payout calculator, the chop, the leaderboard, accounts and shared boards are all
+clear, and there is direct App Store precedent for the calculator half (_Cash Out_, _SettleChip_,
+_Poker Payout Calc_ all ship).
+
+**13+ was never reachable.** Three independent reasons, each sufficient:
+
+1. Apple's 13+ needs _infrequent_ simulated gambling, which a full no-limit engine is not — and
+   under-declaring is the one thing that genuinely endangers a developer account.
+2. **PEGI has auto-rated any simulated gambling 18 since 2020**, and PEGI reaches Google Play through
+   IARC. There is no 13+ door in Europe at all.
+3. The account rule below does not care about the tier.
+
+**The account rule is what actually decided it.** This account is enrolled as an **Individual**.
+Apple: _"we are no longer allowing gambling apps submitted by individual developers"_ — explicitly
+_"this includes both real money gambling apps as well as apps that simulate a gambling experience."_
+Guideline 5.1.1(ix) still lists gambling among fields that should be submitted by a legal entity.
+
+That quote traces to an **October 2018** announcement and could not be confirmed in writing as
+enforced verbatim today; the current guideline says "provide _services_ in" regulated fields, which
+arguably excludes a play-money game. **It is an unresolved risk, not a certainty** — but the
+asymmetry settles it. If the rule bites, the failure is not a rating bump, it is a rejection curable
+only by forming a legal entity and migrating the account. The feature being protected is a hand
+dealer whose use case is "a table that has chips but no cards", and a group that owns chips owns a
+deck.
+
+### What is explicitly _not_ the problem
+
+- **This is not real-money gambling and needs no licence.** Verified in code: no consumable IAP, no
+  chip purchase, no chip↔money conversion, and no currency symbol rendered anywhere — every amount
+  is a bare integer. Chips come from a fixed stack and are conserved.
+- **Legal exposure is close to nil.** The category actually criminalised in Europe is paid loot
+  boxes (Belgium: fines to €800,000). There is no purchasable randomness anywhere in this repo.
+- **A second app does not help**, and was rejected: the restriction attaches to the _submitting
+  account_, not the app, so a second app from the same Individual account meets the identical rule.
+  It isolates only the rating, and only pays off in the world where the restriction is not enforced
+  — in which case one app at 18+ would have shipped anyway. Against that: two listings, two review
+  cycles, two testing passes, two RevenueCat configs, and a new listing starting at zero ratings.
+
+### Action items
+
+1. ⬜ **Ask App Review whether a deal-and-evaluate mode with no chips, bets or pots triggers the
+   simulated-gambling descriptor** (App Store Connect → Contact Us). **Blocking the dealer-mode
+   work.** On an Individual account the cost of guessing wrong is a 5.1.1(ix) rejection rather than
+   a rating, so this is asked before the work and not after. If the answer is unfavourable, the
+   fallback is deleting the dealt game outright.
+2. ⬜ **Remove the betting engine; convert to dealer-only mode** — deal, tap-to-peek hole cards,
+   community board, showdown evaluation. No chips, no bets, no pots; players bet with the physical
+   chips they already have. The cut follows an existing seam: `cards.ts` has no imports and
+   `evaluate.ts` imports only `cards`/`handValue`, so the card layer has zero dependency on the
+   wagering layer.
+3. ⬜ **Delete the table backend** — `tableAction`, `tableStore`, `tablePublisher`, the AppSync
+   Events API and the subscribe authorizer. It is a server-authoritative _betting_ engine with no
+   client (nothing calls `startHand` server-side, so it cannot even deal), and it is the only other
+   consumer of the betting engine — `tableAction.ts` imports `act`/`legalActions`/`BettingAction`
+   from `@poker/core`, so the core deletion does not compile without it. **Its own deploy, after the
+   app change merges**; diff the synthesised template deliberately.
+4. ⬜ **Full money separation** — the dealt game reads no `PayoutSettings` and writes no currency.
+   **Careful with the claim this supports:** it stops the app _producing_ prize money from a game it
+   dealt. It does not remove real-currency sync from the product — `RecordResultSheet` already
+   passes `buyIn`/`bounty`/`winnings` and `cleanResult` already syncs them, and that path predates
+   the dealt game. Saying "real-money data was removed" would be false.
+5. ⬜ **Set `maxAdContentRating`.** `ads.ts` calls `initialize()` with no request configuration at
+   all, and `MaxAdContentRating.MA` explicitly includes gambling — so the current default permits
+   gambling ads to serve into a poker app aiming at 4+. **Do not set
+   `tagForChildDirectedTreatment`**: this is not a child-directed app and the SDK warns that abusing
+   that flag can terminate the Google account.
+6. ⬜ **Soften gambling-adjacent copy** across the app, website and store listing — "in your pocket",
+   "half in cash", "real casino sheets", "from cash games to deep stack tournaments".
+7. ⬜ **Add a factual no-real-money statement** to the website and the review notes. There is
+   currently no disclaimer anywhere. Note Apple says stating something is "for entertainment
+   purposes" _won't overcome a guideline_, so this supports the structural changes rather than
+   substituting for them.
+8. ⬜ **Answer both age-rating questionnaires honestly and record the answers given**, so the next
+   release can be checked against them rather than re-derived. Apple's and Play's IARC are
+   independent and need not agree.
+9. 🟡 **Residual surface, accepted.** Dealer mode defensibly answers "no" to "does the app let you
+   bet?", but a reviewer still sees a payout screen computing a prize pool from a real buy-in and a
+   season board of money won. **The rating is answered per app, not per screen** — that composition
+   argument is the one to expect to lose if one is lost, and only full removal of the dealt game
+   makes it impossible.
+10. 🟡 **UMP/ATT consent is still a placeholder** (`useAdsConsent.ts`). Serving AdMob to EEA/UK
+    without a certified CMP is a live gap, pre-existing and separate from this work.
+
 ## The week, in order
 
 **1.2.0 ships _with_ the backend, and the backend is now up.** This section used to say the
@@ -163,23 +262,24 @@ delete the branch.
 
 ## Play a hand — known gaps
 
-- 🟡 **Bet sizing is a field with three shortcuts, not a slider.** Any amount between the minimum
-  raise and all-in can be typed, with Min / Pot / All in filling it in. A slider would be quicker
-  to reach for at a table and is the obvious next step; the field is what makes the sizes reachable
-  at all, which was the gap.
-- ✅ A game now survives the app being killed as well as navigation, and is validated whole on
-  load rather than partially recovered. **Delete this line when 1.2.0 is cut.**
-- ✅ **A finished game now asks before it is thrown away.** The prompt hangs off **"New game"**,
-  not off the game completing: an alert on completion covers the showdown, which is the one hand
-  everybody wants to look at and the reason the table stays drawn. "New game" is also the only
-  action that actually loses the night — a finished game survives the app closing and its Save
-  button is still there next launch. Saving refuses when the players came from a board that is no
-  longer active, and the prompt does not end the game unless the save really happened.
-  **Delete this line when 1.2.0 is cut.**
+**Read [Gambling classification](#gambling-classification--blocking-120) first.** The betting half of
+this feature is being removed before 1.2.0 ships, so several items below describe behaviour that is
+on its way out. They are kept until the work lands so the removal can be checked against them.
+
+- ⛔ **Bet sizing, and every other betting gap, is moot.** Any amount between the minimum raise and
+  all-in can currently be typed, with Min / Pot / All in filling the field. A slider was the obvious
+  next step. **Do not build it** — the whole betting surface goes.
+- 🟡 **After the cut, the game cannot know who finished where, and must not pretend to.** Busting is
+  a chip event; with no chips there is nothing to observe. A host-entered "sitting out" flag is a
+  statement of intent, not an observed elimination, so ordering by it would present a guess as a
+  fact. Auto-recording a night to the leaderboard goes with it — nights are recorded by hand through
+  `RecordResultSheet`, which already exists.
+- 🟡 **Progressive bounties go with the betting engine.** They need knockout attribution, which needs
+  pots. Flat bounties survive — they are just a number in the payout calculator.
 - 🟡 **The deal is not cryptographic.** `Math.random` is passed straight to the engine rather than
   a seeded PRNG, which avoids the brute-forceable 32-bit seed space that `createRandom` warns
-  about — but it is still not a cryptographic source. Accepted for a table passing one phone
-  around; online play deals on the server, which is where a CSPRNG belongs.
+  about — but it is still not a cryptographic source. **This survives the cut**: dealer mode still
+  deals, and the caveat still applies. Accepted for a table passing one phone around.
 
 ## Accounts — live as of 1.2.0
 

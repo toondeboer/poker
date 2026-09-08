@@ -42,12 +42,12 @@ words across name+subtitle+keywords into phrases, so e.g. "card" + "game" →
 **`casino` and `bet` were removed in 1.2.0, and should not go back.** They were
 there for recombination — "casino clock", "poker bet" — and they were never
 worth much: nobody looking for a home-game blinds timer searches either. What
-changed is the downside. 1.2.0 deals a hand, which puts the app in **simulated
-gambling** territory for the age rating (see [Age rating](#age-rating) below),
-and keywords are metadata a reviewer reads. Volunteering the two words that most
-look like real-money gambling, next to a rating that already says simulated
-gambling, is asking a question you do not want asked. `payout` and `pot` replace
-them at exactly the same character count and describe features the app has.
+changed is the downside. **Keywords are metadata a reviewer reads**, and this
+release is one where the app has to answer a gambling question convincingly (see
+[Age rating](#age-rating) below). Volunteering the two words that most look like
+real-money gambling, in a field a reviewer scans, is asking a question you do not
+want asked. `payout` and `pot` replace them at exactly the same character count
+and describe features the app actually has.
 
 ### Promotional text (≤170 chars, editable anytime without review)
 
@@ -178,9 +178,14 @@ Go Pro to remove ads, deal a hand, work out the payouts, chop the last pot, keep
   is one that reads as a bait-and-switch the moment the app asks for an email.
   And "not a casino app full of settings you'll never touch" is gone with it —
   it was a good line about _simplicity_, but it puts the word `casino` in the
-  first screen of copy on an app that now deals cards and carries a simulated-
-  gambling age rating. The replacement, "at somebody's kitchen table", says the
+  first screen of copy on an app that deals cards and has to answer a gambling
+  question at review. The replacement, "at somebody's kitchen table", says the
   same thing about scale without the word.
+
+  **Both descriptions still need a second pass** once the betting engine is
+  removed: they currently promise "blinds, betting, side pots, the showdown", and
+  after the cut only the dealing and the showdown remain. See the table under
+  [Age rating](#age-rating).
 
   In exchange the description now **says plainly that the account is optional**,
   which is the single most useful sentence in it: the misunderstanding likeliest
@@ -192,31 +197,46 @@ Go Pro to remove ads, deal a hand, work out the payouts, chop the last pot, keep
 
 <a id="age-rating"></a>
 
-## Age rating — 1.2.0 deals cards, and that changes it
+## Age rating — the answer is "no simulated gambling", and here is why
 
-**1.2.0 is the release that makes this app rate for simulated gambling.** Up to 1.1.4 it was a
-clock and a calculator: nothing in it dealt a card or played a hand. `GameContext` and
-`components/game/` do, and the answer to the App Store Connect question about simulated gambling
-becomes yes — which under the 4+/9+/13+/16+/18+ tiers that replaced the old ones in July 2025 puts
-the app at **18+** for frequent/intense simulated gambling.
+**The app stays 4+ on Apple and 3+ on Google, and the honest answer to the simulated-gambling
+question is no** — because the betting engine is being removed before 1.2.0 ships. See
+[ROADMAP.md](./ROADMAP.md#gambling-classification--blocking-120) for the full decision record.
 
-**This is a rating change on an app that already has installs**, which is the part worth being
-deliberate about rather than clicking through. Two consequences:
+**An earlier draft of this section said 18+, and that was right for the app as built.** Apple defines
+Simulated Gambling as _"Betting or wagering without using real money or in-game currency that can be
+exchanged for real money."_ The dealt game's fold/check/call/raise and Min/Pot/All-in controls are
+betting, and as a headline Pro feature they are frequent, not infrequent — which is 18+. What
+changed is the app, not the reading.
 
-- **Play's rating is a separate questionnaire (IARC) and is answered independently.** Do not assume
-  the two land on the same number; they routinely do not. Answer each honestly rather than trying
-  to make them match.
-- **An 18+ rating changes who the listing is allowed to reach**, and family-sharing and
-  screen-time filters will hide it from accounts that could see it before. That is the correct
-  outcome for an app that deals hold'em, not something to work around by shading the answer.
+**13+ was never available**, for three separate reasons worth recording so nobody re-litigates it:
+Apple's 13+ requires _infrequent_ simulated gambling; **PEGI has auto-rated any simulated gambling 18
+since 2020** and reaches Google Play through IARC, so Europe has no 13+ tier for this; and Apple's
+restriction on gambling apps from **Individual developer accounts** — which this is — keys on whether
+the app contains simulated gambling at all, not on how much.
 
-There is no real money in the app: no wagering, no purchase of chips, no cash-out. Chips are
-counters, and the payout screen is a calculator for money that changes hands at a kitchen table and
-never touches the app. Say exactly that if a reviewer asks — it is the difference between simulated
-gambling (a rating) and real-money gambling (a different set of rules entirely, which this is not
-in).
+### What to say if a reviewer asks
 
-### Copy that reads badly next to that rating
+There is no real money in the app: no wagering, no purchase of chips, no cash-out, and no currency
+symbol rendered anywhere. The payout screen is a calculator for money that changes hands at a
+kitchen table and never touches the app. That is the difference between simulated gambling (a
+rating) and real-money gambling (a different rulebook, which this app is not in).
+
+After the cut the app deals cards and evaluates a showdown; it holds no chips, no stakes and no
+pots. **Do not overstate it.** The leaderboard still records `buyIn`, `bounty` and `winnings` for
+hand-entered games and syncs them to a shared board — that path predates the dealt game. The
+accurate claim is "the app does not let you wager, and no longer computes prize money from a game it
+dealt", never "real-money data was removed".
+
+### Honest declaration is the whole strategy
+
+Apple removes developers for _"trying to trick the review process"_ and _"manipulate ratings"_, and
+says plainly: _"if you're dishonest, we don't want to do business with you."_ **The route to a ban is
+under-declaring a poker game, not having one.** Answer both questionnaires from the built binary
+rather than from this file, and record the answers given so the next release can be checked against
+them. Apple's and Play's IARC are independent and need not agree.
+
+### Copy that reads badly next to a gambling question
 
 Not errors — the listing is honest — but each of these is a sentence a reviewer weighing a gambling
 question will read, so each is worth a deliberate decision rather than inheriting it:
@@ -226,13 +246,16 @@ question will read, so each is worth a deliberate decision rather than inheritin
 | iOS keywords           | `casino`, `bet`                                        | **Changed.** See the keywords section — removed and replaced at the same character count.                                                                                                               |
 | Both long descriptions | "not a casino app full of settings you'll never touch" | **Changed** to "at somebody's kitchen table". It was a line about simplicity, but it put `casino` in the copy of an app that now deals cards.                                                           |
 | Both long descriptions | "settles the money before it turns into an argument"   | **Kept, softened** to "settles who won what". The original is a good line and true of a payout calculator; "the money" beside a dealt game invites the real-money question the app does not need asked. |
-| Play release notes     | "half in cash, half onto your own head"                | **Flagged, not changed.** "In cash" is describing a bounty format accurately, and the alternative wordings are worse. Decide whether to keep it; it is 500 characters of copy a reviewer sees.          |
-| iOS release notes      | "Knockouts are tracked, and bounties finally add up"   | Fine. Bounty is poker vocabulary, not gambling vocabulary.                                                                                                                                              |
+| Play release notes     | "half in cash, half onto your own head"                | **Moot** — progressive bounties are removed with the betting engine, so the sentence goes with the feature. It was the most gambling-flavoured line in the listing.                                     |
+| iOS release notes      | "Knockouts are tracked, and bounties finally add up"   | **Moot** — knockout attribution needs pots, which are gone.                                                                                                                                             |
 | Both                   | "buy-in", "prize", "pot", "payout", "winnings"         | Fine, and correct — this is what a tournament calculator is for. Do not sanitise these into vagueness; a listing that will not say what the app does is worse than one that does.                       |
+| Both long descriptions | "blinds, **betting**, side pots, the showdown"         | **Must change.** After the cut this describes a betting game the binary does not contain — the same metadata-accuracy failure as under-declaring, pointed the other way.                                |
 
-**What not to do:** do not describe the dealt game as anything other than what it is to duck the
-rating. It deals hold'em, it tracks knockouts and it runs a showdown. Understating that in the
-listing and then shipping it is the failure mode that costs a rejection _and_ the resubmission.
+**What not to do, in both directions.** Do not describe the dealt game as less than it is to duck a
+rating — that is the failure mode that costs a rejection _and_ the resubmission. And now that the
+betting is going, do not leave copy describing betting that the binary no longer has: an app that
+under-delivers against its own listing is the same accuracy problem wearing the other hat. **Write
+the listing from the built binary, every time.**
 
 ## In-app purchase — `pro_lifetime` description (keep in sync with the paywall)
 
