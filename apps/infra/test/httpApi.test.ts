@@ -27,7 +27,11 @@ describe("something can finally call the backend", () => {
   });
 
   it("takes an action for a table, says who you are, and keeps a board", () => {
-    expect(routes().map((route) => route.RouteKey).sort()).toEqual([
+    expect(
+      routes()
+        .map((route) => route.RouteKey)
+        .sort(),
+    ).toEqual([
       "DELETE /groups/{groupId}/games/{gameId}",
       "DELETE /groups/{groupId}/members/{accountId}",
       "DELETE /groups/{groupId}/players/{playerId}",
@@ -42,6 +46,7 @@ describe("something can finally call the backend", () => {
       "POST /groups/{groupId}/games",
       "POST /groups/{groupId}/invite",
       "POST /groups/{groupId}/players",
+      "POST /groups/{groupId}/report",
       "POST /invites/{token}",
       "POST /tables/{tableId}/actions",
       "PUT /groups/{groupId}/members/{accountId}",
@@ -72,9 +77,9 @@ describe("every route is authenticated, and that is the default", () => {
     const config = Object.values(
       template().findResources("AWS::Lambda::Function"),
     ).filter((fn) =>
-      JSON.stringify((fn.Properties as { Environment?: unknown }).Environment).includes(
-        "FEATURE_",
-      ),
+      JSON.stringify(
+        (fn.Properties as { Environment?: unknown }).Environment,
+      ).includes("FEATURE_"),
     );
     expect(config).toHaveLength(1);
   });
@@ -126,8 +131,8 @@ describe("access logs name the caller and nothing else", () => {
     // The `Authorization` header is a bearer token. A log containing one is a
     // credential store nobody is treating as one.
     const stages = template().findResources("AWS::ApiGatewayV2::Stage");
-    const format = Object.values(stages)[0].Properties
-      .AccessLogSettings.Format as string;
+    const format = Object.values(stages)[0].Properties.AccessLogSettings
+      .Format as string;
     const leaks = ["authorization", "$context.requestBody", "header."].filter(
       (needle) => format.toLowerCase().includes(needle),
     );

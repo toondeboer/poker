@@ -383,6 +383,26 @@ platform-tagged heading (e.g. `## [1.1.3] - 2026-07-20 — Android`) when you cu
   them switched off at the source — so none of it did anything. This release points at production,
   which is what turns those features from code into something you can use.
 
+### Added
+
+- **You can report a shared board, and leave one.** A board somebody sent you carries names they
+  typed, and until now there was nothing to do about an offensive one: the boards list has a flag
+  button on any board you joined, which asks what is wrong and sends it to us, and a leave button
+  beside it. A report reaches a person by email within minutes rather than sitting in a table
+  nobody opens. **Leaving is not the same as deleting, which is why it is a different button** —
+  deleting a board only ever removed it from the phone, so the membership stayed on the server and
+  the board came back on the next device and on the next reinstall. Leaving ends the membership
+  first and removes the local copy only if that worked, so a board can never quietly return, and it
+  says so plainly when the server could not be reached. Both buttons appear only on boards somebody
+  else shared: reporting your own board is reporting yourself, and leaving one is deleting it.
+- **Names are checked before other people have to read them.** A player name or a board name is
+  written onto everybody's phone once a board is shared, so both are now refused if they are
+  offensive or longer than 40 characters, and the field says which rule was broken instead of only
+  greying out the button. The check deliberately does not refuse ordinary words that happen to
+  contain something — Scunthorpe, therapist and raccoon all pass, and there are tests to keep it
+  that way. It stops the lazy case rather than a determined one, which is why reporting sits beside
+  it rather than instead of it.
+
 ### Fixed
 
 - **The privacy policy now describes the app that actually ships.** It claimed the app "does not
@@ -409,6 +429,8 @@ platform-tagged heading (e.g. `## [1.1.3] - 2026-07-20 — Android`) when you cu
   deployed with no client at all: the poker table, whose `sessionTransport` is still `null` and
   whose channels nothing under `apps/mobile` imports. The dealt game 1.2.0 ships is local and
   single-device, and the architecture diagram now says so rather than implying online play.
+- The Add-a-player field no longer promises that names "stay on this device". They have not since
+  boards could be shared, and the field is exactly where somebody decides what to type.
 - Accounts: declining at the Apple or Google prompt no longer shows an error. Changing your mind is
   not a failure, and the screen now says nothing at all — as it already did when you closed the
   sheet without signing in.

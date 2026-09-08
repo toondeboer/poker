@@ -19,6 +19,7 @@ import {
   createPlayer,
   EMPTY_LEADERBOARD,
   isValidGroupName,
+  groupNameRejection,
   MAX_GROUPS,
   removeGameResult,
   playerForAccount,
@@ -48,7 +49,9 @@ import {
   Placing,
   Player,
   type KnockoutCount,
+  type NameRejection,
   type RefusedWrite,
+  type ReportReason,
 } from "@poker/core";
 import {
   DEFAULT_GROUP_NAME,
@@ -78,6 +81,15 @@ export type GroupSummary = {
    * unable to share their own board with no explanation at all.
    */
   canInvite: boolean;
+  /**
+   * Whether this is a board somebody else shared, rather than one of your own.
+   *
+   * `role === "member"` exactly, which is the same test `activeBoardIsGuest`
+   * makes and for the same reason: the server answers `admin` for a board you
+   * created. Drives the two affordances that only make sense on somebody
+   * else's board — leaving it, and reporting it.
+   */
+  isGuest: boolean;
 };
 
 type LeaderboardContextValue = {
@@ -97,12 +109,45 @@ type LeaderboardContextValue = {
    * `boardIsVisible`.
    */
   activeBoardIsGuest: boolean;
+  /**
+   * Why a group name can't be used, or `null`. Ignores the group being renamed.
+   *
+   * The reason rather than a boolean, so a screen can say which rule was
+   * broken — "you already have one of those" and "other people will read that"
+   * need different sentences.
+   */
+  groupNameProblem: (name: string, exceptId?: string) => NameRejection | null;
   /** Whether a name is free to use, ignoring the group being renamed. */
   isGroupNameAvailable: (name: string, exceptId?: string) => boolean;
   selectGroup: (id: string) => void;
   createNewGroup: (name: string) => void;
   renameGroupById: (id: string, name: string) => void;
   deleteGroup: (id: string) => void;
+  /**
+   * Leave a board somebody shared with you.
+   *
+   * **Not the same as deleting it**, which only ever removed it from this
+   * phone: the membership stayed on the server, so the board came back on the
+   * next device and on the next reinstall, and there was no way off one at all.
+   * This ends the membership first and then removes the local copy.
+   *
+   * Resolves `false` when the server could not be told — the board is left
+   * where it is in that case, because removing it locally while the membership
+   * survives is exactly the state this exists to fix.
+   */
+  leaveGroup: (id: string) => Promise<boolean>;
+  /**
+   * Report what is on a board to us.
+   *
+   * Resolves `false` when it could not be sent, which the screen has to say out
+   * loud: somebody who has just reported something offensive and been told
+   * nothing will assume it was dealt with.
+   */
+  reportGroup: (
+    id: string,
+    reason: ReportReason,
+    detail: string,
+  ) => Promise<boolean>;
   /** The active group's roster. Empty when there is no group yet. */
   players: Player[];
   /** The active group's game history. */
@@ -177,9 +222,9 @@ type LeaderboardContextValue = {
    *
    * Says the board's name so a screen can say what happened, or why not.
    */
-  joinBoard: (token: string) => Promise<
-    { ok: true; name: string } | { ok: false; reason: string }
-  >;
+  joinBoard: (
+    token: string,
+  ) => Promise<{ ok: true; name: string } | { ok: false; reason: string }>;
 };
 
 const LeaderboardContext = createContext<LeaderboardContextValue | null>(null);
@@ -280,7 +325,6 @@ export function LeaderboardProvider({
          * belongs on the server depends on the subscription — which is `false`
          * at mount and becomes the store's answer a moment later.
          */
-
       })
       .catch((error) => logger.error("Failed to load leaderboard:", error))
       .finally(() => {
@@ -368,8 +412,6 @@ export function LeaderboardProvider({
     },
     [record, syncsFor],
   );
-
-
 
   /**
    * Stamp a board with the account it is on the server under.
@@ -467,8 +509,15 @@ export function LeaderboardProvider({
     return () => {
       active = false;
     };
-  }, [pullsWanted, isLoading, listBoards, fetchBoard, mergeInto, persist, ownedByCurrentAccount]);
-
+  }, [
+    pullsWanted,
+    isLoading,
+    listBoards,
+    fetchBoard,
+    mergeInto,
+    persist,
+    ownedByCurrentAccount,
+  ]);
 
   /**
    * Every change to the board goes through here.
@@ -597,7 +646,11 @@ export function LeaderboardProvider({
       const groupId = withActiveGroup((entry) =>
         // Noted as deleted, or the next pull reads it back off the server and
         // faithfully puts it back — nothing tells the server about a removal.
-        noteDeleted({ ...entry, players: removePlayer(entry.players, id) }, "players", id),
+        noteDeleted(
+          { ...entry, players: removePlayer(entry.players, id) },
+          "players",
+          id,
+        ),
       );
       /**
        * **A name added with no signal and deleted before it went must not go.**
@@ -721,18 +774,18 @@ export function LeaderboardProvider({
   const releaseAllFor = useCallback(
     (accountId: string) =>
       mutate((current) => {
-      let next = current;
-      for (const entry of current.groups) {
-        const held = entry.players.find(
-          (player) => player.accountId === accountId,
-        );
-        if (!held) continue;
-        next = unclaimPlayer(next, {
-          groupId: entry.group.id,
-          playerId: held.id,
-        });
-      }
-      return next;
+        let next = current;
+        for (const entry of current.groups) {
+          const held = entry.players.find(
+            (player) => player.accountId === accountId,
+          );
+          if (!held) continue;
+          next = unclaimPlayer(next, {
+            groupId: entry.group.id,
+            playerId: held.id,
+          });
+        }
+        return next;
       }),
     [mutate],
   );
@@ -746,11 +799,18 @@ export function LeaderboardProvider({
     () =>
       state.groups.map((entry) => ({
         canInvite: entry.role !== "member",
+        isGuest: entry.role === "member",
         id: entry.group.id,
         name: entry.group.name,
         playerCount: entry.players.length,
         gameCount: entry.results.length,
       })),
+    [state.groups],
+  );
+
+  const groupNameProblem = useCallback(
+    (name: string, exceptId?: string) =>
+      groupNameRejection(name, state.groups, exceptId),
     [state.groups],
   );
 
@@ -803,7 +863,9 @@ export function LeaderboardProvider({
        */
       // From the renamed state, so the queued name is the trimmed one that was
       // actually stored rather than the raw text typed into the field.
-      const entry = renamed.groups.find((candidate) => candidate.group.id === id);
+      const entry = renamed.groups.find(
+        (candidate) => candidate.group.id === id,
+      );
       // Only a board the server has never heard of has a creation to rewrite.
       // One it already has (`role` set) settled its `createGroup` long ago, and
       // queueing a fresh one on every rename sends a creation for a group that
@@ -858,20 +920,23 @@ export function LeaderboardProvider({
       if (!remote) {
         return {
           ok: false as const,
-          reason: "Joined, but the board could not be loaded. Try again in a moment.",
+          reason:
+            "Joined, but the board could not be loaded. Try again in a moment.",
         };
       }
       const current = latestState.current;
-      const mine = current.groups.find((entry) => entry.group.id === redeemed.groupId);
+      const mine = current.groups.find(
+        (entry) => entry.group.id === redeemed.groupId,
+      );
       // Merged when it is already here — redeeming a link for a board you are
       // on is ordinary — and taken whole when it is not.
       const board = ownedByCurrentAccount(
         mine
-        ? sync.mergeInto(mine, remote)
-        // Built in core, because spreading `remote.state` by hand drops the
-        // `role` beside it — which is how a brand-new member ended up with a
-        // share button that can only ever be refused.
-        : boardFromRemote(remote, redeemed.groupId),
+          ? sync.mergeInto(mine, remote)
+          : // Built in core, because spreading `remote.state` by hand drops the
+            // `role` beside it — which is how a brand-new member ended up with a
+            // share button that can only ever be refused.
+            boardFromRemote(remote, redeemed.groupId),
       );
       // Selected here rather than by `addBoard`, which no longer steals the
       // screen — but somebody who has just tapped a link is looking for this
@@ -889,6 +954,33 @@ export function LeaderboardProvider({
       return { ok: true as const, name: board.group.name };
     },
     [sync, persist, ownedByCurrentAccount],
+  );
+
+  /**
+   * Leave a board somebody shared, on the server and then on the phone.
+   *
+   * **Server first, and the local copy only if that worked.** The other order
+   * is the bug this fixes: removing the board locally while the membership
+   * survives is exactly the state that made a "deleted" board reappear on the
+   * next device. If the server cannot be told, nothing changes and the caller
+   * says so — better a button that reports failure than one that appears to
+   * work and undoes itself a week later.
+   */
+  const leaveGroup = useCallback(
+    async (id: string): Promise<boolean> => {
+      const left = await sync.leaveBoard(id);
+      if (!left) return false;
+      persist(removeGroup(latestState.current, id));
+      cancelBoardWrites(id);
+      return true;
+    },
+    [sync, persist, cancelBoardWrites],
+  );
+
+  const reportGroup = useCallback(
+    (id: string, reason: ReportReason, detail: string) =>
+      sync.reportBoard(id, reason, detail),
+    [sync],
   );
 
   const deleteGroup = useCallback(
@@ -912,10 +1004,13 @@ export function LeaderboardProvider({
         canAddGroup: state.groups.length < MAX_GROUPS,
         activeBoardIsGuest: activeEntry?.role === "member",
         isGroupNameAvailable,
+        groupNameProblem,
         selectGroup,
         createNewGroup,
         renameGroupById,
         deleteGroup,
+        leaveGroup,
+        reportGroup,
         players: board.players,
         results: board.results,
         standings,

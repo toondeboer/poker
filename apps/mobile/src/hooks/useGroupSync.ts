@@ -21,14 +21,18 @@ import {
 import { createSyncQueueStorage } from "@poker/core";
 import { asyncStorageAdapter } from "@/src/services/storageAdapter";
 import { createGroupApi, type GroupApi } from "@/src/services/groupApi";
-import { apiToken, onSignedIn } from "@/src/contexts/AuthContext";
+import {
+  apiToken,
+  signedInAccountId,
+  onSignedIn,
+} from "@/src/contexts/AuthContext";
 import { backendConfig } from "@/src/services/backendConfig";
 import { useFeatures } from "@/src/contexts/FeaturesContext";
 import { generateId } from "@/src/utils/id";
 import { logger } from "@/src/utils/logger";
 
 const QueueStorage = createSyncQueueStorage(asyncStorageAdapter);
-const api = createGroupApi(apiToken);
+const api = createGroupApi(apiToken, fetch, signedInAccountId);
 
 /**
  * The outbox: what this phone has done to a shared board and not yet sent.
@@ -92,6 +96,10 @@ export type GroupSync = {
   createInvite: (groupId: string) => Promise<string | null>;
   /** Redeem somebody's link, saying which board or why not. */
   redeemInvite: GroupApi["redeemInvite"];
+  /** Report what is on a board. `false` when it could not be sent. */
+  reportBoard: GroupApi["reportBoard"];
+  /** End this account's membership of a board, server-side. */
+  leaveBoard: GroupApi["leaveBoard"];
   /**
    * Somebody should pull, because something changed on the server side of this
    * phone's world: it came to the foreground, or the outbox just drained.
@@ -123,9 +131,6 @@ export const useGroupSync = (): GroupSync => {
    */
   const features = useFeatures();
   const enabled = backendConfig !== null && features.sharing;
-
-
-
 
   const [queue, setQueue] = useState<SyncQueue>(EMPTY_QUEUE);
   /**
@@ -306,7 +311,8 @@ export const useGroupSync = (): GroupSync => {
   // `latest.current`, so the queue is the one that exists when the merge runs
   // rather than the one that existed when the request went out.
   const mergeInto = useCallback(
-    (local: GroupState, remote: RemoteBoard) => mergeBoard(local, remote, latest.current),
+    (local: GroupState, remote: RemoteBoard) =>
+      mergeBoard(local, remote, latest.current),
     [],
   );
 
@@ -323,14 +329,29 @@ export const useGroupSync = (): GroupSync => {
    * because unlike a queued write somebody is watching this one happen.
    */
   const createInvite = useCallback(
-    (groupId: string) => (enabled ? api.createInvite(groupId) : Promise.resolve(null)),
+    (groupId: string) =>
+      enabled ? api.createInvite(groupId) : Promise.resolve(null),
+    [enabled],
+  );
+  const reportBoard = useCallback<GroupApi["reportBoard"]>(
+    (groupId, reason, detail) =>
+      enabled
+        ? api.reportBoard(groupId, reason, detail)
+        : Promise.resolve(false),
+    [enabled],
+  );
+  const leaveBoard = useCallback<GroupApi["leaveBoard"]>(
+    (groupId) => (enabled ? api.leaveBoard(groupId) : Promise.resolve(false)),
     [enabled],
   );
   const redeemInvite = useCallback(
     (token: string): ReturnType<GroupApi["redeemInvite"]> =>
       enabled
         ? api.redeemInvite(token)
-        : Promise.resolve({ ok: false, reason: "Sharing is unavailable right now." }),
+        : Promise.resolve({
+            ok: false,
+            reason: "Sharing is unavailable right now.",
+          }),
     [enabled],
   );
 
@@ -428,7 +449,9 @@ export const useGroupSync = (): GroupSync => {
           );
           return {
             ...merged,
-            refused: [...loaded.refused, ...current.refused].slice(-MAX_REFUSALS),
+            refused: [...loaded.refused, ...current.refused].slice(
+              -MAX_REFUSALS,
+            ),
           };
         });
         // Whatever an earlier session could not send is the first thing to try.
@@ -460,6 +483,8 @@ export const useGroupSync = (): GroupSync => {
       myBoards,
       createInvite,
       redeemInvite,
+      reportBoard,
+      leaveBoard,
       pullsWanted,
     }),
     [
@@ -476,6 +501,8 @@ export const useGroupSync = (): GroupSync => {
       myBoards,
       createInvite,
       redeemInvite,
+      reportBoard,
+      leaveBoard,
       pullsWanted,
     ],
   );

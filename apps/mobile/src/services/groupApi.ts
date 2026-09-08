@@ -9,6 +9,7 @@ import {
   type Features,
   type RemoteBoard,
   type QueuedWrite,
+  type ReportReason,
   type SendResult,
 } from "@poker/core";
 import { backendConfig } from "@/src/services/backendConfig";
@@ -71,9 +72,30 @@ export type GroupApi = {
    * distinction matters here in a way it does not for a queued write: somebody
    * is watching this one happen.
    */
-  redeemInvite: (token: string) => Promise<
-    { ok: true; groupId: string } | { ok: false; reason: string }
-  >;
+  redeemInvite: (
+    token: string,
+  ) => Promise<{ ok: true; groupId: string } | { ok: false; reason: string }>;
+  /**
+   * Tell us something on a board is not acceptable.
+   *
+   * **Boolean rather than the usual `null`-for-everything**, because this is
+   * the one call where somebody is watching and the answer changes what they
+   * should do next: a report that quietly failed is a person who believes they
+   * have been heard and has not.
+   */
+  reportBoard: (
+    groupId: string,
+    reason: ReportReason,
+    detail: string,
+  ) => Promise<boolean>;
+  /**
+   * Leave a board, on the server.
+   *
+   * Deleting a board on the phone is not leaving it — the membership stays, so
+   * the board comes back on the next device or the next reinstall. This is what
+   * actually ends the relationship.
+   */
+  leaveBoard: (groupId: string) => Promise<boolean>;
 };
 
 /**
@@ -84,6 +106,12 @@ export type GroupApi = {
 export const createGroupApi = (
   idToken: () => Promise<string | null>,
   fetcher: typeof fetch = fetch,
+  /**
+   * Who the caller is, for the one route that has to name them in a path.
+   * Read per call for the same reason the token is — signing out and back in as
+   * somebody else must not leave a stale subject behind.
+   */
+  currentAccountId: () => string | null = () => null,
 ): GroupApi => ({
   async send(write) {
     const config = backendConfig;
@@ -159,9 +187,12 @@ export const createGroupApi = (
     try {
       const token = await idToken();
       if (!token) return null;
-      const response = await fetcher(`${config.apiUrl.replace(/\/$/, "")}/groups`, {
-        headers: { Authorization: token },
-      });
+      const response = await fetcher(
+        `${config.apiUrl.replace(/\/$/, "")}/groups`,
+        {
+          headers: { Authorization: token },
+        },
+      );
       if (!response.ok) {
         logger.warn(`Could not list boards: ${response.status}`);
         return null;
@@ -180,7 +211,9 @@ export const createGroupApi = (
     const config = backendConfig;
     if (!config) return NO_FEATURES;
     try {
-      const response = await fetcher(`${config.apiUrl.replace(/\/$/, "")}/config`);
+      const response = await fetcher(
+        `${config.apiUrl.replace(/\/$/, "")}/config`,
+      );
       // **Anything other than a clean answer means off.** A 500, an HTML error
       // page from something in front of the API, a timeout — none of them are
       // the server saying yes, and treating them as such is how the switch
@@ -215,6 +248,58 @@ export const createGroupApi = (
     }
   },
 
+  async reportBoard(groupId, reason, detail) {
+    const config = backendConfig;
+    if (!config) return false;
+    try {
+      const token = await idToken();
+      if (!token) return false;
+      const response = await fetcher(
+        `${config.apiUrl.replace(/\/$/, "")}/groups/${encodeURIComponent(groupId)}/report`,
+        {
+          method: "POST",
+          headers: { Authorization: token, "content-type": "application/json" },
+          body: JSON.stringify({ reason, detail }),
+        },
+      );
+      if (!response.ok) {
+        logger.warn(`Could not send a report: ${response.status}`);
+        return false;
+      }
+      return true;
+    } catch (error) {
+      logger.warn("Could not send a report:", error);
+      return false;
+    }
+  },
+
+  async leaveBoard(groupId) {
+    const config = backendConfig;
+    if (!config) return false;
+    try {
+      const token = await idToken();
+      if (!token) return false;
+      const accountId = currentAccountId();
+      // Nothing to leave: a board that never reached the server has no
+      // membership to remove, and the local delete is the whole of it.
+      if (!accountId) return false;
+      const response = await fetcher(
+        `${config.apiUrl.replace(/\/$/, "")}/groups/${encodeURIComponent(groupId)}/members/${encodeURIComponent(accountId)}`,
+        { method: "DELETE", headers: { Authorization: token } },
+      );
+      // **404 counts as success.** It means the server does not think this
+      // account is on that board — which is the state leaving is trying to
+      // reach, so calling it a failure leaves somebody pressing a button that
+      // has already worked.
+      if (response.ok || response.status === 404) return true;
+      logger.warn(`Could not leave the board: ${response.status}`);
+      return false;
+    } catch (error) {
+      logger.warn("Could not leave the board:", error);
+      return false;
+    }
+  },
+
   async redeemInvite(invite) {
     const config = backendConfig;
     if (!config) return { ok: false, reason: "This build cannot join boards." };
@@ -240,11 +325,14 @@ export const createGroupApi = (
         reason:
           response.status === 404
             ? "That link has expired or been replaced. Ask for a new one."
-            : reasonForRefusal(body) ?? "That link could not be used.",
+            : (reasonForRefusal(body) ?? "That link could not be used."),
       };
     } catch (error) {
       logger.warn("Could not redeem an invite:", error);
-      return { ok: false, reason: "No connection. Try again when you have signal." };
+      return {
+        ok: false,
+        reason: "No connection. Try again when you have signal.",
+      };
     }
   },
 });

@@ -46,21 +46,25 @@ import {
   membershipItem,
   membershipKey,
   playerKey,
+  reportItem,
   resultItem,
   resultKey,
   sameGame,
   tombstone,
   type MemberItem,
+  type ReportReason,
   type Role,
 } from "./groupKeys";
 
 /** Why a write did not happen. Never an exception for an ordinary refusal. */
 export type WriteOutcome =
-  | { status: "ok" }
-  | { status: "conflict"; reason: string };
+  { status: "ok" } | { status: "conflict"; reason: string };
 
 const OK: WriteOutcome = { status: "ok" };
-const conflict = (reason: string): WriteOutcome => ({ status: "conflict", reason });
+const conflict = (reason: string): WriteOutcome => ({
+  status: "conflict",
+  reason,
+});
 
 export type GroupStore = {
   board(groupId: string): Promise<GroupState | null>;
@@ -70,20 +74,44 @@ export type GroupStore = {
    * What a phone needs to merge: it cannot see an absence in a list, so a
    * deletion has to be named. See `deletionsFrom`.
    */
-  snapshot(groupId: string): Promise<{ state: GroupState; deleted: Deletions } | null>;
+  snapshot(
+    groupId: string,
+  ): Promise<{ state: GroupState; deleted: Deletions } | null>;
   /** What this account may do here. **Strongly consistent.** */
   membership(accountId: string, groupId: string): Promise<MemberItem | null>;
   /** Everyone in a group, from the group's own partition. Consistent. */
   members(groupId: string): Promise<MemberItem[]>;
   /** Every row under an account — memberships and claims. */
   belongings(accountId: string): Promise<AccountRow[]>;
-  createGroup(groupId: string, name: string, founder: string, now: number): Promise<WriteOutcome>;
+  createGroup(
+    groupId: string,
+    name: string,
+    founder: string,
+    now: number,
+  ): Promise<WriteOutcome>;
   addPlayer(groupId: string, player: Player): Promise<WriteOutcome>;
   recordGame(groupId: string, result: GameResult): Promise<WriteOutcome>;
-  removePlayer(groupId: string, playerId: string, now: number): Promise<WriteOutcome>;
-  removeGame(groupId: string, gameId: string, now: number): Promise<WriteOutcome>;
-  claimPlayer(accountId: string, groupId: string, playerId: string, now: number): Promise<WriteOutcome>;
-  releaseClaim(accountId: string, groupId: string, playerId: string): Promise<WriteOutcome>;
+  removePlayer(
+    groupId: string,
+    playerId: string,
+    now: number,
+  ): Promise<WriteOutcome>;
+  removeGame(
+    groupId: string,
+    gameId: string,
+    now: number,
+  ): Promise<WriteOutcome>;
+  claimPlayer(
+    accountId: string,
+    groupId: string,
+    playerId: string,
+    now: number,
+  ): Promise<WriteOutcome>;
+  releaseClaim(
+    accountId: string,
+    groupId: string,
+    playerId: string,
+  ): Promise<WriteOutcome>;
   /** Change a role, asserting `guarantor` is still an admin if one is named. */
   setRole(
     accountId: string,
@@ -91,18 +119,54 @@ export type GroupStore = {
     role: Role,
     guarantor: string | null,
   ): Promise<WriteOutcome>;
-  join(accountId: string, groupId: string, role: Role, now: number): Promise<WriteOutcome>;
+  join(
+    accountId: string,
+    groupId: string,
+    role: Role,
+    now: number,
+  ): Promise<WriteOutcome>;
   /** Remove a membership, asserting `guarantor` is still an admin if named. */
-  leave(accountId: string, groupId: string, guarantor: string | null): Promise<WriteOutcome>;
+  leave(
+    accountId: string,
+    groupId: string,
+    guarantor: string | null,
+  ): Promise<WriteOutcome>;
   /** What an account holds on a board, if anything — the seat and the player. */
   seatOf(accountId: string, groupId: string): Promise<string | null>;
-  setInvite(groupId: string, token: string, previous: string | null, now: number): Promise<WriteOutcome>;
+  setInvite(
+    groupId: string,
+    token: string,
+    previous: string | null,
+    now: number,
+  ): Promise<WriteOutcome>;
   groupForInvite(token: string): Promise<string | null>;
   inviteTokenOf(groupId: string): Promise<string | null>;
-  forget(accountId: string, keys: readonly { pk: string; sk: string }[]): Promise<void>;
+  forget(
+    accountId: string,
+    keys: readonly { pk: string; sk: string }[],
+  ): Promise<void>;
+  /**
+   * Record that somebody reported this board.
+   *
+   * Unconditional: a second report from the same person replaces their first
+   * rather than conflicting, which is what {@link reportKey} is shaped for.
+   * There is nothing here a caller has to resolve, so it returns nothing.
+   */
+  reportContent(
+    groupId: string,
+    accountId: string,
+    reason: ReportReason,
+    detail: string,
+    now: number,
+  ): Promise<void>;
 };
 
-export type AccountRow = { pk: string; sk: string; playerId?: string; role?: string };
+export type AccountRow = {
+  pk: string;
+  sk: string;
+  playerId?: string;
+  role?: string;
+};
 
 /**
  * `TransactionCanceledException` is **not** a synonym for "somebody got there
@@ -120,12 +184,15 @@ const conditional = async (
   reasons: string | readonly string[],
 ): Promise<WriteOutcome> => {
   const at = (index: number): string =>
-    typeof reasons === "string" ? reasons : (reasons[index] ?? reasons[0] ?? "refused");
+    typeof reasons === "string"
+      ? reasons
+      : (reasons[index] ?? reasons[0] ?? "refused");
   try {
     await run();
     return OK;
   } catch (error) {
-    if (error instanceof ConditionalCheckFailedException) return conflict(at(0));
+    if (error instanceof ConditionalCheckFailedException)
+      return conflict(at(0));
     if (error instanceof TransactionCanceledException) {
       const index = failedConditionAt(error);
       if (index >= 0) return conflict(at(index));
@@ -277,8 +344,18 @@ export const createGroupStore = (
                     ConditionExpression: "attribute_not_exists(pk)",
                   },
                 },
-                { Put: { TableName: tableName, Item: memberItem(groupId, founder, "admin", now) } },
-                { Put: { TableName: tableName, Item: membershipItem(founder, groupId, "admin", now) } },
+                {
+                  Put: {
+                    TableName: tableName,
+                    Item: memberItem(groupId, founder, "admin", now),
+                  },
+                },
+                {
+                  Put: {
+                    TableName: tableName,
+                    Item: membershipItem(founder, groupId, "admin", now),
+                  },
+                },
               ],
             }),
           ),
@@ -332,7 +409,10 @@ export const createGroupStore = (
               UpdateExpression:
                 "SET #name = if_not_exists(#name, :name), playerId = :id",
               ExpressionAttributeNames: { "#name": "name" },
-              ExpressionAttributeValues: { ":name": player.name, ":id": player.id },
+              ExpressionAttributeValues: {
+                ":name": player.name,
+                ":id": player.id,
+              },
               ConditionExpression: "attribute_not_exists(deletedAt)",
             }),
           ),
@@ -372,7 +452,8 @@ export const createGroupStore = (
           ConsistentRead: true,
         }),
       );
-      const stored = (existing.Item as { result?: GameResult } | undefined)?.result;
+      const stored = (existing.Item as { result?: GameResult } | undefined)
+        ?.result;
       // The **whole** game, not just its date. Comparing `playedAt` alone
       // answers 200 to a genuinely different game recorded under an id already
       // used — and the client, told it succeeded, drops it from its queue.
@@ -386,9 +467,14 @@ export const createGroupStore = (
     async removePlayer(groupId, playerId, now) {
       const key = playerKey(groupId, playerId);
       const existing = await client.send(
-        new GetCommand({ TableName: tableName, Key: key, ConsistentRead: true }),
+        new GetCommand({
+          TableName: tableName,
+          Key: key,
+          ConsistentRead: true,
+        }),
       );
-      const holder = (existing.Item as { accountId?: unknown } | undefined)?.accountId;
+      const holder = (existing.Item as { accountId?: unknown } | undefined)
+        ?.accountId;
       const claimer = typeof holder === "string" ? holder : null;
 
       // The claim goes with the player. Conditional on the holder *still* being
@@ -406,11 +492,20 @@ export const createGroupStore = (
                     ConditionExpression: claimer
                       ? "attribute_exists(pk) AND accountId = :holder"
                       : "attribute_exists(pk) AND attribute_not_exists(accountId)",
-                    ExpressionAttributeValues: claimer ? { ":holder": claimer } : undefined,
+                    ExpressionAttributeValues: claimer
+                      ? { ":holder": claimer }
+                      : undefined,
                   },
                 },
                 ...(claimer
-                  ? [{ Delete: { TableName: tableName, Key: claimKey(claimer, groupId) } }]
+                  ? [
+                      {
+                        Delete: {
+                          TableName: tableName,
+                          Key: claimKey(claimer, groupId),
+                        },
+                      },
+                    ]
                   : []),
               ],
             }),
@@ -478,37 +573,41 @@ export const createGroupStore = (
 
       const attempt = () =>
         conditional(
-        () =>
-          client.send(
-            new TransactWriteCommand({
-              TransactItems: [
-                {
-                  Put: {
-                    TableName: tableName,
-                    Item: { ...claimKey(accountId, groupId), playerId, claimedAt: now },
-                    ConditionExpression: "attribute_not_exists(pk)",
+          () =>
+            client.send(
+              new TransactWriteCommand({
+                TransactItems: [
+                  {
+                    Put: {
+                      TableName: tableName,
+                      Item: {
+                        ...claimKey(accountId, groupId),
+                        playerId,
+                        claimedAt: now,
+                      },
+                      ConditionExpression: "attribute_not_exists(pk)",
+                    },
                   },
-                },
-                {
-                  Update: {
-                    TableName: tableName,
-                    Key: playerKey(groupId, playerId),
-                    UpdateExpression: "SET accountId = :account",
-                    ExpressionAttributeValues: { ":account": accountId },
-                    ConditionExpression:
-                      "attribute_exists(pk) AND attribute_not_exists(accountId) AND attribute_not_exists(deletedAt)",
+                  {
+                    Update: {
+                      TableName: tableName,
+                      Key: playerKey(groupId, playerId),
+                      UpdateExpression: "SET accountId = :account",
+                      ExpressionAttributeValues: { ":account": accountId },
+                      ConditionExpression:
+                        "attribute_exists(pk) AND attribute_not_exists(accountId) AND attribute_not_exists(deletedAt)",
+                    },
                   },
-                },
-                membershipUpsert(memberKey(groupId, accountId)),
-                membershipUpsert(membershipKey(accountId, groupId)),
-              ],
-            }),
-          ),
-        [
-          "you already hold a seat on this board",
-          "somebody else has claimed that player",
-        ],
-      );
+                  membershipUpsert(memberKey(groupId, accountId)),
+                  membershipUpsert(membershipKey(accountId, groupId)),
+                ],
+              }),
+            ),
+          [
+            "you already hold a seat on this board",
+            "somebody else has claimed that player",
+          ],
+        );
 
       const outcome = await attempt();
       if (outcome.status === "ok") return outcome;
@@ -554,7 +653,12 @@ export const createGroupStore = (
                     ExpressionAttributeValues: { ":account": accountId },
                   },
                 },
-                { Delete: { TableName: tableName, Key: claimKey(accountId, groupId) } },
+                {
+                  Delete: {
+                    TableName: tableName,
+                    Key: claimKey(accountId, groupId),
+                  },
+                },
               ],
             }),
           ),
@@ -590,7 +694,9 @@ export const createGroupStore = (
               TransactItems: [
                 update(memberKey(groupId, accountId)),
                 update(membershipKey(accountId, groupId)),
-                ...(guarantor ? [stillAdmin(tableName, groupId, guarantor)] : []),
+                ...(guarantor
+                  ? [stillAdmin(tableName, groupId, guarantor)]
+                  : []),
               ],
             }),
           ),
@@ -637,13 +743,29 @@ export const createGroupStore = (
           client.send(
             new TransactWriteCommand({
               TransactItems: [
-                { Delete: { TableName: tableName, Key: memberKey(groupId, accountId) } },
-                { Delete: { TableName: tableName, Key: membershipKey(accountId, groupId) } },
-                ...(guarantor ? [stillAdmin(tableName, groupId, guarantor)] : []),
+                {
+                  Delete: {
+                    TableName: tableName,
+                    Key: memberKey(groupId, accountId),
+                  },
+                },
+                {
+                  Delete: {
+                    TableName: tableName,
+                    Key: membershipKey(accountId, groupId),
+                  },
+                },
+                ...(guarantor
+                  ? [stillAdmin(tableName, groupId, guarantor)]
+                  : []),
               ],
             }),
           ),
-        ["could not leave", "could not leave", "the group would be left with no admin"],
+        [
+          "could not leave",
+          "could not leave",
+          "the group would be left with no admin",
+        ],
       );
     },
 
@@ -680,12 +802,22 @@ export const createGroupStore = (
                   },
                 },
                 ...(previous
-                  ? [{ Delete: { TableName: tableName, Key: inviteKey(previous) } }]
+                  ? [
+                      {
+                        Delete: {
+                          TableName: tableName,
+                          Key: inviteKey(previous),
+                        },
+                      },
+                    ]
                   : []),
               ],
             }),
           ),
-        ["could not write the invite", "the link changed while it was being rotated"],
+        [
+          "could not write the invite",
+          "the link changed while it was being rotated",
+        ],
       );
     },
 
@@ -697,7 +829,8 @@ export const createGroupStore = (
           ConsistentRead: true,
         }),
       );
-      const groupId = (result.Item as { groupId?: unknown } | undefined)?.groupId;
+      const groupId = (result.Item as { groupId?: unknown } | undefined)
+        ?.groupId;
       return typeof groupId === "string" && groupId.length > 0 ? groupId : null;
     },
 
@@ -709,7 +842,8 @@ export const createGroupStore = (
           ConsistentRead: true,
         }),
       );
-      const token = (result.Item as { inviteToken?: unknown } | undefined)?.inviteToken;
+      const token = (result.Item as { inviteToken?: unknown } | undefined)
+        ?.inviteToken;
       return typeof token === "string" && token.length > 0 ? token : null;
     },
 
@@ -721,8 +855,18 @@ export const createGroupStore = (
           ConsistentRead: true,
         }),
       );
-      const playerId = (seat.Item as { playerId?: unknown } | undefined)?.playerId;
+      const playerId = (seat.Item as { playerId?: unknown } | undefined)
+        ?.playerId;
       return typeof playerId === "string" ? playerId : null;
+    },
+
+    async reportContent(groupId, accountId, reason, detail, now) {
+      await client.send(
+        new PutCommand({
+          TableName: tableName,
+          Item: reportItem(groupId, accountId, reason, detail, now),
+        }),
+      );
     },
 
     async forget(accountId, keys) {
@@ -730,7 +874,9 @@ export const createGroupStore = (
       // delete of something a previous attempt already removed has to succeed
       // or the sequence stops being re-runnable.
       for (const key of keys) {
-        await client.send(new DeleteCommand({ TableName: tableName, Key: key }));
+        await client.send(
+          new DeleteCommand({ TableName: tableName, Key: key }),
+        );
       }
     },
   };

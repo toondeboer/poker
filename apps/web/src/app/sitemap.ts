@@ -24,6 +24,14 @@ export default function sitemap(): MetadataRoute.Sitemap {
       priority: 0.8,
     },
     {
+      url: `${SITE_URL}/support`,
+      lastModified,
+      changeFrequency: "monthly",
+      // Higher than the privacy policy: both stores link to it, and it is the
+      // page somebody lands on when they need something dealt with.
+      priority: 0.5,
+    },
+    {
       url: `${SITE_URL}/privacy-policy`,
       lastModified,
       changeFrequency: "yearly",

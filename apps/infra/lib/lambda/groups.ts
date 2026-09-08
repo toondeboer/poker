@@ -22,6 +22,7 @@ import {
 import { log } from "./logging";
 import {
   anotherAdmin,
+  isReportReason,
   isUsableId,
   may,
   type GroupAction,
@@ -86,7 +87,11 @@ export const parseBody = (body?: string | null): Record<string, unknown> => {
   if (!body) return {};
   try {
     const parsed: unknown = JSON.parse(body);
-    if (typeof parsed !== "object" || parsed === null || Array.isArray(parsed)) {
+    if (
+      typeof parsed !== "object" ||
+      parsed === null ||
+      Array.isArray(parsed)
+    ) {
       return {};
     }
     return parsed as Record<string, unknown>;
@@ -122,8 +127,11 @@ const isPlayer = (value: unknown): value is Player => {
   // then dropped by `boardFrom` on every read: a row that exists, answered 200,
   // never appears, and cannot be deleted through an API that addresses it by
   // the id it does not have. A `#` would break the key it lands in.
-  return isUsableId(player.id) && typeof player.name === "string" &&
-    player.name.trim().length > 0;
+  return (
+    isUsableId(player.id) &&
+    typeof player.name === "string" &&
+    player.name.trim().length > 0
+  );
 };
 
 /**
@@ -209,7 +217,8 @@ const isResult = (value: unknown): value is GameResult => {
     // checked when present. `cleanResult` copies these fields through, so
     // waiving them here would put arbitrary client types on a shared board.
     (result.knockouts === undefined ||
-      (Array.isArray(result.knockouts) && result.knockouts.every(isKnockout))) &&
+      (Array.isArray(result.knockouts) &&
+        result.knockouts.every(isKnockout))) &&
     typeof result.buyIn === "number" &&
     Number.isFinite(result.buyIn) &&
     typeof result.bounty === "number" &&
@@ -334,7 +343,11 @@ export const handler = async (request: VerifiedRequest): Promise<Response> => {
     const outcome = await store.join(caller, invited, "member", now);
     // Already a member is a success: somebody tapping a pinned link a second
     // time expects to end up in the group, not to be told off.
-    log("info", "invite redeemed", { requestId, accountId: caller, groupId: invited });
+    log("info", "invite redeemed", {
+      requestId,
+      accountId: caller,
+      groupId: invited,
+    });
     return json(200, { groupId: invited, joined: outcome.status === "ok" });
   }
 
@@ -421,6 +434,42 @@ export const handler = async (request: VerifiedRequest): Promise<Response> => {
       return answer(outcome, requestId, { groupId, caller });
     }
 
+    case "POST /groups/{groupId}/report": {
+      /**
+       * **`read`, so only somebody on the board can report it.** An open
+       * endpoint would let anybody who guessed a group id file reports against
+       * it, and the report mail is a channel worth keeping clean. It also means
+       * a report always comes from an account that has actually seen the
+       * content, which is what makes it worth acting on.
+       */
+      const allowed = await authorize(store, caller, groupId, "read");
+      if (!allowed.ok) return allowed.response;
+      const { reason, detail } = body;
+      if (!isReportReason(reason)) return json(400, { error: "no reason" });
+      const text = typeof detail === "string" ? detail : "";
+      await store.reportContent(groupId, caller, reason, text, now);
+      /**
+       * **`warn`, and the wording is load-bearing.** A metric filter in
+       * `pokerStack.ts` counts this exact message and an alarm emails it on, so
+       * a report reaches a person rather than sitting in a table nobody opens.
+       * Changing the string without changing the filter silently switches
+       * reporting off — which is the failure mode a store review would find.
+       *
+       * The detail is deliberately **not** logged. It is somebody's account of
+       * something upsetting, quite possibly quoting it, and a log group is the
+       * wrong place for that; it is in the row, for whoever handles the report.
+       */
+      log("warn", "content reported", {
+        requestId,
+        accountId: caller,
+        groupId,
+        reason,
+      });
+      // 202: it is recorded and a human will look, which is all this can
+      // honestly promise. 200 would suggest something has already been done.
+      return json(202, { status: "received" });
+    }
+
     case "GET /groups/{groupId}/members": {
       const allowed = await authorize(store, caller, groupId, "read");
       if (!allowed.ok) return allowed.response;
@@ -460,10 +509,28 @@ export const handler = async (request: VerifiedRequest): Promise<Response> => {
     }
 
     case "DELETE /groups/{groupId}/members/{accountId}": {
-      const allowed = await authorize(store, caller, groupId, "manageAdmins");
-      if (!allowed.ok) return allowed.response;
       const subject = request.pathParameters?.accountId;
       if (!isUsableId(subject)) return json(400, { error: "no account" });
+      /**
+       * **Leaving is not an admin action.** Removing somebody else is, and
+       * needs `manageAdmins` — but a member removing *themselves* only needs to
+       * be on the board, or there is no way off one. That mattered before this
+       * was a moderation question and matters more now: a board whose content
+       * somebody objects to has to be one they can walk away from, and the only
+       * alternative was asking the admin who shared it.
+       *
+       * Everything below still applies to them. The last-admin guard is the
+       * reason a sole admin cannot leave a board with other people on it, and
+       * their claim is still released first.
+       */
+      const leaving = subject === caller;
+      const allowed = await authorize(
+        store,
+        caller,
+        groupId,
+        leaving ? "read" : "manageAdmins",
+      );
+      if (!allowed.ok) return allowed.response;
       /**
        * **Without this, rotating an invite was not revocation.** A leaked link
        * lets somebody join; rotating it only stops the *next* person, and there
@@ -518,7 +585,8 @@ export const handler = async (request: VerifiedRequest): Promise<Response> => {
        */
       const guarantor =
         role === "member"
-          ? (anotherAdmin(await store.members(groupId), subject)?.accountId ?? null)
+          ? (anotherAdmin(await store.members(groupId), subject)?.accountId ??
+            null)
           : null;
       if (role === "member" && !guarantor) {
         return json(409, {
@@ -581,7 +649,10 @@ const deleteUser = (): ((accountId: string) => Promise<void>) => {
   cognito = async (accountId: string) => {
     const client = new CognitoIdentityProviderClient({});
     await client.send(
-      new AdminDeleteUserCommand({ UserPoolId: userPoolId, Username: accountId }),
+      new AdminDeleteUserCommand({
+        UserPoolId: userPoolId,
+        Username: accountId,
+      }),
     );
   };
   return cognito;

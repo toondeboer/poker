@@ -260,12 +260,7 @@ export {
 export type { HandCategory, HandValue } from "./poker/handValue";
 export { evaluateHand, rankHands } from "./poker/evaluate";
 export type { EvaluatedHand } from "./poker/evaluate";
-export {
-  buildPots,
-  awardPots,
-  potWinners,
-  totalPotAmount,
-} from "./poker/pots";
+export { buildPots, awardPots, potWinners, totalPotAmount } from "./poker/pots";
 export type { Contribution, Pot, Award } from "./poker/pots";
 export {
   createBettingRound,
@@ -309,6 +304,7 @@ export type { GameSession, SessionSeat, Knockout } from "./poker/session";
 export {
   createPlayer,
   isValidPlayerName,
+  playerNameRejection,
   addPlayer,
   removePlayer,
   createGameResult,
@@ -332,6 +328,7 @@ export {
   EMPTY_LEADERBOARD,
   createGroup,
   isValidGroupName,
+  groupNameRejection,
   addGroup,
   removeGroup,
   renameGroup,
@@ -415,7 +412,10 @@ export {
 } from "./sync/mergeBoard";
 export type { Deletions, RemoteBoard } from "./sync/mergeBoard";
 export { applyReport, drain } from "./sync/drain";
-export { createSyncQueueStorage, SYNC_QUEUE_KEY } from "./storage/syncQueueStorage";
+export {
+  createSyncQueueStorage,
+  SYNC_QUEUE_KEY,
+} from "./storage/syncQueueStorage";
 export type { SyncQueueStorage } from "./storage/syncQueueStorage";
 export type { DrainReport, SendResult, Sender } from "./sync/drain";
 export {
@@ -470,3 +470,18 @@ export {
   formatStandingsSummary,
   MAX_SHARED_STANDINGS,
 } from "./share/summaries";
+
+// Moderation — the filter in front of anything a person types that other
+// people will read. See `moderation/textFilter.ts` for why it is a speed bump
+// rather than a moderator, and why reporting sits beside it.
+export {
+  MAX_NAME_LENGTH,
+  isObjectionable,
+  nameRejection,
+  messageForRejection,
+  REPORT_REASONS,
+  isReportReason,
+  labelForReportReason,
+  MAX_REPORT_DETAIL,
+} from "./moderation/textFilter";
+export type { NameRejection, ReportReason } from "./moderation/textFilter";

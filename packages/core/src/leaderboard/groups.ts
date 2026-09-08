@@ -19,6 +19,7 @@
  */
 
 import type { GameResult, Player } from "./gameResult";
+import { nameRejection, type NameRejection } from "../moderation/textFilter";
 
 /** Keep storage small and the picker scannable. */
 export const MAX_GROUPS = 20;
@@ -130,11 +131,14 @@ export const createGroup = (params: {
 });
 
 /**
- * A group name is usable when it is non-empty and not a case-insensitive
- * duplicate — the same rule player names already follow, and for the same
- * reason: two "Thursday"s are indistinguishable in a picker.
+ * Why a group name can't be used, or `null` when it can.
+ *
+ * The duplicate rule is the original one, and the same one player names follow:
+ * two "Thursday"s are indistinguishable in a picker. Length and content are
+ * checked for the same reason a player name is — a shared board carries its
+ * name to everybody who joins it. See {@link nameRejection}.
  */
-export const isValidGroupName = (
+export const groupNameRejection = (
   name: string,
   groups: readonly GroupState[],
   /**
@@ -143,15 +147,24 @@ export const isValidGroupName = (
    * and there is no way for a caller to validate a rename at all.
    */
   excludeGroupId?: string,
-): boolean => {
-  const trimmed = name.trim();
-  if (trimmed.length === 0) return false;
-  return !groups.some(
-    (entry) =>
-      entry.group.id !== excludeGroupId &&
-      entry.group.name.toLowerCase() === trimmed.toLowerCase(),
+): NameRejection | null =>
+  nameRejection(
+    name,
+    groups
+      .filter((entry) => entry.group.id !== excludeGroupId)
+      .map((entry) => entry.group.name),
   );
-};
+
+/**
+ * The same question as a boolean, for callers that only enable a button.
+ *
+ * Anything that wants to *say* what is wrong calls {@link groupNameRejection}.
+ */
+export const isValidGroupName = (
+  name: string,
+  groups: readonly GroupState[],
+  excludeGroupId?: string,
+): boolean => groupNameRejection(name, groups, excludeGroupId) === null;
 
 /** Add a group and make it the active one, enforcing {@link MAX_GROUPS}. */
 export const addGroup = (
@@ -264,8 +277,7 @@ export type ClaimError =
   | "account-already-in-group";
 
 export type ClaimResult =
-  | { ok: true; state: GroupedLeaderboard }
-  | { ok: false; error: ClaimError };
+  { ok: true; state: GroupedLeaderboard } | { ok: false; error: ClaimError };
 
 /**
  * Attach an account to a player who is already on a group's roster.
@@ -430,8 +442,10 @@ export const addBoard = (
  * Discovery asks; joining does not — tapping a link for a board you deleted is
  * asking for it back.
  */
-export const wasDismissed = (state: GroupedLeaderboard, groupId: string): boolean =>
-  state.dismissed?.includes(groupId) ?? false;
+export const wasDismissed = (
+  state: GroupedLeaderboard,
+  groupId: string,
+): boolean => state.dismissed?.includes(groupId) ?? false;
 
 /** Take a board back, so it can be discovered again. */
 export const undismiss = (

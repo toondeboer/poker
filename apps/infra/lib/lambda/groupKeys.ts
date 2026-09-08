@@ -36,7 +36,13 @@
  * The design is in [SYNC.md](../../SYNC.md).
  */
 
-import type { Deletions, GameResult, Group, GroupState, Player } from "@poker/core";
+import type {
+  Deletions,
+  GameResult,
+  Group,
+  GroupState,
+  Player,
+} from "@poker/core";
 
 /** Roles a membership can hold. Adding is open; removing is not. */
 export type Role = "admin" | "member";
@@ -125,6 +131,26 @@ export const inviteKey = (token: string) => ({
   sk: "META",
 });
 
+/**
+ * Somebody's report about a board, keyed by who made it.
+ *
+ * **One report per person per board, and a second one replaces the first.**
+ * That is a deliberate trade. Keying by reporter alone loses the history of
+ * somebody reporting the same board twice, and in exchange it bounds what a
+ * single account can write: the alternative — a timestamp or a uuid in the key
+ * — lets one member fill a partition with reports nobody asked for. The
+ * operator is emailed on every report either way (see the metric filter in
+ * `pokerStack.ts`), so the history lives in the alarm mail rather than here,
+ * and what this row is for is answering "which boards have open reports".
+ *
+ * Under the group's own partition rather than the reporter's, because the
+ * question worth asking is always about the board.
+ */
+export const reportKey = (groupId: string, accountId: string) => ({
+  pk: `GROUP#${groupId}`,
+  sk: `REPORT#${accountId}`,
+});
+
 // ---------------------------------------------------------------------------
 // Items
 // ---------------------------------------------------------------------------
@@ -201,6 +227,39 @@ export const membershipItem = (
 });
 
 /**
+ * The reasons and the cap come from `@poker/core`, not from here.
+ *
+ * The app puts these on buttons and this handler refuses anything it does not
+ * recognise, so the two ends have to agree — and the only way they cannot drift
+ * is for there to be one list. Re-exported so the rest of this file reads as it
+ * did.
+ */
+import { MAX_REPORT_DETAIL, type ReportReason } from "@poker/core";
+
+export {
+  REPORT_REASONS,
+  isReportReason,
+  MAX_REPORT_DETAIL,
+  type ReportReason,
+} from "@poker/core";
+
+export const reportItem = (
+  groupId: string,
+  accountId: string,
+  reason: ReportReason,
+  detail: string,
+  now: number,
+) => ({
+  ...reportKey(groupId, accountId),
+  reason,
+  // Trimmed to the cap here rather than refused at the edge: a report that is
+  // too long is still a report, and losing it over a length would be the wrong
+  // way round for the one route whose whole purpose is hearing about a problem.
+  detail: detail.slice(0, MAX_REPORT_DETAIL),
+  reportedAt: now,
+});
+
+/**
  * What a deleted row becomes.
  *
  * **The payload is stripped**, because a tombstone still carrying the game it
@@ -254,7 +313,8 @@ export const memberFrom = (item: unknown): MemberItem | null => {
   // A membership with an unreadable role is not a member with no powers — it is
   // a row this code does not understand, and treating it as a `member` would be
   // inventing a permission from a parse failure.
-  if (!accountId || !groupId || joinedAt === null || !isRole(row.role)) return null;
+  if (!accountId || !groupId || joinedAt === null || !isRole(row.role))
+    return null;
   return memberItem(groupId, accountId, row.role, joinedAt);
 };
 
@@ -331,7 +391,8 @@ export const boardFrom = (
       const id = str(row.playerId);
       const name = str(row.name);
       const accountId = str(row.accountId);
-      if (id && name) players.push({ id, name, ...(accountId ? { accountId } : {}) });
+      if (id && name)
+        players.push({ id, name, ...(accountId ? { accountId } : {}) });
     } else if (sk.startsWith("RESULT#")) {
       const result = row.result;
       if (typeof result === "object" && result !== null) {
@@ -353,7 +414,8 @@ export const boardFrom = (
    * The id breaks a tie, and equal ids compare equal.
    */
   results.sort(
-    (a, b) => b.playedAt - a.playedAt || (a.id === b.id ? 0 : a.id < b.id ? -1 : 1),
+    (a, b) =>
+      b.playedAt - a.playedAt || (a.id === b.id ? 0 : a.id < b.id ? -1 : 1),
   );
   return { group, players, results };
 };
@@ -429,7 +491,8 @@ export const heirTo = (
   if (remaining.length === 0) return null;
   return remaining.reduce((best, candidate) =>
     candidate.joinedAt < best.joinedAt ||
-    (candidate.joinedAt === best.joinedAt && candidate.accountId < best.accountId)
+    (candidate.joinedAt === best.joinedAt &&
+      candidate.accountId < best.accountId)
       ? candidate
       : best,
   );
