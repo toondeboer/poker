@@ -427,6 +427,16 @@ platform-tagged heading (e.g. `## [1.1.3] - 2026-07-20 — Android`) when you cu
   deleted with it. One deliberate exception: the API's deployed `description` string is still wrong
   and is left that way with a comment saying so, because correcting it would put the branch out of
   sync with the live stack for something cosmetic.
+- **`ARCHITECTURE.md` said the app never calls `/members`; it has since 1.2.0.** `leaveBoard` sends
+  `DELETE /groups/{groupId}/members/{accountId}` for the caller's own account — leaving is not an
+  admin action, so it is the one member route a phone reaches, and it does not go through the
+  outbox. Removing somebody else still has no client, and `/claims`, the deletions and the role
+  changes are still unreached, so the paragraph's point survives; it was just one route out of date.
+- **`README.md` did not say that `npm run eas:submit` goes to a testing track.** It described the
+  scripts as uploading to App Store Connect and Play, with nothing about `--profile internal` or the
+  `:production` variants — and this is the exact distinction that put 1.1.4 on Play's production
+  track with its billing rows never run. The warning `CLAUDE.md` carries now appears where somebody
+  reading the deploy instructions will actually meet it.
 - **Two character counts in `STORE_LISTING.md` were wrong, and every other one was measured.** The
   promotional text is 151 characters, not 154; the 1.2.0 Play release notes are 283, not 421. Both
   were under their limits, so neither would have bitten — but the whole value of a file that

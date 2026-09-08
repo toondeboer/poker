@@ -142,15 +142,28 @@ important.
 - **Mobile → EAS**, from the repo root. `eas build` compiles a native binary in EAS's cloud (an
   `.ipa` for iOS / `.aab` for Android); `eas submit` uploads the most recently finished build to
   App Store Connect / Google Play Console. Build first, then submit once it finishes:
+
   ```bash
   npm run eas:build
   npm run eas:build:ios
   npm run eas:build:android
   ```
+
   ```bash
   npm run eas:submit
   npm run eas:submit:ios
   npm run eas:submit:android
   ```
+
+  **Those three go to a testing track, not to production**, and that is deliberate: they pass
+  `--profile internal`, which puts Android on Play's `internal` track. (iOS is the same upload
+  either way — every build reaching App Store Connect lands in TestFlight, and submitting for
+  review is a separate, deliberate act there.) The `eas:submit:*:production` variants name
+  production in full so it cannot be reached by accident.
+
+  **Never run a bare `eas submit`.** With no `--profile` the CLI silently uses the profile _named_
+  `production`, which is how 1.1.4 reached Play's production track with its billing rows never once
+  run.
+
   (config in `eas.json`, project id in `app.json`). See [CLAUDE.md](./CLAUDE.md) for the release
   checklist (version bump, changelog, tag).
