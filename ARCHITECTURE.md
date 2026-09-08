@@ -185,6 +185,7 @@ flowchart TB
     GP["sk = PLAYER#&lt;playerId&gt;"]
     GR["sk = RESULT#&lt;gameId&gt;<br/><i>keyed by id alone</i>"]
     GB["sk = MEMBER#&lt;accountId&gt;<br/><i>+ role</i>"]
+    GX["sk = REPORT#&lt;accountId&gt;<br/><i>keyed by reporter, so a<br/>second report replaces<br/>the first</i>"]
   end
 
   subgraph A["pk = ACCOUNT#&lt;accountId&gt;"]
@@ -200,8 +201,9 @@ flowchart TB
   IM -.->|"redeems to"| GB
 ```
 
-Three rules are held by the shape rather than by code: one seat per board is a key collision rather
-than a check, membership written under both the group and the account makes "who is here" a
+Four rules are held by the shape rather than by code: one seat per board is a key collision rather
+than a check, one report per person per board is the same trick applied to abuse — a second report
+replaces the first instead of letting one account fill a partition, membership written under both the group and the account makes "who is here" a
 strongly consistent read, and "is there another admin?" is a `ConditionCheck` on a named account
 inside the transaction rather than a counter. [`SYNC.md`](./apps/infra/SYNC.md) records the first
 schema and why it was replaced — worth reading before changing any of this.
