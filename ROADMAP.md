@@ -278,10 +278,18 @@ delete the branch.
 
 ### What is still code, for when you want me building again
 
-- The app side of the multiplayer table: subscribe, apply events, predict optimistically, reconcile.
-- The real `SessionTransport`, replacing the shared clock's loopback — which also needs a `session`
-  namespace in the stack, since only `table` and `player` exist.
+- The real `SessionTransport`, replacing the shared clock's loopback. **This got harder, not
+  easier**: it was waiting on a `session` namespace for an AppSync Events bus that existed, and that
+  bus went with the table backend — so it now needs the realtime API stood back up as well.
 - Sign in with Apple and Google, once the credentials exist and the MAU question above is answered.
+
+**Not on this list, deliberately: the multiplayer table.** "The app side of the table — subscribe,
+apply events, predict optimistically, reconcile" sat here for months and reads like the obvious next
+thing to build. It is not available. A server-authoritative table is a betting engine, and betting
+chips is simulated gambling under Apple's definition — 18+, PEGI 18, and on an Individual developer
+account possibly no submission at all. See
+[Gambling classification](#gambling-classification--blocking-120). Building it means accepting that,
+deliberately, not discovering it afterwards.
 
 ## Carried over from 1.1.4 — needs verification
 

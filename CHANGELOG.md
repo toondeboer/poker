@@ -478,6 +478,16 @@ platform-tagged heading (e.g. `## [1.1.3] - 2026-07-20 — Android`) when you cu
 
 ### Fixed
 
+- Docs: swept the remaining files for claims that stopped being true when the table backend and the
+  betting engine went. `README.md` was the worst — it described the backend as "for accounts and
+  **online play**", "**not deployed**", and "nothing in the app talks to it yet", all three of which
+  had been wrong since PR #204 or became wrong today. `apps/infra/README.md` listed an `EventApiDns`
+  stack output that no longer exists and a "no custom domain" gap that was closed months ago, and
+  `ROADMAP.md`'s future-work list still offered "the app side of the multiplayer table" as the
+  obvious next thing to build — which is the one thing that cannot be built without re-opening the
+  rating question. Where a document recorded something that actually happened — an alarm that fired,
+  a deploy that did not undo a hand-edit — the record is kept and annotated rather than rewritten.
+
 - Docs: recorded the decision to keep the app at 4+/3+ by removing two things before 1.2.0 ships —
   the dealt game's betting engine, and money from the leaderboard — and the evidence behind it.
   `STORE_LISTING.md` asserted the app would rate **18+** for frequent simulated gambling, which was

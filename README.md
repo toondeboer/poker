@@ -2,7 +2,7 @@
 
 A poker tournament timer for the table — manage blind levels, time each round, and get
 audible/visual alerts when the blinds go up. Plus the rest of what a home game argues about:
-what each place pays, how to end it early, and who is actually winning across the season.
+what each place pays, how to end it early, and who is actually winning.
 
 This monorepo holds the whole product:
 
@@ -10,14 +10,13 @@ This monorepo holds the whole product:
   [poker-timer.toondeboer.com](https://poker-timer.toondeboer.com).
 - **Mobile app** — the iOS & Android app (Poker Blinds Buzzer), with background timing,
   iOS Live Activities, and an Android foreground service. Pro adds buy-in and payout maths
-  (bounties, rebuys, add-ons), a chop calculator, and a leaderboard with a separate board per
-  group of friends.
-- **Backend** — an AWS CDK stack for accounts and online play. **Defined and tested, not
-  deployed**; nothing in the app talks to it yet.
+  (bounties, rebuys, add-ons), a chop calculator, a leaderboard with a separate board per
+  group of friends, and a dealer for when nobody brought cards.
+- **Backend** — an AWS CDK stack for accounts and shared leaderboards. **Deployed**, and the app
+  talks to it: sign-in, boards, invites and reporting all go through it.
 
-All of it is driven by the same shared logic in `@poker/core`, so blind schedules, payout maths
-and the poker rules themselves stay identical wherever they run — including on the server, where
-the same functions are the authority the app predicts against. See [ARCHITECTURE.md](./ARCHITECTURE.md) for the
+All of it is driven by the same shared logic in `@poker/core`, so blind schedules, payout maths and
+the board's rules stay identical wherever they run — on the phone, on the web, and in a Lambda. See [ARCHITECTURE.md](./ARCHITECTURE.md) for the
 design and [CLAUDE.md](./CLAUDE.md) for conventions when working in this repo.
 
 ## Repository structure
@@ -26,7 +25,7 @@ design and [CLAUDE.md](./CLAUDE.md) for conventions when working in this repo.
 apps/
   web/      @poker/web      Next.js site + web timer  (Vercel)
   mobile/   @poker/mobile   Expo iOS/Android app      (EAS)
-  infra/    @poker/infra    AWS CDK backend           (not deployed)
+  infra/    @poker/infra    AWS CDK backend           (deployed)
 packages/
   core/     @poker/core     shared, framework-agnostic poker logic
 ```
@@ -106,19 +105,21 @@ npm run test       # unit tests (@poker/core and @poker/infra, via Vitest)
 npm run build      # production build of every buildable workspace
 ```
 
-## Backend (not deployed)
+## Backend
 
-`apps/infra` holds the CDK stack. It is **environment-agnostic on purpose** — no account or region
-lookups — so it synthesises and tests with no AWS credentials at all:
+`apps/infra` holds the CDK stack: Cognito for accounts, one DynamoDB table for shared boards, and
+the Lambdas behind them. It is **environment-agnostic on purpose** — no account or region lookups —
+so it synthesises and tests with no AWS credentials at all:
 
 ```bash
 npm run test -w @poker/infra   # synthesises the stack and asserts on the template
 npm run synth -w @poker/infra  # writes CloudFormation to apps/infra/cdk.out
 ```
 
-`npm run deploy -w @poker/infra` needs real credentials and creates billable resources. Read
-[ROADMAP.md](./ROADMAP.md) first: the shared realtime channel is authenticated but **not yet
-authorized**, and the action handler has no storage or publishing wired up.
+**Deploys go through the `Infra` workflow, not from a laptop.** GitHub mints a short-lived OIDC
+token and AWS exchanges it, so there is no key to leak; prod additionally waits on the
+`backend-production` environment's approval. `npm run deploy -w @poker/infra` works with real
+credentials, but the workflow is the path that is actually used.
 
 ## Regenerating native projects (mobile)
 
