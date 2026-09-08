@@ -300,6 +300,157 @@ betting is going, do not leave copy describing betting that the binary no longer
 under-delivers against its own listing is the same accuracy problem wearing the other hat. **Write
 the listing from the built binary, every time.**
 
+## Submission hand-off — every console step, with the answers
+
+**Nothing in this section has been entered anywhere yet.** It exists so the answers are decided
+once, from the built binary and the code, and **recorded** — ROADMAP item 10 asks for exactly that,
+so the next release can be checked against these rather than re-deriving them under time pressure.
+
+Derived on 2026-09-08 from the code, not copied from a PR description. Where an answer turns on
+something in the repo, the file is named so it can be re-checked.
+
+### 1. Apple age rating (App Store Connect → App Information → Age Rating)
+
+**Apple overhauled this questionnaire in July 2025.** The tiers are now 4+ / 9+ / **13+ / 16+ / 18+**
+(12+ and 17+ are gone), and there is a **Capabilities** section that has nothing to do with
+chance-based activities. Responses were required by 31 January 2026, so this may already be
+half-answered on the existing listing — check what is there before assuming it is blank.
+
+**Chance-Based Activities**
+
+| Question               | Answer              | Why                                                                                                         |
+| ---------------------- | ------------------- | ----------------------------------------------------------------------------------------------------------- |
+| **Gambling**           | **No**              | No real money and no in-game currency exchangeable for it. No wallet, no balance, no consumable IAP         |
+| **Simulated Gambling** | **None**            | Apple's definition is "betting or wagering". The betting engine was removed before 1.2.0 — see `ROADMAP.md` |
+| **Contests**           | **Infrequent/Mild** | The board records games held offline. Infrequent is 4+; frequent would be 13+                               |
+| **Loot Boxes**         | **No**              | No purchasable randomness anywhere in the repo                                                              |
+
+**Capabilities** — the new section, and the one most likely to be missed:
+
+| Question                    | Answer  | Effect on the tier                                                                              |
+| --------------------------- | ------- | ----------------------------------------------------------------------------------------------- |
+| **User-Generated Content**  | **Yes** | Disclosure only. Player and board names are typed by one member and shown to the others         |
+| **Advertising**             | **Yes** | Disclosure only. AdMob banner on the free tier                                                  |
+| **Messaging and Chat**      | **No**  | There is no way to send anybody a message                                                       |
+| **Social Media**            | **No**  | **Would force 13+.** A shared board is not a feed — no likes, comments, shares or amplification |
+| **Unrestricted Web Access** | **No**  | **Would force 16+.** No embedded browser; the only external links open the system browser       |
+
+**In-App Controls:** Parental Controls **No**, Age Assurance **No**. Both are disclosure-only.
+
+**Expected result: 4+.** If the questionnaire returns anything else, stop and find out which answer
+moved it rather than adjusting an answer to reach 4+ — under-declaring is the one thing that
+genuinely endangers a developer account.
+
+### 2. Google Play IARC (Play Console → Policy → App content → Content rating)
+
+Answered **independently** of Apple's; the two need not agree, and IARC asks differently.
+
+- **Does the app contain gambling or simulated gambling?** **No.** PEGI auto-rates _any_ simulated
+  gambling 18, so this is the answer that matters most in Europe — and it is honest only because the
+  betting engine went.
+- **Does the app contain user-generated content shared with others?** **Yes.** Board and player
+  names on a shared board. Declare it: the app has the filter, the report flow and the contact
+  address that this answer commits you to.
+- **Does the app share user-provided content?** **Yes**, between members of a board only.
+- **Ads:** yes, and the app requests non-personalized only.
+- **Purchases:** yes — one non-consumable and two subscriptions.
+
+**Expected result: 3+ (PEGI 3).**
+
+### 3. App Privacy (ASC) and Data Safety (Play)
+
+**The app no longer qualifies as "Data Not Collected".** Re-derived from the code: `apps/mobile`
+declares exactly two third-party SDKs that collect anything — `react-native-google-mobile-ads` and
+`react-native-purchases`. **There is no crash reporter and no analytics SDK in the mobile app**, so
+nothing to declare under Diagnostics.
+
+| Data                           | Collected           | Linked to the user | Purpose                 | Where it comes from                                      |
+| ------------------------------ | ------------------- | ------------------ | ----------------------- | -------------------------------------------------------- |
+| **Email address**              | Yes, if you sign up | Yes                | App Functionality       | Cognito username _and_ attribute — see `auth/cognito.ts` |
+| **User ID** (Cognito `sub`)    | Yes, if you sign up | Yes                | App Functionality       | `ACCOUNT#<accountId>` in DynamoDB                        |
+| **Other User Content**         | Yes, if you share   | Yes                | App Functionality       | Board names, player names, report free-text              |
+| **Purchase history**           | Yes                 | Yes                | App Functionality       | RevenueCat entitlement state                             |
+| **Device ID / advertising ID** | Yes, free tier only | No                 | Third-Party Advertising | AdMob                                                    |
+
+**Not collected, and worth stating because a poker app invites the question:** no location of any
+precision, no contacts, no photos, no health data, no browsing history, no financial information —
+and **no monetary amount of any kind**. Money came off the leaderboard deliberately; `groups.ts`
+whitelists fields so a stale client sending `winnings`, `buyIn` or `bounty` has them stripped
+server-side.
+
+**"Used for Tracking": No — and this is load-bearing.** `BannerAdSlot.tsx` sets
+`requestNonPersonalizedAdsOnly: true`, so the app does not ask for personalized ads and does not
+join identifiers across apps. **Do not answer Yes here**, and do not turn personalized ads on
+without first doing the UMP/ATT work below.
+
+**The consent gap, stated plainly.** `useAdsConsent.ts` is a placeholder: it resolves immediately
+and requests nothing. There is **no ATT prompt and no `NSUserTrackingUsageDescription`** in
+`Info.plist`, and no Google UMP flow. Non-personalized-only is the reason this is currently
+defensible, and it is the "simplest compliant posture" the hook's own comment claims. It is still a
+live gap for EEA/UK, it is **pre-existing and not 1.2.0's doing**, and it is tracked in `ROADMAP.md`.
+Serving personalized ads without a certified CMP would not be defensible.
+
+### 4. Club products — sharing is unreachable without these
+
+**The paywall currently sells something that cannot be bought.** Create in both stores, then map in
+RevenueCat. Ids are in `packages/core/src/monetization/products.ts` and must match exactly:
+
+| Product        | Type                        | Where                                                    |
+| -------------- | --------------------------- | -------------------------------------------------------- |
+| `pro_lifetime` | Non-consumable              | Already exists                                           |
+| `club_monthly` | Auto-renewable subscription | ASC → Subscriptions, and Play → Monetize → Subscriptions |
+| `club_yearly`  | Auto-renewable subscription | Same, same group as monthly                              |
+
+**Both Club products must grant `club` _and_ `pro` entitlements in RevenueCat.** A shared board is a
+leaderboard, so Club without Pro is a broken state. `entitlementsFrom` in `clubPolicy.ts` defends
+against a missed checkbox, so it is survivable rather than shipped — but set it correctly.
+
+**Both stores or neither.** One platform able to buy Club and the other not is worse than neither.
+
+### 5. Store console copy
+
+Everything above the age-rating section in this file, typed in as-is: name, subtitle, keywords,
+promotional text, description — plus the **IAP descriptions in all three consoles** (ASC, Play, and
+RevenueCat), which are the ones most often forgotten.
+
+Android also still wants the feature graphic uploaded — `store-assets/android/feature-graphic.png`,
+see `ROADMAP.md`.
+
+### 6. Notes for Review (App Store Connect)
+
+**Guideline 2.3.1 requires new functionality to be described with specificity** — "generic
+descriptions will be rejected" — and this release changed a great deal. Paste the money paragraph
+from _Paste-ready review note_ above, then this:
+
+```
+New in this version:
+
+- Accounts (optional). Email/password, Sign in with Apple, and Sign in with Google, backed by
+  Amazon Cognito. Everything in the app works signed out; an account exists only to keep boards
+  across devices.
+- Shared leaderboards. A host can invite others to a board by link. Members see the board's player
+  names and the games recorded on it: who played, who won, and finishing positions. No monetary
+  amount is stored or shared.
+- Reporting and leaving a board, plus a name filter, because board and player names are
+  user-generated and visible to other members.
+- A card dealer. The phone shuffles and deals two cards per player, turns the flop, turn and river
+  when the host taps, and reads the showdown. Each player's own cards stay hidden until they tap,
+  and hide again when the phone moves on. It holds no chips and has no betting controls.
+- A payout calculator and a chop calculator. Both are one-shot calculators for money that changes
+  hands away from the phone. Neither settles nor stores anything.
+
+Removed in this version: an earlier build of 1.2.0 contained a betting engine for the dealt game
+(fold/check/call/raise, pots, side pots). It was removed before submission, along with all monetary
+amounts on the leaderboard. There is no wagering anywhere in this app.
+
+To review the dealer and the shared board, Pro and Club are required. Please use the demo account
+below, which has both entitlements granted.
+```
+
+**Leave a demo account and password in the review notes**, with Pro and Club granted in RevenueCat —
+a reviewer who cannot get past the paywall cannot review the feature the release is built on, and
+that is a rejection for reasons that have nothing to do with the app.
+
 ## In-app purchase — `pro_lifetime` description (keep in sync with the paywall)
 
 The paywall (`PRO_FEATURES` in `apps/mobile/src/components/paywall/Paywall.tsx`)

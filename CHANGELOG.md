@@ -379,6 +379,20 @@ platform-tagged heading (e.g. `## [1.1.3] - 2026-07-20 — Android`) when you cu
   contain something — Scunthorpe, therapist and raccoon all pass, and there are tests to keep it
   that way. It stops the lazy case rather than a determined one, which is why reporting sits beside
   it rather than instead of it.
+- **`STORE_LISTING.md` carries a submission hand-off: every console step, with the answers.** Both
+  age-rating questionnaires written out — including Apple's July 2025 **Capabilities** section,
+  which this repo had not accounted for anywhere — plus App Privacy and Data Safety derived from the
+  code rather than from a PR description, the Club product setup, and a Guideline 2.3.1 "Notes for
+  Review" that names what was **removed** as well as what was added. Recorded rather than worked out
+  at submission time, which is what ROADMAP item 10 asks for: the next release gets checked against
+  these instead of re-deriving them under pressure.
+
+  Two things it pins down that were previously vague. **"Used for Tracking" is No**, and that answer
+  is load-bearing: `BannerAdSlot` sets `requestNonPersonalizedAdsOnly: true`, which is the only
+  reason the missing ATT prompt and UMP flow are currently defensible — so nobody should switch
+  personalized ads on without doing that work first. And **the review notes need a demo account with
+  Pro and Club granted**, because a reviewer who cannot get past the paywall cannot see the dealer or
+  the shared board, which is the release.
 
 ### Changed
 
