@@ -70,6 +70,19 @@ export function TableView({
 
   const live = deal.seats.filter((seat) => !seat.mucked);
   const finished = deal.street === "showdown";
+  /**
+   * Reaching the showdown is not the same as anybody having to show.
+   *
+   * `deal.showdown` is `null` when one player is left holding cards — see
+   * `showdownFor` in `@poker/core` — and an uncontested hand is not revealed,
+   * at a real table or here. Keying the reveal on `finished` alone printed
+   * "Everyone else mucked — no hand had to be shown" directly under the hand
+   * it had just shown, which is the one thing this screen exists to prevent:
+   * the phone goes round the table at the showdown, so a hand exposed here is
+   * exposed to everybody. Tapping a seat still peeks, which is how the host
+   * checks the winner without showing the room.
+   */
+  const revealAll = finished && deal.showdown !== null;
   const shown = deal.seats.find((seat) => seat.playerId === shownSeat) ?? null;
 
   return (
@@ -116,7 +129,7 @@ export function TableView({
                   {nameFor(seat.playerId)}
                   {seat.mucked ? " · mucked" : ""}
                 </Text>
-                {isShown || finished ? (
+                {isShown || revealAll ? (
                   <View style={styles.hole}>
                     {seat.mucked && !isShown ? (
                       <Text style={styles.holeHidden}>—</Text>
@@ -138,7 +151,11 @@ export function TableView({
           })}
         </View>
 
-        {shown && !finished ? (
+        {/* Warn whenever one hand is deliberately on screen — including at an
+            uncontested showdown, where peeking is the only way to see it and
+            the phone is most likely to be going round. Not when everything is
+            revealed anyway. */}
+        {shown && !revealAll ? (
           <Text style={styles.warn}>
             Showing {nameFor(shown.playerId)}&apos;s cards — make sure nobody
             else can see. Tap again to hide.

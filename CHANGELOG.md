@@ -478,6 +478,16 @@ platform-tagged heading (e.g. `## [1.1.3] - 2026-07-20 — Android`) when you cu
 
 ### Fixed
 
+- **An uncontested hand is no longer shown at the showdown.** When everybody else mucked, the table
+  printed "Everyone else mucked — no hand had to be shown" and displayed the remaining player's
+  hole cards immediately above it. `showdownFor` in `@poker/core` was right — it returns `null` when
+  fewer than two players are contesting, and that is tested — but `TableView` keyed the reveal on
+  reaching the showdown rather than on anybody having to show, so the copy and the cards disagreed.
+  This is the one thing the screen exists to prevent: the phone goes round the table at the
+  showdown, so a hand exposed there is exposed to everybody, and the winner of an uncontested pot
+  gives away how they play for nothing. Tapping a seat still peeks, and now warns while it does —
+  previously the "make sure nobody else can see" line was suppressed at the showdown, which was
+  exactly where it was most needed. Found by driving §13 on a device; no unit test could see it.
 - Docs: swept the remaining files for claims that stopped being true when the table backend and the
   betting engine went. `README.md` was the worst — it described the backend as "for accounts and
   **online play**", "**not deployed**", and "nothing in the app talks to it yet", all three of which
