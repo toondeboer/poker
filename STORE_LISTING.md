@@ -212,8 +212,17 @@ changed is the app, not the reading.
 **13+ was never available**, for three separate reasons worth recording so nobody re-litigates it:
 Apple's 13+ requires _infrequent_ simulated gambling; **PEGI has auto-rated any simulated gambling 18
 since 2020** and reaches Google Play through IARC, so Europe has no 13+ tier for this; and Apple's
-restriction on gambling apps from **Individual developer accounts** — which this is — keys on whether
-the app contains simulated gambling at all, not on how much.
+restriction on gambling apps from **Individual developer accounts** — which this is — would not care
+about the tier either way.
+
+**That last one is an unresolved risk, not a settled fact**, and this file used to state it as
+though it were. It traces to an October 2018 announcement; the current guideline 5.1.1(ix) says apps
+that _"provide services in"_ highly regulated fields — gambling among them — _"should be submitted
+by a legal entity … and not by an individual developer"_, which arguably excludes a play-money game.
+Against enforcement-as-written: **Cash Out Poker carries Apple's `Gambling` descriptor today and
+ships under a seller name with no entity suffix.** It is moot for 1.2.0 regardless — with betting
+gone there is no gambling descriptor for the rule to attach to — and matters only if betting ever
+comes back. See [ROADMAP.md](./ROADMAP.md#gambling-classification--blocking-120).
 
 **The second trigger was nearly missed.** Comparable apps show the line is not dealing and not
 calculating, but **accumulating real money across sessions**: a virtual card dealer is 4+ and a

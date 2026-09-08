@@ -382,6 +382,36 @@ platform-tagged heading (e.g. `## [1.1.3] - 2026-07-20 — Android`) when you cu
 
 ### Changed
 
+- **The infra docs describe the backend that is actually deployed.** `apps/infra/README.md` still
+  advertised the deleted table backend as current: a `Publishing` row describing SigV4 hole-card
+  channels, "sixteen routes" including a poker table (there are seventeen, and no table), X-Ray on
+  "all three functions" (there are four), a TTL "for live hands" (tombstones), 277 tests (260), and
+  an alarm table listing four alarms that no longer exist while missing the three that do. The same
+  sweep reached the stale prose in `pokerStack.ts`, `observability.ts` and `scripts/smoke.ts` —
+  whose header still described seeding a hand and asserting on two AppSync channels, though its
+  code has driven boards since the table backend went — plus a dead
+  `import {} from "aws-cdk-lib/aws-appsync"` and an orphaned doc comment for alarms that were
+  deleted with it. One deliberate exception: the API's deployed `description` string is still wrong
+  and is left that way with a comment saying so, because correcting it would put the branch out of
+  sync with the live stack for something cosmetic.
+- **The rating record says how its evidence was obtained.** Every comparable-app rating in
+  `ROADMAP.md` was read back from the App Store rather than from memory — the previous pass asserted
+  one was safe precedent without checking, and it is an 18+ app. The table now carries the
+  descriptors the store actually returns, a note that the lookup API still serves the pre-2025 `17+`
+  label for both 18+ rows, and a bankroll tracker rated 12+ that disagrees with the one rated 18+.
+- **`STORE_LISTING.md` no longer states the Individual-developer-account rule as settled fact.** It
+  is an unresolved risk, which is what `ROADMAP.md` has always said; the two now agree, and the
+  listing records the counter-evidence and that the rule is moot for 1.2.0 either way.
+- **The age-rating item covers Apple's 2025 questionnaire, which it predated.** The tiers are now
+  4+/9+/13+/16+/18+, and there is a mandatory Capabilities section unrelated to chance-based
+  activities. 1.2.0 answers yes to User-Generated Content and Advertising — both disclosure-only —
+  and no to Social Media and Unrestricted Web Access, which are the two that would force 13+ and
+  16+. So 4+ survives, but declaring UGC brings the app under Guideline 1.2, whose "block abusive
+  users" requirement is the one thing served today only by leaving a board. Recorded as a decision
+  to make rather than an assumption.
+- **The architecture diagram shows the `LinkAccounts` Lambda.** It has been a pre-sign-up trigger
+  since #209 and the diagram has been edited four times since without it.
+
 - **Ads are capped at general-audience content.** The Google Mobile Ads SDK was started with no
   request configuration at all, and its default admits the `MA` tier — which Google's own
   documentation describes as including alcohol, **gambling**, sexual content and weapons. Gambling

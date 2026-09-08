@@ -1,26 +1,25 @@
 /**
- * The backend for accounts, groups and the multiplayer game.
+ * The backend for accounts and shared leaderboards.
  *
- * Everything the app cannot do on a phone: who you are, which groups you
- * belong to, and one authoritative copy of a poker table that several people
- * are looking at from different rooms.
+ * Everything the app cannot do on a phone alone: who you are, which boards you
+ * belong to, and one copy of a board that several people can read from
+ * different houses. Everything else — the timer, the payouts, dealing a hand —
+ * works with no backend at all.
  *
- * **Nothing in here decides anything about poker.** The rules live in
- * `@poker/core` and run in a Lambda, which is the point: the phone and the
- * server run the same function, so optimistic prediction on the client is
- * provably the same code as the authority on the server.
+ * **Nothing in here decides anything about poker.** There is no game on the
+ * server. A server-authoritative poker table lived here for most of the
+ * project's life and was deleted before 1.2.0 shipped, along with the betting
+ * engine it enforced: wagering chips is simulated gambling under Apple's
+ * definition. See the Gambling classification section in `ROADMAP.md`, and the
+ * `archive/betting-engine` tag.
  *
- * ## Both channels are guarded, and differently on purpose
+ * ## Every read is authorized, not merely authenticated
  *
- * A **private** channel is guarded by an APPSYNC_JS handler comparing a path
- * segment to the caller's own subject: no I/O, nothing to fail, nothing to be
- * down. A **shared table** cannot be guarded that way, because membership is a
- * fact about the game rather than about the path — so it is a Lambda that
- * reads the table and refuses anybody not at it.
- *
- * Until that Lambda existed, this namespace was authenticated but not
- * authorized: a subscriber had to be signed in, sign-up is open, and so an
- * account holding a table id could stream a stranger's game.
+ * Sign-up is open, so "has a token" means nothing on its own — an account
+ * holding a board id must not be able to read it. Membership is a row
+ * (`MEMBER#<accountId>` under the group), and every handler checks it. The
+ * shape of the key schema carries several of these rules outright; see
+ * `SYNC.md`.
  */
 
 import {
@@ -37,7 +36,6 @@ import {
   Operation,
   TableV2,
 } from "aws-cdk-lib/aws-dynamodb";
-import {} from "aws-cdk-lib/aws-appsync";
 import {
   AccountRecovery,
   UserPool,
@@ -177,11 +175,11 @@ export class PokerStack extends Stack {
      * is part of the execution environment rather than a Go binary this
      * function has to start. What it gives up is vendor neutrality — and that
      * was always the weakest argument here, in a backend welded to Cognito,
-     * AppSync Events, DynamoDB and CDK. The telemetry was the one portable
+     * API Gateway, DynamoDB and CDK. The telemetry was the one portable
      * piece of something entirely AWS-specific.
      *
-     * The infrastructure half needs no export at all: API Gateway 5xx, DynamoDB
-     * throttles and AppSync connection errors are already CloudWatch metrics,
+     * The infrastructure half needs no export at all: API Gateway 5xx and
+     * DynamoDB throttles are already CloudWatch metrics,
      * which is what the alarms read and what the dashboard draws. Shipping them
      * to a third party meant paying to copy data out of the place it already
      * was.
@@ -223,11 +221,12 @@ export class PokerStack extends Stack {
     /**
      * Who you are.
      *
-     * Email sign-in to start with. **Apple and Google are deliberately absent:**
-     * both need real client ids and secrets, and App Store guideline 4.8
-     * requires Sign in with Apple alongside any other third-party sign-in — so
-     * they are a deliberate, credential-bearing addition rather than something
-     * to scaffold with placeholders that would silently ship broken.
+     * Email sign-in, plus Google and Apple as user-pool identity providers —
+     * added together, because App Store guideline 4.8 requires Sign in with
+     * Apple alongside any other third-party sign-in. Both carry real client ids
+     * and secrets, resolved per stage by `socialSignInFor` below, so a stage
+     * without credentials gets email-only rather than a provider scaffolded
+     * with placeholders that would silently ship broken.
      */
     // Resolved before the user pool, which is the first thing that needs it.
     const mail = mailFor(this, settings.stage);
@@ -520,27 +519,17 @@ export class PokerStack extends Stack {
        * a protected table makes `cdk destroy` a two-step job for no benefit.
        */
       deletionProtection: settings.deletionProtection,
-      // Live table state is worth keeping only while a hand is being played,
-      // and a tombstone only until every phone that might resurrect the thing
-      // it deleted has seen it — see SYNC.md.
+      // A tombstone is worth keeping only until every phone that might
+      // resurrect the thing it deleted has seen it — see SYNC.md.
       timeToLiveAttribute: "expiresAt",
     });
 
     /**
-     * How the app asks for something to happen.
+     * Who the caller is, according to the token they presented.
      *
-     * **Nothing could invoke the action handler at all before this** — no API,
-     * no function URL, no mutation. The rules ran on a phone and on a Lambda
-     * nobody could reach.
-     *
-     * The shape is deliberate, and it is the part worth understanding: **a
-     * client never learns the result of its action from this response.** The
-     * response says accepted or rejected; the *truth* arrives on the AppSync
-     * channel, the same way it reaches everybody else at the table. One code
-     * path for state instead of two that can disagree — and it is what makes
-     * optimistic prediction on the phone safe, because the phone runs the same
-     * `@poker/core` locally and the authoritative event either confirms what it
-     * predicted or replaces it.
+     * `GET /me` exists so the app can turn a Cognito token into the account id
+     * every other route keys on, without decoding the token itself and without
+     * a second source of truth about what a `sub` means.
      *
      * No CORS. The mobile app does not need it, and a permissive policy added
      * "for later" is a permissive policy nobody revisits. The web timer can
@@ -596,6 +585,10 @@ export class PokerStack extends Stack {
 
     const api = new HttpApi(this, "Api", {
       apiName: `${this.stackName}-api`,
+      // Stale — the AppSync push side is gone. Left as-is deliberately: this
+      // string is deployed metadata, and changing it would put the branch out
+      // of sync with the live stack for a cosmetic fix. Correct it with the
+      // next real infra deploy.
       description: "Requests in. Everything else comes back over AppSync.",
       // **Default, not per-route.** A route added later is authenticated
       // because nobody did anything, and making one public has to be a
@@ -782,13 +775,14 @@ export class PokerStack extends Stack {
      * a retry loop costs a rejection rather than a bill.
      *
      * **It is per route, shared by everybody**, which is the honest limitation:
-     * one account hammering `/tables/{id}/actions` returns 429 to every player
-     * at every table, so it protects the bill and not availability. HTTP APIs
+     * one account hammering `POST /groups/{groupId}/games` returns 429 to
+     * everybody recording a game, so it protects the bill and not
+     * availability. HTTP APIs
      * have no per-caller quota — usage plans are a REST API feature — so the
      * fix when it is needed is a WAF rate rule keyed on IP or on the caller,
      * which costs about $5 a month for a web ACL. Not worth it before anybody
      * has connected; worth knowing before somebody wonders why one bad client
-     * took the table down.
+     * took everybody's boards down.
      */
     const accessLogs = new LogGroup(this, "ApiAccessLogs", {
       retention: settings.logRetention,
@@ -924,21 +918,6 @@ export class PokerStack extends Stack {
       meaning:
         "Conditional writes are failing repeatedly. One is normal — the client is told the table moved and decides again — but a sustained rate means two clients are fighting or one is retrying a decision it cannot win.",
     });
-
-    /**
-     * The failure nobody reports.
-     *
-     * **This is the one thing a Lambda cannot see about itself.** A player whose
-     * subscription drops mid-hand does not get an error; the table simply stops
-     * updating on their phone, and they put it down to the wifi. Nothing in the
-     * handler logs, and no request fails — the connection is what broke, and it
-     * broke in AppSync rather than in any code here.
-     *
-     * Server errors only. `ConnectClientError` and `SubscribeClientError` are
-     * the guard doing its job — a refused subscribe is a *success* for the
-     * thing that refuses non-members — so alarming on them would page somebody
-     * every time the security boundary worked.
-     */
 
     /**
      * Mail reputation — **prod only, and that is not a shortcut.**

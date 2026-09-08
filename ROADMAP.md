@@ -33,23 +33,31 @@ controls) is betting, and as a headline Pro feature playable every game night it
 **2. Tracking real money over time.** This one was missed at first and is the more surprising of the
 two. Comparable apps on the App Store today:
 
-| App                          | What it does                                           | Rating  | Descriptor                     |
-| ---------------------------- | ------------------------------------------------------ | ------- | ------------------------------ |
-| Deck of Cards — Virtual deal | Deals and shuffles cards                               | **4+**  | none                           |
-| Poker Payout Calc            | Computes payouts for 3–18 players                      | **4+**  | none                           |
-| Cash Out Poker               | Home-game scorekeeper: buy-in, cash-out, who owes whom | **18+** | "Contains Gambling"            |
-| Poker Bankroll Tracker       | Sessions, chip graphs, odds calculator, multi-currency | **18+** | "Frequent: Simulated Gambling" |
+| App                          | What it does                                           | Rating  | Descriptor                            |
+| ---------------------------- | ------------------------------------------------------ | ------- | ------------------------------------- |
+| Deck of Cards — Virtual deal | Deals and shuffles cards                               | **4+**  | none                                  |
+| Poker Payout Calc            | Computes payouts for 3–18 players                      | **4+**  | none                                  |
+| Cash Out Poker               | Home-game scorekeeper: buy-in, cash-out, who owes whom | **18+** | `Gambling`                            |
+| Poker Bankroll Tracker       | Sessions, chip graphs, odds calculator, multi-currency | **18+** | `Frequent/Intense Simulated Gambling` |
+| Bink Poker Bankroll Tracker  | A bankroll tracker of the same shape as the row above  | **12+** | `Infrequent/Mild Simulated Gambling`  |
 
 **The line is not dealing, and it is not calculating — it is accumulating real money across
 sessions.** A one-shot payout calculation is 4+. A running total of what each player has won is 18+
 in both examples found. The leaderboard as built stores `totalWon` and renders "8 games · 3 wins ·
 won 120 · 5 KOs", which is functionally a bankroll tracker.
 
+**Every rating in that table was read back from the App Store on 2026-09-08** via the public lookup
+API, not from memory — an earlier pass asserted Cash Out was safe precedent without checking it, and
+it is the 18+ row. Re-check them rather than trusting this table; a rating can change whenever its
+developer answers the questionnaire again. Note the API still returns the **legacy `17+`** label for
+the two 18+ rows: that is the pre-2025 tier, and both map to 18+ under the current table.
+
 **Interpret that evidence carefully.** App Store ratings are **self-declared** through the
 questionnaire, not assigned by Apple. Poker Payout Calc (4+) and Cash Out (18+) do broadly similar
-things and landed at opposite ends, which shows the questionnaire is genuinely ambiguous here and
-developers resolve it differently. This is evidence about how the question tends to be answered, not
-proof of what Apple would force.
+things and landed at opposite ends, and the two bankroll trackers — same shape, one 18+ and one
+12+ — disagree with each other. The questionnaire is genuinely ambiguous here and developers resolve
+it differently. This is evidence about how the question tends to be answered, not proof of what
+Apple would force.
 
 **What is safe, with precedent:** the timer, the payout calculator as a one-shot tool, the chop,
 accounts, and shared boards. **Dealing cards is also safe** — "Deck of Cards — Virtual deal" is a
@@ -81,7 +89,8 @@ deck.
 
 - **This is not real-money gambling and needs no licence.** Verified in code: no consumable IAP, no
   chip purchase, no chip↔money conversion, and no currency symbol rendered anywhere — every amount
-  is a bare integer. Chips come from a fixed stack and are conserved.
+  is a bare integer. The app holds no chips at all now; the only place the word appears in the UI is
+  the chop sheet, where the host types the stacks that are sitting on the real table.
 - **Legal exposure is close to nil.** The category actually criminalised in Europe is paid loot
   boxes (Belgium: fines to €800,000). There is no purchasable randomness anywhere in this repo.
 - **A second app does not help**, and was rejected: the restriction attaches to the _submitting
@@ -178,6 +187,28 @@ following a link from the app to a poker table is a conversation the release doe
 10. ⬜ **Answer both age-rating questionnaires honestly and record the answers given**, so the next
     release can be checked against them rather than re-derived. Apple's and Play's IARC are
     independent and need not agree.
+
+    **Apple's questionnaire was overhauled in July 2025 and this section predates it.** The tiers are
+    now 4+ / 9+ / **13+ / 16+ / 18+** (12+ and 17+ are gone), and there is a new mandatory
+    **Capabilities** section that has nothing to do with chance-based activities. 1.2.0 has to answer
+    it, and two of the answers are yes:
+
+    | Capability              | 1.2.0   | Effect on the tier                                                               |
+    | ----------------------- | ------- | -------------------------------------------------------------------------------- |
+    | User-Generated Content  | **Yes** | Disclosure only — player and board names typed by one member and shown to others |
+    | Advertising             | **Yes** | Disclosure only — AdMob on the free tier                                         |
+    | Messaging and Chat      | No      | —                                                                                |
+    | Social Media            | No      | **Would force 13+** — a board is not a feed with likes, comments or shares       |
+    | Unrestricted Web Access | No      | **Would force 16+** — the app embeds no browser                                  |
+
+    **So 4+ survives**, because the two that raise a tier are both no. But declaring UGC also brings
+    the app under **Guideline 1.2**, which requires four things: a filter (`textFilter.ts` ✅), a
+    report mechanism (`ReportBoardSheet` + `POST /groups/{id}/report` ✅), published contact
+    information (`/support` ✅) and **"the ability to block abusive users from the service"**. That
+    last one is served today only by leaving a board and by an admin removing a member. In a
+    closed-invite group that is arguably enough; it is worth a deliberate decision rather than an
+    assumption, because it is a rejection reason rather than a rating one.
+
 11. 🟡 **Residual surface, accepted.** After items 2 and 3 the app deals cards without wagering and
     keeps a board of games and wins without money — both shapes with 4+ precedent. What remains is
     the **payout calculator**, which computes a prize pool from a real buy-in. Poker Payout Calc does

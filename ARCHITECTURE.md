@@ -156,6 +156,7 @@ flowchart LR
     CFG["Config λ<br/><b>kill switch</b><br/><i>public, no auth</i>"]
     IDN["Identity λ<br/>GET /me"]
     GRP["Groups λ<br/>/groups/* · /invites/*<br/>DELETE /me"]
+    LNK["LinkAccounts λ<br/><i>Cognito trigger, not a route —<br/>one person, one account</i>"]
     DDB[("DynamoDB<br/><i>single table</i>")]
   end
 
@@ -165,6 +166,7 @@ flowchart LR
   UI -.->|"sign up / in"| COG
   API --> IDN & GRP
   COG -.->|"verifies token"| API
+  COG -.->|"pre-sign-up trigger"| LNK
   IDN & GRP --> DDB
 ```
 
