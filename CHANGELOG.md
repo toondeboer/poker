@@ -411,6 +411,11 @@ platform-tagged heading (e.g. `## [1.1.3] - 2026-07-20 — Android`) when you cu
   to make rather than an assumption.
 - **The architecture diagram shows the `LinkAccounts` Lambda.** It has been a pre-sign-up trigger
   since #209 and the diagram has been edited four times since without it.
+- **§14b says the stale-dev-client crash is not scoped to sign-in.** It read as though an
+  un-rebuilt dev client only blocked the Apple/Google rows. `socialSignIn.ts` imports `expo-crypto`
+  at module scope and is reached through `cognitoAuthProvider` → `AuthContext` → `_layout`, so such
+  a build red-screens with `Cannot find native module 'ExpoCrypto'` before anything renders and
+  **no** section of the checklist can be run on it. Found by hitting it.
 
 - **Ads are capped at general-audience content.** The Google Mobile Ads SDK was started with no
   request configuration at all, and its default admits the `MA` tier — which Google's own
