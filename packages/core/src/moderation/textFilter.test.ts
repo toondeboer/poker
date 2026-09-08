@@ -1,7 +1,11 @@
 import { describe, expect, it } from "vitest";
 import {
   MAX_NAME_LENGTH,
+  MAX_REPORT_DETAIL,
+  REPORT_REASONS,
   isObjectionable,
+  isReportReason,
+  labelForReportReason,
   messageForRejection,
   nameRejection,
 } from "./textFilter";
@@ -95,13 +99,71 @@ describe("nameRejection", () => {
 });
 
 describe("messageForRejection", () => {
+  it.each(["empty", "too-long", "duplicate", "objectionable"] as const)(
+    "has a sentence for %s",
+    (rejection) => {
+      // Every case reaches a field, so a missing one is a blank helper line
+      // under a button that will not enable — the least debuggable state there
+      // is. Both subjects, because they take different branches.
+      expect(messageForRejection(rejection, "name").length).toBeGreaterThan(0);
+      expect(messageForRejection(rejection, "board").length).toBeGreaterThan(0);
+    },
+  );
+
   it("says something different for a board", () => {
     expect(messageForRejection("duplicate", "board")).not.toBe(
       messageForRejection("duplicate", "name"),
     );
+    expect(messageForRejection("empty", "board")).not.toBe(
+      messageForRejection("empty", "name"),
+    );
+  });
+
+  it("defaults to the player-name wording", () => {
+    expect(messageForRejection("duplicate")).toBe(
+      messageForRejection("duplicate", "name"),
+    );
+  });
+
+  it("names the cap it is enforcing", () => {
+    expect(messageForRejection("too-long")).toContain(String(MAX_NAME_LENGTH));
   });
 
   it("never repeats what was typed", () => {
     expect(messageForRejection("objectionable")).not.toContain("fuck");
+  });
+});
+
+describe("report reasons", () => {
+  it("recognises every reason it publishes", () => {
+    // The app puts these on buttons and the handler refuses anything it does
+    // not recognise, so the two have to agree — this is that agreement.
+    for (const reason of REPORT_REASONS) {
+      expect(isReportReason(reason)).toBe(true);
+    }
+  });
+
+  it.each([
+    ["an unknown string", "because I feel like it"],
+    ["an empty string", ""],
+    ["a number", 3],
+    ["null", null],
+    ["undefined", undefined],
+    ["an object", { reason: "spam" }],
+  ])("refuses %s", (_label, value) => {
+    expect(isReportReason(value)).toBe(false);
+  });
+
+  it.each(REPORT_REASONS)("has a button label for %s", (reason) => {
+    expect(labelForReportReason(reason).length).toBeGreaterThan(0);
+  });
+
+  it("gives every reason its own label", () => {
+    const labels = REPORT_REASONS.map(labelForReportReason);
+    expect(new Set(labels).size).toBe(REPORT_REASONS.length);
+  });
+
+  it("allows a detail long enough to describe a problem", () => {
+    expect(MAX_REPORT_DETAIL).toBeGreaterThanOrEqual(500);
   });
 });
