@@ -548,25 +548,50 @@ is happening from across it.
 hands and somebody seeing a hand they should not. They were also the rows a synthetic tap could not
 verify on the iOS simulator, so they have never been exercised by anything but a human.
 
+**Run on Android, 2026-09-08** (`Pixel_stable`, API 35, dev client rebuilt for #211's native
+modules), driven through `adb` against real element bounds and checked in screenshots rather than by
+assertion. **One row failed and is fixed in #234**: with everybody else mucked, the table printed
+"Everyone else mucked — no hand had to be shown" and displayed the remaining player's hole cards
+directly above it. `showdownFor` was right; `TableView` keyed the reveal on reaching the showdown
+rather than on anybody having to show. Exactly the defect class this section exists for — invisible
+to a unit test, obvious in a screenshot.
+
 |                                                                                                                                                    | iOS | Android |
 | -------------------------------------------------------------------------------------------------------------------------------------------------- | --- | ------- |
-| Locked state: Pro pill on the Settings row, the screen still opens and offers the unlock                                                           | ⬜  | ⬜      |
-| Seating: tapping a player seats them, tapping again unseats; Deal stays disabled below two                                                         | ⬜  | ⬜      |
-| **Tapping a seat shows only that seat's two cards**, and tapping it again hides them                                                               | ⬜  | ⬜      |
-| **Tapping a second seat hides the first.** Never two hands visible at once — this is the one that matters when the phone is going round            | ⬜  | ⬜      |
-| **Turning a street hides whatever was showing.** Deal the flop with a hand revealed and it must close, or the next player inherits it              | ⬜  | ⬜      |
-| Muck takes a seat out: the row dims, they are left out of the showdown, and the "in" count drops                                                   | ⬜  | ⬜      |
-| Mucking down to one player ends the hand with **no cards shown** — an uncontested hand is not revealed                                             | ⬜  | ⬜      |
-| The showdown reveals every hand still in, ranked best first, with the winner starred and each hand named                                           | ⬜  | ⬜      |
-| **No chips, no pot, no bet and no amount appear anywhere on the screen.** Check by eye, in a screenshot — this is the property the rating rests on | ⬜  | ⬜      |
-| The action to take a seat out reads **Muck**, never Fold                                                                                           | ⬜  | ⬜      |
-| **A hand survives a force-stop.** Deal, kill the app from the switcher, reopen → the same board and the same hole cards come back                  | ⬜  | ⬜      |
-| A finished hand survives too: the showdown is still on screen after a relaunch                                                                     | ⬜  | ⬜      |
-| "Next hand" deals again and the button moves on; a seat sitting out is skipped                                                                     | ⬜  | ⬜      |
-| Ending a game where **nothing has been dealt** does not ask — there is nothing to lose                                                             | ⬜  | ⬜      |
-| Ending a game mid-evening asks first, and cancelling keeps the cards                                                                               | ⬜  | ⬜      |
-| Readable across a table — card faces and whose cards are showing, at arm's length                                                                  | ⬜  | ⬜      |
+| Locked state: Pro pill on the Settings row, the screen still opens and offers the unlock                                                           | ⬜  | 🚫      |
+| Seating: tapping a player seats them, tapping again unseats; Deal stays disabled below two                                                         | ⬜  | ✅      |
+| **Tapping a seat shows only that seat's two cards**, and tapping it again hides them                                                               | ⬜  | ✅      |
+| **Tapping a second seat hides the first.** Never two hands visible at once — this is the one that matters when the phone is going round            | ⬜  | ✅      |
+| **Turning a street hides whatever was showing.** Deal the flop with a hand revealed and it must close, or the next player inherits it              | ⬜  | ✅      |
+| Muck takes a seat out: the row dims, they are left out of the showdown, and the "in" count drops                                                   | ⬜  | ✅      |
+| Mucking down to one player leaves **no cards shown** at the showdown — an uncontested hand is not revealed                                         | ⬜  | ✅      |
+| The showdown reveals every hand still in, ranked best first, with the winner starred and each hand named                                           | ⬜  | ✅      |
+| **No chips, no pot, no bet and no amount appear anywhere on the screen.** Check by eye, in a screenshot — this is the property the rating rests on | ⬜  | ✅      |
+| The action to take a seat out reads **Muck**, never Fold                                                                                           | ⬜  | ✅      |
+| **A hand survives a force-stop.** Deal, kill the app from the switcher, reopen → the same board and the same hole cards come back                  | ⬜  | ✅      |
+| A finished hand survives too: the showdown is still on screen after a relaunch                                                                     | ⬜  | ✅      |
+| "Next hand" deals again and the button moves on                                                                                                    | ⬜  | 🟡      |
+| Ending a game where **nothing has been dealt** does not ask — there is nothing to lose                                                             | ⬜  | ✅      |
+| Ending a game mid-evening asks first, and cancelling keeps the cards                                                                               | ⬜  | ✅      |
+| Readable across a table — card faces and whose cards are showing, at arm's length                                                                  | ⬜  | 🚫      |
 | Tablet: the table is capped and centred rather than running the full width                                                                         | ⬜  | ⬜      |
+
+**Why three rows are not ✅ on Android:**
+
+- **Locked state — 🚫 on a dev build.** `FORCE_PRO_IN_DEV` has to be `true` to reach this screen at
+  all locally, which is the same switch that hides the locked state. Needs the TestFlight / Play
+  internal build, like the billing rows.
+- **"Next hand" — 🟡 dealing again is verified; the button moving is not.** The button index is not
+  drawn anywhere on the table, so there is nothing on screen to check it against. The rotation is
+  unit-tested in `dealerSession.test.ts`.
+- **Readable across a table — 🚫 by nature.** An emulator on a laptop cannot answer "legible at
+  arm's length across a kitchen table". Needs a real device and a real table.
+
+**A seat sitting out is not reachable from the app.** `GameContext` exposes `toggleSittingOut` and
+`@poker/core` implements and tests `sitOut`, but **no component calls it** — there is no control
+anywhere in the dealer UI. The row that used to test it has been dropped rather than left permanently
+unrunnable. Either wire it up or delete the dead path; until then, a player who leaves is handled by
+unseating them and starting a new game.
 
 ---
 

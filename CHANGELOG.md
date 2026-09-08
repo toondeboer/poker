@@ -478,6 +478,13 @@ platform-tagged heading (e.g. `## [1.1.3] - 2026-07-20 — Android`) when you cu
 
 ### Fixed
 
+- **§13 of `RELEASE_TESTING.md` has been run on Android and carries its results.** Thirteen rows
+  pass, verified in screenshots rather than by assertion; one failed and is the fix above. Three are
+  marked with why they are not ✅ rather than left blank — the locked state needs a store build,
+  "readable across a table" needs a real table, and the button moving between hands is not drawn on
+  screen so there is nothing to check it against. The sitting-out row is **deleted**: `GameContext`
+  exposes `toggleSittingOut` and `@poker/core` tests `sitOut`, but no component calls it, so the row
+  could never have passed.
 - **An uncontested hand is no longer shown at the showdown.** When everybody else mucked, the table
   printed "Everyone else mucked — no hand had to be shown" and displayed the remaining player's
   hole cards immediately above it. `showdownFor` in `@poker/core` was right — it returns `null` when
