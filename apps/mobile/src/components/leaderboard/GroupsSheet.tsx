@@ -6,6 +6,7 @@ import {
   hostRefusal,
   joinRefusal,
   MAX_GROUPS,
+  messageForRejection,
   readInviteCode,
 } from "@poker/core";
 import { useLeaderboard } from "@/src/contexts/LeaderboardContext";
@@ -18,6 +19,7 @@ import { IconButton } from "@/src/components/ui/IconButton";
 import { ListRow } from "@/src/components/ui/ListRow";
 import { Sheet } from "@/src/components/ui/Sheet";
 import { TextField } from "@/src/components/ui/TextField";
+import { ReportBoardSheet } from "@/src/components/leaderboard/ReportBoardSheet";
 
 /** "4 players · 12 games", skipping the halves that are still zero. */
 const describeGroup = (playerCount: number, gameCount: number) => {
@@ -54,10 +56,13 @@ export function GroupsSheet({
     activeGroupId,
     canAddGroup,
     isGroupNameAvailable,
+    groupNameProblem,
     selectGroup,
     createNewGroup,
     renameGroupById,
     deleteGroup,
+    leaveGroup,
+    reportGroup,
     inviteToBoard,
     joinBoard,
   } = useLeaderboard();
@@ -90,6 +95,12 @@ export function GroupsSheet({
   const [joinProblem, setJoinProblem] = useState<string | null>(null);
   const [joining, setJoining] = useState(false);
 
+  const [reporting, setReporting] = useState<{
+    id: string;
+    name: string;
+  } | null>(null);
+  const [leavingId, setLeavingId] = useState<string | null>(null);
+
   const [newName, setNewName] = useState("");
   const [renamingId, setRenamingId] = useState<string | null>(null);
   const [renameValue, setRenameValue] = useState("");
@@ -105,11 +116,11 @@ export function GroupsSheet({
    */
   const renameProblem = (() => {
     if (renamingId === null) return null;
-    if (renameValue.trim().length === 0) return "A group needs a name.";
-    if (!isGroupNameAvailable(renameValue, renamingId)) {
-      return "You already have a group with that name.";
-    }
-    return null;
+    // The wording comes from core so both name fields — and both platforms —
+    // refuse a name in the same words. It also carries the one case this used
+    // to have no sentence for: a name other people would have to read.
+    const rejection = groupNameProblem(renameValue, renamingId);
+    return rejection === null ? null : messageForRejection(rejection, "board");
   })();
 
   /**
@@ -276,6 +287,46 @@ export function GroupsSheet({
     }
   };
 
+  /**
+   * Leave a board somebody shared with you.
+   *
+   * **A different act from deleting one of your own**, and worth the separate
+   * button: deleting only ever removed the board from this phone, so the
+   * membership survived and the board came back on the next device. It is also
+   * the answer to "block" for an app with no messaging — the only channel by
+   * which somebody else's content reaches you is a board you are on, and this
+   * is how you get off one.
+   */
+  const confirmLeave = (id: string, name: string) => {
+    Alert.alert(
+      "Leave board",
+      `Leave "${name}"? It will be removed from this phone and you'll stop getting its updates. You can rejoin with a new invite.`,
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Leave",
+          style: "destructive",
+          onPress: () => {
+            void (async () => {
+              setLeavingId(id);
+              const left = await leaveGroup(id);
+              setLeavingId(null);
+              if (!left) {
+                // Left where it is on purpose — see `leaveGroup`. Saying so is
+                // the point: a board that silently stayed would read as a
+                // button that does nothing.
+                Alert.alert(
+                  "Couldn't leave",
+                  "We couldn't reach the server, so you're still on this board. Check your connection and try again.",
+                );
+              }
+            })();
+          },
+        },
+      ],
+    );
+  };
+
   const confirmDelete = (id: string, name: string, gameCount: number) => {
     commitRename();
     const played =
@@ -342,9 +393,25 @@ export function GroupsSheet({
                       unknown — see `canInvite`. */}
                   {accountsAreReal && account && mayShare && group.canInvite ? (
                     <IconButton
-                      icon={sharingId === group.id ? "hourglass-outline" : "share-outline"}
+                      icon={
+                        sharingId === group.id
+                          ? "hourglass-outline"
+                          : "share-outline"
+                      }
                       onPress={() => void share(group.id, group.name)}
                       accessibilityLabel={`Share ${group.name}`}
+                    />
+                  ) : null}
+                  {/* **Only on a board somebody else shared.** Reporting your
+                      own board is reporting yourself, and leaving one is
+                      deleting it — both already have a button. */}
+                  {group.isGuest ? (
+                    <IconButton
+                      icon="flag-outline"
+                      onPress={() =>
+                        setReporting({ id: group.id, name: group.name })
+                      }
+                      accessibilityLabel={`Report ${group.name}`}
                     />
                   ) : null}
                   <IconButton
@@ -352,14 +419,27 @@ export function GroupsSheet({
                     onPress={() => startRename(group.id, group.name)}
                     accessibilityLabel={`Rename ${group.name}`}
                   />
-                  <IconButton
-                    icon="trash-outline"
-                    tone="danger"
-                    onPress={() =>
-                      confirmDelete(group.id, group.name, group.gameCount)
-                    }
-                    accessibilityLabel={`Delete ${group.name}`}
-                  />
+                  {group.isGuest ? (
+                    <IconButton
+                      icon={
+                        leavingId === group.id
+                          ? "hourglass-outline"
+                          : "exit-outline"
+                      }
+                      tone="danger"
+                      onPress={() => confirmLeave(group.id, group.name)}
+                      accessibilityLabel={`Leave ${group.name}`}
+                    />
+                  ) : (
+                    <IconButton
+                      icon="trash-outline"
+                      tone="danger"
+                      onPress={() =>
+                        confirmDelete(group.id, group.name, group.gameCount)
+                      }
+                      accessibilityLabel={`Delete ${group.name}`}
+                    />
+                  )}
                 </View>
               }
             />
@@ -453,6 +533,21 @@ export function GroupsSheet({
           />
         </>
       ) : null}
+
+      {/* **Mounted inside this sheet, on top of it.** A second `Modal` over the
+          first is what `Sheet` already does everywhere else in the app, and
+          keeping the report next to the board it is about is the whole point —
+          a report composed anywhere else is one nobody sends. */}
+      <ReportBoardSheet
+        visible={reporting !== null}
+        boardName={reporting?.name ?? ""}
+        onClose={() => setReporting(null)}
+        onSubmit={(reason, detail) =>
+          reporting
+            ? reportGroup(reporting.id, reason, detail)
+            : Promise.resolve(false)
+        }
+      />
     </Sheet>
   );
 }

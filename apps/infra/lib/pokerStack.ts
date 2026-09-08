@@ -63,9 +63,13 @@ import {
 } from "aws-cdk-lib/aws-iam";
 import { Runtime, Tracing } from "aws-cdk-lib/aws-lambda";
 import { NodejsFunction } from "aws-cdk-lib/aws-lambda-nodejs";
-import { LogGroup } from "aws-cdk-lib/aws-logs";
+import { FilterPattern, LogGroup, MetricFilter } from "aws-cdk-lib/aws-logs";
 import {
-  HttpNoneAuthorizer, HttpApi, HttpMethod, type CfnStage } from "aws-cdk-lib/aws-apigatewayv2";
+  HttpNoneAuthorizer,
+  HttpApi,
+  HttpMethod,
+  type CfnStage,
+} from "aws-cdk-lib/aws-apigatewayv2";
 import { HttpUserPoolAuthorizer } from "aws-cdk-lib/aws-apigatewayv2-authorizers";
 import { HttpLambdaIntegration } from "aws-cdk-lib/aws-apigatewayv2-integrations";
 import { PLAYER_NAMESPACE, TABLE_NAMESPACE } from "@poker/core";
@@ -615,22 +619,26 @@ export class PokerStack extends Stack {
      * refuse anything — AppSync does not wait for it — so an authorizer in
      * event mode is a log line, not a guard.
      */
-    const subscribeAuthorizer = new NodejsFunction(this, "SubscribeAuthorizer", {
-      entry: path.join(__dirname, "lambda", "subscribeAuthorizer.ts"),
-      runtime: Runtime.NODEJS_22_X,
-      memorySize: 256,
-      // Short on purpose: this runs before somebody sees a table, so its
-      // latency is felt. A read that has not answered in three seconds is not
-      // going to.
-      timeout: Duration.seconds(3),
-      environment: { ...functionEnvironment, TABLE_NAME: table.tableName },
-      tracing: Tracing.ACTIVE,
-      logGroup: new LogGroup(this, "SubscribeAuthorizerLogs", {
-        retention: settings.logRetention,
-        removalPolicy: RemovalPolicy.DESTROY,
-      }),
-      bundling: handlerBundling,
-    });
+    const subscribeAuthorizer = new NodejsFunction(
+      this,
+      "SubscribeAuthorizer",
+      {
+        entry: path.join(__dirname, "lambda", "subscribeAuthorizer.ts"),
+        runtime: Runtime.NODEJS_22_X,
+        memorySize: 256,
+        // Short on purpose: this runs before somebody sees a table, so its
+        // latency is felt. A read that has not answered in three seconds is not
+        // going to.
+        timeout: Duration.seconds(3),
+        environment: { ...functionEnvironment, TABLE_NAME: table.tableName },
+        tracing: Tracing.ACTIVE,
+        logGroup: new LogGroup(this, "SubscribeAuthorizerLogs", {
+          retention: settings.logRetention,
+          removalPolicy: RemovalPolicy.DESTROY,
+        }),
+        bundling: handlerBundling,
+      },
+    );
     // Read only. An authorizer has no business writing to the thing it is
     // deciding about.
     table.grantReadData(subscribeAuthorizer);
@@ -856,8 +864,10 @@ export class PokerStack extends Stack {
          * update rather than a build — a minute, against days for a store
          * review, which is the entire point.
          */
-        FEATURE_ACCOUNTS: (this.node.tryGetContext("featureAccounts") as string) ?? "on",
-        FEATURE_SHARING: (this.node.tryGetContext("featureSharing") as string) ?? "on",
+        FEATURE_ACCOUNTS:
+          (this.node.tryGetContext("featureAccounts") as string) ?? "on",
+        FEATURE_SHARING:
+          (this.node.tryGetContext("featureSharing") as string) ?? "on",
       },
       // Traced like everything else. It is the first thing a cold app asks, so
       // when launches are slow this is where the answer starts.
@@ -885,6 +895,38 @@ export class PokerStack extends Stack {
      * branch inside the action handler: a leaderboard write must not be able to
      * fail because a poker hand was slow.
      */
+    const groupsLogs = new LogGroup(this, "GroupsLogs", {
+      retention: settings.logRetention,
+      removalPolicy: RemovalPolicy.DESTROY,
+    });
+
+    /**
+     * What turns a report into something a person sees.
+     *
+     * `POST /groups/{groupId}/report` writes a row and logs `content reported`;
+     * on its own that is a table nobody opens. This counts that exact message
+     * and the alarm below emails it on, which is the part both stores' UGC
+     * rules actually care about — Apple's guideline 1.2 asks for a report
+     * mechanism *and* a timely response, and nothing responds timely to a row.
+     *
+     * **The string has to match the handler's.** Changing one without the other
+     * switches reporting off silently, so the handler carries the same warning.
+     */
+    const reportsMetric = new MetricFilter(this, "ContentReportFilter", {
+      logGroup: groupsLogs,
+      metricNamespace: `Poker/${settings.stage}`,
+      metricName: "ContentReports",
+      filterPattern: FilterPattern.stringValue(
+        "$.message",
+        "=",
+        "content reported",
+      ),
+      metricValue: "1",
+      // Without this the metric reports nothing when nobody reports anything,
+      // and `TreatMissingData` has to carry the meaning instead.
+      defaultValue: 0,
+    });
+
     const groupsHandler = new NodejsFunction(this, "Groups", {
       entry: path.join(__dirname, "lambda", "groups.ts"),
       runtime: Runtime.NODEJS_22_X,
@@ -896,10 +938,7 @@ export class PokerStack extends Stack {
         USER_POOL_ID: userPool.userPoolId,
       },
       tracing: Tracing.ACTIVE,
-      logGroup: new LogGroup(this, "GroupsLogs", {
-        retention: settings.logRetention,
-        removalPolicy: RemovalPolicy.DESTROY,
-      }),
+      logGroup: groupsLogs,
       bundling: handlerBundling,
     });
     table.grantReadWriteData(groupsHandler);
@@ -930,7 +969,12 @@ export class PokerStack extends Stack {
       ["/groups/{groupId}/claims", [HttpMethod.POST]],
       ["/groups/{groupId}/members", [HttpMethod.GET]],
       ["/groups/{groupId}/invite", [HttpMethod.POST]],
-      ["/groups/{groupId}/members/{accountId}", [HttpMethod.PUT, HttpMethod.DELETE]],
+      // Reporting what is on a board. Members only — see the handler.
+      ["/groups/{groupId}/report", [HttpMethod.POST]],
+      [
+        "/groups/{groupId}/members/{accountId}",
+        [HttpMethod.PUT, HttpMethod.DELETE],
+      ],
       ["/invites/{token}", [HttpMethod.POST]],
       // The account's own deletion. `GET /me` stays on the identity handler —
       // one says who you are, the other unpicks everything you touched.
@@ -1021,6 +1065,21 @@ export class PokerStack extends Stack {
       threshold: 0,
       meaning:
         "Sign-in is broken from the app's point of view, which looks to a player like the whole app being down.",
+    });
+    /**
+     * Somebody reported a board.
+     *
+     * **Threshold 0, so a single report pages.** Every other alarm here is
+     * about a rate, because one slow request is not an incident. This one is
+     * not a health metric at all: one person saying "there is something
+     * offensive on this board" is the whole event, and a threshold that waits
+     * for a second one is a threshold that ignores the first.
+     */
+    observability.watch("ContentReports", {
+      metric: reportsMetric.metric({ period: Duration.minutes(5) }),
+      threshold: 0,
+      meaning:
+        "Somebody reported content on a shared board. Read the REPORT# rows on that group in DynamoDB, act on it, and reply — both app stores require reports to be handled, not just collected.",
     });
     observability.watch("ApiServerErrors", {
       metric: serviceMetric({
@@ -1195,7 +1254,9 @@ export class PokerStack extends Stack {
     // dashboard is missing whatever came later.
     observability.summarise();
 
-    new CfnOutput(this, "AlarmTopicArn", { value: observability.alarms.topicArn });
+    new CfnOutput(this, "AlarmTopicArn", {
+      value: observability.alarms.topicArn,
+    });
     new CfnOutput(this, "DashboardName", {
       value: observability.dashboard.dashboardName,
       description: "CloudWatch > Dashboards",
@@ -1229,7 +1290,8 @@ export class PokerStack extends Stack {
     });
     new CfnOutput(this, "AuthDomain", {
       value: authDomain.baseUrl(),
-      description: "Cognito's hosted OAuth endpoint. Federated sign-in goes through it.",
+      description:
+        "Cognito's hosted OAuth endpoint. Federated sign-in goes through it.",
     });
     new CfnOutput(this, "AuthCallbackUrl", {
       /**

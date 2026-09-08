@@ -52,9 +52,24 @@ describe("being told when it stops", () => {
 
   it("watches the handful of things worth being woken for", () => {
     // Deliberately few. An alarm nobody acts on trains everybody to ignore the
-    // next one. Ten on the backend itself, plus the two SES reputation alarms
-    // that exist on prod only — this template is the prod one.
-    expect(alarms()).toHaveLength(12);
+    // next one. Eleven on the backend itself — ten health alarms plus
+    // `ContentReports`, which is not a health alarm at all but a person saying
+    // something is wrong on a board — plus the two SES reputation alarms that
+    // exist on prod only, and this template is the prod one.
+    expect(alarms()).toHaveLength(13);
+  });
+
+  it("pages on a single content report", () => {
+    // Every other alarm here is about a rate, because one slow request is not
+    // an incident. This one is: waiting for a second person to report the same
+    // offensive board is ignoring the first, and both stores require reports to
+    // be acted on rather than counted.
+    const reports = alarms().find(
+      (alarm) => alarm.MetricName === "ContentReports",
+    ) as { Threshold?: number; EvaluationPeriods?: number } | undefined;
+    expect(reports).toBeDefined();
+    expect(reports?.Threshold).toBe(0);
+    expect(reports?.EvaluationPeriods).toBe(1);
   });
 
   it("says what each one means, because that is what arrives in the email", () => {
@@ -171,8 +186,11 @@ describe("being told when it stops", () => {
     const budgets = template().findResources("AWS::Budgets::Budget");
     const filters = Object.values(budgets).map(
       (budget) =>
-        (budget.Properties as { Budget: { CostFilters?: { TagKeyValue?: string[] } } })
-          .Budget.CostFilters?.TagKeyValue,
+        (
+          budget.Properties as {
+            Budget: { CostFilters?: { TagKeyValue?: string[] } };
+          }
+        ).Budget.CostFilters?.TagKeyValue,
     );
     expect(filters).toHaveLength(1);
     expect(filters[0]).toHaveLength(1);
@@ -206,7 +224,7 @@ describe("a stack nobody gave an address", () => {
     );
 
   it("still has the alarms, so turning them on is one property", () => {
-    quiet().resourceCountIs("AWS::CloudWatch::Alarm", 10);
+    quiet().resourceCountIs("AWS::CloudWatch::Alarm", 11);
   });
 
   it("subscribes nobody rather than inventing a destination", () => {
@@ -243,7 +261,8 @@ describe("traces, without a collector in the way", () => {
       template().findResources("AWS::Lambda::Function"),
     )
       .filter(
-        ([, fn]) => ((fn.Properties as { Layers?: unknown[] }).Layers ?? []).length > 0,
+        ([, fn]) =>
+          ((fn.Properties as { Layers?: unknown[] }).Layers ?? []).length > 0,
       )
       .map(([id]) => id);
     expect(layered).toEqual([]);
@@ -283,6 +302,6 @@ describe("the dashboard", () => {
     // ones, which is the point of the dashboard being built from the same
     // `watch` call rather than maintained beside it.
     expect(widgets("alarm")).toBe(1);
-    expect(widgets("metric")).toBe(12);
+    expect(widgets("metric")).toBe(13);
   });
 });

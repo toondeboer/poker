@@ -8,7 +8,11 @@ import {
   type VerifiedRequest,
 } from "../lib/lambda/groups";
 import type { GroupStore, WriteOutcome } from "../lib/lambda/groupStore";
-import { memberItem, type MemberItem, type Role } from "../lib/lambda/groupKeys";
+import {
+  memberItem,
+  type MemberItem,
+  type Role,
+} from "../lib/lambda/groupKeys";
 
 const game = (id = "r1"): GameResult => ({
   id,
@@ -31,17 +35,26 @@ const board: GroupState = {
 
 const calls: string[] = [];
 
-const store = (role: Role | null, overrides: Partial<GroupStore> = {}): GroupStore =>
+const store = (
+  role: Role | null,
+  overrides: Partial<GroupStore> = {},
+): GroupStore =>
   ({
     membership: async (): Promise<MemberItem | null> =>
       role ? memberItem("g1", "me", role, 1) : null,
-    members: async () => [memberItem("g1", "me", role ?? "member", 1), memberItem("g1", "other", "admin", 2)],
+    members: async () => [
+      memberItem("g1", "me", role ?? "member", 1),
+      memberItem("g1", "other", "admin", 2),
+    ],
     belongings: async () => [
       { pk: "ACCOUNT#me", sk: "GROUP#g1" },
       { pk: "ACCOUNT#me", sk: "CLAIM#g1#p1" },
     ],
     board: async () => board,
-    snapshot: async () => ({ state: board, deleted: { players: [], results: [] } }),
+    snapshot: async () => ({
+      state: board,
+      deleted: { players: [], results: [] },
+    }),
     addPlayer: async () => {
       calls.push("addPlayer");
       return { status: "ok" } as WriteOutcome;
@@ -78,6 +91,9 @@ const store = (role: Role | null, overrides: Partial<GroupStore> = {}): GroupSto
     groupForInvite: async () => "g1",
     join: async () => ({ status: "ok" }) as WriteOutcome,
     forget: async () => {},
+    reportContent: async () => {
+      calls.push("reportContent");
+    },
     ...overrides,
   }) as GroupStore;
 
@@ -95,7 +111,9 @@ const request = (
   requestContext: {
     requestId: "req-1",
     authorizer:
-      options.sub === null ? {} : { jwt: { claims: { sub: options.sub ?? "me" } } },
+      options.sub === null
+        ? {}
+        : { jwt: { claims: { sub: options.sub ?? "me" } } },
   },
 });
 
@@ -140,7 +158,9 @@ describe("a stranger", () => {
       "POST /groups/{groupId}/games",
       "POST /groups/{groupId}/claims",
     ]) {
-      const response = await handler(request(route, { body: { player: { id: "x", name: "X" } } }));
+      const response = await handler(
+        request(route, { body: { player: { id: "x", name: "X" } } }),
+      );
       expect(response.statusCode).toBe(404);
     }
     // Nothing reached the store. The check happens before the act, which is the
@@ -159,9 +179,13 @@ describe("a member", () => {
         }),
       ),
       await handler(
-        request("POST /groups/{groupId}/games", { body: { result: game("r2") } }),
+        request("POST /groups/{groupId}/games", {
+          body: { result: game("r2") },
+        }),
       ),
-      await handler(request("POST /groups/{groupId}/claims", { body: { playerId: "p3" } })),
+      await handler(
+        request("POST /groups/{groupId}/claims", { body: { playerId: "p3" } }),
+      ),
     ];
     expect(ok.map((r) => r.statusCode)).toEqual([200, 200, 200]);
     expect(calls).toEqual(["addPlayer", "recordGame", "claimPlayer"]);
@@ -186,7 +210,9 @@ describe("a member", () => {
       }),
     );
     expect(response.statusCode).toBe(409);
-    expect(JSON.parse(response.body).reason).toBe("a group needs at least one admin");
+    expect(JSON.parse(response.body).reason).toBe(
+      "a group needs at least one admin",
+    );
   });
 
   it("may not remove anything", async () => {
@@ -270,11 +296,16 @@ describe("what a board shows", () => {
     // `accountId` says which Cognito account a person is. Nobody at the table
     // needs that; they need the name, which is what is on the board.
     const seen = visibleTo("me", board);
-    expect(seen.players.find((p) => p.id === "p2")).toEqual({ id: "p2", name: "Bo" });
+    expect(seen.players.find((p) => p.id === "p2")).toEqual({
+      id: "p2",
+      name: "Bo",
+    });
   });
 
   it("keeps the caller's own claim, because the app shows you which one is you", () => {
-    expect(visibleTo("me", board).players.find((p) => p.id === "p1")?.accountId).toBe("me");
+    expect(
+      visibleTo("me", board).players.find((p) => p.id === "p1")?.accountId,
+    ).toBe("me");
   });
 
   it("leaves unclaimed players alone", () => {
@@ -287,7 +318,10 @@ describe("what a board shows", () => {
   it("is applied by the route, not left to the client", async () => {
     useGroupStore(store("member"));
     const response = await handler(request("GET /groups/{groupId}"));
-    const players = body(response).players as { id: string; accountId?: string }[];
+    const players = body(response).players as {
+      id: string;
+      accountId?: string;
+    }[];
     expect(players.find((p) => p.id === "p2")).not.toHaveProperty("accountId");
   });
 });
@@ -295,7 +329,9 @@ describe("what a board shows", () => {
 describe("listing my boards", () => {
   it("returns group ids and not claims", async () => {
     useGroupStore(store("member"));
-    const response = await handler(request("GET /groups", { pathParameters: {} }));
+    const response = await handler(
+      request("GET /groups", { pathParameters: {} }),
+    );
     expect(body(response).groups).toEqual(["g1"]);
   });
 });
@@ -306,7 +342,10 @@ describe("refusals that are not errors", () => {
     // which is different from "you did something wrong".
     useGroupStore(
       store("member", {
-        claimPlayer: async () => ({ status: "conflict", reason: "already claimed" }),
+        claimPlayer: async () => ({
+          status: "conflict",
+          reason: "already claimed",
+        }),
       }),
     );
     const response = await handler(
@@ -319,7 +358,9 @@ describe("refusals that are not errors", () => {
   it("answers 404 for a membership pointing at a group that is gone", async () => {
     // A membership row can outlive the group it names. The honest answer is the
     // same as never having been a member: there is nothing to show.
-    useGroupStore(store("member", { board: async () => null, snapshot: async () => null }));
+    useGroupStore(
+      store("member", { board: async () => null, snapshot: async () => null }),
+    );
     const response = await handler(request("GET /groups/{groupId}"));
     expect(response.statusCode).toBe(404);
   });
@@ -333,7 +374,10 @@ describe("what a shared board will accept", () => {
     // route sidesteps this by rebuilding `{id, name}`; a result is too big for
     // that, so it is validated.
     useGroupStore(store("member"));
-    const bad = { ...game(), placings: [{ playerId: "p1", place: 0, winnings: "lots" }] };
+    const bad = {
+      ...game(),
+      placings: [{ playerId: "p1", place: 0, winnings: "lots" }],
+    };
     const response = await handler(
       request("POST /groups/{groupId}/games", { body: { result: bad } }),
     );
@@ -347,7 +391,9 @@ describe("what a shared board will accept", () => {
     // that addresses it by the id it does not have.
     useGroupStore(store("member"));
     const response = await handler(
-      request("POST /groups/{groupId}/players", { body: { player: { id: "", name: "Ann" } } }),
+      request("POST /groups/{groupId}/players", {
+        body: { player: { id: "", name: "Ann" } },
+      }),
     );
     expect(response.statusCode).toBe(400);
     expect(calls).toEqual([]);
@@ -398,7 +444,9 @@ describe("creating a group", () => {
         },
       }),
     );
-    await handler(request("POST /groups", { pathParameters: {}, body: { name: "T" } }));
+    await handler(
+      request("POST /groups", { pathParameters: {}, body: { name: "T" } }),
+    );
     expect(created).toBeTruthy();
   });
 
@@ -418,7 +466,10 @@ describe("creating a group", () => {
     // use is a conflict rather than a way into somebody's group.
     useGroupStore(
       store("admin", {
-        createGroup: async () => ({ status: "conflict", reason: "group exists" }),
+        createGroup: async () => ({
+          status: "conflict",
+          reason: "group exists",
+        }),
       }),
     );
     const response = await handler(
@@ -459,7 +510,10 @@ describe("removing a member", () => {
     // claim, ever.
     useGroupStore(
       store("admin", {
-        releaseClaim: async () => ({ status: "conflict", reason: "claim already released" }),
+        releaseClaim: async () => ({
+          status: "conflict",
+          reason: "claim already released",
+        }),
       }),
     );
     const response = await handler(
@@ -533,7 +587,12 @@ describe("what is stored of a game", () => {
     useGroupStore(store("member"));
     const response = await handler(
       request("POST /groups/{groupId}/games", {
-        body: { result: { ...game("r6"), knockouts: [{ playerId: "p1", count: "lots" }] } },
+        body: {
+          result: {
+            ...game("r6"),
+            knockouts: [{ playerId: "p1", count: "lots" }],
+          },
+        },
       }),
     );
     expect(response.statusCode).toBe(400);
@@ -565,7 +624,9 @@ describe("redeeming an invite", () => {
   it("refuses a link to a group that is gone", async () => {
     // An invite row outlives the group it names. Joining one would grant a
     // membership to something that answers 404 forever.
-    useGroupStore(store("member", { board: async () => null, snapshot: async () => null }));
+    useGroupStore(
+      store("member", { board: async () => null, snapshot: async () => null }),
+    );
     const response = await handler(
       request("POST /invites/{token}", { pathParameters: { token: "tok" } }),
     );
@@ -576,19 +637,120 @@ describe("redeeming an invite", () => {
 describe("bad requests", () => {
   it("refuses an unknown route rather than falling through to something", async () => {
     useGroupStore(store("admin"));
-    expect((await handler(request("POST /groups/{groupId}/whatever"))).statusCode).toBe(
-      404,
-    );
+    expect(
+      (await handler(request("POST /groups/{groupId}/whatever"))).statusCode,
+    ).toBe(404);
   });
 
   it("refuses a write with nothing to write", async () => {
     useGroupStore(store("member"));
     expect(
-      (await handler(request("POST /groups/{groupId}/players", { body: {} }))).statusCode,
+      (await handler(request("POST /groups/{groupId}/players", { body: {} })))
+        .statusCode,
     ).toBe(400);
     expect(
-      (await handler(request("POST /groups/{groupId}/games", { body: {} }))).statusCode,
+      (await handler(request("POST /groups/{groupId}/games", { body: {} })))
+        .statusCode,
     ).toBe(400);
     expect(calls).toEqual([]);
+  });
+});
+
+describe("reporting what is on a board", () => {
+  it("records a report from a member and says it was received", async () => {
+    useGroupStore(store("member"));
+    const response = await handler(
+      request("POST /groups/{groupId}/report", {
+        body: { reason: "offensive-name", detail: "the third player's name" },
+      }),
+    );
+    // 202, not 200: it is recorded and a person will look, which is all this
+    // can honestly promise.
+    expect(response.statusCode).toBe(202);
+    expect(calls).toContain("reportContent");
+  });
+
+  it("lets an admin report too", async () => {
+    useGroupStore(store("admin"));
+    const response = await handler(
+      request("POST /groups/{groupId}/report", { body: { reason: "spam" } }),
+    );
+    expect(response.statusCode).toBe(202);
+  });
+
+  it("refuses somebody who is not on the board", async () => {
+    useGroupStore(store(null));
+    const response = await handler(
+      request("POST /groups/{groupId}/report", {
+        body: { reason: "harassment" },
+      }),
+    );
+    // 404 rather than 403, like every other route: telling an outsider the
+    // group exists is the one bit they do not already have.
+    expect(response.statusCode).toBe(404);
+    expect(calls).not.toContain("reportContent");
+  });
+
+  it("refuses a reason it does not know", async () => {
+    useGroupStore(store("member"));
+    const response = await handler(
+      request("POST /groups/{groupId}/report", {
+        body: { reason: "because I feel like it" },
+      }),
+    );
+    expect(response.statusCode).toBe(400);
+    expect(calls).not.toContain("reportContent");
+  });
+
+  it("accepts a report with no detail", async () => {
+    useGroupStore(store("member"));
+    const response = await handler(
+      request("POST /groups/{groupId}/report", {
+        body: { reason: "other" },
+      }),
+    );
+    expect(response.statusCode).toBe(202);
+  });
+});
+
+describe("leaving a board", () => {
+  it("lets an ordinary member remove themselves", async () => {
+    // The point of the whole change: before this, `manageAdmins` was required
+    // to remove anybody at all, so a member's only way off a board was asking
+    // the admin who shared it with them.
+    useGroupStore(store("member"));
+    const response = await handler(
+      request("DELETE /groups/{groupId}/members/{accountId}", {
+        pathParameters: { groupId: "g1", accountId: "me" },
+      }),
+    );
+    expect(response.statusCode).toBe(200);
+    expect(calls).toContain("leave");
+  });
+
+  it("still refuses a member removing somebody else", async () => {
+    useGroupStore(store("member"));
+    const response = await handler(
+      request("DELETE /groups/{groupId}/members/{accountId}", {
+        pathParameters: { groupId: "g1", accountId: "other" },
+      }),
+    );
+    expect(response.statusCode).toBe(403);
+    expect(calls).not.toContain("leave");
+  });
+
+  it("refuses a sole admin leaving people behind on a board they cannot manage", async () => {
+    useGroupStore(
+      store("admin", {
+        members: async () => [memberItem("g1", "me", "admin", 1)],
+      }),
+    );
+    const response = await handler(
+      request("DELETE /groups/{groupId}/members/{accountId}", {
+        pathParameters: { groupId: "g1", accountId: "me" },
+      }),
+    );
+    expect(response.statusCode).toBe(409);
+    expect(calls).not.toContain("leave");
   });
 });

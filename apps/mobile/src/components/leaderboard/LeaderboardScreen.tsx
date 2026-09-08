@@ -16,14 +16,14 @@ import {
   boardIsVisible,
   formatPlace,
   formatStandingsSummary,
-  isValidPlayerName,
+  playerNameRejection,
+  messageForRejection,
   MAX_PLAYERS,
   type ClaimError,
 } from "@poker/core";
 import { usePremium } from "@/src/contexts/PremiumContext";
 import { useLeaderboard } from "@/src/contexts/LeaderboardContext";
-import {
-  accountsAreReal, useAuth } from "@/src/contexts/AuthContext";
+import { accountsAreReal, useAuth } from "@/src/contexts/AuthContext";
 import { useKeyboardFocusScroll } from "@/src/hooks/useKeyboardFocusScroll";
 import {
   colors,
@@ -114,7 +114,20 @@ export function LeaderboardScreen() {
     topInset: insets.top,
   });
 
-  const canAdd = isValidPlayerName(name, players) && players.length < MAX_PLAYERS;
+  /**
+   * Why the name being typed can't be added, or `null`.
+   *
+   * Shown under the field rather than only disabling the button: "Add player"
+   * greying out with no sentence is the version somebody retypes the same name
+   * into three times. The content rule especially — a name refused for what it
+   * says needs to say so, or it reads as the app being broken.
+   */
+  const nameProblem =
+    name.trim().length === 0 ? null : playerNameRejection(name, players);
+  const canAdd =
+    nameProblem === null &&
+    name.trim().length > 0 &&
+    players.length < MAX_PLAYERS;
 
   const handleAdd = () => {
     if (!canAdd) return;
@@ -237,7 +250,10 @@ export function LeaderboardScreen() {
    * Without this a guest joins and lands on a paywall looking at the board they
    * were just invited to — which would make "joining is always free" untrue.
    */
-  const canView = boardIsVisible({ isPremium, isGuestBoard: activeBoardIsGuest });
+  const canView = boardIsVisible({
+    isPremium,
+    isGuestBoard: activeBoardIsGuest,
+  });
 
   const content = isLoading ? null : canView ? (
     <>
@@ -323,7 +339,13 @@ export function LeaderboardScreen() {
             helper={
               players.length >= MAX_PLAYERS
                 ? `That's the maximum of ${MAX_PLAYERS} players.`
-                : "Everyone who turns up to game night. Names stay on this device."
+                : nameProblem
+                  ? messageForRejection(nameProblem)
+                  : // **Not "names stay on this device" any more**, which is
+                    // what this said and stopped being true the moment a board
+                    // could be shared. A name typed here can end up on other
+                    // people's phones, and the field is the place to say so.
+                    "Everyone who turns up to game night. If you share this board, everyone on it sees these names."
             }
           />
           <Button
@@ -489,12 +511,12 @@ export function LeaderboardScreen() {
           ternary, and `showRecord` can be seeded from `?record=1`, so without
           the check a deep link opens the record flow with Pro locked. */}
       {canView && !isLoading && (
-      <RecordResultSheet
-        visible={showRecord}
-        onClose={() => setShowRecord(false)}
-        players={players}
-        onRecord={recordResult}
-      />
+        <RecordResultSheet
+          visible={showRecord}
+          onClose={() => setShowRecord(false)}
+          players={players}
+          onRecord={recordResult}
+        />
       )}
       {/* **Not gated on `canView`, unlike the record sheet.** This is the only
           place an invite code can be pasted, and gating it here made "guests

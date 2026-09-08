@@ -1,11 +1,13 @@
+import { nameRejection, type NameRejection } from "../moderation/textFilter";
+
 /**
  * The leaderboard's record of who played what and how it finished.
  *
- * **Local-first and single-device by design.** There are no accounts and
- * nothing leaves the phone: the host's device is the source of truth for their
- * group. Syncing between players' phones would mean a backend, sign-in, and a
- * change to the app's data-collection disclosures — a different and much larger
- * product than "track who's won the most at our game night".
+ * **Local-first by design, and shared only on purpose.** A board lives on the
+ * phone that made it and works with no account at all; sharing one is a
+ * deliberate act that puts it on a server so other people can see it. That is
+ * why names are validated for content and not just for uniqueness — see
+ * {@link playerNameRejection}.
  *
  * Framework-agnostic like the rest of @poker/core: the app supplies `id` and
  * `now`, since there's no clock or crypto in here.
@@ -115,17 +117,31 @@ export const createPlayer = (params: {
 });
 
 /**
- * A name is usable when it's non-empty and not a case-insensitive duplicate —
- * two "Dave"s on one leaderboard are indistinguishable in every view that
- * matters, so the save button can disable on it.
+ * Why a proposed player name can't be used, or `null` when it can.
+ *
+ * The duplicate rule is the original one — two "Dave"s on one leaderboard are
+ * indistinguishable in every view that matters. The length and content rules
+ * arrived with sharing: a player name is written onto other people's phones
+ * now, which makes it user-generated content and gets it the same treatment as
+ * any other. See {@link nameRejection}.
  */
-export const isValidPlayerName = (name: string, players: Player[]): boolean => {
-  const trimmed = name.trim();
-  if (trimmed.length === 0) return false;
-  return !players.some(
-    (player) => player.name.toLowerCase() === trimmed.toLowerCase(),
+export const playerNameRejection = (
+  name: string,
+  players: Player[],
+): NameRejection | null =>
+  nameRejection(
+    name,
+    players.map((player) => player.name),
   );
-};
+
+/**
+ * The same question as a boolean, for callers that only enable a button.
+ *
+ * Kept so the disable-the-save-button call sites read as they did; anything
+ * that wants to *say* what is wrong calls {@link playerNameRejection}.
+ */
+export const isValidPlayerName = (name: string, players: Player[]): boolean =>
+  playerNameRejection(name, players) === null;
 
 /** Add a player, enforcing {@link MAX_PLAYERS}. */
 export const addPlayer = (players: Player[], player: Player): Player[] =>
