@@ -19,7 +19,7 @@ const FAQ = [
   {
     question: "Is there a mobile app version?",
     answer:
-      "Yes. Poker Blinds Buzzer is available for iOS and Android. The app adds a structure generator that builds a casino-style blind schedule from a starting blind, a level count and a speed, a full editor for hand-tuning every level, saved presets, an alarm that fires even with the phone locked, and offline support that a browser tab can't provide.",
+      "Yes. Poker Blinds Buzzer is available for iOS and Android. The app adds a structure generator that builds a proper blind schedule from a starting blind, a level count and a speed, a full editor for hand-tuning every level, saved presets, an alarm that fires even with the phone locked, and offline support that a browser tab can't provide.",
   },
 ];
 
@@ -49,10 +49,10 @@ export function TimerSeoContent() {
           About This Free Poker Timer
         </h2>
         <p className="mb-4">
-          This poker blinds timer helps home games and small tournaments
-          track rising blind levels without a dedicated clock. Set your round
-          length and blind structure once, start the countdown, and it keeps
-          everyone at the table honest about when blinds go up.
+          This poker blinds timer helps home games and small tournaments track
+          rising blind levels without a dedicated clock. Set your round length
+          and blind structure once, start the countdown, and it keeps everyone
+          at the table honest about when blinds go up.
         </p>
 
         <h2 className="mb-4 mt-10 text-2xl font-bold text-white">
@@ -60,8 +60,8 @@ export function TimerSeoContent() {
         </h2>
         <ol className="mb-4 list-inside list-decimal space-y-2">
           <li>
-            Open <strong>Settings</strong> to set the round length and edit
-            the blind levels, or start with the default structure.
+            Open <strong>Settings</strong> to set the round length and edit the
+            blind levels, or start with the default structure.
           </li>
           <li>Press start to begin the countdown for the current level.</li>
           <li>

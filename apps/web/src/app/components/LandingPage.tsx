@@ -340,25 +340,25 @@ const LandingPage: React.FC = () => {
                   icon: Sparkles,
                   title: "Structure Generator",
                   description:
-                    "Pick a starting blind, a number of levels and a speed, and get a schedule built the way real casino sheets are — every blind a multiple of your smallest chip, so each one can actually be posted at the table.",
+                    "Pick a starting blind, a number of levels and a speed, and get a schedule built the way a proper blind schedule is — every blind a multiple of your smallest chip, so each one can actually be posted at the table.",
                 },
                 {
                   icon: Trophy,
                   title: "Tournament Structures",
                   description:
-                    "Edit every level on its own screen, insert or duplicate levels anywhere, and jump straight to any level mid-game. Save what you build as a preset and reuse it. From cash games to deep stack tournaments.",
+                    "Edit every level on its own screen, insert or duplicate levels anywhere, and jump straight to any level mid-game. Save what you build as a preset and reuse it. From a quick evening to a deep stack tournament.",
                 },
                 {
                   icon: Spade,
                   title: "No Cards? The App Deals",
                   description:
-                    "Somebody forgot the deck, or there isn't one. Pass the phone round and the app runs the whole game — blinds, betting, side pots, the showdown, and who's out. Your cards stay hidden until you tap, and hide again the moment the turn passes. When the last chip changes hands the night goes onto the leaderboard by itself, because it watched every hand: it knows who went out fourth and who knocked them out.",
+                    "Somebody forgot the deck, or there isn't one. Pass the phone round and the app deals — two cards each, then the flop, turn and river when the table is ready, and it reads the showdown at the end. Your own two cards stay hidden until you tap, and hide again the moment the phone moves on. You play with the chips already in front of you.",
                 },
                 {
                   icon: Coins,
                   title: "Payouts, Worked Out",
                   description:
-                    "Set a buy-in and see what every place wins, so the split is agreed before the first hand instead of argued about heads-up. Bounties, rebuys and add-ons all count — flat, or progressive, where knocking somebody out puts half their bounty in your pocket and the other half on your own head. Pick the smallest note you want to hand over and every place below the winner comes out a round number you can count straight out of the pot — the winner takes what's left, so the table still adds up to exactly the prize pool.",
+                    "Set a buy-in and see what every place wins, so the split is agreed before the first hand instead of argued about heads-up. Bounties, rebuys and add-ons all count. Pick the smallest note you want to hand over and every place below the winner comes out a round number you can count straight out of the pot — the winner takes what's left, so the table still adds up to exactly the prize pool.",
                 },
                 {
                   icon: Handshake,
@@ -370,7 +370,7 @@ const LandingPage: React.FC = () => {
                   icon: ListOrdered,
                   title: "Keep Score Across Nights",
                   description:
-                    "A leaderboard for your group — who's won most, who turns up, and what everyone has taken home. Keep a separate board for each set of people you play with. Recording a game is two taps per player and no typing: the winnings come from your payout structure, and a game the app dealt records itself, knockouts included.",
+                    "A leaderboard for your group — who's won most and who turns up. Keep a separate board for each set of people you play with. Recording a night is two taps per player and no typing: tap who played, then tap them in the order they finished.",
                 },
                 {
                   icon: Share2,

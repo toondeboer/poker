@@ -11,6 +11,19 @@ platform-tagged heading (e.g. `## [1.1.3] - 2026-07-20 — Android`) when you cu
 
 ### Changed
 
+- **Ads are capped at general-audience content.** The Google Mobile Ads SDK was started with no
+  request configuration at all, and its default admits the `MA` tier — which Google's own
+  documentation describes as including alcohol, **gambling**, sexual content and weapons. Gambling
+  ads served into a poker app is the one combination worth ruling out by hand, so the cap is now
+  set explicitly to match the rating the app asks for. The app is _not_ flagged as child-directed,
+  because it is not: a 4+ rating is a statement about what is in the app, not about who uses it.
+- **Copy across the app, website and store listing now describes what the app does.** Several lines
+  promised a game that no longer exists — "blinds, betting, side pots", a night that puts itself on
+  the leaderboard, progressive bounties, knockout tracking. Those are gone rather than reworded.
+  The board is described as a record of who won rather than a "season", and phrasing that read as
+  gambling promotion rather than home poker — "half their bounty in your pocket", "real casino
+  sheets", "from cash games to deep stack tournaments" — is softened without losing the meaning.
+
 - **The app deals the cards; it does not run the game.** "Play a hand" used to be a full no-limit
   hold'em engine — stacks, blinds posted into a pot, fold/check/call/raise, side pots, all-in for
   less. It is now a dealer: it shuffles, deals everybody two cards, turns the flop, turn and river

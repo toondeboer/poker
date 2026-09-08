@@ -440,7 +440,7 @@ const PrivacyPolicy: React.FC = () => {
               <strong>What survives, and why:</strong> games you recorded on a
               board other people are still on stay on that board. They are those
               players&apos; history as much as yours, and removing them would
-              silently rewrite a season for everyone else. Your name is no
+              silently rewrite the history for everyone else. Your name is no
               longer linked to the account that recorded them.
             </p>
           </div>
