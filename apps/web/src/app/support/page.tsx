@@ -1,6 +1,6 @@
 import React from "react";
 import type { Metadata } from "next";
-import { LifeBuoy, Flag, Trash2, Mail, ShieldAlert } from "lucide-react";
+import { LifeBuoy, Flag, Trash2, Mail, ShieldAlert, Coins } from "lucide-react";
 import { CONTACT_EMAIL } from "@/lib/contact";
 
 export const metadata: Metadata = {
@@ -110,6 +110,52 @@ const Support: React.FC = () => {
               stop getting its updates. You do not need to wait for us.
             </p>
           </div>
+        </div>
+
+        <div className="bg-white rounded-xl shadow-sm p-8">
+          <div className="flex items-center space-x-4 mb-6">
+            <div className="p-2 bg-gray-100 rounded-lg text-gray-600">
+              <Coins className="w-6 h-6" />
+            </div>
+            <h2 className="text-2xl font-semibold text-gray-900">
+              Money, and what the app does with it
+            </h2>
+          </div>
+          <div className="bg-blue-50 p-4 rounded-lg border-l-4 border-blue-400 mb-4">
+            <p className="text-blue-800 font-semibold mb-1">
+              Nothing is wagered, staked or paid through this app.
+            </p>
+            <p className="text-blue-700">
+              You cannot bet in it, buy chips in it, or cash anything out of it.
+              There is no wallet, no balance and no payment of any kind between
+              players — the only money the app ever handles is its own one-time
+              Pro purchase, taken by Apple or Google.
+            </p>
+          </div>
+          <ul className="list-disc list-inside space-y-1 text-gray-600">
+            <li>
+              <strong>The card table deals, it does not run a game.</strong> It
+              shuffles, deals two cards each, turns the flop, turn and river
+              when you tell it to, and reads the showdown. It holds no chips —
+              you play with the ones already in front of you
+            </li>
+            <li>
+              <strong>The payout screen is a calculator.</strong> Enter a buy-in
+              and it works out what each place wins tonight, the way a
+              spreadsheet would. It settles nothing; the money changes hands at
+              your table
+            </li>
+            <li>
+              <strong>The leaderboard records results, not amounts.</strong> It
+              keeps who played, who won and where people finished. No figure of
+              any kind is stored or shared
+            </li>
+          </ul>
+          <p className="text-gray-600 mt-4">
+            If a home game plays for money, that happens between the people at
+            the table and has nothing to do with this app — in the same way a
+            kitchen timer has nothing to do with what is being cooked.
+          </p>
         </div>
 
         <div className="bg-white rounded-xl shadow-sm p-8">

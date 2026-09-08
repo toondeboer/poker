@@ -5,12 +5,12 @@ full-featured web timer, an iOS/Android app, and the shared logic both build on.
 
 ## Overview
 
-| Workspace       | Name            | Stack                                              | Purpose                                                                                                      |
-| --------------- | --------------- | -------------------------------------------------- | ------------------------------------------------------------------------------------------------------------ |
-| `apps/web`      | `@poker/web`    | Next.js 16 (App Router), React 19, Tailwind CSS 4  | Marketing landing page (`/`) + the full-screen web timer (`/timer`) + privacy policy                         |
-| `apps/mobile`   | `@poker/mobile` | Expo SDK 56 (bare), React Native 0.85, expo-router | The iOS/Android app (App Store / Play Store)                                                                 |
-| `packages/core` | `@poker/core`   | Plain TypeScript                                   | Framework-agnostic poker logic shared by the apps **and by the backend**                                     |
-| `apps/infra`    | `@poker/infra`  | AWS CDK                                            | The backend for accounts, groups and online play. Deployed to a dev environment; nothing in the app calls it |
+| Workspace       | Name            | Stack                                              | Purpose                                                                                                 |
+| --------------- | --------------- | -------------------------------------------------- | ------------------------------------------------------------------------------------------------------- |
+| `apps/web`      | `@poker/web`    | Next.js 16 (App Router), React 19, Tailwind CSS 4  | Marketing landing page (`/`) + the full-screen web timer (`/timer`) + privacy policy                    |
+| `apps/mobile`   | `@poker/mobile` | Expo SDK 56 (bare), React Native 0.85, expo-router | The iOS/Android app (App Store / Play Store)                                                            |
+| `packages/core` | `@poker/core`   | Plain TypeScript                                   | Framework-agnostic poker logic shared by the apps **and by the backend**                                |
+| `apps/infra`    | `@poker/infra`  | AWS CDK                                            | The backend for accounts, groups and shared boards. Deployed, and everything in it is called by the app |
 
 The web and mobile UIs are **deliberately separate** — desktop and phone have different
 needs (the phone manages sleep, background timers, Live Activities and push notifications;
@@ -19,10 +19,14 @@ math, payout and standings maths, serialization, and types all live in `@poker/c
 Running the React Native UI on the web (`react-native-web`) was evaluated and rejected as
 high-effort/fragile for no real desktop benefit.
 
-**`@poker/core` is shared with the server too, and that is the point.** The poker rules run
-unchanged in the app and in a Lambda, so a client predicting its own action optimistically is
-running literally the same function as the authority that decides it. The two cannot drift, and
-there is no second implementation of the rules to keep in step.
+**`@poker/core` is shared with the server too.** The maths behind a board — what a result is, how
+standings are computed, what a queued write turns into — runs unchanged on the phone and in a
+Lambda, so there is no second implementation to keep in step.
+
+This used to say more: the _poker rules_ ran in both places, so a client predicting its own action
+was running the same function as the authority that decided it. That was true of a server-authoritative
+betting engine, and both halves of it are gone — see the Gambling classification section in
+[`ROADMAP.md`](./ROADMAP.md#gambling-classification--blocking-120).
 
 ## Repository layout
 
@@ -30,7 +34,7 @@ there is no second implementation of the rules to keep in step.
 apps/
   web/      @poker/web      Next.js site + web timer
   mobile/   @poker/mobile   Expo iOS/Android app (bare workflow: ios/, android/ committed)
-  infra/    @poker/infra    AWS CDK stack for accounts and online play (not deployed)
+  infra/    @poker/infra    AWS CDK stack for accounts and shared boards
 packages/
   core/     @poker/core     shared, framework-agnostic poker logic
 ```
@@ -44,17 +48,22 @@ timer/        the timer state machine
 storage/      StorageAdapter and one store per feature
 payouts/      buy-in and payout structure, and the chop calculator
 leaderboard/  players, results, standings, groups and account claiming
-poker/        the game engine: cards, hand evaluation, betting, side pots,
-              a whole hand, and a whole game
+poker/        the dealer: cards, hand evaluation, a dealt hand, and an
+              evening of them. No chips, no betting — see deal.ts
 realtime/     the channel names the app and the backend both build from
 presets/  reviews/  sounds/  monetization/  share/
 ```
 
-**The poker engine is a stack of pure reducers.** `cards` deals from an injected random source;
-`handValue`/`evaluate` score a hand; `bettingRound` runs one street; `pots` builds and pays side
-pots; `table` plays a whole hand; `session` plays hand after hand until somebody has all the chips
-and hands the result to the leaderboard. Nothing in it touches a clock, a network or a screen,
-which is why it can run on a phone and in a Lambda without changing.
+**The dealer is a stack of pure reducers.** `cards` deals from an injected random source;
+`handValue`/`evaluate` score a hand; `deal` runs one hand — shuffle, two cards each, the streets in
+order, the showdown; `dealerSession` deals hand after hand with the button moving round. Nothing in
+it touches a clock, a network or a screen.
+
+**There are no chips anywhere in it, deliberately.** `bettingRound`, `pots`, and the parts of
+`table`/`session` that moved money were removed before 1.2.0 shipped: betting chips is simulated
+gambling under Apple's definition even when the chips are worth nothing. The card layer never
+depended on the wagering layer, which is why the cut was clean — `cards`, `evaluate` and `handValue`
+are untouched. The engine is at the `archive/betting-engine` tag if it is ever wanted.
 
 Inside `apps/mobile/src`:
 

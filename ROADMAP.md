@@ -168,11 +168,13 @@ following a link from the app to a poker table is a conversation the release doe
    the app is asking for. **`tagForChildDirectedTreatment` is deliberately not set**: this is not a
    child-directed app, and the SDK warns that abusing that flag can terminate the Google account.
    A 4+ rating is a statement about content, not about the audience.
-8. 🚧 **Soften gambling-adjacent copy** — app, website and store listing done; a final read of the whole listing before submission is still worth doing.
-9. ⬜ **Add a factual no-real-money statement** to the website and the review notes. There is
-   currently no disclaimer anywhere. Note Apple says stating something is "for entertainment
-   purposes" _won't overcome a guideline_, so this supports the structural changes rather than
-   substituting for them.
+8. ✅ **Gambling-adjacent copy softened** across app, website and store listing. A final read of the whole listing before submission is still worth doing, but nothing specific is outstanding.
+9. ✅ **Factual no-real-money statement added** — a "Money, and what the app does with it"
+   section on `/support`, and a paste-ready block in `STORE_LISTING.md` for the App Review notes
+   field, worded identically so a reviewer who checks finds the two agreeing. Note Apple says
+   stating something is "for entertainment purposes" _won't overcome a guideline_: this supports the
+   structural changes rather than substituting for them, which is why it took until items 2–7 were
+   done to be worth writing.
 10. ⬜ **Answer both age-rating questionnaires honestly and record the answers given**, so the next
     release can be checked against them rather than re-derived. Apple's and Play's IARC are
     independent and need not agree.
@@ -242,9 +244,15 @@ the rows in the testing pass.
 
 ### 5. The testing pass
 
-~386 unchecked cells over ~193 rows and two platforms in
-[RELEASE_TESTING.md](./RELEASE_TESTING.md), heaviest in _Play a hand_, _Leaderboard_, the blind
-editor and _Payouts_.
+~340 unchecked cells over ~170 rows and two platforms in
+[RELEASE_TESTING.md](./RELEASE_TESTING.md), heaviest in the _Leaderboard_, the blind editor and
+_Payouts_.
+
+**It got shorter.** §13 was 38 rows and is now 17: the betting engine it tested is gone, so blinds
+posting, fold/check/call, raise validation, side pots, finishing order and every save-to-leaderboard
+row went with it. The replacements are the passing-the-phone rows, which are the only ones that
+matter now — and the ones no synthetic tap could verify on the iOS simulator, so they have never
+been exercised by anything but a human.
 
 - **§14–§17 are new** and need the setup above plus **two devices** — one phone cannot see any of
   the sharing failures worth finding.
