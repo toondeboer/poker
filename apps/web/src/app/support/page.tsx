@@ -234,7 +234,16 @@ const Support: React.FC = () => {
         </div>
 
         <div className="text-center py-8 border-t border-gray-200">
-          <p className="text-gray-500 text-sm">© 2026 Poker Blinds Buzzer.</p>
+          <p className="text-gray-500 text-sm">
+            © 2026 Poker Blinds Buzzer ·{" "}
+            <a href="/terms" className="underline hover:text-gray-900">
+              Terms of Use
+            </a>{" "}
+            ·{" "}
+            <a href="/privacy-policy" className="underline hover:text-gray-900">
+              Privacy Policy
+            </a>
+          </p>
         </div>
       </div>
     </div>

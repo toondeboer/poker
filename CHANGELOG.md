@@ -394,6 +394,14 @@ platform-tagged heading (e.g. `## [1.1.3] - 2026-07-20 — Android`) when you cu
   Pro and Club granted**, because a reviewer who cannot get past the paywall cannot see the dealer or
   the shared board, which is the release.
 
+- **A Terms of Use page, with the zero-tolerance clause Guideline 1.2 wants** — `/terms` on the
+  website, linked from `/support` and in the sitemap. It states plainly that objectionable content
+  and abusive behaviour on a shared board are not tolerated, lists what that covers, says what
+  happens to an account that posts it, and explains that boards are invite-only and that leaving one
+  removes its names from your device. It also repeats the no-wagering statement, so a reviewer who
+  follows the link from the listing finds it agreeing with the review note and with `/support`.
+  Set the **License Agreement** field in App Store Connect to point at it — that is the console step
+  this page exists for, and it needs no new binary.
 - **Guideline 1.2 is ruled on rather than left as a worry.** Declaring user-generated content brings
   the app under 1.2, which wants four things; three are already there — the name filter, the report
   flow with an alarm behind it, and a published contact with a response commitment. The fourth,
