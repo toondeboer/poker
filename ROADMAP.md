@@ -13,19 +13,18 @@ are removed from this file when a release is cut rather than accumulating as ✅
 
 ## The week, in order
 
-**1.2.0 ships *with* the backend.** This section used to say the opposite — "ship 1.2.0 before
-touching the backend" — which was written when 1.2.0 had no server features in it and is now exactly
-backwards. Sharing, accounts and the shared leaderboard are the release. Submitting a build whose
-headline features are inert because `backendConfig` is `null` would be shipping the wrapper without
-the thing inside it.
+**1.2.0 ships _with_ the backend, and the backend is now up.** This section used to say the
+opposite — "ship 1.2.0 before touching the backend" — which was written when 1.2.0 had no server
+features in it and was exactly backwards. Sharing, accounts and the shared leaderboard are the
+release.
 
-So the backend has to be live *before* the build is cut, not after. The order below reflects that,
-and each step is cheap to do and expensive to skip.
+The steps below are kept as the record of what had to happen before the build could be cut; the
+ones that are done say so. What is left is Club products and the manual testing pass.
 
-### 1. Ask for SES production access — today, before anything else
+### 1. Ask for SES production access — ✅ granted 2026-09-04
 
 **The only step here with a queue and no code path around it.** A new SES account is in the
-*sandbox*, where mail reaches only addresses that have themselves been verified — so every real
+_sandbox_, where mail reaches only addresses that have themselves been verified — so every real
 sign-up would send a confirmation code that never arrives. It takes a day or two to be granted, it
 is per account and region (so `us-east-1` covers both stages), and **nothing else you do this week
 shortens it**.
@@ -35,26 +34,28 @@ a misbehaving feature is `-c featureSharing=off` and a 90-second stack update; t
 
 Wording and where to file it: [`apps/infra/README.md`](./apps/infra/README.md#standing-up-production).
 
-### 2. Stand up prod
+### 2. Stand up prod — ✅ deployed
 
-Never deployed. The runbook is in the same section, and the two things in it that are easy to get
+`PokerBackend-prod` is up. The runbook is in the same section, and the two things in it that are easy to get
 wrong are both deliberate:
 
 - **The first deploy leaves the pool on Cognito's own sender**, and must. Cognito validates the SES
   identity at the moment the pool is updated while SES verifies asynchronously, so doing both at
-  once rolls the whole stack back with *"Email address is not verified"*. It cost two deploys on
+  once rolls the whole stack back with _"Email address is not verified"_. It cost two deploys on
   dev. Add `"prod": true` to `mailVerified` in `cdk.json` once SES says the identity is good, and
   deploy again — **in the file, not as a `-c` flag**, because CDK context is not sticky and the CI
   job passes only account and region.
 - **Confirm the SNS subscription email.** Until somebody clicks that link, every alarm in prod fires
   into nothing.
 
-### 3. Point the app at prod
+### 3. Point the app at prod — ✅ done (PR #204)
 
-`backendConfig` is `null` in git so that no build can ship pointing at dev. **This is the line that
-makes the release mean anything** — with it null, every new feature in 1.2.0 is dead code. Set it to
-`PROD_BACKEND` in the release commit and check the ids against the prod stack's outputs rather than
-trusting they were filled in correctly.
+`backendConfig` is `PROD_BACKEND`, with the ids read off `PokerBackend-prod`'s own stack outputs
+rather than trusted. **This is the line that makes the release mean anything** — with it null,
+every new feature in 1.2.0 was dead code.
+
+Note for anyone working locally: setting it to `DEV_BACKEND` is the documented way to work against
+the throwaway stack, and that edit must never be committed.
 
 ### 4. Club products
 
@@ -65,8 +66,8 @@ the rows in the testing pass.
 ### 5. The testing pass
 
 ~386 unchecked cells over ~193 rows and two platforms in
-[RELEASE_TESTING.md](./RELEASE_TESTING.md), heaviest in *Play a hand*, *Leaderboard*, the blind
-editor and *Payouts*.
+[RELEASE_TESTING.md](./RELEASE_TESTING.md), heaviest in _Play a hand_, _Leaderboard_, the blind
+editor and _Payouts_.
 
 - **§14–§17 are new** and need the setup above plus **two devices** — one phone cannot see any of
   the sharing failures worth finding.
@@ -180,21 +181,16 @@ delete the branch.
   about — but it is still not a cryptographic source. Accepted for a table passing one phone
   around; online play deals on the server, which is where a CSPRNG belongs.
 
-## Accounts — built and reachable, never run from the app
+## Accounts — live as of 1.2.0
 
-- 🚧 **Never run from the app, which is now the only thing missing.** The screens are written and
-  wired to Cognito — sign up, the emailed confirmation code, sign in, refresh, global sign-out and
-  account deletion, with every Cognito error mapped to something a person can act on. Sign-up,
-  confirm and sign-in have been exercised against the live dev pool **from a script**, and a real
-  confirmation email was delivered. Settings has an Account row leading to them.
-  - What is left is walking it **by hand**: flip `backendConfig` to `DEV_BACKEND` locally, open
-    Settings → Account, and go sign-up → emailed code → sign-in → sign-out → delete on a device. No
-    dev-client rebuild is needed; nothing native changed. Every one of those paths has only ever
-    been typechecked from the UI side.
-  - `backendConfig` stays `null` in git deliberately: a shipped build must not put real accounts in
-    a development pool that exists to be thrown away. **It goes to `PROD_BACKEND` in the release
-    commit** — see §3 of the week plan. With it null, the Account row is absent and every server
-    feature in 1.2.0 is dead code.
+- ✅ **`backendConfig` points at `PROD_BACKEND`** (PR #204), so accounts, shared boards and the
+  sign-up mail behind them are reachable from the app rather than dead code behind a flag. The
+  screens are wired to Cognito — sign up, the emailed confirmation code, sign in, refresh, global
+  sign-out and account deletion, with every Cognito error mapped to something a person can act on.
+  `PokerBackend-prod` is deployed and SES granted production access on 2026-09-04.
+  - What remains is the **manual pass on a real build**, which is a `RELEASE_TESTING.md` matter
+    rather than a roadmap one: sign-up → emailed code → sign-in → sign-out → delete, on a device,
+    against prod.
   - The Account row is also gated on the server's `features.accounts`, so if SES production access
     is refused or delayed, `-c featureAccounts=off` hides the row rather than shipping a sign-up
     whose codes never arrive.
@@ -260,18 +256,18 @@ entitlement, so it cannot affect `pro`. No restore edge case, no receipt to rewr
 asks five friends to subscribe to a poker timer is a feature nobody ever uses, and a board costs the
 same whether one person is on it or eight. So:
 
-| | Needs |
-| --- | --- |
-| Your own boards, the leaderboard, payouts, dealing a hand | **Pro** (one-time) |
-| Making a board of your own shareable, and inviting people | **Club** (subscription) |
-| Joining a board somebody sent you, reading it, recording on it | **nothing** |
+|                                                                | Needs                   |
+| -------------------------------------------------------------- | ----------------------- |
+| Your own boards, the leaderboard, payouts, dealing a hand      | **Pro** (one-time)      |
+| Making a board of your own shareable, and inviting people      | **Club** (subscription) |
+| Joining a board somebody sent you, reading it, recording on it | **nothing**             |
 
-A guest joining free has to be able to *see* the board, so **a shared board is visible without
+A guest joining free has to be able to _see_ the board, so **a shared board is visible without
 Pro** — `boardIsVisible`. Pro is for keeping your own score; a board somebody else keeps is theirs.
 That is also the better funnel: a guest sees what a season of game nights looks like and then wants
 one of their own.
 
-**Club grants Pro, and that is a rule rather than a convenience.** A shared board *is* a
+**Club grants Pro, and that is a rule rather than a convenience.** A shared board _is_ a
 leaderboard, and the leaderboard is Pro — so a subscriber without it would host a board they could
 not open. Not an awkward state: a broken one, sold deliberately. It is enforced in
 `entitlementsFrom` **as well as** in the RevenueCat product, because configuration is one forgotten
@@ -290,7 +286,7 @@ argue for four times that and they are wrong for this app:
 - **The server bill was never the reason.** It is pennies now and stays small at ten to fifty times
   this size. The reason to charge is that **you can always stop charging and can never start**: fold
   hosting into Pro and every past and future one-time buyer has it forever, unrevocably. That is an
-  argument for charging *something*, not for charging a lot.
+  argument for charging _something_, not for charging a lot.
 
 **Named for the axis, not the tier.** "Pro+" would say the thing people already bought had been
 demoted. "Club" also outlives shared boards: the shared clock and playing a hand together belong to
@@ -302,7 +298,7 @@ the same subscription and will not need it renamed.
 holds every rule above — tested, because the mistakes are all of the kind that are invisible in
 review and obvious in a store review. **Which boards reach the server is a per-board question**
 (`boardSyncs`): a shared board always syncs because the host is paying for it, a local board only
-if you host. A board that does not sync is never announced *and* never queues writes.
+if you host. A board that does not sync is never announced _and_ never queues writes.
 
 - ⬜ **Create both subscription SKUs** — `club_monthly` and `club_yearly` — in both stores, then the
   `club` entitlement in RevenueCat with **`pro` attached to the same products**. Two SKUs because
@@ -318,10 +314,11 @@ if you host. A board that does not sync is never announced *and* never queues wr
   pointed at `DEV_BACKEND` announces no board, queues no write and shows no share button — silently
   and correctly. Set `FORCE_PRO_IN_DEV` in `PremiumContext`, which forces both entitlements, to run
   the sharing rows in `RELEASE_TESTING.md`. Worth knowing before somebody concludes sync is broken.
-- ✅ **Billing rows written** — §1b covers both SKUs, restore bringing back *both* entitlements,
+- ✅ **Billing rows written** — §1b covers both SKUs, restore bringing back _both_ entitlements,
   cancellation, and **expiry**, which the one-time product never had. They cannot be run until the
   products exist, but they are no longer waiting to be remembered. **Delete this line when 1.2.0 is
   cut.**
+
 ### What a lapsed subscriber keeps — decided
 
 **Pro, once granted by Club, stays granted.** Somebody who subscribed and later stopped keeps the
@@ -337,12 +334,13 @@ returns on resubscribing, but somebody would reasonably call that the app eating
 
 - 🟡 **The consequence: one month of Club is a permanent Pro.** So the monthly price has to be worth
   at least what Pro costs, or subscribing and cancelling is simply the cheaper way to buy Pro. With
-  Pro around €5–6 and the monthly at €2–3, it *is* cheaper — **that is a live pricing decision, not
+  Pro around €5–6 and the monthly at €2–3, it _is_ cheaper — **that is a live pricing decision, not
   a bug**. Either set the monthly at or above the Pro price, or accept the leak on the grounds that
   somebody doing it has still paid and probably was not going to buy Pro anyway. Worth settling
   before the products are created rather than after.
 
 Guests are unaffected either way. They never paid.
+
 - **Not before 1.2.0 ships.** §1 billing already blocks submission and can only be exercised from a
   Play track; a second product makes that pole longer.
 
@@ -398,6 +396,7 @@ Actions over OIDC, and **accounts end-to-end as the first deployable slice**.
     holds a credential for.
   - Make the data half idempotent and retryable: if the user delete fails after the data is gone,
     the account has to be deletable again on a second attempt rather than wedged.
+
 ### Sign in with Apple and Google — decided, not started
 
 **Social becomes the primary path and email/password the fallback.** Not because it is fashionable,
@@ -408,7 +407,7 @@ path, so a code that never arrives stops being the difference between having use
 **Not social-only.** Keeping email/password costs little now that it is built, and buys three
 things: somebody who wants neither a Google nor an Apple account can still sign up, the website has
 a path if accounts ever reach it, and nobody is locked to a platform account for a board that is
-supposed to follow *them* across phones. Password reset stays SES's job — a much safer place for it
+supposed to follow _them_ across phones. Password reset stays SES's job — a much safer place for it
 than every new user.
 
 **Not before 1.2.0 ships.** It adds native modules, which invalidate every dev-client binary, to a
@@ -430,28 +429,29 @@ reopen that.
    working with no credentials.
 4. ⬜ **Decide account linking before writing the app half. This is the trap.** Cognito treats
    `Google_1234` and the email/password user as **two different accounts** even with the same
-   address — so somebody who signed up with a password in 1.2.0 and later taps *Continue with
-   Google* silently gets a second, empty one, and their boards appear to have vanished. Either link
+   address — so somebody who signed up with a password in 1.2.0 and later taps _Continue with
+   Google_ silently gets a second, empty one, and their boards appear to have vanished. Either link
    on first federated sign-in with `AdminLinkProviderForUser`, or refuse and tell them to use their
    password. **Whichever is chosen needs a test**: the failure is silent, looks exactly like data
    loss, and only affects users who predate the feature — which by then is everybody.
 5. ⬜ **App: `expo-apple-authentication`, plus Google.** Both native, so `npm run pods -w
-   @poker/mobile` and a rebuilt dev client on both platforms before anything on screen means
+@poker/mobile` and a rebuilt dev client on both platforms before anything on screen means
    anything.
 6. ⬜ **`AuthProvider` grows one method, not a parallel path.** `AuthContext.tsx` already swaps
    `stubAuthProvider` for `createCognitoAuthProvider` behind that seam and nothing above it knows
    which it got. A `signInWithProvider(provider, idToken)` beside the existing `signIn` keeps that
    true; a second context beside it would not.
 7. ⬜ **The account screen re-orders rather than grows.** Apple and Google above the fold, email and
-   password behind a *Use email instead* disclosure. The screens exist — layout, not new UI.
+   password behind a _Use email instead_ disclosure. The screens exist — layout, not new UI.
 8. ⬜ **Hide My Email is not an error case.** Apple relays give a `@privaterelay.appleid.com`
    address that works and can later be revoked. Identity keys on the Cognito subject and survives
    that; anything assuming a reachable address does not. Nothing today emails users outside sign-up
    and reset, and that is now worth keeping deliberately.
 9. ⬜ **Testing rows for §14** — first federated sign-up, returning federated sign-in, the linking
    case from step 4, Hide My Email, and cancelling the provider sheet halfway.
+
 - ✅ **Cognito's federated-MAU pricing — resolved 2026-09-05, and the answer is the cheap one.**
-  Social providers are *not* federated for billing: AWS's pricing page puts them explicitly with
+  Social providers are _not_ federated for billing: AWS's pricing page puts them explicitly with
   direct sign-in — "users who sign in directly with their credentials from a user pool (includes
   social identity providers)" — so Apple and Google draw on the **10,000 free MAU** of Essentials,
   not the 50-MAU SAML/OIDC tier. Both pools are already `ESSENTIALS`, which is the default and is
