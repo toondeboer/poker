@@ -6,7 +6,7 @@ AWS CDK. Accounts, groups and cloud sync for the shared leaderboard.
 
 Dev has been exercised end to end: sign-up with a real emailed code, sign-in, `GET /me`, a board
 created, players added, a game recorded, an invite redeemed by a second account, and a non-member
-refused a board they are not in. **21 checks**, run by [`scripts/smoke.ts`](./scripts/smoke.ts) with
+refused a board they are not in. **20 checks**, run by [`scripts/smoke.ts`](./scripts/smoke.ts) with
 `--as-stranger`.
 
 **Prod exists as of 2026-09-04** and was stood up by walking _Standing up production_ below, in two
