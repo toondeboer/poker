@@ -68,9 +68,36 @@ App Review.
 
 1. Apple's 13+ needs _infrequent_ simulated gambling, which a full no-limit engine is not — and
    under-declaring is the one thing that genuinely endangers a developer account.
-2. **PEGI has auto-rated any simulated gambling 18 since 2020**, and PEGI reaches Google Play through
-   IARC. There is no 13+ door in Europe at all.
+2. **PEGI put gambling content at 18 in 2020**, and PEGI reaches Google Play through IARC. There was
+   no 13+ door in Europe for a betting engine.
 3. The account rule below does not care about the tier.
+
+**The PEGI claim used to be stated more broadly than PEGI states it, and the correction matters.**
+This said "auto-rated _any_ simulated gambling 18". PEGI's own wording is narrower: the descriptor is
+for a game that "contains elements that **encourage or teach gambling**", where "these simulations of
+gambling refer to games of chance that are normally carried out in **casinos or gambling halls**".
+Betting chips in a no-limit engine is squarely inside that. A dealer that holds no chips is not
+obviously inside it at all.
+
+**And there is a precedent that cuts both ways, which this section did not have.** _Balatro_ — a
+poker-shaped roguelike with no money in it — was rated **PEGI 18 for explaining poker hands**, and
+had it **reduced to PEGI 12 on appeal**, the Complaints Board finding its fantastical elements
+mitigating. PEGI then said it would build more granular criteria, keeping 18 for games that
+"simulate gambling typically played in casinos and betting halls".
+
+Read honestly, that is **one signal in each direction**:
+
+- **Against us:** the thing that first drew an 18 was _explaining poker hands_, and the showdown
+  names hands ("pair", "high card") with none of Balatro's fantastical mitigation. This app is a
+  literal poker dealer.
+- **For us:** the 18 did not survive contact with the appeal, and the category PEGI kept 18 for is
+  casino-and-betting-hall gambling, which a dealer holding no chips and settling nothing is not.
+
+**It does not change the answer given** — the app contains no betting, so "does it contain gambling
+or simulated gambling" is still honestly No, and IARC asks that, not "does it name a poker hand".
+What it changes is that the **Google 3+ carries a risk this section previously did not acknowledge
+at all**, because PEGI was only ever invoked here to close off 13+ for the engine. If a rating comes
+back higher than 3+ from Play, this is the reason, and Balatro is the appeal precedent to cite.
 
 **The account rule is what actually decided it.** This account is enrolled as an **Individual**.
 Apple: _"we are no longer allowing gambling apps submitted by individual developers"_ — explicitly

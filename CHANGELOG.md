@@ -427,6 +427,16 @@ platform-tagged heading (e.g. `## [1.1.3] - 2026-07-20 — Android`) when you cu
   deleted with it. One deliberate exception: the API's deployed `description` string is still wrong
   and is left that way with a comment saying so, because correcting it would put the branch out of
   sync with the live stack for something cosmetic.
+- **The PEGI claim was stated more broadly than PEGI states it.** Both files said PEGI "auto-rates
+  _any_ simulated gambling 18". PEGI's own wording is narrower — content that "encourages or teaches
+  gambling", meaning "games of chance normally carried out in casinos or gambling halls". A betting
+  engine is squarely inside that; a dealer holding no chips is not obviously inside it at all.
+  Corrected, and the _Balatro_ precedent added, which the section did not have and which cuts both
+  ways: it drew a **PEGI 18 for explaining poker hands**, then had it **reduced to 12 on appeal**.
+  The answer given to the questionnaire does not change — there is no betting, so "does it contain
+  simulated gambling" is still honestly No — but the **Google 3+ carries a risk the section did not
+  acknowledge**, because PEGI had only ever been invoked to close off 13+ for the engine. If Play
+  returns higher than 3+, that is the reason and Balatro is the appeal precedent.
 - **The rating record says how its evidence was obtained.** Every comparable-app rating in
   `ROADMAP.md` was read back from the App Store rather than from memory — the previous pass asserted
   one was safe precedent without checking, and it is an 18+ app. The table now carries the

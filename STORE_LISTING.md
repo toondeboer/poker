@@ -210,8 +210,8 @@ betting, and as a headline Pro feature they are frequent, not infrequent — whi
 changed is the app, not the reading.
 
 **13+ was never available**, for three separate reasons worth recording so nobody re-litigates it:
-Apple's 13+ requires _infrequent_ simulated gambling; **PEGI has auto-rated any simulated gambling 18
-since 2020** and reaches Google Play through IARC, so Europe has no 13+ tier for this; and Apple's
+Apple's 13+ requires _infrequent_ simulated gambling; **PEGI put gambling content at 18 in 2020** and
+reaches Google Play through IARC, so Europe had no 13+ tier for a betting engine; and Apple's
 restriction on gambling apps from **Individual developer accounts** — which this is — would not care
 about the tier either way.
 
@@ -345,9 +345,12 @@ genuinely endangers a developer account.
 
 Answered **independently** of Apple's; the two need not agree, and IARC asks differently.
 
-- **Does the app contain gambling or simulated gambling?** **No.** PEGI auto-rates _any_ simulated
-  gambling 18, so this is the answer that matters most in Europe — and it is honest only because the
-  betting engine went.
+- **Does the app contain gambling or simulated gambling?** **No.** This is the answer that matters
+  most in Europe, and it is honest only because the betting engine went. PEGI's descriptor is for
+  content that "encourages or teaches gambling", meaning "games of chance normally carried out in
+  casinos or gambling halls" — narrower than the "any simulated gambling" this file used to claim,
+  and a dealer holding no chips is not in it. **If Play comes back above 3+, appeal**: _Balatro_ was
+  rated PEGI 18 for explaining poker hands and had it cut to 12 on appeal. See `ROADMAP.md`.
 - **Does the app contain user-generated content shared with others?** **Yes.** Board and player
   names on a shared board. Declare it: the app has the filter, the report flow and the contact
   address that this answer commits you to.
