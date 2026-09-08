@@ -427,6 +427,13 @@ platform-tagged heading (e.g. `## [1.1.3] - 2026-07-20 — Android`) when you cu
   deleted with it. One deliberate exception: the API's deployed `description` string is still wrong
   and is left that way with a comment saying so, because correcting it would put the branch out of
   sync with the live stack for something cosmetic.
+- **Two character counts in `STORE_LISTING.md` were wrong, and every other one was measured.** The
+  promotional text is 151 characters, not 154; the 1.2.0 Play release notes are 283, not 421. Both
+  were under their limits, so neither would have bitten — but the whole value of a file that
+  pre-counts store fields is that the counts can be trusted. Every remaining block was measured:
+  name 27, subtitle 30, keywords 99, all four IAP strings, and the 1.1.3/1.1.4 release notes all
+  match what they claim. The Play notes now also record that their four emoji cost three more units
+  in UTF-16 than as code points, which is what a console counts.
 - **The last two unsourced claims in the gambling section are now sourced or marked.** Apple's
   "for entertainment purposes" line is real and now carries its number — **guideline 1.1.6** — with
   the note that it was written about false information rather than gambling, so it is read as a

@@ -57,7 +57,7 @@ and describe features the app actually has.
 The blinds clock for home poker night — and now it deals, too. Big readable timer, custom levels, payouts worked out, and a leaderboard for your group.
 ```
 
-`154` chars. Re-count in the console before saving.
+`151` chars. Re-count in the console before saving.
 
 Previous, kept as the record of what was live:
 
@@ -608,8 +608,10 @@ Re-count in App Store Connect before saving; the limit is 4000 characters and th
 ♻️ Games survive the app closing, and sync when you have signal again.
 ```
 
-`421` chars — fits the 500-char Play Console limit. Re-count in the
-console before saving, since emoji and locale can shift it.
+`283` chars — comfortably inside the 500-char Play Console limit. Re-count in
+the console before saving, since emoji and locale can shift it: those four emoji
+cost three more units in UTF-16 than they do as code points, which is what a
+console counts.
 
 **"Joining one is free" earns its place in 500 characters**, because the misunderstanding most
 likely to kill the feature is a table assuming all six of them need a subscription. One line, and it
