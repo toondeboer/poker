@@ -478,6 +478,15 @@ platform-tagged heading (e.g. `## [1.1.3] - 2026-07-20 — Android`) when you cu
 
 ### Fixed
 
+- **The account screen printed the same error twice.** `AccountScreen` keeps one `error` state and
+  rendered it in four places; the "Sign in" card and the "Email and password" card are on screen
+  together once _Use email instead_ is tapped, so a failed email sign-in also printed a red line
+  under the Apple and Google buttons — about a provider nobody had touched. It now shows once, in
+  the card the action came from. Found running §14 on Android.
+- **§14 of `RELEASE_TESTING.md` carries what could be run and why the rest could not.** Every row
+  that turns on receiving a confirmation code is marked blocked — not on a store build, but on
+  somebody with an inbox, which is the one step no script can do honestly. They remain the largest
+  untested surface in the release, and saying so is more useful than a blank column.
 - **§13 of `RELEASE_TESTING.md` has been run on Android and carries its results.** Thirteen rows
   pass, verified in screenshots rather than by assertion; one failed and is the fix above. Three are
   marked with why they are not ✅ rather than left blank — the locked state needs a store build,

@@ -336,7 +336,15 @@ export function AccountScreen() {
             disabled={busy}
           />
         ) : null}
-        {error ? <Text style={styles.error}>{MESSAGE[error]}</Text> : null}
+        {/* One error, one place. This card and the email form are on screen
+            together once "Use email instead" is tapped, and both rendered the
+            same `error` — so a failed email sign-in printed a red line under
+            the Apple and Google buttons as well, about a provider nobody had
+            touched. The email card keeps it while it is open, because that is
+            where the action was. */}
+        {error && !showEmail ? (
+          <Text style={styles.error}>{MESSAGE[error]}</Text>
+        ) : null}
       </CardContent>
     </Card>
   );

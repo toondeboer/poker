@@ -649,21 +649,53 @@ backgrounded the phone mid-flow, and never had to find the entry point.
 must point at a real backend or they cannot work at all. If sign-up says the build cannot do it,
 that is the switch, not a bug.
 
+**Partly run on Android, 2026-09-08.** What a laptop can drive was driven; **every row that needs a
+confirmation code is 🚫, because running it needs somebody with an inbox.** Those are the rows the
+feature rests on and they are still outstanding — see the note under the table.
+
+Two defects came out of the part that could be run. One is fixed; one is dev-only and deliberately
+left:
+
+- **Fixed: the same error was printed twice.** `AccountScreen` keeps one `error` state and rendered
+  it in four places. The "Sign in" card and the "Email and password" card are on screen together
+  once _Use email instead_ is tapped, so a failed email sign-in also printed a red line under the
+  Apple and Google buttons — about a provider nobody had touched.
+- **Dev-only, not fixed: an offline sign-in red-screens a dev build.** The app handles it correctly
+  in the UI ("Couldn't reach the server. Check your connection.") and then calls `console.error`,
+  which LogBox turns into a full-screen Console Error over the top. Nothing is wrong and release
+  builds have no LogBox — but it looks alarming, and it is the same shape as the bug #219 fixed:
+  treating an ordinary condition as an error. Worth demoting to `warn` at some point.
+
 |                                                                                                                                                                                                                                                                    | iOS | Android |
 | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | --- | ------- |
-| Settings shows the account row, and it opens the account screen                                                                                                                                                                                                    | ⬜  | ⬜      |
-| **Sign up with a real address → the code arrives.** This is the row the whole feature rests on: Cognito's own sender was capped and landed in spam, which is why it now goes through SES                                                                           | ⬜  | ⬜      |
-| The code arrives **in the inbox, not spam**, and is from `Poker Blinds Timer`                                                                                                                                                                                      | ⬜  | ⬜      |
-| Confirming with the emailed code signs you in                                                                                                                                                                                                                      | ⬜  | ⬜      |
-| **After confirming, the account can reset its password.** A user confirmed without the emailed code ends up `email_verified: false` and Cognito refuses to send to them at all — it reads as a mail failure and is not one. [See D-note](#accounts-email-verified) | ⬜  | ⬜      |
-| A **wrong code** says so and lets you try again, rather than dead-ending                                                                                                                                                                                           | ⬜  | ⬜      |
-| An **already-taken email** says so in words, not an error code                                                                                                                                                                                                     | ⬜  | ⬜      |
-| A **wrong password** on sign-in says so and does not clear the email field                                                                                                                                                                                         | ⬜  | ⬜      |
-| Sign out, then sign back in — the boards are still there                                                                                                                                                                                                           | ⬜  | ⬜      |
-| **Force-quit mid-sign-up, relaunch** → not signed in and not stuck; signing up again with the same address behaves sanely                                                                                                                                          | ⬜  | ⬜      |
-| **Airplane mode during sign-in** says there is no connection, and does **not** sign you out of an existing session                                                                                                                                                 | ⬜  | ⬜      |
-| **Delete account removes the data, not just the login.** Delete, then sign up again with the same address: no old boards, no old claims. App Store 5.1.1(v) asks for the data as well                                                                              | ⬜  | ⬜      |
-| After deleting, the app still works — local boards intact, timer fine, no crash on next launch                                                                                                                                                                     | ⬜  | ⬜      |
+| Settings shows the account row, and it opens the account screen                                                                                                                                                                                                    | ⬜  | ✅      |
+| **Sign up with a real address → the code arrives.** This is the row the whole feature rests on: Cognito's own sender was capped and landed in spam, which is why it now goes through SES                                                                           | ⬜  | 🚫      |
+| The code arrives **in the inbox, not spam**, and is from `Poker Blinds Timer`                                                                                                                                                                                      | ⬜  | 🚫      |
+| Confirming with the emailed code signs you in                                                                                                                                                                                                                      | ⬜  | 🚫      |
+| **After confirming, the account can reset its password.** A user confirmed without the emailed code ends up `email_verified: false` and Cognito refuses to send to them at all — it reads as a mail failure and is not one. [See D-note](#accounts-email-verified) | ⬜  | 🚫      |
+| A **wrong code** says so and lets you try again, rather than dead-ending                                                                                                                                                                                           | ⬜  | 🚫      |
+| An **already-taken email** says so in words, not an error code                                                                                                                                                                                                     | ⬜  | 🚫      |
+| A **wrong password** on sign-in says so and does not clear the email field                                                                                                                                                                                         | ⬜  | 🟡      |
+| Sign out, then sign back in — the boards are still there                                                                                                                                                                                                           | ⬜  | 🚫      |
+| **Force-quit mid-sign-up, relaunch** → not signed in and not stuck; signing up again with the same address behaves sanely                                                                                                                                          | ⬜  | 🚫      |
+| **Airplane mode during sign-in** says there is no connection, and does **not** sign you out of an existing session                                                                                                                                                 | ⬜  | 🟡      |
+| **Delete account removes the data, not just the login.** Delete, then sign up again with the same address: no old boards, no old claims. App Store 5.1.1(v) asks for the data as well                                                                              | ⬜  | 🚫      |
+| After deleting, the app still works — local boards intact, timer fine, no crash on next launch                                                                                                                                                                     | ⬜  | 🚫      |
+
+**These 🚫 are a different blocker from the billing rows.** They are not blocked on a store build —
+`DEV_BACKEND` reaches a real Cognito pool and SES has production access, so the flow works. They are
+blocked on **somebody with an inbox**: every one of them turns on receiving a confirmation code, and
+that is the one step no script can do honestly. Run them by hand against `DEV_BACKEND` with a real
+address. They remain the largest untested surface in 1.2.0.
+
+**What the two 🟡 mean:**
+
+- **Wrong password.** The half that could be checked was checked: a failed sign-in **keeps the email
+  field**, which is what the row is really guarding against. The wording of the wrong-password
+  message itself needs an account that exists.
+- **Airplane mode.** Says there is no connection, in words, and keeps what was typed — verified. The
+  second half of the row, that it does **not** sign you out of an existing session, needs a session,
+  so it needs the sign-up rows above first.
 
 <a id="accounts-email-verified"></a>
 
