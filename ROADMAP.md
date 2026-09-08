@@ -90,6 +90,30 @@ deck.
   — in which case one app at 18+ would have shipped anyway. Against that: two listings, two review
   cycles, two testing passes, two RevenueCat configs, and a new listing starting at zero ratings.
 
+### Keeping the betting engine for the web only — considered, rejected
+
+Store guidelines and PEGI/IARC govern apps distributed through stores and have no jurisdiction over
+the website, and AdSense restricts only _real-money_ gambling, so play-money poker on the site would
+not touch ad revenue. **On the rules, this was clean.** It failed on everything else:
+
+- **Entitlements cannot cross platforms today.** `revenueCatProvider.ts` calls
+  `Purchases.configure({ apiKey })` with no `appUserID` and never calls `logIn()`, so entitlements
+  belong to the App Store / Play account rather than the Cognito account. A Pro purchase on iOS has
+  no mechanism to unlock anything on the web.
+- **The web app has no billing at all** — no Stripe, no RevenueCat Web. The `pro`/`premium` strings
+  in `apps/web` are marketing copy about the mobile purchase. Charging for it means a second payment
+  integration plus account linking; not charging for it undercuts the mobile paywall, where dealing
+  is one of seven Pro bullets.
+- **The UI does not port.** `packages/core/src/poker/` is framework-agnostic and would move as-is —
+  that is the valuable, tested part. But `apps/mobile/src/components/game/` is ~800 lines of React
+  Native and this repo does not use `react-native-web`, so the table would be rewritten, not ported.
+- **The UX premise does not survive the move.** The whole design is pass-the-phone with tap-to-peek
+  hole cards. In a laptop browser that becomes passing the laptop around the table, which is worse
+  than the deck of cards the feature exists to replace.
+
+**One rule to respect anyway:** do not link the mobile app to any web poker content. A reviewer
+following a link from the app to a poker table is a conversation the release does not need.
+
 ### Action items
 
 1. ✅ **Dealer mode does not need a ruling from App Review.** The question was going to be asked;
@@ -101,6 +125,13 @@ deck.
    chips they already have. The cut follows an existing seam: `cards.ts` has no imports and
    `evaluate.ts` imports only `cards`/`handValue`, so the card layer has zero dependency on the
    wagering layer.
+
+   **Tag before deleting:** `git tag archive/betting-engine` on the commit before the removal, the
+   same convention `archive/native-form-sheets` already uses. The engine is a tested no-limit
+   implementation with side pots and hand evaluation, and it is real work — the tag keeps it
+   recoverable at no maintenance cost, without leaving unreachable code in the tree for somebody to
+   work out the status of later.
+
 3. ⬜ **Take money off the leaderboard.** Track games played, wins and finishing positions; store and
    display no currency. Removes `Placing.winnings`, `GameResult.buyIn`, `GameResult.bounty`,
    `LeaderboardStanding.totalWon` and `bountiesWon`, the "won 120" rendering, the money line in the
