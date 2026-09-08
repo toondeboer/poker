@@ -8,7 +8,12 @@ import {
   readRemoteBoard,
   type RemoteBoard,
 } from "./mergeBoard";
-import { EMPTY_QUEUE, enqueue, type PendingWrite, type SyncQueue } from "./pendingWrites";
+import {
+  EMPTY_QUEUE,
+  enqueue,
+  type PendingWrite,
+  type SyncQueue,
+} from "./pendingWrites";
 
 const player = (id: string, name = id): Player => ({ id, name });
 
@@ -17,8 +22,6 @@ const game = (id: string, playedAt = 1): GameResult => ({
   playedAt,
   playerIds: ["p1"],
   placings: [],
-  buyIn: 10,
-  bounty: 0,
 });
 
 const board = (over: Partial<GroupState> = {}): GroupState => ({
@@ -28,7 +31,10 @@ const board = (over: Partial<GroupState> = {}): GroupState => ({
   ...over,
 });
 
-const remote = (over: Partial<GroupState> = {}, deleted = NOTHING_DELETED): RemoteBoard => ({
+const remote = (
+  over: Partial<GroupState> = {},
+  deleted = NOTHING_DELETED,
+): RemoteBoard => ({
   state: board(over),
   deleted,
 });
@@ -50,7 +56,11 @@ describe("what a phone keeps", () => {
       players: [player("p1", "Ann"), player("p2", "Bo")],
       results: [game("r1", 100), game("r2", 200)],
     });
-    const merged = mergeBoard(mine, remote({ players: [], results: [] }), EMPTY_QUEUE);
+    const merged = mergeBoard(
+      mine,
+      remote({ players: [], results: [] }),
+      EMPTY_QUEUE,
+    );
     expect(merged.players.map((p) => p.id).sort()).toEqual(["p1", "p2"]);
     expect(merged.results.map((r) => r.id).sort()).toEqual(["r1", "r2"]);
   });
@@ -121,8 +131,15 @@ describe("what this phone deleted", () => {
   });
 
   it("keeps a deleted game out of the standings", () => {
-    const mine = { ...board({ results: [] }), deleted: { players: [], results: ["r1"] } };
-    const merged = mergeBoard(mine, remote({ results: [game("r1", 100)] }), EMPTY_QUEUE);
+    const mine = {
+      ...board({ results: [] }),
+      deleted: { players: [], results: ["r1"] },
+    };
+    const merged = mergeBoard(
+      mine,
+      remote({ results: [game("r1", 100)] }),
+      EMPTY_QUEUE,
+    );
     expect(merged.results).toEqual([]);
   });
 
@@ -137,7 +154,9 @@ describe("what this phone deleted", () => {
   it("leaves a board that has deleted nothing the shape it always had", () => {
     // Absent rather than empty, so a board round-trips unchanged through a
     // version of the app that predates this.
-    expect(mergeBoard(board(), remote(), EMPTY_QUEUE)).not.toHaveProperty("deleted");
+    expect(mergeBoard(board(), remote(), EMPTY_QUEUE)).not.toHaveProperty(
+      "deleted",
+    );
   });
 });
 
@@ -147,13 +166,25 @@ describe("a pull landing mid-write", () => {
     // between recording a game and the queue sending it, and without the
     // pending writes reapplied the game vanishes off the screen — which looks
     // exactly like the app having lost it.
-    const q = queueOf({ kind: "recordGame", groupId: "g1", result: game("r9", 500) });
-    const merged = mergeBoard(board({ results: [game("r9", 500)] }), remote({ results: [] }), q);
+    const q = queueOf({
+      kind: "recordGame",
+      groupId: "g1",
+      result: game("r9", 500),
+    });
+    const merged = mergeBoard(
+      board({ results: [game("r9", 500)] }),
+      remote({ results: [] }),
+      q,
+    );
     expect(merged.results.map((r) => r.id)).toContain("r9");
   });
 
   it("does not take away a player the outbox has not sent yet", () => {
-    const q = queueOf({ kind: "addPlayer", groupId: "g1", player: player("p8", "Sam") });
+    const q = queueOf({
+      kind: "addPlayer",
+      groupId: "g1",
+      player: player("p8", "Sam"),
+    });
     const merged = mergeBoard(
       board({ players: [player("p8", "Sam")] }),
       remote({ players: [] }),
@@ -241,7 +272,9 @@ describe("building a board from what the server sent", () => {
     // **Two call sites spread `remote.state` and dropped it** — a board joined
     // by code, and one discovered on a second device — handing a brand-new
     // member the share button that can only ever be refused.
-    expect(boardFromRemote({ ...remote(), role: "member" }).role).toBe("member");
+    expect(boardFromRemote({ ...remote(), role: "member" }).role).toBe(
+      "member",
+    );
   });
 
   it("has no role when the server did not send one", () => {
@@ -261,7 +294,11 @@ describe("building a board from what the server sent", () => {
 
 describe("what this account may do on a board", () => {
   it("takes the role the server gave", () => {
-    const merged = mergeBoard(board(), { ...remote(), role: "member" }, EMPTY_QUEUE);
+    const merged = mergeBoard(
+      board(),
+      { ...remote(), role: "member" },
+      EMPTY_QUEUE,
+    );
     expect(merged.role).toBe("member");
   });
 
@@ -276,22 +313,26 @@ describe("what this account may do on a board", () => {
     // Being promoted to admin is a thing that happens, and the board is where
     // this phone finds out.
     const mine = { ...board(), role: "member" as const };
-    expect(mergeBoard(mine, { ...remote(), role: "admin" }, EMPTY_QUEUE).role).toBe(
-      "admin",
-    );
+    expect(
+      mergeBoard(mine, { ...remote(), role: "admin" }, EMPTY_QUEUE).role,
+    ).toBe("admin");
   });
 
   it("stays absent when nobody has said", () => {
     // Unknown, not "member" — every local-only board is in this state, and
     // hiding share on those would stop somebody sharing their own board.
-    expect(mergeBoard(board(), remote(), EMPTY_QUEUE)).not.toHaveProperty("role");
+    expect(mergeBoard(board(), remote(), EMPTY_QUEUE)).not.toHaveProperty(
+      "role",
+    );
   });
 
   it("is read back only when it is one of the two roles", () => {
     expect(readRemoteBoard({ ...good, role: "admin" })?.role).toBe("admin");
     expect(readRemoteBoard({ ...good, role: "member" })?.role).toBe("member");
     // Anything else is unknown rather than guessed at.
-    expect(readRemoteBoard({ ...good, role: "owner" })).not.toHaveProperty("role");
+    expect(readRemoteBoard({ ...good, role: "owner" })).not.toHaveProperty(
+      "role",
+    );
     expect(readRemoteBoard(good)).not.toHaveProperty("role");
   });
 });
@@ -336,15 +377,30 @@ describe("reading what the API answered", () => {
 
   it("is nothing at all without a group", () => {
     expect(readRemoteBoard({ ...good, group: undefined })).toBeNull();
-    expect(readRemoteBoard({ ...good, group: { id: "g1", name: "T" } })).toBeNull();
+    expect(
+      readRemoteBoard({ ...good, group: { id: "g1", name: "T" } }),
+    ).toBeNull();
     expect(readRemoteBoard(null)).toBeNull();
     expect(readRemoteBoard("nonsense")).toBeNull();
   });
 
-  it("keeps a game with knockouts and drops one whose knockouts are broken", () => {
-    const withKnockouts = { ...game("r4", 400), knockouts: [{ playerId: "p1", count: 1, bounty: 5 }] };
-    const broken = { ...game("r5", 500), knockouts: [{ playerId: "p1" }] };
-    const read = readRemoteBoard({ ...good, results: [withKnockouts, broken] });
+  it("reads a board that still carries the old money fields", () => {
+    // A board written before money came off it. The extra keys are ignored
+    // rather than rejected — requiring them would make every new board
+    // unreadable, and refusing them would make every old one unreadable.
+    const legacy = {
+      ...game("r4", 400),
+      buyIn: 10,
+      bounty: 5,
+      knockouts: [{ playerId: "p1", count: 1, bounty: 5 }],
+      placings: [{ playerId: "p1", place: 1, winnings: 80 }],
+    };
+    const read = readRemoteBoard({ ...good, results: [legacy] });
     expect(read?.state.results.map((r) => r.id)).toEqual(["r4"]);
+    // ...and the money does not survive the read.
+    expect(read?.state.results[0].placings[0]).toEqual({
+      playerId: "p1",
+      place: 1,
+    });
   });
 });

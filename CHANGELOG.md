@@ -9,6 +9,28 @@ platform-tagged heading (e.g. `## [1.1.3] - 2026-07-20 — Android`) when you cu
 
 ## [Unreleased]
 
+### Changed
+
+- **The leaderboard keeps score, not money.** It tracked what every player had won across game
+  nights — "8 games · 3 wins · won 120 · 5 KOs" — and now tracks games, wins and where people
+  finished. The payout calculator is untouched: set a buy-in and it still works out what each place
+  wins tonight, and the chop still splits what is left. What is gone is the running total, and with
+  it the buy-in and prize money that used to be stored against every game and sent to a shared
+  board. Nothing that names an amount of money leaves the phone any more.
+
+  This is a rating decision, and the reasoning is written down in `ROADMAP.md` rather than left to
+  be rediscovered. Comparable apps on the App Store put a virtual card dealer and a one-shot payout
+  calculator at 4+, and a home-game buy-in/cash-out scorekeeper and a poker bankroll tracker at 18+
+  — so the line is not dealing and not calculating, it is accumulating real money across sessions,
+  which is what the board was doing.
+
+  **Nobody loses a game night.** Boards, players and every result already recorded still load, and
+  finishing positions come back exactly as they were; the amounts attached to them fall away the
+  first time the board is written back. Anything sitting unsent in the outbox still sends. Progressive
+  bounties go with the money — they needed the app to watch every hand to know whose chips took whom
+  out — while flat bounties stay in the calculator, settled between players at the table as they
+  always were.
+
 ### Added
 
 - **A finished game asks before it is thrown away.** Start a new game with an unsaved one on screen

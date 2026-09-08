@@ -8,10 +8,7 @@ import {
   finishingOrder,
   finishingPlacings,
   isSessionComplete,
-  knockoutCounts,
   knockoutTally,
-  knockoutsFullyRecorded,
-  unclaimedBounty,
   startNextHand,
   toGameResult,
 } from "./session";
@@ -250,55 +247,43 @@ describe("toGameResult", () => {
     bustOrder: ["d", "c", "b"],
   };
 
-  it("records everyone who played, and the podium even past the paid places", () => {
-    // Who got paid and who finished where are different questions. A game
-    // paying two places still has a third-place finisher, and the
-    // leaderboard's podium tie-break needs it.
+  it("records everyone who played, and the podium", () => {
+    // Everyone in the field is recorded, but only the podium is placed —
+    // which is what the leaderboard's tie-break works from.
     const result = toGameResult(finished, {
       id: "game-1",
       now: 1000,
-      buyIn: 20,
-      bounty: 0,
-      winningsByPlace: [50, 30],
     });
     expect(result.playerIds).toEqual(["a", "b", "c", "d"]);
     expect(result.placings).toEqual([
-      { playerId: "a", place: 1, winnings: 50 },
-      { playerId: "b", place: 2, winnings: 30 },
-      { playerId: "c", place: 3, winnings: 0 },
+      { playerId: "a", place: 1 },
+      { playerId: "b", place: 2 },
+      { playerId: "c", place: 3 },
     ]);
-    expect(result.buyIn).toBe(20);
     expect(result.playedAt).toBe(1000);
   });
 
-  it("still records a winner when there is no prize money at all", () => {
-    // Wins are counted from finishing first, not from being paid — so
-    // recording nothing here would mean a friendly game had no winner.
+  it("records a winner for a game with nothing riding on it", () => {
+    // Wins are counted from finishing first, which is the only thing the board
+    // knows about — a friendly game still has a winner.
     const result = toGameResult(finished, {
       id: "g",
       now: 1,
-      buyIn: 0,
-      bounty: 0,
-      winningsByPlace: [],
     });
     expect(result.placings).toEqual([
-      { playerId: "a", place: 1, winnings: 0 },
-      { playerId: "b", place: 2, winnings: 0 },
-      { playerId: "c", place: 3, winnings: 0 },
+      { playerId: "a", place: 1 },
+      { playerId: "b", place: 2 },
+      { playerId: "c", place: 3 },
     ]);
     expect(result.playerIds).toHaveLength(4);
   });
 
-  it("records every paid place when more than three are paid", () => {
-    const result = toGameResult(finished, {
-      id: "g",
-      now: 1,
-      buyIn: 20,
-      bounty: 0,
-      winningsByPlace: [40, 25, 10, 5],
-    });
-    expect(result.placings.map((p) => p.place)).toEqual([1, 2, 3, 4]);
-    expect(result.placings[3]).toEqual({ playerId: "d", place: 4, winnings: 5 });
+  it("records the podium and no further", () => {
+    // Places past third were only ever recorded because the prize table said
+    // they paid. With no prize table the podium is the whole of it, and the
+    // leaderboard's tie-break needs exactly that much.
+    const result = toGameResult(finished, { id: "g", now: 1 });
+    expect(result.placings.map((p) => p.place)).toEqual([1, 2, 3]);
   });
 
   it("never records more finishes than there were players", () => {
@@ -313,9 +298,6 @@ describe("toGameResult", () => {
     const result = toGameResult(heads, {
       id: "g",
       now: 1,
-      buyIn: 20,
-      bounty: 0,
-      winningsByPlace: [],
     });
     expect(result.placings.map((p) => p.place)).toEqual([1, 2]);
   });
@@ -323,20 +305,13 @@ describe("toGameResult", () => {
   it("shares its placings rule with finishingPlacings", () => {
     // The app records games itself and mints its own ids, so it uses the
     // smaller function. The two must not disagree about what a finish is.
-    const winningsByPlace = [50, 30];
-    expect(
-      toGameResult(finished, {
-        id: "g",
-        now: 1,
-        buyIn: 20,
-        bounty: 0,
-        winningsByPlace,
-      }).placings,
-    ).toEqual(finishingPlacings(finished, winningsByPlace));
+    expect(toGameResult(finished, { id: "g", now: 1 }).placings).toEqual(
+      finishingPlacings(finished),
+    );
   });
 
   it("refuses placings for a game that is still going", () => {
-    expect(() => finishingPlacings(session(["a", "b"]), [40])).toThrow(
+    expect(() => finishingPlacings(session(["a", "b"]))).toThrow(
       /not over yet/,
     );
   });
@@ -346,9 +321,6 @@ describe("toGameResult", () => {
       toGameResult(session(["a", "b"]), {
         id: "g",
         now: 1,
-        buyIn: 20,
-        bounty: 0,
-        winningsByPlace: [40],
       }),
     ).toThrow(/not over yet/);
   });
@@ -465,9 +437,12 @@ describe("who knocked whom out", () => {
       startingStack: 100,
       buttonIndex: 0,
     });
-    game = { ...game, seats: game.seats.map((seat) =>
-      seat.playerId === "short" ? { ...seat, stack: 20 } : seat,
-    ) };
+    game = {
+      ...game,
+      seats: game.seats.map((seat) =>
+        seat.playerId === "short" ? { ...seat, stack: 20 } : seat,
+      ),
+    };
     game = playAllIn(deal(game, 5));
 
     const out = game.knockouts.find((k) => k.playerId === "short");
@@ -493,9 +468,6 @@ describe("who knocked whom out", () => {
       ],
     };
     expect(knockoutTally(game)).toEqual(new Map([["a", 2]]));
-    expect(knockoutCounts(game, 5)).toEqual([
-      { playerId: "a", count: 2, bounty: 10 },
-    ]);
   });
 
   it("splits the credit when the pot was split", () => {
@@ -503,23 +475,14 @@ describe("who knocked whom out", () => {
       ...createSession({ players: ["a", "b", "c"], startingStack: 100 }),
       knockouts: [{ playerId: "c", by: ["a", "b"] }],
     };
-    // Two people took them out. Both had a hand in it — the count does not
-    // halve — but there was only ever one bounty, and paying each of them the
-    // whole thing hands out money nobody put in.
+    // Two people took them out, and both had a hand in it — the count does
+    // not halve.
     expect(knockoutTally(game)).toEqual(
       new Map([
         ["a", 1],
         ["b", 1],
       ]),
     );
-    expect(knockoutCounts(game, 5)).toEqual([
-      { playerId: "a", count: 1, bounty: 3 },
-      { playerId: "b", count: 1, bounty: 2 },
-    ]);
-    // Whatever the split, it sums to the one bounty that was collected.
-    expect(
-      knockoutCounts(game, 5).reduce((sum, entry) => sum + entry.bounty, 0),
-    ).toBe(5);
   });
 
   it("credits nobody when nobody could claim the pot", () => {
@@ -528,177 +491,18 @@ describe("who knocked whom out", () => {
       knockouts: [{ playerId: "b", by: [] }],
     };
     expect(knockoutTally(game).size).toBe(0);
-    expect(knockoutCounts(game, 5)).toEqual([]);
   });
 
-  it("puts the count on a recorded game, so bounties can be paid", () => {
+  it("records a completed game played out to the end", () => {
     let game = playAllIn(deal(session(["a", "b"], 200)));
     while (!isSessionComplete(game)) game = playAllIn(deal(game, 3));
 
-    const result = toGameResult(game, {
-      id: "g1",
-      now: 1,
-      buyIn: 20,
-      bounty: 5,
-      winningsByPlace: [40],
-    });
-    expect(result.knockouts).toEqual([
-      { playerId: game.knockouts[0].by[0], count: 1, bounty: 5 },
-    ]);
-  });
-});
-
-describe("progressive bounties", () => {
-  const game = {
-    ...createSession({ players: ["a", "b", "c", "d"], startingStack: 100 }),
-    seats: [
-      { playerId: "a", stack: 400 },
-      { playerId: "b", stack: 0 },
-      { playerId: "c", stack: 0 },
-      { playerId: "d", stack: 0 },
-    ],
-    knockouts: [
-      { playerId: "d", by: ["c"] },
-      { playerId: "c", by: ["b"] },
-      { playerId: "b", by: ["a"] },
-    ],
-    bustOrder: ["d", "c", "b"],
-  };
-
-  it("pays a growing bounty rather than the same one every time", () => {
-    // "c" takes 10 off "d" and is worth 15; "b" then collects 8 from a head
-    // that started at 10. That escalation is the whole feature, and no flat
-    // count can express it.
-    const progressive = knockoutCounts(game, 10, "progressive");
-    const byPlayer = new Map(progressive.map((k) => [k.playerId, k]));
-    expect(byPlayer.get("c")?.bounty).toBe(5);
-    expect(byPlayer.get("b")?.bounty).toBe(8);
-  });
-
-  it("still counts one knockout each, however the money moved", () => {
-    const counts = new Map(
-      knockoutCounts(game, 10, "progressive").map((k) => [k.playerId, k.count]),
-    );
-    expect(counts.get("c")).toBe(1);
-    expect(counts.get("b")).toBe(1);
-    expect(counts.get("a")).toBe(1);
-  });
-
-  it("pays the last player standing the bounty on their own head", () => {
-    // Nobody is left to knock them out, and it came out of their buy-in.
-    const winner = knockoutCounts(game, 10, "progressive").find(
-      (k) => k.playerId === "a",
-    );
-    // Every head grew before it was collected: d was worth 10, so c became 15;
-    // c paid b 8 and left b worth 17; b paid a 9 and left a worth 18. The
-    // winner takes that 18 as well — 27 in all, from a 10 bounty.
-    expect(winner?.bounty).toBe(27);
-  });
-
-  it("hands out exactly what was paid in", () => {
-    // Money in equals money out — the property that says the ledger is right.
-    const total = knockoutCounts(game, 10, "progressive").reduce(
-      (sum, entry) => sum + entry.bounty,
-      0,
-    );
-    expect(total).toBe(40);
-  });
-
-  it("pays flat differently, and that is the point", () => {
-    const flat = new Map(
-      knockoutCounts(game, 10).map((k) => [k.playerId, k.bounty]),
-    );
-    expect(flat.get("c")).toBe(10);
-    expect(flat.get("b")).toBe(10);
-    expect(flat.get("a")).toBe(10);
-  });
-
-  it("holds the winner's own head until the game is actually over", () => {
-    // Mid-game the money is still on heads, not in pockets: a player who is
-    // still playing can still lose it.
-    const midGame = {
-      ...game,
-      seats: [
-        { playerId: "a", stack: 300 },
-        { playerId: "b", stack: 100 },
-        { playerId: "c", stack: 0 },
-        { playerId: "d", stack: 0 },
-      ],
-      knockouts: game.knockouts.slice(0, 2),
-      bustOrder: ["d", "c"],
-    };
-    const running = new Map(
-      knockoutCounts(midGame, 10, "progressive").map((k) => [
-        k.playerId,
-        k.bounty,
-      ]),
-    );
-    expect(running.get("a")).toBeUndefined();
-    expect(running.get("b")).toBe(8);
-  });
-});
-
-describe("what the table has to be told about the bounty money", () => {
-  const base = createSession({
-    players: ["a", "b", "c", "d"],
-    startingStack: 100,
-  });
-
-  it("notices when an exit was never credited to anybody", () => {
-    const withDeadPot = {
-      ...base,
-      bustOrder: ["d"],
-      knockouts: [{ playerId: "d", by: [] }],
-    };
-    // Flat: one bounty, nobody to give it to.
-    expect(unclaimedBounty(withDeadPot, 10)).toBe(10);
-  });
-
-  it("counts a grown head that reached nobody, which is the bigger loss", () => {
-    // Progressive is where this hurts: c had already collected off d, so the
-    // head that goes unclaimed is worth more than the bounty ever was.
-    const game = {
-      ...base,
-      bustOrder: ["d", "c"],
-      knockouts: [
-        { playerId: "d", by: ["c"] },
-        { playerId: "c", by: [] },
-      ],
-    };
-    expect(unclaimedBounty(game, 10, "progressive")).toBe(15);
-    expect(unclaimedBounty(game, 10)).toBe(10);
-  });
-
-  it("says nothing went missing when nothing did", () => {
-    const game = {
-      ...base,
-      bustOrder: ["d"],
-      knockouts: [{ playerId: "d", by: ["a"] }],
-    };
-    expect(unclaimedBounty(game, 10)).toBe(0);
-    expect(unclaimedBounty(game, 10, "progressive")).toBe(0);
-  });
-
-  it("knows when exits are missing from the record altogether", () => {
-    // A game resumed from a build that did not track knockouts. Flat still
-    // pays the ones it knows about; progressive comes out short all the way
-    // down the chain, and has to say so.
-    const resumed = {
-      ...base,
-      bustOrder: ["d", "c"],
-      knockouts: [{ playerId: "c", by: ["a"] }],
-    };
-    expect(knockoutsFullyRecorded(resumed)).toBe(false);
-    expect(
-      knockoutsFullyRecorded({
-        ...base,
-        bustOrder: ["d"],
-        knockouts: [{ playerId: "d", by: ["a"] }],
-      }),
-    ).toBe(true);
-  });
-
-  it("is true of a game where nobody has gone out yet", () => {
-    expect(knockoutsFullyRecorded(base)).toBe(true);
+    const result = toGameResult(game, { id: "g1", now: 1 });
+    // Both players are in the field, and the survivor is placed first. The
+    // result carries no money and no knockout credit — who took whom out is
+    // still tracked on the session for the table to see, but it stops there.
+    expect(result.playerIds).toHaveLength(2);
+    expect(result.placings[0].place).toBe(1);
+    expect(result).not.toHaveProperty("knockouts");
   });
 });

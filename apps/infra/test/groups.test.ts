@@ -19,8 +19,6 @@ const game = (id = "r1"): GameResult => ({
   playedAt: 1_700_000_000_000,
   playerIds: ["p1"],
   placings: [],
-  buyIn: 10,
-  bounty: 0,
 });
 
 const board: GroupState = {
@@ -376,7 +374,7 @@ describe("what a shared board will accept", () => {
     useGroupStore(store("member"));
     const bad = {
       ...game(),
-      placings: [{ playerId: "p1", place: 0, winnings: "lots" }],
+      placings: [{ playerId: "p1", place: 0 }],
     };
     const response = await handler(
       request("POST /groups/{groupId}/games", { body: { result: bad } }),
@@ -581,21 +579,25 @@ describe("removing a member", () => {
 });
 
 describe("what is stored of a game", () => {
-  it("refuses knockouts it cannot read", async () => {
-    // `cleanResult` copies these through, so waiving them in validation would
-    // put arbitrary client types on a shared board.
+  it("drops money a client still sends rather than refusing it", async () => {
+    // `cleanResult` is a whitelist. A client mid-upgrade may still send
+    // `winnings`, `buyIn`, `bounty` or `knockouts`; refusing them would break
+    // it for fields the board no longer has any use for, so they are dropped.
     useGroupStore(store("member"));
     const response = await handler(
       request("POST /groups/{groupId}/games", {
         body: {
           result: {
             ...game("r6"),
-            knockouts: [{ playerId: "p1", count: "lots" }],
+            buyIn: 20,
+            bounty: 5,
+            knockouts: [{ playerId: "p1", count: 2, bounty: 10 }],
+            placings: [{ playerId: "p1", place: 1, winnings: 80 }],
           },
         },
       }),
     );
-    expect(response.statusCode).toBe(400);
+    expect(response.statusCode).toBe(200);
   });
 
   it("keeps only the fields the board knows about", async () => {

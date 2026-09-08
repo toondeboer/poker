@@ -36,11 +36,14 @@ const isQueuedWrite = (value: unknown): value is QueuedWrite => {
   // and a write this version does not understand is one it cannot send
   // correctly either.
   if (write.kind === "createGroup") {
-    return typeof write.name === "string" && typeof write.createdAt === "number";
+    return (
+      typeof write.name === "string" && typeof write.createdAt === "number"
+    );
   }
   if (write.kind === "addPlayer") {
     return (
-      typeof write.player?.id === "string" && typeof write.player?.name === "string"
+      typeof write.player?.id === "string" &&
+      typeof write.player?.name === "string"
     );
   }
   if (write.kind === "recordGame") {
@@ -61,25 +64,15 @@ const isQueuedWrite = (value: unknown): value is QueuedWrite => {
       Array.isArray(result?.playerIds) &&
       result.playerIds.every((id) => typeof id === "string") &&
       Array.isArray(result?.placings) &&
+      // No money checked, and none required: a write queued before money came
+      // off the board still carries `winnings`/`buyIn`/`bounty`, and one queued
+      // after does not. Requiring either shape would drop half the outbox on
+      // upgrade — the extra keys are ignored on the way through instead.
       result.placings.every(
         (placing) =>
           typeof placing?.playerId === "string" &&
-          typeof placing?.place === "number" &&
-          typeof placing?.winnings === "number",
-      ) &&
-      typeof result?.buyIn === "number" &&
-      typeof result?.bounty === "number" &&
-      // Optional — only a game the app dealt knows who knocked whom out — but
-      // checked when present, for the same reason `placings` is: the board
-      // reads it, and an unreadable one is a crash on every launch.
-      (result.knockouts === undefined ||
-        (Array.isArray(result.knockouts) &&
-          result.knockouts.every(
-            (knockout) =>
-              typeof knockout?.playerId === "string" &&
-              typeof knockout?.count === "number" &&
-              typeof knockout?.bounty === "number",
-          )))
+          typeof placing?.place === "number",
+      )
     );
   }
   return false;
@@ -100,7 +93,9 @@ const isRefusedWrite = (value: unknown): value is RefusedWrite => {
  * {@link StorageAdapter}. Pure persistence and validation — no platform or UI
  * dependencies.
  */
-export function createSyncQueueStorage(storage: StorageAdapter): SyncQueueStorage {
+export function createSyncQueueStorage(
+  storage: StorageAdapter,
+): SyncQueueStorage {
   return {
     async loadQueue(): Promise<SyncQueue> {
       try {

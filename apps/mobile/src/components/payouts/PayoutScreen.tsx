@@ -197,51 +197,12 @@ export function PayoutScreen() {
             />
           )}
           <NumberField
-            // The label has to follow the format: in progressive this is where
-            // every head *starts*, and calling it "per knockout" contradicts
-            // both the summary two cards down and what the game actually pays.
-            label={
-              settings.bountyMode === "progressive"
-                ? "Starting bounty"
-                : "Bounty per knockout"
-            }
+            label="Bounty per knockout"
             value={settings.bounty}
             onChangeValue={(bounty) => update({ bounty })}
             min={0}
-            helper={
-              settings.bountyMode === "progressive"
-                ? `What every head starts at — it grows from there. Comes out of the buy-in, not on top of it. A ${settings.buyIn} buy-in usually carries about ${suggestedBounty(settings.buyIn)}.`
-                : `Comes out of the buy-in, not on top of it — set 0 for no bounties. A ${settings.buyIn} buy-in usually carries about ${suggestedBounty(settings.buyIn)}.`
-            }
+            helper={`Comes out of the buy-in, not on top of it — set 0 for no bounties. A ${settings.buyIn} buy-in usually carries about ${suggestedBounty(settings.buyIn)}.`}
           />
-          {settings.bounty > 0 && (
-            <SegmentedControl
-              label="Bounty type"
-              options={[
-                {
-                  value: "flat" as const,
-                  label: "Flat",
-                  meta: "Same every time",
-                },
-                {
-                  value: "progressive" as const,
-                  label: "Progressive",
-                  meta: "Half in cash, half on your head",
-                },
-              ]}
-              value={settings.bountyMode}
-              onChange={(bountyMode) => update({ bountyMode })}
-            />
-          )}
-          {settings.bountyMode === "progressive" && settings.bounty > 0 && (
-            <Text style={styles.hint}>
-              Knock somebody out and half their bounty is yours in cash — the
-              other half goes on your own head, so whoever is winning becomes
-              the one worth beating. Needs the app to deal the game: the bounty
-              on every head changes with each knockout, and nobody is keeping
-              that straight between hands.
-            </Text>
-          )}
         </CardContent>
       </Card>
 
@@ -295,11 +256,7 @@ export function PayoutScreen() {
             <CardHeader
               icon="trophy"
               title="Payouts"
-              right={
-                <Badge
-                  label={`${structure.payouts.length} paid`}
-                />
-              }
+              right={<Badge label={`${structure.payouts.length} paid`} />}
             />
             <CardContent>
               <View style={styles.list}>
@@ -308,9 +265,7 @@ export function PayoutScreen() {
                     key={payout.place}
                     title={formatPlace(payout.place)}
                     meta={`${PAYOUT_SPLITS[structure.payouts.length - 1][index]}% of the prize pool`}
-                    right={
-                      <Text style={styles.amount}>{payout.amount}</Text>
-                    }
+                    right={<Text style={styles.amount}>{payout.amount}</Text>}
                   />
                 ))}
               </View>
@@ -378,11 +333,7 @@ export function PayoutScreen() {
                 {structure.bountyPool > 0 && (
                   <ListRow
                     title="Bounties"
-                    meta={
-                      structure.bountyMode === "progressive"
-                        ? `Starting at ${structure.bountyPerKnockout} a head, growing`
-                        : `${structure.bountyPerKnockout} per knockout, paid at the table`
-                    }
+                    meta={`${structure.bountyPerKnockout} per knockout, paid at the table`}
                     right={
                       <Text style={styles.amount}>{structure.bountyPool}</Text>
                     }
@@ -391,9 +342,7 @@ export function PayoutScreen() {
               </View>
               {structure.bountyPool > 0 && (
                 <Text style={styles.hint}>
-                  {structure.bountyMode === "progressive"
-                    ? "Deal the game in the app and it keeps the ledger: who is worth what, who collected it, and what the winner takes at the end."
-                    : "Settled between players as knockouts happen. Deal the game in the app and it keeps count for you."}
+                  Settled between players as knockouts happen.
                 </Text>
               )}
             </CardContent>

@@ -27,9 +27,7 @@ const result = (id: string, playedAt: number): GameResult => ({
   id,
   playedAt,
   playerIds: ["p1", "p2"],
-  placings: [{ playerId: "p1", place: 1, winnings: 20 }],
-  buyIn: 10,
-  bounty: 0,
+  placings: [{ playerId: "p1", place: 1 }],
 });
 
 const member = (
@@ -98,7 +96,6 @@ describe("result ordering", () => {
     ]);
     expect(board?.results.map((r) => r.id)).toEqual(["recent", "old"]);
   });
-
 });
 
 describe("tombstones", () => {
@@ -212,8 +209,12 @@ describe("reading a membership back", () => {
   it("refuses a row whose role it does not understand", () => {
     // The branch that matters: defaulting an unreadable role to `member` would
     // be inventing a permission out of a parse failure.
-    expect(memberFrom({ ...member("acc", "admin", 1), role: "owner" })).toBeNull();
-    expect(memberFrom({ ...member("acc", "admin", 1), role: undefined })).toBeNull();
+    expect(
+      memberFrom({ ...member("acc", "admin", 1), role: "owner" }),
+    ).toBeNull();
+    expect(
+      memberFrom({ ...member("acc", "admin", 1), role: undefined }),
+    ).toBeNull();
   });
 
   it("reads a good row", () => {
@@ -239,7 +240,12 @@ describe("who may do what", () => {
 
   it("lets only an admin destroy anything", () => {
     const m = { role: "member" as const };
-    for (const action of ["removePlayer", "removeGame", "rename", "manageAdmins"] as const) {
+    for (const action of [
+      "removePlayer",
+      "removeGame",
+      "rename",
+      "manageAdmins",
+    ] as const) {
       expect(may(m, action)).toBe(false);
       expect(may({ role: "admin" }, action)).toBe(true);
     }
@@ -248,7 +254,12 @@ describe("who may do what", () => {
   it("refuses a non-member everything, including reading", () => {
     // A shared board is readable by the people on it. Anything else makes the
     // group id the only thing protecting it, and ids travel.
-    for (const action of ["read", "addPlayer", "recordGame", "removePlayer"] as const) {
+    for (const action of [
+      "read",
+      "addPlayer",
+      "recordGame",
+      "removePlayer",
+    ] as const) {
       expect(may(null, action)).toBe(false);
     }
   });
@@ -298,7 +309,9 @@ describe("items", () => {
   });
 
   it("is not a tombstone when it is a real row", () => {
-    expect(isTombstone(playerItem("g1", { id: "p1", name: "Ann" }))).toBe(false);
+    expect(isTombstone(playerItem("g1", { id: "p1", name: "Ann" }))).toBe(
+      false,
+    );
     expect(isTombstone(tombstone(playerKey("g1", "p1"), 1))).toBe(true);
   });
 });
@@ -306,34 +319,42 @@ describe("items", () => {
 describe("deciding two games are the same game", () => {
   it("ignores the order DynamoDB happened to store the keys in", () => {
     // **This was a live bug and `JSON.stringify` was it.** A `placings` entry
-    // sent as `{playerId, place, winnings}` came back as
-    // `{playerId, winnings, place}`, so a replayed game never matched itself
-    // and every retry was answered 409 — which a phone reads as permanent.
+    // sent as `{playerId, place}` came back as `{place, playerId}`, so a
+    // replayed game never matched itself and every retry was answered 409 —
+    // which a phone reads as permanent.
     expect(
       sameGame(
-        { id: "r1", placings: [{ playerId: "p1", winnings: 20, place: 1 }] },
-        { id: "r1", placings: [{ playerId: "p1", place: 1, winnings: 20 }] },
+        { id: "r1", placings: [{ place: 1, playerId: "p1" }] },
+        { id: "r1", placings: [{ playerId: "p1", place: 1 }] },
       ),
     ).toBe(true);
   });
 
   it("keeps arrays in order, because placings are an order", () => {
-    expect(sameGame({ playerIds: ["a", "b"] }, { playerIds: ["b", "a"] })).toBe(false);
+    expect(sameGame({ playerIds: ["a", "b"] }, { playerIds: ["b", "a"] })).toBe(
+      false,
+    );
   });
 
   it("treats a missing field and an undefined one as the same", () => {
     // The document client drops undefined on the way in, so a field sent as
     // undefined comes back absent rather than null.
-    expect(sameGame({ id: "r1", knockouts: undefined }, { id: "r1" })).toBe(true);
+    expect(sameGame({ id: "r1", playedAt: undefined }, { id: "r1" })).toBe(
+      true,
+    );
   });
 
   it("still says no to a genuinely different game", () => {
     // The property the comparison exists for: a different game under an id
     // already used must stay a conflict, or the client drops it from its queue
     // having been told it saved.
-    expect(sameGame({ id: "r1", buyIn: 10 }, { id: "r1", buyIn: 20 })).toBe(false);
-    expect(sameGame({ id: "r1", buyIn: 10 }, { id: "r1" })).toBe(false);
-    expect(sameGame({ placings: [{ place: 1 }] }, { placings: [] })).toBe(false);
+    expect(
+      sameGame({ id: "r1", playedAt: 10 }, { id: "r1", playedAt: 20 }),
+    ).toBe(false);
+    expect(sameGame({ id: "r1", playedAt: 10 }, { id: "r1" })).toBe(false);
+    expect(sameGame({ placings: [{ place: 1 }] }, { placings: [] })).toBe(
+      false,
+    );
   });
 
   it("does not confuse null with an object", () => {
@@ -375,7 +396,9 @@ describe("telling a phone what was removed", () => {
   });
 
   it("ignores rows that are not tombstones and rows that are not rows", () => {
-    expect(deletionsFrom([null, "nonsense", row("MEMBER#a", { deletedAt: 1 })])).toEqual({
+    expect(
+      deletionsFrom([null, "nonsense", row("MEMBER#a", { deletedAt: 1 })]),
+    ).toEqual({
       players: [],
       results: [],
     });
