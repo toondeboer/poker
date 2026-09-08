@@ -5,43 +5,73 @@ keyword phrases people actually search: **poker timer, blinds timer, tournament
 clock, poker clock, blinds buzzer**.
 
 > On-device name (home screen) stays short — keep `app.json` `name: "Poker
-> Timer"`. The fields below are the **store-listing** name/subtitle, set in App
+Timer"`. The fields below are the **store-listing** name/subtitle, set in App
 > Store Connect / Play Console, which are separate from the installed app name.
 
 ## iOS — App Store Connect
 
 ### App Name (≤30 chars) — `27`
+
 ```
 Poker Blinds Timer & Buzzer
 ```
-Seeds the highest-weight field with *poker, blinds, timer, buzzer*.
+
+Seeds the highest-weight field with _poker, blinds, timer, buzzer_.
 
 ### Subtitle (≤30 chars) — `30`
+
 ```
 Tournament clock & blind timer
 ```
-Adds *tournament, clock* (→ "tournament clock", "poker clock") without repeating
+
+Adds _tournament, clock_ (→ "tournament clock", "poker clock") without repeating
 the title.
 
 ### Keywords (≤100 chars, comma-separated, NO spaces) — `99`
+
 ```
-holdem,texas,card,game,night,countdown,chips,dealer,level,structure,alarm,home,casino,stopwatch,bet
+holdem,texas,card,game,night,countdown,chips,dealer,level,structure,alarm,home,stopwatch,payout,pot
 ```
+
 Rules applied: no spaces after commas (wasted chars), no word already in the
-name/subtitle (Apple indexes those automatically — don't repeat *poker, blinds,
-timer, buzzer, tournament, clock*), singulars only. Apple recombines single
+name/subtitle (Apple indexes those automatically — don't repeat _poker, blinds,
+timer, buzzer, tournament, clock_), singulars only. Apple recombines single
 words across name+subtitle+keywords into phrases, so e.g. "card" + "game" →
 "card game", "poker" + "night" → "poker night".
 
+**`casino` and `bet` were removed in 1.2.0, and should not go back.** They were
+there for recombination — "casino clock", "poker bet" — and they were never
+worth much: nobody looking for a home-game blinds timer searches either. What
+changed is the downside. 1.2.0 deals a hand, which puts the app in **simulated
+gambling** territory for the age rating (see [Age rating](#age-rating) below),
+and keywords are metadata a reviewer reads. Volunteering the two words that most
+look like real-money gambling, next to a rating that already says simulated
+gambling, is asking a question you do not want asked. `payout` and `pot` replace
+them at exactly the same character count and describe features the app has.
+
 ### Promotional text (≤170 chars, editable anytime without review)
+
+**Stale as of 1.2.0** — it describes the 1.1.x app. Replacement:
+
+```
+The blinds clock for home poker night — and now it deals, too. Big readable timer, custom levels, payouts worked out, and a leaderboard across the season.
+```
+
+`154` chars. Re-count in the console before saving.
+
+Previous, kept as the record of what was live:
+
 ```
 The dead-simple blinds clock for home poker night. Big readable timer, custom blind levels, and a loud buzzer when it's time to raise. Live Activities on the Lock Screen.
 ```
 
 ### Description (≤4000 chars)
 
-**Currently live** (stale — doesn't mention Pro, tournament presets, or Sound Packs, unlike the
-Play long description; same root cause as the `pro_lifetime` IAP copy gap above), `790` chars:
+**Currently live** (stale, and more so with every release — no Pro, no presets, no Sound Packs, and
+now no dealt game, accounts or boards either. Same root cause as the `pro_lifetime` IAP copy gap
+above), `790` chars. **Replace it with the draft below when 1.2.0 goes up**; this block is kept only
+as the record of what was live:
+
 ```
 Make every poker night a professional experience. Poker Blinds Buzzer is designed for players and hosts who want to focus on the game, not the clock. Whether you're running a friendly home game or a competitive tournament, Poker Blinds Buzzer keeps the action flowing and everyone on the same page.
 
@@ -59,28 +89,36 @@ No more arguments about when blinds should go up or when the next break starts �
 
 **Drafted replacement** — mirrors the Play long description's structure (glanceable timer, custom
 blinds, background alerts, Pro bullets, CTA), swapping in Live Activities for the iOS-specific
-Lock Screen bullet already promised in the promotional text above. **`2064` chars** as of 1.2.0,
-against a 4,000 limit:
-```
-The simple poker timer & tournament clock for home poker night. A big, easy-to-read blinds timer and a loud buzzer mean nobody has to squint at their phone mid-hand to know when it's time to raise.
+Lock Screen bullet already promised in the promotional text above.
 
-Built for real Texas Hold'em tournament nights, not a casino app full of settings you'll never touch:
+**Rewritten for 1.2.0.** The previous draft described an app with no dealt game and told people
+there was "no account, no sign-up" — both false by the time this ships, and the second one is the
+kind of false that reads as a bait-and-switch when the app then asks for an email. `2775` chars,
+against a 4,000 limit:
+
+```
+The simple poker timer & tournament clock for home poker night. A big, easy-to-read blinds timer and a loud buzzer mean nobody has to squint at their phone mid-hand to know when it's time to raise. And when nobody brought a deck, it deals.
+
+Built for real Texas Hold'em tournament nights at somebody's kitchen table:
 
 • Big, glanceable timer — read the clock from across the table
 • Fully custom blind levels — set your own blind structure and round lengths, add or remove levels anytime, free
 • Loud buzzer & notification when a level ends, even if your phone is locked or the app is in the background
 • Live Activities on the Lock Screen — check the current blind level without unlocking your phone
-• Clean, distraction-free interface — no account, no sign-up, no clutter
+• Play a hand (Pro) — no cards, or nobody can find the deck? Pass the phone round the table and the app runs the whole game: blinds, betting, side pots, the showdown and who is out. Your cards stay hidden until you tap, and hide again the moment the turn passes
 • Work out the payouts (Pro) — enter the buy-in and the app splits the pool across the places that pay, with bounties, rebuys and add-ons counted. Every place below the winner is a round number you can count straight out of the pot
 • Chop the last pot (Pro) — ending early? Everyone left keeps the lowest prize still live and the rest splits by chip stack, so nobody drops below the place they'd locked up
-• Keep a leaderboard (Pro) — who's won most across the season, with a separate board for each group you play with. Recording a night is two taps per player and no typing
-• Share to the group chat (Pro) — send the table the payouts before you start, or the standings after
+• Progressive bounties (Pro) — knock somebody out and half their bounty is yours, the other half goes on your own head. The format nobody can run on paper, because the app keeps the whole ledger
+• Keep a leaderboard (Pro) — who's won most across the season, with a separate board for each group you play with. A game the app dealt puts itself on the board, knockouts included
+• Share a board with your table (Club) — send a code, they paste it in, and the whole board is on their phone too. Joining is free: only the person who shares a board subscribes
 • Save tournament presets (Pro) — store your blind structure & round length, load them in one tap
 • Choose your alarm sound (Pro) — pick from a few bundled alarm packs beyond the default
 
-Whether it's a casual poker night with friends or a bigger home tournament, Poker Blinds Buzzer keeps the blinds clock visible and on schedule so everyone can focus on the cards, not the clock — and settles the money before it turns into an argument.
+An account is optional and only takes an email — you need one to share a board or to have your boards follow you to a new phone. The timer, the structures and a leaderboard of your own all work without one.
 
-Go Pro to remove ads, work out the payouts, chop the last pot, keep a leaderboard, save presets and pick your alarm sound — or just support an indie developer. The timer itself stays free.
+Whether it's a casual poker night with friends or a bigger home tournament, Poker Blinds Buzzer keeps the blinds clock visible and on schedule so everyone can focus on the cards, not the clock — and settles who won what before it turns into an argument.
+
+Go Pro to remove ads, deal a hand, work out the payouts, chop the last pot, keep a leaderboard, save presets and pick your alarm sound — or just support an indie developer. The timer itself stays free.
 ```
 
 ## Android — Google Play (reuse at launch — P1 item 4)
@@ -98,50 +136,117 @@ Go Pro to remove ads, work out the payouts, chop the last pot, keep a leaderboar
   Tournament blinds clock with a big timer, custom levels & a loud buzzer.
   ```
 - **Long description (≤4000 chars):** Play has no keyword field — keywords are
-  mined from the long description, so the phrases (*poker timer, blinds timer,
-  tournament clock, poker clock, blind levels, poker night, Texas Hold'em*) are
+  mined from the long description, so the phrases (_poker timer, blinds timer,
+  tournament clock, poker clock, blind levels, poker night, Texas Hold'em_) are
   woven into the first two sentences (the part visible before "Read more") and
   the feature bullets below.
-  ```
-  The simple poker timer & tournament clock for home poker night. A big, easy-to-read blinds timer and a loud buzzer mean nobody has to squint at their phone mid-hand to know when it's time to raise.
 
-  Built for real Texas Hold'em tournament nights, not a casino app full of settings you'll never touch:
+  ```
+  The simple poker timer & tournament clock for home poker night. A big, easy-to-read blinds timer and a loud buzzer mean nobody has to squint at their phone mid-hand to know when it's time to raise. And when nobody brought a deck, it deals.
+
+  Built for real Texas Hold'em tournament nights at somebody's kitchen table:
 
   • Big, glanceable timer — read the clock from across the table
   • Fully custom blind levels — set your own blind structure and round lengths, add or remove levels anytime, free
   • Loud buzzer & notification when a level ends, even if your phone is locked or the app is in the background
   • Keeps timing in the background — the clock won't drop out mid-tournament
-  • Clean, distraction-free interface — no account, no sign-up, no clutter
+  • Play a hand (Pro) — no cards, or nobody can find the deck? Pass the phone round the table and the app runs the whole game: blinds, betting, side pots, the showdown and who is out. Your cards stay hidden until you tap, and hide again the moment the turn passes
   • Work out the payouts (Pro) — enter the buy-in and the app splits the pool across the places that pay, with bounties, rebuys and add-ons counted. Every place below the winner is a round number you can count straight out of the pot
   • Chop the last pot (Pro) — ending early? Everyone left keeps the lowest prize still live and the rest splits by chip stack, so nobody drops below the place they'd locked up
-  • Keep a leaderboard (Pro) — who's won most across the season, with a separate board for each group you play with. Recording a night is two taps per player and no typing
-  • Share to the group chat (Pro) — send the table the payouts before you start, or the standings after
+  • Progressive bounties (Pro) — knock somebody out and half their bounty is yours, the other half goes on your own head. The format nobody can run on paper, because the app keeps the whole ledger
+  • Keep a leaderboard (Pro) — who's won most across the season, with a separate board for each group you play with. A game the app dealt puts itself on the board, knockouts included
+  • Share a board with your table (Club) — send a code, they paste it in, and the whole board is on their phone too. Joining is free: only the person who shares a board subscribes
   • Save tournament presets (Pro) — store your blind structure & round length, load them in one tap
   • Choose your alarm sound (Pro) — pick from a few bundled alarm packs beyond the default
 
-  Whether it's a casual poker night with friends or a bigger home tournament, Poker Blinds Timer & Buzzer keeps the blinds clock visible and on schedule so everyone can focus on the cards, not the clock — and settles the money before it turns into an argument.
+  An account is optional and only takes an email — you need one to share a board or to have your boards follow you to a new phone. The timer, the structures and a leaderboard of your own all work without one.
 
-  Go Pro to remove ads, work out the payouts, chop the last pot, keep a leaderboard, save presets and pick your alarm sound — or just support an indie developer. The timer itself stays free.
+  Whether it's a casual poker night with friends or a bigger home tournament, Poker Blinds Timer & Buzzer keeps the blinds clock visible and on schedule so everyone can focus on the cards, not the clock — and settles who won what before it turns into an argument.
+
+  Go Pro to remove ads, deal a hand, work out the payouts, chop the last pot, keep a leaderboard, save presets and pick your alarm sound — or just support an indie developer. The timer itself stays free.
   ```
-  Updated for **v1.2.0**: the four capabilities that release adds behind the
-  paywall — payouts, the chop, the leaderboard and sharing — are now called out
-  as bullets. They are also the reason the closing line changed from
-  "everything else stays free" to "the timer itself stays free": Pro is no
-  longer a cosmetic tier, and describing it as if it were sets up a refund
-  request.
 
-  `2077` chars, against a 4,000 limit — up from ~1,264, and still less than
-  two-thirds of the way there. Play mines keywords from the first two
-  sentences (the part visible before "Read more"), which are deliberately
-  unchanged.
+  Updated for **v1.2.0**: the capabilities that release adds behind the paywall
+  — dealing a hand, payouts, the chop, progressive bounties, the leaderboard and
+  sharing — are now called out as bullets. They are also the reason the closing
+  line changed from "everything else stays free" to "the timer itself stays
+  free": Pro is no longer a cosmetic tier, and describing it as if it were sets
+  up a refund request.
+
+  **Two removals matter more than the additions.** "No account, no sign-up, no
+  clutter" is gone: 1.2.0 has accounts, and a listing that promises their absence
+  is one that reads as a bait-and-switch the moment the app asks for an email.
+  And "not a casino app full of settings you'll never touch" is gone with it —
+  it was a good line about _simplicity_, but it puts the word `casino` in the
+  first screen of copy on an app that now deals cards and carries a simulated-
+  gambling age rating. The replacement, "at somebody's kitchen table", says the
+  same thing about scale without the word.
+
+  In exchange the description now **says plainly that the account is optional**,
+  which is the single most useful sentence in it: the misunderstanding likeliest
+  to cost installs is somebody assuming a blinds timer now needs a login.
+
+  `2775` chars, against a 4,000 limit. Play mines keywords from the first two
+  sentences (the part visible before "Read more"); those keep the same opening
+  and gain "it deals".
+
+<a id="age-rating"></a>
+
+## Age rating — 1.2.0 deals cards, and that changes it
+
+**1.2.0 is the release that makes this app rate for simulated gambling.** Up to 1.1.4 it was a
+clock and a calculator: nothing in it dealt a card or played a hand. `GameContext` and
+`components/game/` do, and the answer to the App Store Connect question about simulated gambling
+becomes yes — which under the 4+/9+/13+/16+/18+ tiers that replaced the old ones in July 2025 puts
+the app at **18+** for frequent/intense simulated gambling.
+
+**This is a rating change on an app that already has installs**, which is the part worth being
+deliberate about rather than clicking through. Two consequences:
+
+- **Play's rating is a separate questionnaire (IARC) and is answered independently.** Do not assume
+  the two land on the same number; they routinely do not. Answer each honestly rather than trying
+  to make them match.
+- **An 18+ rating changes who the listing is allowed to reach**, and family-sharing and
+  screen-time filters will hide it from accounts that could see it before. That is the correct
+  outcome for an app that deals hold'em, not something to work around by shading the answer.
+
+There is no real money in the app: no wagering, no purchase of chips, no cash-out. Chips are
+counters, and the payout screen is a calculator for money that changes hands at a kitchen table and
+never touches the app. Say exactly that if a reviewer asks — it is the difference between simulated
+gambling (a rating) and real-money gambling (a different set of rules entirely, which this is not
+in).
+
+### Copy that reads badly next to that rating
+
+Not errors — the listing is honest — but each of these is a sentence a reviewer weighing a gambling
+question will read, so each is worth a deliberate decision rather than inheriting it:
+
+| Where                  | Text                                                   | Why it is worth changing                                                                                                                                                                                |
+| ---------------------- | ------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| iOS keywords           | `casino`, `bet`                                        | **Changed.** See the keywords section — removed and replaced at the same character count.                                                                                                               |
+| Both long descriptions | "not a casino app full of settings you'll never touch" | **Changed** to "at somebody's kitchen table". It was a line about simplicity, but it put `casino` in the copy of an app that now deals cards.                                                           |
+| Both long descriptions | "settles the money before it turns into an argument"   | **Kept, softened** to "settles who won what". The original is a good line and true of a payout calculator; "the money" beside a dealt game invites the real-money question the app does not need asked. |
+| Play release notes     | "half in cash, half onto your own head"                | **Flagged, not changed.** "In cash" is describing a bounty format accurately, and the alternative wordings are worse. Decide whether to keep it; it is 500 characters of copy a reviewer sees.          |
+| iOS release notes      | "Knockouts are tracked, and bounties finally add up"   | Fine. Bounty is poker vocabulary, not gambling vocabulary.                                                                                                                                              |
+| Both                   | "buy-in", "prize", "pot", "payout", "winnings"         | Fine, and correct — this is what a tournament calculator is for. Do not sanitise these into vagueness; a listing that will not say what the app does is worse than one that does.                       |
+
+**What not to do:** do not describe the dealt game as anything other than what it is to duck the
+rating. It deals hold'em, it tracks knockouts and it runs a showdown. Understating that in the
+listing and then shipping it is the failure mode that costs a rejection _and_ the resubmission.
 
 ## In-app purchase — `pro_lifetime` description (keep in sync with the paywall)
 
 The paywall (`PRO_FEATURES` in `apps/mobile/src/components/paywall/Paywall.tsx`)
-promises **six** things as of 1.2.0 — **remove ads · buy-ins, payouts and
-bounties · a leaderboard across game nights · save & load tournament presets ·
-choose your alarm sound · support the dev**. Update the store IAP copy in all
-three consoles to match.
+promises **seven** things as of 1.2.0 — **remove ads · deal the cards · buy-ins,
+payouts and bounties · a leaderboard for every group · save & load tournament
+presets · choose your alarm sound · support the dev**. Update the store IAP copy
+in all three consoles to match.
+
+**This drifted again while 1.2.0 was being built**, exactly as the note below
+warns: the list here said six and omitted dealing a hand, which is the headline
+of the whole release. Read `PRO_FEATURES` before touching any of the fields
+below, every time — it is one grep and it is the only thing that is definitely
+right.
 
 This has now drifted twice: the paywall was found still selling the 1.1.4
 feature set during the 1.2.0 cycle, and the store copy one level out had the
@@ -149,20 +254,22 @@ same problem. **The paywall is the source of truth** — read `PRO_FEATURES` and
 work outwards, rather than editing these fields from memory.
 
 ### App Store Connect — In-App Purchase → `pro_lifetime`
-- **Display Name (≤30 chars):** `Pro — Payouts, Board & More` (`27`)
+
+- **Display Name (≤30 chars):** `Pro — Deal, Payouts & Board` (`27`)
 - **Description** (short field — **verify the limit in the console**, it's tight):
   ```
-  No ads, payouts, leaderboard.
+  No ads, deal a hand, payouts, leaderboard.
   ```
-  `29` chars.
+  `42` chars.
 
 ### Google Play — Monetize → Products → `pro_lifetime`
-- **Name (≤55 chars):** `Pro — Payouts, Leaderboard & No Ads` (`35`)
+
+- **Name (≤55 chars):** `Pro — Deal, Payouts, Leaderboard & No Ads` (`41`)
 - **Description (≤200 chars):**
   ```
-  Unlock Pro: work out payouts and bounties, chop the last pot, keep a leaderboard per group, save presets, pick your alarm sound, and remove all ads. One-time purchase.
+  Unlock Pro: deal a hand when nobody brought cards, work out payouts and bounties, chop the last pot, keep a leaderboard per group, save presets, and remove all ads. One-time purchase.
   ```
-  `166` chars.
+  `183` chars.
 
 ### App Store Connect — Auto-Renewable Subscription → `club_monthly` **and** `club_yearly`
 
@@ -185,6 +292,7 @@ Same product, same entitlements, same copy. **Both stores or neither** — one p
 subscribe and the other not is worse than neither.
 
 ### RevenueCat
+
 - The `pro_lifetime` product description mirrors the store; if you keep an
   internal description/notes field, match the copy above so the dashboard reads
   the same. No entitlement/offering changes — just the text.
@@ -259,6 +367,7 @@ Thanks for playing — feedback always welcome.
 Re-count in App Store Connect before saving; the limit is 4000 characters and this is well inside it.
 
 ### Android — "Release notes" (Play Console, ≤500 chars per language)
+
 ```
 🃏 Play a hand (Pro): no cards? The app deals. Blinds, betting, side pots, showdown.
 🏆 A dealt game saves itself to the leaderboard, knockouts and all.
@@ -267,6 +376,7 @@ Re-count in App Store Connect before saving; the limit is 4000 characters and th
 🔗 Share a board with your table (Club). Joining one is free.
 ♻️ Games survive the app closing, and sync when you have signal again.
 ```
+
 `421` chars — fits the 500-char Play Console limit. Re-count in the
 console before saving, since emoji and locale can shift it.
 
@@ -315,9 +425,11 @@ Keep the two in step: store copy and landing-page copy describe the same app.
 
 Thanks for playing — feedback always welcome.
 ```
+
 `714` chars.
 
 ### Android — "Release notes" (Play Console, ≤500 chars per language)
+
 ```
 ♠️ Blind structure gets its own screen — edit every level in one place, insert or duplicate anywhere, and tap a level to jump straight to it.
 ✨ New structure generator: pick a starting blind, a level count and a speed, and get a casino-style schedule where every blind fits your smallest chip.
@@ -325,6 +437,7 @@ Thanks for playing — feedback always welcome.
 ⏱️ Bigger, clearer blinds on the Lock Screen timer.
 ✅ Editing your structure now keeps your place in the tournament.
 ```
+
 `452` chars — fits the 500-char Play Console limit, but with little room to spare: re-count in the
 console before saving, since emoji and locale can shift it.
 
@@ -333,15 +446,16 @@ They were built during this cycle and descoped before shipping (see `ROADMAP.md`
 ever seen them and announcing their absence would only confuse.
 
 <a id="ios-metadata-emoji"></a>
+
 ### Field rules: what each store actually accepts
 
 **iOS "What's New" — plain text, and keep emoji out of it.**
 
-| | |
-|---|---|
-| Format | Plain text only. No Markdown, no HTML, no rich text — `**bold**` renders as literal asterisks. Line breaks and blank lines *are* preserved, so paragraphs and `•` bullets are the whole formatting toolkit. |
-| Length | 4000 characters (not stated in Apple's own help pages; it's what the field enforces). |
-| Emoji | **Don't.** See below. |
+|        |                                                                                                                                                                                                             |
+| ------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Format | Plain text only. No Markdown, no HTML, no rich text — `**bold**` renders as literal asterisks. Line breaks and blank lines _are_ preserved, so paragraphs and `•` bullets are the whole formatting toolkit. |
+| Length | 4000 characters (not stated in Apple's own help pages; it's what the field enforces).                                                                                                                       |
+| Emoji  | **Don't.** See below.                                                                                                                                                                                       |
 
 On emoji specifically, be clear about what is and isn't established, because this cost a submission
 once and the reasoning matters more than the rule:
@@ -379,14 +493,17 @@ so its notes cover **two versions' worth** of changes: presets are new to
 Android users here, not just Sound Packs.
 
 ### iOS — "What's New in This Version" (App Store Connect)
+
 ```
 🔊 Sound Packs (Pro): choose the alarm that plays when a round ends — Classic Alarm, Classic Beep, Bell Chime, or Double Buzz — with a 3-second preview before you pick.
 📣 Share Poker Blinds Buzzer with your table in one tap.
 Thanks for playing — feedback always welcome!
 ```
+
 `269` chars (App Store Connect's limit is generous, ~4000 — kept short on purpose).
 
 ### Android — "Release notes" (Play Console, ≤500 chars per language)
+
 ```
 Big update!
 📌 Tournament Presets (Pro): save your blind structure & round length, load them in one tap.
@@ -394,8 +511,10 @@ Big update!
 📣 Share the app with your table in one tap.
 ✨ Smoother, more polished experience throughout.
 ```
+
 `317` chars — fits the 500-char Play Console limit.
 
 ## Notes
+
 - Re-validate char counts in the console before saving (emoji/locale can shift).
 - Keep title/subtitle stable once ranked; iterate keywords + screenshots first.

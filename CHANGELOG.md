@@ -10,6 +10,7 @@ platform-tagged heading (e.g. `## [1.1.3] - 2026-07-20 — Android`) when you cu
 ## [Unreleased]
 
 ### Added
+
 - **A finished game asks before it is thrown away.** Start a new game with an unsaved one on screen
   and the app offers to put it on the leaderboard first — it dealt every hand, so it already knows
   who finished where. Nothing is lost either way: a finished game survives the app closing, and its
@@ -23,13 +24,13 @@ platform-tagged heading (e.g. `## [1.1.3] - 2026-07-20 — Android`) when you cu
   that is retried when the app comes back to the foreground, when somebody signs in, and on the
   next cold launch. The night at a table with one bar of reception is the case the whole thing is
   built for: nothing waits on a network, and nothing is silently lost when the network never comes.
-  A write the server *refuses* — a board somebody removed you from between Tuesday and Thursday —
+  A write the server _refuses_ — a board somebody removed you from between Tuesday and Thursday —
   is kept aside to be shown rather than dropped or silently applied, and anything that depended on
   it is held back with it, so a game can never be recorded naming a player who was never added.
   The leaderboard says so plainly when that happens — what was not saved, why, and the part that
   matters: it is on your phone and the other players will not see it.
 - **Boards can be shared.** A board's row in the groups sheet has a share button that makes an
-  invite code and hands it to the usual share sheet; whoever gets it pastes it into *Join a board*
+  invite code and hands it to the usual share sheet; whoever gets it pastes it into _Join a board_
   in the same list, and the board arrives with its whole roster and season. Paste the code on its
   own or the entire message it came in — either works. The code never expires, so sharing again
   replaces the last one, which is the only way to take one back from somebody you did not mean to
@@ -98,7 +99,7 @@ platform-tagged heading (e.g. `## [1.1.3] - 2026-07-20 — Android`) when you cu
   leaderboard's money column was prize money only. A game the app deals watched every hand, so it
   knows exactly whose chips took whom out, and the board now counts knockouts and pays the bounty
   into the total. The credit goes to whoever won the pot the busted player's last chips were in,
-  which with side pots is frequently *not* whoever won the most money that hand. A split pot splits
+  which with side pots is frequently _not_ whoever won the most money that hand. A split pot splits
   the bounty — one bounty between the two of them, since only one was ever collected, divided the
   same way the pot itself was. A pot nobody could claim pays no bounty to anybody, rather than
   picking a winner.
@@ -165,7 +166,7 @@ platform-tagged heading (e.g. `## [1.1.3] - 2026-07-20 — Android`) when you cu
 - Groundwork for accounts and online play: the backend is now defined as code in a new `apps/infra`
   workspace — accounts, one small database, and a realtime channel for a shared poker table.
   **Nothing in the app talks to it.** Two decisions are worth recording
-  because they are hard to change later: hole cards are kept private by *where they are published*
+  because they are hard to change later: hole cards are kept private by _where they are published_
   rather than by the app choosing not to draw them, so a card you should not see never reaches your
   phone at all; and only the server may publish, so every change to a table goes through the poker
   rules once — the same rules the phone runs, which is what stops the two disagreeing. The channel
@@ -201,6 +202,7 @@ platform-tagged heading (e.g. `## [1.1.3] - 2026-07-20 — Android`) when you cu
   would have seen the app feeling slow to wake up.
 
 ### Removed
+
 - The Maestro end-to-end suite (26 flows) is gone. It had rotted while nothing referenced it: a
   hardcoded LAN address and stale selectors, no npm script, and no CI job — running it would have
   meant a ~20-minute cold Gradle build per PR, which is why it never got wired up. Verification now splits along a clearer line: logic is unit-tested in `@poker/core`,
@@ -209,6 +211,7 @@ platform-tagged heading (e.g. `## [1.1.3] - 2026-07-20 — Android`) when you cu
   instead of deferring them to a flow.
 
 ### Added
+
 - Groundwork for the multiplayer game mode: a card model, a **seeded** shuffle and a hand
   evaluator in `@poker/core`. Nothing user-facing yet. Randomness is injected rather than
   generated, so a deal is reproducible from its seed — which is what lets the same hand be replayed
@@ -216,7 +219,7 @@ platform-tagged heading (e.g. `## [1.1.3] - 2026-07-20 — Android`) when you cu
   evaluator finds the best five cards out of seven by checking all 21 combinations rather than
   consulting a lookup table: there is no generated data to get wrong, and the correctness argument
   fits in a sentence. Hand strength is packed into a single integer so that comparing two hands and
-  asking whether they *tie* are the same operation — split pots turn on exact equality, and a
+  asking whether they _tie_ are the same operation — split pots turn on exact equality, and a
   multi-field comparison is one wrong branch away from paying the wrong player. It is checked
   against the published five-card frequencies across all 2,598,960 hands in the deck, and against
   the number of genuinely different hands in each category, so every hand is verified rather than
@@ -245,7 +248,7 @@ platform-tagged heading (e.g. `## [1.1.3] - 2026-07-20 — Android`) when you cu
   never meets the concept, and the picker for switching between groups comes next.
 - Groundwork for **poker groups** in `@poker/core` — a separate board for each set of friends you
   play with, instead of one list for everybody. Nothing user-facing yet. The important decision is
-  that a group's roster is *people*, not accounts: someone who turns up to one game night on holiday
+  that a group's roster is _people_, not accounts: someone who turns up to one game night on holiday
   and will never install anything still belongs on the board, so a name is all that is needed and
   signing in is an optional extra on top. Modelling it the other way round would mean nobody can be
   scored until they have downloaded the app, which is backwards for a game played in someone's
@@ -306,7 +309,7 @@ platform-tagged heading (e.g. `## [1.1.3] - 2026-07-20 — Android`) when you cu
   than sitting on top of it — a 20 buy-in with a 5 bounty is still 20 out of each pocket, 15 to the
   prize pool and 5 to knockouts — because the alternative means collecting more than the buy-in you
   advertised. Every payout is rounded to a note you can actually hand over (1, 5, 10 or 25) while
-  the table still sums to *exactly* the prize pool: the split uses the largest-remainder method, so
+  the table still sums to _exactly_ the prize pool: the split uses the largest-remainder method, so
   nothing is quietly lost to rounding and nothing is quietly handed to the winner. If the pool can't
   stretch to the usual number of places at your chosen note size, it pays fewer places rather than
   announcing one that wins nothing. Paid places
@@ -320,14 +323,14 @@ platform-tagged heading (e.g. `## [1.1.3] - 2026-07-20 — Android`) when you cu
   - **Rebuys and add-ons** are counted too. A rebuy is another buy-in — it grows the prize pool and
     re-arms that player's bounty, exactly as buying in did. An add-on is different: it buys chips,
     not a bounty, so all of it goes to the prize pool and it can carry its own price. How many
-    places get paid still follows the number of *players* rather than the number of entries —
+    places get paid still follows the number of _players_ rather than the number of entries —
     thirteen players with five rebuys is thirteen people to pay, not eighteen — though the extra
     money can fund a place a thinner pool couldn't have paid at your chosen note size.
 - **The timer offers to record a game when one ends (Pro).** Reset the timer after the blinds have
   climbed and the app asks whether to add the result to the leaderboard, opening the record sheet
   straight from the prompt. There is no true "tournament over" signal in a blinds timer — reset
   deliberately clears the round and leaves the blind level alone — so this is a deliberate
-  heuristic: resetting *after progressing* is someone starting fresh, which almost always means the
+  heuristic: resetting _after progressing_ is someone starting fresh, which almost always means the
   last game just finished. Resetting on level one is a mis-tap and is left alone, and the prompt
   stays quiet unless Pro is unlocked and there is someone on the roster to record against.
 - **Chop the remaining money (Pro).** When the players still in agree to end it there, the payouts
@@ -349,7 +352,7 @@ platform-tagged heading (e.g. `## [1.1.3] - 2026-07-20 — Android`) when you cu
   ranks by wins and breaks ties predictably (podiums, then money, then fewer games). It shows money
   **won**, deliberately not net profit: a bounty settled by hand changes hands in cash during play
   and can't be reconstructed at the end of the night, so a profit figure would be confidently wrong
-  for anyone in a bounty game. Bounties from a game the app dealt *are* counted, because it watched
+  for anyone in a bounty game. Bounties from a game the app dealt _are_ counted, because it watched
   them happen.
 - `@poker/core` coverage is now measured across **every** source file and enforced by a threshold in
   CI, so a module with no test at all fails the build instead of being invisible. Coverage read 97%
@@ -359,25 +362,29 @@ platform-tagged heading (e.g. `## [1.1.3] - 2026-07-20 — Android`) when you cu
   and blind-maths edges at the top and bottom of the chip ladder.
 
 ### Added
+
 - **Sign in with Apple or Google.** Two taps instead of typing an address, waiting for a code and
   typing that too — the providers have already checked the address, so there is nothing to confirm.
-  Email and password is still there behind *Use email instead*, and signing in either way lands on
+  Email and password is still there behind _Use email instead_, and signing in either way lands on
   the same account: somebody who created one with a password and later taps Continue with Google
   finds their boards and their season where they left them.
 
 ### Changed
+
 - **Signing in a different way finds the same account.** Somebody who created an account with an
   email and password and later signs in with Apple or Google lands on the account they already
   have, with their boards and their season, rather than on an empty one. This is groundwork for
   social sign-in and does nothing visible on its own.
 
 ### Changed
+
 - **The app now talks to a real server.** Accounts, board sharing and leaderboard sync were built
   and tested throughout this release against a development backend, but every shipped build had
   them switched off at the source — so none of it did anything. This release points at production,
   which is what turns those features from code into something you can use.
 
 ### Fixed
+
 - **The privacy policy now describes the app that actually ships.** It claimed the app "does not
   collect, transmit, or store any personal data on external servers", offered "Device-Only Storage"
   and stated there were "No advertising networks or ad tracking" — three claims the binary
@@ -388,6 +395,13 @@ platform-tagged heading (e.g. `## [1.1.3] - 2026-07-20 — Android`) when you cu
   non-personalized and what Google receives to serve one, every third party involved and what each
   is for, and how to delete the account and its server-side data from inside the app. What stays on
   the device is still called out as such, because most of the app genuinely never leaves it.
+- Docs: `STORE_LISTING.md` described an app with no dealt game, no accounts and no shared boards,
+  and both long descriptions promised "no account, no sign-up" — which 1.2.0 makes false in the way
+  that reads as a bait-and-switch when the app then asks for an email. Both are rewritten for the
+  real feature set, and the file now records what the dealt game does to the age rating: 1.2.0 is
+  the release that makes the simulated-gambling answer yes. `casino` and `bet` are out of the iOS
+  keyword line, replaced at the same character count by `payout` and `pot`. The Pro feature list
+  had drifted again — it said six things and omitted dealing a hand, the headline of the release.
 - Accounts: declining at the Apple or Google prompt no longer shows an error. Changing your mind is
   not a failure, and the screen now says nothing at all — as it already did when you closed the
   sheet without signing in.
@@ -442,7 +456,7 @@ platform-tagged heading (e.g. `## [1.1.3] - 2026-07-20 — Android`) when you cu
   `requestNotificationPermission` → `hasNotificationPermission`, because it only ever read the
   status and never prompted.
 - Mobile: iOS no longer collects a stack of stale Live Activities. The app can only hold one, but
-  its record of *which* one lived in memory alone — so force-quitting mid-round left iOS running a
+  its record of _which_ one lived in memory alone — so force-quitting mid-round left iOS running a
   card the next launch knew nothing about, and the app started a second one beside it rather than
   taking the first one over. Do that across a few game nights and Notification Centre fills up with
   rounds that ended days ago. Every path that touches a Live Activity now reduces however many
@@ -481,6 +495,7 @@ platform-tagged heading (e.g. `## [1.1.3] - 2026-07-20 — Android`) when you cu
   set `NODE_PATH`, which appends the workspace's own `node_modules` to the CLI's lookup path.
 
 ### Changed
+
 - Mobile: brought every Expo package up to the version SDK 56 actually expects — the project had
   drifted 12 packages behind, including `expo` itself, the router, notifications, the splash screen
   and `react-native-screens`. No new features; it's the accumulated bug-fix releases Expo has
@@ -494,6 +509,7 @@ the rest of the store copy rather than duplicated here. Both platforms shipped
 v1.1.3 together, so both sets of notes cover the same changes.
 
 ### Added
+
 - Mobile: blind levels now have their own **Blind structure** screen, reached from Settings,
   replacing the fixed-height scrollable list that was nested inside the scrolling Settings page
   (a scroll-inside-a-scroll that made a 30-level schedule awkward to edit). The new screen is a
@@ -525,7 +541,7 @@ v1.1.3 together, so both sets of notes cover the same changes.
 - Mobile: the screen now stays on while a round is counting down, and is released once the timer is
   paused or stopped. A phone left on the table used to lock itself within a minute, which backgrounds
   the app and stops the round advancing on its own — so most tournaments dropped out of the
-  foreground during their *first* level.
+  foreground during their _first_ level.
 - Mobile: the timer notification (Android) and Live Activity (iOS) both carry a standing line —
   "Open the app at the buzzer to start the next level" — replacing the force-quit notes. Nothing
   of the app's runs while it's backgrounded, so the app is what advances the blinds; saying so
@@ -536,6 +552,7 @@ v1.1.3 together, so both sets of notes cover the same changes.
   button.
 
 ### Changed
+
 - Round duration can now be as short as **1 second**, down from a 10-second floor that rewrote
   anything shorter without saying so — typing 5 and coming back to 10 reads as a broken field rather
   than a rule.
@@ -562,7 +579,7 @@ v1.1.3 together, so both sets of notes cover the same changes.
   card collapsing to a single line once unlocked.
 - Mobile: numeric fields no longer turn into a literal `0` when you clear them — an empty field
   stays empty while you retype, and reverts to its previous value if you leave it blank.
-- Mobile: saving a preset now captures the *active* blind structure rather than the editor's
+- Mobile: saving a preset now captures the _active_ blind structure rather than the editor's
   working copy, so a preset can't silently record edits you never applied.
 - Mobile: recolored the Android foreground-service notification and iOS Live Activity/Dynamic
   Island to match the app's own timer palette (`#10B981` green / `#F59E0B` amber / `#DC2626` red)
@@ -583,6 +600,7 @@ v1.1.3 together, so both sets of notes cover the same changes.
   instead of wrapping.
 
 ### Fixed
+
 - Mobile: on Android, focusing the preset-name field on Settings only scrolled "Save Preset"
   about 40% clear of the keyboard instead of fully clear — `useKeyboardNudge.ts` mixed two
   coordinate frames that don't share an origin on Android (`measureInWindow`, excluding the
@@ -663,7 +681,7 @@ v1.1.3 together, so both sets of notes cover the same changes.
   non-monotonically (measured on a small Android screen: 1.00 → 0.78 → 0.92 → 0.81), so every one
   of those intermediate sizes was being painted. The card now stays hidden behind the native
   splash screen (a dependency that was installed but never actually invoked before now) until that
-  fit has genuinely settled *and* the persisted timer state has loaded, then the splash lifts and
+  fit has genuinely settled _and_ the persisted timer state has loaded, then the splash lifts and
   the card appears in the same frame — so the first thing you see is the final layout. Capped at
   4s so a slow or stuck load can't hold the splash indefinitely.
 - Mobile: the card no longer resizes when the ad banner appears, which on iOS happened around half
@@ -713,6 +731,7 @@ worth since it's live at v1.1.1 (presets are new to Android users here, not
 just Sound Packs).
 
 ### Added
+
 - Sound Pack (Pro) — choose the alarm that plays when a round ends. Three bundled alternatives
   (Classic Beep, Bell Chime, Double Buzz) alongside the original Classic Alarm, picked from a new
   "Sound Pack" card in Settings, with a 3-second preview per option.
@@ -723,10 +742,12 @@ just Sound Packs).
   already owns `pro_lifetime`. Always `false` in release builds; no user-facing effect.
 
 ### Changed
+
 - Android: release builds now enable R8 code shrinking/obfuscation and resource shrinking
   (previously shipped unminified) — smaller, faster app for a smoother experience.
 
 ### Fixed
+
 - Sound preview in Settings no longer plays the alarm's full length (up to ~11s) — capped at 3
   seconds and stoppable early.
 - Selecting a new sound pack now applies immediately instead of only after restarting the app.
@@ -758,11 +779,13 @@ _Live on the App Store. Not shipped to Android (this version has Android-only bu
 fixes land in 1.1.3._
 
 ### Added
+
 - Saved tournament presets (Pro) — save the current blind structure and round length, then
   load any of them in one tap.
 - In-app review prompt, shown after 5 rounds played.
 
 ### Fixed
+
 - The "Save current setup" preset field no longer lets the on-screen keyboard cover the Save
   Preset button or the preset list.
 
@@ -771,6 +794,7 @@ fixes land in 1.1.3._
 _Also the version Android first launched with. Reconstructed from build history — approximate._
 
 ### Fixed
+
 - Post-launch stability and App Store compliance fixes following the monetization release.
 
 ## [1.1.0] - 2026-06-17 — iOS only
@@ -778,11 +802,13 @@ _Also the version Android first launched with. Reconstructed from build history 
 _Before Android's launch. Reconstructed from build history — approximate._
 
 ### Added
+
 - Monetization: an AdMob banner and a one-time **Pro / Remove Ads** purchase (RevenueCat), plus
   a Ko-fi tip jar on the web timer.
 - iPad support — the app now ships universal (iPhone + iPad).
 
 ### Changed
+
 - Upgraded to Expo SDK 56 / React Native 0.85.
 
 ## [1.0.0] - 2025-07 — iOS only
@@ -790,6 +816,7 @@ _Before Android's launch. Reconstructed from build history — approximate._
 _Before Android's launch. Reconstructed from build history — approximate._
 
 ### Added
+
 - Initial App Store release: a poker tournament timer with configurable blind levels, a
   per-round countdown, background timing, iOS Live Activities, and an Android foreground service.
 
