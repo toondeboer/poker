@@ -413,15 +413,7 @@ export {
 export type { GroupCall } from "./sync/groupRequests";
 
 // Realtime channels (shared with the backend, deliberately)
-export {
-  TABLE_NAMESPACE,
-  PLAYER_NAMESPACE,
-  tableChannel,
-  playerChannel,
-  playerFromChannel,
-  SESSION_NAMESPACE,
-  sessionChannel,
-} from "./realtime/channels";
+export { SESSION_NAMESPACE, sessionChannel } from "./realtime/channels";
 export type {
   TimerSyncMessage,
   SharedSession,

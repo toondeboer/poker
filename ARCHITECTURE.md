@@ -109,26 +109,24 @@ leaderboard yet — but they are built on the same seam and gated in the app rat
 
 ## The backend, and what it is not
 
-`apps/infra` is an AWS CDK stack: Cognito for identity, one DynamoDB table, AppSync Events for
-realtime, a Lambda that is the only thing allowed to change a poker table, and another behind the
-shared leaderboard. **`PokerBackend-prod` is deployed and `backendConfig` points at it as of
-1.2.0**, so accounts, shared boards and the sign-up mail behind them are live rather than dead code
-behind a flag that never turns on.
+`apps/infra` is an AWS CDK stack: Cognito for identity, one DynamoDB table, a Lambda behind
+identity and another behind the shared leaderboard. **`PokerBackend-prod` is deployed and
+`backendConfig` points at it as of 1.2.0**, so accounts, shared boards and the sign-up mail behind
+them are live rather than dead code behind a flag that never turns on.
 
-**The half the app uses, and the half it does not, are different halves.** This section used to say
-that nothing in the app called any of it, and that stopped being true — but it did not stop being
-true of everything at once, and the distinction is the thing worth holding on to:
+**Everything deployed is now something the app calls.** That was not true for most of this
+project's life: a server-authoritative poker table — `POST /tables/{tableId}/actions`, an AppSync
+Events API, two channel namespaces and a subscribe authorizer guarding hole cards — sat deployed
+and correct with **no client at all**, because the app half was never built. It was removed before
+1.2.0 shipped, along with the betting engine it enforced: wagering chips is simulated gambling
+under Apple's definition, which forces an 18+ rating and, on an Individual developer account, may
+prevent submission entirely. See the Gambling classification section in
+[`ROADMAP.md`](./ROADMAP.md#gambling-classification--blocking-120), and the
+`archive/betting-engine` tag for the code.
 
-- **Live, and reached by the app**: Cognito sign-up/sign-in and `GET /me`, `GET /config` (the kill
-  switch), and the shared leaderboard — `/groups`, `/groups/{groupId}`, the roster and result
-  writes the outbox replays, `/invites/{token}`, and `DELETE /me`.
-- **Deployed, exercised by hand, and called by nothing**: the poker table.
-  `POST /tables/{tableId}/actions`, the AppSync Events channels and the subscribe authorizer are
-  all there and all correct, and **the app half was never built** — `sessionTransport` is `null`
-  ([`loopbackSessionTransport.ts`](./apps/mobile/src/services/loopbackSessionTransport.ts)), and
-  nothing under `apps/mobile` imports `tableChannel` or `playerChannel`. The dealt hold'em game
-  that 1.2.0 ships is **local and single-device**: one phone deals and gets passed around the
-  table. Online play is a backend waiting for a client.
+What the app reaches: Cognito sign-up/sign-in and `GET /me`, `GET /config` (the kill switch), and
+the shared leaderboard — `/groups`, `/groups/{groupId}`, the roster and result writes the outbox
+replays, `/invites/{token}`, `/groups/{groupId}/report`, and `DELETE /me`.
 
 Some group routes are in the same position on a smaller scale — `/claims`, `/members`, the player
 and game deletions and the role changes are deployed and answer correctly, but the app only ever
@@ -139,7 +137,7 @@ exact list.
 ```mermaid
 flowchart LR
   subgraph Phone["Phone (apps/mobile)"]
-    UI["Timer · Payouts · Dealt game<br/><i>work with no backend at all</i>"]
+    UI["Timer · Payouts · Leaderboard<br/><i>work with no backend at all</i>"]
     OB[("Outbox<br/><i>local-first queue</i>")]
   end
 
@@ -149,31 +147,23 @@ flowchart LR
     CFG["Config λ<br/><b>kill switch</b><br/><i>public, no auth</i>"]
     IDN["Identity λ<br/>GET /me"]
     GRP["Groups λ<br/>/groups/* · /invites/*<br/>DELETE /me"]
-    ACT["TableAction λ<br/><i>the only writer</i><br/><b>no client yet</b>"]
-    SUB["Subscribe<br/>authorizer λ"]
     DDB[("DynamoDB<br/><i>single table</i>")]
-    EV(["AppSync Events"])
   end
 
   UI --> OB
   OB -->|"replays on foreground,<br/>sign-in, cold launch"| API
   UI -->|"asks at launch;<br/>unreachable ⇒ off"| CFG
   UI -.->|"sign up / in"| COG
-  API --> IDN & GRP & ACT
+  API --> IDN & GRP
   COG -.->|"verifies token"| API
   IDN & GRP --> DDB
-  ACT -->|"read · rules · write<br/>on a version check"| DDB
-  ACT -->|"publishes<br/><i>IAM only</i>"| EV
-  EV -->|"subscribe"| SUB
-  SUB -->|"member?"| DDB
-  EV -.->|"public view<br/><i>hole cards stripped</i>"| UI
 ```
 
-Everything above the outbox works with no network, including the hold'em game the app deals — that
-one is local to a single phone. Only the _shared_ table (one clock and one deal across several
-phones) is inherently online, and it is server-authoritative by design, which is the same reason
-hole cards are safe. **The dashed `ACT`/`EV`/`SUB` path is the part with no client**: it is drawn
-because it exists and is deployed, not because anything calls it.
+Everything above the outbox works with no network. What the backend adds is an account, and boards
+that other people can see — nothing that has to be online to play a game. **Every box in that
+diagram is something the app actually calls**, which it has not been able to say before: the
+table-action Lambda, the AppSync Events API and the subscribe authorizer used to sit alongside
+these with no client at all, and were removed rather than finished.
 
 The single table holds several item types in one keyspace, and that shape _is_ the permission model
 — which is the part worth having a picture of:
@@ -208,27 +198,24 @@ strongly consistent read, and "is there another admin?" is a `ConditionCheck` on
 inside the transaction rather than a counter. [`SYNC.md`](./apps/infra/SYNC.md) records the first
 schema and why it was replaced — worth reading before changing any of this.
 
-That gap has closed for the leaderboard and not for the table. The board routes are used by a real
-phone now — an outbox replaying writes after a bad evening's signal, a merge against local state —
-and 1.2.0 is the release that proves it. For the table, what is still only proven is that the
-routes answer correctly to a person with `curl`: two people at one table acting at once has never
-been exercised by anything but a test.
+That gap has closed. The board routes are used by a real phone — an outbox replaying writes after a
+bad evening's signal, a merge against local state — and 1.2.0 is the release that proves it. The
+table routes never got a client and are gone.
 
-Two decisions in it are structural rather than incidental:
+**Two decisions the table backend rested on are worth keeping in writing**, because they were
+right, and because anything that replaces it will face them again:
 
-- **Hole cards are private because of where they are published**, not because the app declines to
-  draw them. Each player subscribes to `/table/{tableId}` and to
-  `/player/{their own id}/table/{tableId}`, and a subscribe handler rejects a private channel whose
-  player segment is not the caller's own. Both sides build those paths from `playerChannel` in
+- **Hole cards were private because of where they were published**, not because the app declined to
+  draw them. Each player subscribed to `/table/{tableId}` and to
+  `/player/{their own id}/table/{tableId}`, and a subscribe handler rejected a private channel whose
+  player segment was not the caller's own. Both sides built those paths from one function in
   `@poker/core`, because the app and the backend disagreeing about a path is a _silent_ security
   bug — and was one, until a review caught the guard sitting on a namespace those channels never
   touched.
-- **Only the server publishes.** Clients connect and subscribe with their token; publishing is
-  IAM-only, so every change to a table goes through the rules once.
+- **Only the server published.** Clients connected and subscribed with their token; publishing was
+  IAM-only, so every change to a table went through the rules once.
 
-The action handler stores and publishes, and both channel namespaces are guarded on subscribe — the
-private ones by comparing a path segment to the caller's own subject, the shared one by a Lambda
-that reads the table's membership.
+Both are at the `archive/betting-engine` tag, along with the authorizer that enforced the first.
 
 The shared leaderboard follows the same instinct in a different shape, and
 [`apps/infra/SYNC.md`](./apps/infra/SYNC.md) is the reasoning: **a rule is better as the shape of a

@@ -9,6 +9,25 @@ platform-tagged heading (e.g. `## [1.1.3] - 2026-07-20 — Android`) when you cu
 
 ## [Unreleased]
 
+### Removed
+
+- **The server-side poker table is gone**, and with it the AppSync Events realtime bus. It was a
+  server-authoritative betting engine — `POST /tables/{tableId}/actions`, two channel namespaces
+  and a subscribe authorizer that kept hole cards private — deployed, correct, and **called by
+  nothing**: the app half was never built. It went for two reasons at once. It is the other
+  consumer of the betting engine being removed from the app, so the engine could not go without
+  it; and a wagering authority sitting in a deployed stack undercuts the point of taking wagering
+  out of the app. Nobody loses anything, because nobody could reach it.
+
+  Nothing a person can see changes. Accounts, shared boards, the leaderboard, invites and the kill
+  switch are untouched — the deploy removes 21 resources and adds none, leaving DynamoDB, Cognito
+  and the HTTP API exactly as they were.
+
+  The code is kept at the `archive/betting-engine` tag: a tested no-limit implementation with side
+  pots and hand evaluation, the publisher, and the subscribe guard. **The shared clock now needs
+  more work than it did** — it was waiting on a `session` namespace for a bus that existed, and now
+  the bus has to be stood back up too. Recorded in `ROADMAP.md` so that is not a surprise.
+
 ### Changed
 
 - **The leaderboard keeps score, not money.** It tracked what every player had won across game

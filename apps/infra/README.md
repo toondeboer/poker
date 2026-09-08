@@ -9,7 +9,7 @@ seeded and acted on, events arriving on both channels, a replay refused as stale
 refused from both channels. **35 checks**, run by [`scripts/smoke.ts`](./scripts/smoke.ts) with
 `--as-stranger`.
 
-**Prod exists as of 2026-09-04** and was stood up by walking *Standing up production* below, in two
+**Prod exists as of 2026-09-04** and was stood up by walking _Standing up production_ below, in two
 deploys as that section requires. It answers `200` on `/config` and `401` on `/me` without a token,
 sends from its own DKIM-verified domain, and holds zero users and zero rows. The smoke script
 **refuses to run against it** by design — it writes a hand into the table — so what has been checked
@@ -34,12 +34,12 @@ sufficient — see _What only a deploy could tell us_, below.
 **Out of the SES sandbox as of 2026-09-04.** `aws sesv2 get-account` reports
 `ReviewStatus: GRANTED` and a `Max24HourSend` of 50,000 against the sandbox's 200 — that quota is
 the signal worth checking, because `ProductionAccessEnabled` reads `true` from the moment the
-request is *filed* and says nothing about whether it was granted. Prod can now deliver a sign-up
+request is _filed_ and says nothing about whether it was granted. Prod can now deliver a sign-up
 code to an address nobody has verified by hand, which is what makes real users possible at all.
 
 It was granted in minutes rather than the day or two budgeted for it, which is worth knowing but
 not worth planning around: it is still a review, and a different account or a less transactional
-use case can still wait. Ask first anyway — see step 1 of *Standing up production*.
+use case can still wait. Ask first anyway — see step 1 of _Standing up production_.
 
 ## Where dev is
 
@@ -102,10 +102,10 @@ environment back rather than assuming it matches the one you already trust.
 ---
 
 5. **The prod table had no deletion protection, while the user pool did.** `settings.
-   deletionProtection` existed and was already `true` for prod; it was passed to the pool and never
+deletionProtection` existed and was already `true` for prod; it was passed to the pool and never
    to the table. Nothing failed, no test caught it, and `RETAIN` looked like it covered the case —
    it does not. `RETAIN` is a CloudFormation instruction that stops a stack update or a `cdk
-   destroy`; a direct `DeleteTable` call is untouched by it, and this account also runs
+destroy`; a direct `DeleteTable` call is untouched by it, and this account also runs
    `sailor-prod` and `investments-tracker-prod`. **Found by reading the live table back**, not by
    reading the code. Two tests now assert the pair together so they cannot drift apart again.
 
@@ -119,19 +119,17 @@ environment back rather than assuming it matches the one you already trust.
 
 ## What exists today
 
-|                    |                                                                                                                                                                                                                                                                                                          |
-| ------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Cognito**        | User pool + client, email recovery, `RETAIN`                                                                                                                                                                                                                                                             |
-| **DynamoDB**       | `TableV2`, single-table `pk`/`sk`, on-demand billing, PITR on, `RETAIN`, `expiresAt` TTL for live hands                                                                                                                                                                                                  |
-| **AppSync Events** | Cognito to connect and subscribe, **IAM to publish**. Namespaces `table` (shared) and `player` (private); the private one carries an APPSYNC_JS subscribe handler enforcing `segments[2] === ctx.identity.sub`                                                                                           |
-| **Action Lambda**  | `NodejsFunction`, Node 22, esbuild inlines the workspace-private `@poker/core` — the same rules run on the phone and here. Explicit `LogGroup`                                                                                                                                                           |
-| **Publishing**     | Signed with the Lambda's own IAM credentials (SigV4 by hand, `node:crypto`, checked against AWS's published vectors). The shared channel gets a hand with every hole card stripped; each player's own cards go to a channel only they can subscribe to                                                   |
-| **HTTP API**       | Sixteen routes — identity, the poker table, and the shared leaderboard (groups, players, games, claims, invites, members, `DELETE /me`) — all behind a Cognito JWT authorizer that is the API's **default**, so a route added later is authenticated because nobody did anything. Access logs, throttled |
-| **Groups**         | Shared boards: several admins, anybody may add a player or record a game, only an admin may remove one. Invite links that do not expire and are revoked by rotation. **Every read is authorized, not merely authenticated** — see [SYNC.md](./SYNC.md)                                                   |
-| **Environments**   | `PokerBackend-dev` and `PokerBackend-prod`, plus `PokerDeployment` for the GitHub OIDC roles                                                                                                                                                                                                             |
-| **Telemetry**      | X-Ray `Tracing.ACTIVE` on all three functions, CloudWatch metrics and structured logs, and a `poker-<stage>` dashboard built in CDK from the alarm definitions. No third-party export — see decision 2                                                                                                   |
-| **Alarms**         | Ten, into an SNS topic, each carrying what it means; a forecast budget alarm alongside. One has been seen to fire                                                                                                                                                                                        |
-| **Tests**          | 277, covering the synthesised template and the handlers' decision-making                                                                                                                                                                                                                                 |
+|                  |                                                                                                                                                                                                                                                                                                          |
+| ---------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Cognito**      | User pool + client, email recovery, `RETAIN`                                                                                                                                                                                                                                                             |
+| **DynamoDB**     | `TableV2`, single-table `pk`/`sk`, on-demand billing, PITR on, `RETAIN`, `expiresAt` TTL for live hands                                                                                                                                                                                                  |
+| **Publishing**   | Signed with the Lambda's own IAM credentials (SigV4 by hand, `node:crypto`, checked against AWS's published vectors). The shared channel gets a hand with every hole card stripped; each player's own cards go to a channel only they can subscribe to                                                   |
+| **HTTP API**     | Sixteen routes — identity, the poker table, and the shared leaderboard (groups, players, games, claims, invites, members, `DELETE /me`) — all behind a Cognito JWT authorizer that is the API's **default**, so a route added later is authenticated because nobody did anything. Access logs, throttled |
+| **Groups**       | Shared boards: several admins, anybody may add a player or record a game, only an admin may remove one. Invite links that do not expire and are revoked by rotation. **Every read is authorized, not merely authenticated** — see [SYNC.md](./SYNC.md)                                                   |
+| **Environments** | `PokerBackend-dev` and `PokerBackend-prod`, plus `PokerDeployment` for the GitHub OIDC roles                                                                                                                                                                                                             |
+| **Telemetry**    | X-Ray `Tracing.ACTIVE` on all three functions, CloudWatch metrics and structured logs, and a `poker-<stage>` dashboard built in CDK from the alarm definitions. No third-party export — see decision 2                                                                                                   |
+| **Alarms**       | Ten, into an SNS topic, each carrying what it means; a forecast budget alarm alongside. One has been seen to fire                                                                                                                                                                                        |
+| **Tests**        | 277, covering the synthesised template and the handlers' decision-making                                                                                                                                                                                                                                 |
 
 **Hole cards are private because of where they are published**, not because a client declines to
 draw them. Both sides build channel paths from `playerChannel` in `@poker/core`, because the two
@@ -211,16 +209,20 @@ sitting on a namespace those channels never touch.
 ### 1. Requests over HTTP, events over WebSocket
 
 ```
-app ──POST /tables/{id}/actions──▶ HTTP API ──▶ Lambda
-                                  (JWT authz)    │
-                                                 ├──▶ DynamoDB  (conditional write on version)
-                                                 └──▶ AppSync   (EventPublish)
-app ◀──────────── subscribe ─────────────────────── AppSync Events
+app ──POST /groups/{id}/games──▶ HTTP API ──▶ Lambda ──▶ DynamoDB
+                                (JWT authz)
 ```
 
-An **API Gateway HTTP API** with a Cognito JWT authorizer in front of the action Lambda, keeping
-AppSync Events for the push side. Roughly $1 per million requests, per-route CloudWatch metrics for
-free, throttling and stage variables when they are needed.
+An **API Gateway HTTP API** with a Cognito JWT authorizer in front of the handlers. Roughly $1 per
+million requests, per-route CloudWatch metrics for free, throttling and stage variables when they
+are needed.
+
+**This used to have a push side.** A table-action Lambda published to AppSync Events and the app
+subscribed to it; that whole path was removed before 1.2.0 shipped — it had no client, and the
+betting engine it enforced is simulated gambling under Apple's definition. See the Gambling
+classification section in [`ROADMAP.md`](../../ROADMAP.md#gambling-classification--blocking-120)
+and the `archive/betting-engine` tag. The reasoning below is kept because it is about the HTTP
+side, which is unchanged.
 
 The alternatives were considered and rejected for concrete reasons rather than taste. A **function
 URL** is cheaper and means verifying JWTs by hand and losing per-route metrics and throttling —
@@ -417,7 +419,7 @@ dev is deployed by hand with `npm run deploy:dev`, and the `cdk diff` job on a p
 part that already runs.
 
 **The prod path, by contrast, is fully proven.** Both of prod's deploys went through
-*Actions → Infra → Run workflow → prod*: the job held at `waiting` on the `backend-production`
+_Actions → Infra → Run workflow → prod_: the job held at `waiting` on the `backend-production`
 environment, an approval released it, and the run assumed the prod role over OIDC and deployed. That
 gate is not decoration — the prod role's trust policy only accepts a token whose subject names that
 environment, so the approval is what makes the credentials issuable at all. It had never been
@@ -434,18 +436,18 @@ The order matters: two of these steps cannot be undone by the next deploy, and o
 queue measured in days.
 
 What it cost, for calibration: about fifteen minutes of wall time, most of it CloudFormation. Two
-things turned up that no synth could show — see items 5 and 6 of *What only a deploy could tell
-us*.
+things turned up that no synth could show — see items 5 and 6 of _What only a deploy could tell
+us_.
 
 ### Before touching AWS: ask for SES production access
 
 **Do this first, because it is the only step here that waits on somebody else.** A new SES account
-is in the *sandbox*, where mail is delivered only to addresses that have themselves been verified.
+is in the _sandbox_, where mail is delivered only to addresses that have themselves been verified.
 That is fine for the smoke accounts and useless for real users: every sign-up would send a code
 that never arrives.
 
-There is a console route — Support → *Account and billing* → *Service limit increase* → *SES
-Sending Limits*, or the "Request production access" button — but the CLI files the same request and
+There is a console route — Support → _Account and billing_ → _Service limit increase_ → _SES
+Sending Limits_, or the "Request production access" button — but the CLI files the same request and
 keeps the wording in a file worth revising:
 
 ```bash
@@ -476,7 +478,7 @@ It is **per account and region**, so `us-east-1` covers both stages. Budget a da
 2026-09-04 request came back granted in minutes, which is not a promise.
 
 **Check the quota, not the flag.** `ProductionAccessEnabled` flips to `true` the moment the request
-is *filed*, so it does not distinguish "asked" from "granted". `Details.ReviewDetails.Status` and
+is _filed_, so it does not distinguish "asked" from "granted". `Details.ReviewDetails.Status` and
 `SendQuota.Max24HourSend` do — 200/day is the sandbox, 50,000 is production:
 
 ```bash
@@ -505,7 +507,7 @@ that list yet.
 
 **That is deliberate and is not a step to skip.** Cognito validates the identity at the moment the
 pool is updated, and SES verifies asynchronously, so a deploy that did both at once rolls the entire
-stack back with *"Email address is not verified"*. It happened twice on dev.
+stack back with _"Email address is not verified"_. It happened twice on dev.
 
 **Then confirm the alarm subscription email.** SNS sends a confirmation link to
 `poker.blinds.buzzer@gmail.com`; until somebody clicks it, every alarm in prod fires into nothing.
@@ -544,12 +546,12 @@ build that reaches a tester before the products exist shows a paywall that canno
 
 ### What can be recovered afterwards, and what cannot
 
-| | |
-| --- | --- |
-| SES sandbox | Out of it since 2026-09-04. Was never rushable by code — if a future account lands back in it, asking is the only move. |
-| A feature misbehaving in prod | `-c featureSharing=off` — a stack update, about 90 seconds |
-| The table or the user pool | `RemovalPolicy.RETAIN` on prod, so a stack delete does not take them |
-| A bad prod deploy | Roll forward. There is no undo, and the data is real. |
+|                               |                                                                                                                         |
+| ----------------------------- | ----------------------------------------------------------------------------------------------------------------------- |
+| SES sandbox                   | Out of it since 2026-09-04. Was never rushable by code — if a future account lands back in it, asking is the only move. |
+| A feature misbehaving in prod | `-c featureSharing=off` — a stack update, about 90 seconds                                                              |
+| The table or the user pool    | `RemovalPolicy.RETAIN` on prod, so a stack delete does not take them                                                    |
+| A bad prod deploy             | Roll forward. There is no undo, and the data is real.                                                                   |
 
 ## Turning a feature off without a release
 
@@ -616,7 +618,7 @@ source maps in the traces. And the next `cdk deploy` puts the context value
 back, so this is a stop-the-bleeding move and not a state anything should be
 left in: follow it with the deploy that makes it real, or with the fix.
 
-**What the switch does not do.** It stops *the app* using a feature; it does not
+**What the switch does not do.** It stops _the app_ using a feature; it does not
 stop anything reaching the API. A client stuck in a retry loop, or anybody with
 the URL, still gets as far as API Gateway — that is what the per-route throttle
 is for, and it protects the bill rather than availability. If the problem is
@@ -627,10 +629,10 @@ below.
 
 The stack tags every resource it creates:
 
-| Tag | Value | For |
-| --- | --- | --- |
-| `project` | `poker` | Grouping in Cost Explorer |
-| `stage` | `dev` / `prod` | Splitting the two stacks |
+| Tag            | Value                      | For                        |
+| -------------- | -------------------------- | -------------------------- |
+| `project`      | `poker`                    | Grouping in Cost Explorer  |
+| `stage`        | `dev` / `prod`             | Splitting the two stacks   |
 | `billingScope` | `poker-dev` / `poker-prod` | What the budget filters on |
 
 **Activate them once, by hand, before any of it does anything.** CloudFormation
@@ -654,10 +656,10 @@ being wrong rather than the key being new.
 
 ### State, as of 2026-09-04
 
-| Tag | Status |
-| --- | --- |
-| `project` | **Active** |
-| `stage` | **Active** |
+| Tag            | Status                                                                                              |
+| -------------- | --------------------------------------------------------------------------------------------------- |
+| `project`      | **Active**                                                                                          |
+| `stage`        | **Active**                                                                                          |
 | `billingScope` | **Not yet activatable** — applied to dev by the deploy that day, and AWS had not discovered the key |
 
 **Outstanding**, and the only thing between here and a working dev budget alert:
@@ -676,7 +678,7 @@ to `project = poker` and group by `stage` to see the two stacks apart.
 
 **The budget is scoped to match.** Each stage's `CfnBudget` filters on its own
 `billingScope`, so `poker-dev` forecasts the dev stack and nothing else. It did
-not always: with no filter at all it forecast the *whole account*, which on an
+not always: with no filter at all it forecast the _whole account_, which on an
 account running other projects is wrong in both directions — another project's
 bill alone can hold the forecast over the limit so the warning is permanently on
 and means nothing, while this stack running away stays invisible inside a much
@@ -763,14 +765,14 @@ pricing page settles it in a parenthesis:
 > **(includes social identity providers)**
 
 So social sign-in draws on the **10,000 free MAU** of Essentials. The separate **50 free MAU, then
-$0.015/MAU** applies to SAML and OIDC *enterprise* federation, which this app has no use for.
+$0.015/MAU** applies to SAML and OIDC _enterprise_ federation, which this app has no use for.
 
 Both pools are on **`ESSENTIALS`** — AWS's default for a pool created new, and not set in the CDK,
 so nothing has to be changed to get this. `aws cognito-idp describe-user-pool --user-pool-id <id>
 --query 'UserPool.UserPoolTier'` confirms it.
 
 **The one way to get this wrong is a configuration choice, not a pricing surprise.** Cognito can
-add Google *either* as its built-in **Google** provider *or* as a generic **OIDC** provider, and
+add Google _either_ as its built-in **Google** provider _or_ as a generic **OIDC** provider, and
 both work — the login screen is identical. The second bills every user on the 50-MAU federated
 tier. So when Apple and Google are added, use the **built-in social provider types**
 (`UserPoolIdentityProviderGoogle`, `UserPoolIdentityProviderApple` in CDK) and never

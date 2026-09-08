@@ -26,7 +26,6 @@
 import {
   CfnOutput,
   Duration,
-  Fn,
   RemovalPolicy,
   Stack,
   Tags,
@@ -38,11 +37,7 @@ import {
   Operation,
   TableV2,
 } from "aws-cdk-lib/aws-dynamodb";
-import {
-  CfnApi,
-  CfnChannelNamespace,
-  CfnDataSource,
-} from "aws-cdk-lib/aws-appsync";
+import {} from "aws-cdk-lib/aws-appsync";
 import {
   AccountRecovery,
   UserPool,
@@ -55,12 +50,7 @@ import {
   UserPoolIdentityProviderGoogle,
   UserPoolOperation,
 } from "aws-cdk-lib/aws-cognito";
-import {
-  Policy,
-  PolicyStatement,
-  Role,
-  ServicePrincipal,
-} from "aws-cdk-lib/aws-iam";
+import { Policy, PolicyStatement } from "aws-cdk-lib/aws-iam";
 import { Runtime, Tracing } from "aws-cdk-lib/aws-lambda";
 import { NodejsFunction } from "aws-cdk-lib/aws-lambda-nodejs";
 import { FilterPattern, LogGroup, MetricFilter } from "aws-cdk-lib/aws-logs";
@@ -72,7 +62,6 @@ import {
 } from "aws-cdk-lib/aws-apigatewayv2";
 import { HttpUserPoolAuthorizer } from "aws-cdk-lib/aws-apigatewayv2-authorizers";
 import { HttpLambdaIntegration } from "aws-cdk-lib/aws-apigatewayv2-integrations";
-import { PLAYER_NAMESPACE, TABLE_NAMESPACE } from "@poker/core";
 import { settingsFor, type StageSettings } from "./stage";
 import { domainFor } from "./apiDomain";
 import { mailFor } from "./mailIdentity";
@@ -85,51 +74,6 @@ import { Observability, serviceMetric } from "./observability";
 import { MathExpression } from "aws-cdk-lib/aws-cloudwatch";
 import { Construct } from "constructs";
 import * as path from "node:path";
-
-/**
- * Rejects a subscription to somebody else's cards.
- *
- * Hole cards are never broadcast. Each player subscribes to the table's shared
- * channel *and* to `/player/{their own sub}/table/{tableId}`, and the private
- * cards are published only to the second. Secrecy is then a property of where
- * a thing is published rather than of client-side filtering — there is no code
- * on a phone deciding what not to show you, which is the code that eventually
- * shows you the wrong thing.
- *
- * **The path shape is load-bearing.** AppSync takes the *first* segment as the
- * namespace, and a namespace is the only place a subscribe guard can be
- * attached — so the player id has to lead. An earlier version of this used
- * `/table/{id}/player/{sub}`, which reads better and is unguardable: its
- * namespace is `table`, so it landed under the shared rules and this handler
- * never ran at all. Any signed-in account could read anyone's cards. The path
- * is now built by `playerChannel` in `@poker/core`, shared with the app, so the
- * two sides cannot disagree about it again.
- *
- * Written as an AppSync JS handler rather than a Lambda authorizer because it
- * is one comparison, on the subscribe path of every player, every hand.
- */
-const PRIVATE_CHANNEL_HANDLER = `
-import { util } from '@aws-appsync/utils';
-
-export function onSubscribe(ctx) {
-  // /player/{playerId}/table/{tableId}
-  const segments = ctx.info.channel.path.split('/');
-  if (segments.length !== 5 || segments[3] !== 'table') {
-    util.unauthorized();
-  }
-  const owner = segments[2];
-  if (!owner || owner !== ctx.identity.sub) {
-    util.unauthorized();
-  }
-}
-
-export function onPublish(ctx) {
-  // Namespace handlers run for every publish whatever the auth mode, so this
-  // has to pass the events through — rejecting here would block the server's
-  // own IAM publish, which is the only publish there is.
-  return ctx.events;
-}
-`;
 
 export type PokerStackProps = StackProps & {
   /** Where alarms are sent. Without it they fire into a topic nobody reads. */
@@ -222,6 +166,12 @@ export class PokerStack extends Stack {
      * rounding error on a warm fleet — and `SubscribeAuthorizer` runs before a
      * player can see a table, on a three-second timeout, which ~2.2 s of init
      * very nearly exhausts.
+     *
+     * **`TableAction` and `SubscribeAuthorizer` no longer exist** — they went with
+     * the table backend — but the measurement is left as it was taken rather
+     * than rewritten around the survivors, because the numbers are the point
+     * and re-deriving them from functions that were never measured would make
+     * this a claim instead of a record.
      *
      * `Tracing.ACTIVE` costs single-digit milliseconds because the X-Ray daemon
      * is part of the execution environment rather than a Go binary this
@@ -577,170 +527,6 @@ export class PokerStack extends Stack {
     });
 
     /**
-     * The realtime bus.
-     *
-     * Events rather than GraphQL: this is publish/subscribe, and a schema would
-     * be a layer describing messages that already have a shape in `@poker/core`.
-     *
-     * Clients connect and subscribe with their Cognito token. **Publishing is
-     * IAM-only**, so nothing reaches a table except through the action handler
-     * — which is what makes the server authoritative rather than merely
-     * well-behaved.
-     */
-    const eventApi = new CfnApi(this, "EventApi", {
-      name: `${this.stackName}-events`,
-      eventConfig: {
-        authProviders: [
-          {
-            authType: "AMAZON_COGNITO_USER_POOLS",
-            cognitoConfig: {
-              userPoolId: userPool.userPoolId,
-              awsRegion: this.region,
-            },
-          },
-          { authType: "AWS_IAM" },
-        ],
-        connectionAuthModes: [{ authType: "AMAZON_COGNITO_USER_POOLS" }],
-        defaultSubscribeAuthModes: [{ authType: "AMAZON_COGNITO_USER_POOLS" }],
-        defaultPublishAuthModes: [{ authType: "AWS_IAM" }],
-      },
-    });
-
-    /**
-     * Who may watch a table, checked on subscribe.
-     *
-     * A Lambda rather than an APPSYNC_JS handler because **membership is a
-     * fact about the game, not about the path**: the private `/player/…`
-     * channels can be guarded by comparing a path segment to the caller's own
-     * subject, and a shared table needs a lookup that an APPSYNC_JS handler
-     * cannot do.
-     *
-     * `REQUEST_RESPONSE`, not `EVENT`: an asynchronous invocation cannot
-     * refuse anything — AppSync does not wait for it — so an authorizer in
-     * event mode is a log line, not a guard.
-     */
-    const subscribeAuthorizer = new NodejsFunction(
-      this,
-      "SubscribeAuthorizer",
-      {
-        entry: path.join(__dirname, "lambda", "subscribeAuthorizer.ts"),
-        runtime: Runtime.NODEJS_22_X,
-        memorySize: 256,
-        // Short on purpose: this runs before somebody sees a table, so its
-        // latency is felt. A read that has not answered in three seconds is not
-        // going to.
-        timeout: Duration.seconds(3),
-        environment: { ...functionEnvironment, TABLE_NAME: table.tableName },
-        tracing: Tracing.ACTIVE,
-        logGroup: new LogGroup(this, "SubscribeAuthorizerLogs", {
-          retention: settings.logRetention,
-          removalPolicy: RemovalPolicy.DESTROY,
-        }),
-        bundling: handlerBundling,
-      },
-    );
-    // Read only. An authorizer has no business writing to the thing it is
-    // deciding about.
-    table.grantReadData(subscribeAuthorizer);
-
-    const authorizerRole = new Role(this, "SubscribeAuthorizerRole", {
-      assumedBy: new ServicePrincipal("appsync.amazonaws.com"),
-      description: "Lets AppSync invoke the subscribe authorizer",
-    });
-    subscribeAuthorizer.grantInvoke(authorizerRole);
-
-    const authorizerSource = new CfnDataSource(this, "SubscribeAuthorizerDs", {
-      apiId: eventApi.attrApiId,
-      name: "SubscribeAuthorizer",
-      type: "AWS_LAMBDA",
-      lambdaConfig: { lambdaFunctionArn: subscribeAuthorizer.functionArn },
-      serviceRoleArn: authorizerRole.roleArn,
-    });
-
-    // What everyone at a table sees: the board, the bets, whose turn it is —
-    // and now only if they are at it.
-    const tableNamespace = new CfnChannelNamespace(this, "TableNamespace", {
-      apiId: eventApi.attrApiId,
-      name: TABLE_NAMESPACE,
-      handlerConfigs: {
-        onSubscribe: {
-          behavior: "DIRECT",
-          integration: {
-            dataSourceName: authorizerSource.name,
-            lambdaConfig: { invokeType: "REQUEST_RESPONSE" },
-          },
-        },
-      },
-    });
-
-    /**
-     * Build the data source first. **CloudFormation cannot work this out.**
-     *
-     * `dataSourceName` above is a plain string — `"SubscribeAuthorizer"`, not a
-     * `Ref` or a `GetAtt` — because that is the shape AppSync's API takes. A
-     * string carries no dependency, so CloudFormation is free to create the
-     * namespace and the data source in parallel, and on a first deploy it does:
-     * the namespace goes first and fails with `DataSource not found`, rolling
-     * the whole stack back.
-     *
-     * It is invisible in `cdk synth` and invisible on every *subsequent* deploy,
-     * because by then the data source already exists. Only a create from
-     * nothing shows it, which is exactly what a first deploy is — and was.
-     */
-    tableNamespace.addResourceDependency(authorizerSource);
-
-    // What only one player sees. The handler is the entire secrecy mechanism.
-    new CfnChannelNamespace(this, "PlayerNamespace", {
-      apiId: eventApi.attrApiId,
-      name: PLAYER_NAMESPACE,
-      codeHandlers: PRIVATE_CHANNEL_HANDLER,
-    });
-
-    /**
-     * The only thing allowed to change a table.
-     *
-     * Reads the hand, runs the `@poker/core` reducer, and writes back on a
-     * version check. Two players acting at the same instant means one write
-     * wins and the other retries against fresh state — optimistic concurrency
-     * *is* the serialization here, so there is no lock to hold and nothing to
-     * time out.
-     */
-    const actionHandler = new NodejsFunction(this, "TableAction", {
-      entry: path.join(__dirname, "lambda", "tableAction.ts"),
-      runtime: Runtime.NODEJS_22_X,
-      memorySize: 512,
-      timeout: Duration.seconds(10),
-      environment: {
-        ...functionEnvironment,
-        TABLE_NAME: table.tableName,
-        EVENT_API_HTTP: Fn.getAtt(eventApi.logicalId, "Dns.Http").toString(),
-      },
-      tracing: Tracing.ACTIVE,
-      // An explicit log group rather than `logRetention`, which is deprecated
-      // and, more to the point, deploys a second Lambda whose only job is to
-      // call PutRetentionPolicy on the first one's log group.
-      logGroup: new LogGroup(this, "TableActionLogs", {
-        retention: settings.logRetention,
-        // Logs are always disposable, in both stages: what they are worth is
-        // debugging the thing that just happened, and the retention above is
-        // what decides how long that lasts.
-        removalPolicy: RemovalPolicy.DESTROY,
-      }),
-      // `@poker/core` is a private workspace package, so it is bundled rather
-      // than installed. esbuild follows the workspace link and inlines it,
-      // which is why the same rules can run here and on the phone.
-      bundling: handlerBundling,
-    });
-
-    table.grantReadWriteData(actionHandler);
-    actionHandler.addToRolePolicy(
-      new PolicyStatement({
-        actions: ["appsync:EventPublish"],
-        resources: [`${eventApi.attrApiArn}/*`],
-      }),
-    );
-
-    /**
      * How the app asks for something to happen.
      *
      * **Nothing could invoke the action handler at all before this** — no API,
@@ -983,12 +769,6 @@ export class PokerStack extends Stack {
       api.addRoutes({ path: path_, methods, integration: groupsRoute });
     }
 
-    api.addRoutes({
-      path: "/tables/{tableId}/actions",
-      methods: [HttpMethod.POST],
-      integration: new HttpLambdaIntegration("ActionRoute", actionHandler),
-    });
-
     /**
      * Access logs, and a ceiling.
      *
@@ -1034,32 +814,13 @@ export class PokerStack extends Stack {
     };
 
     /**
-     * The seven things worth being woken up for.
+     * The handful of things worth being woken up for.
      *
      * Deliberately few. An alarm nobody acts on trains everybody to ignore the
      * next one, so each of these has an answer to "and then what?" — and each
      * says so in its description, because that description is what arrives in
      * an email at an inconvenient moment.
      */
-    observability.watch("ActionErrors", {
-      metric: actionHandler.metricErrors({ period: Duration.minutes(5) }),
-      threshold: 0,
-      // Until storage is wired this handler throws on every invocation, so any
-      // call at all alarms. That is correct rather than noisy: nothing should
-      // be calling it, and if something is, somebody should hear about it.
-      meaning:
-        "The action handler is throwing. Either the rules are rejecting real actions, or something broke: check the logs for the account and table in the line.",
-    });
-    observability.watch("ActionSlow", {
-      metric: actionHandler.metricDuration({
-        period: Duration.minutes(5),
-        statistic: "p99",
-      }),
-      threshold: 2_000,
-      evaluationPeriods: 2,
-      meaning:
-        "A table is waiting on a turn that will not land. Usually DynamoDB contention, or a cold start on a function nobody has invoked all week.",
-    });
     observability.watch("IdentityErrors", {
       metric: identityHandler.metricErrors({ period: Duration.minutes(5) }),
       threshold: 0,
@@ -1178,26 +939,6 @@ export class PokerStack extends Stack {
      * thing that refuses non-members — so alarming on them would page somebody
      * every time the security boundary worked.
      */
-    observability.watch("RealtimeConnectFailures", {
-      metric: serviceMetric({
-        namespace: "AWS/AppSync",
-        metricName: "ConnectServerError",
-        dimensions: { EventAPIId: eventApi.attrApiId },
-      }),
-      threshold: 0,
-      meaning:
-        "Players cannot connect to the realtime API. Nobody will report this — a table that stops updating looks like a bad connection from the phone.",
-    });
-    observability.watch("RealtimeSubscribeFailures", {
-      metric: serviceMetric({
-        namespace: "AWS/AppSync",
-        metricName: "SubscribeServerError",
-        dimensions: { EventAPIId: eventApi.attrApiId },
-      }),
-      threshold: 0,
-      meaning:
-        "Subscriptions to a table are failing server-side — which is the subscribe authorizer erroring, not refusing. A refusal is a client error and is the guard working.",
-    });
 
     /**
      * Mail reputation — **prod only, and that is not a shortcut.**
@@ -1304,8 +1045,5 @@ export class PokerStack extends Stack {
       description: "Redirect URI to register with each identity provider.",
     });
     new CfnOutput(this, "TableName", { value: table.tableName });
-    new CfnOutput(this, "EventApiDns", {
-      value: Fn.getAtt(eventApi.logicalId, "Dns.Realtime").toString(),
-    });
   }
 }

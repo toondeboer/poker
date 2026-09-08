@@ -28,35 +28,15 @@ const alarms = () =>
   );
 
 describe("being told when it stops", () => {
-  it("watches the one thing a function cannot see about itself", () => {
-    // A player whose subscription drops mid-hand gets no error and reports
-    // nothing — the table just stops updating and they blame the wifi. It
-    // happens in AppSync, so no handler logs and no request fails.
-    const realtime = alarms().filter((alarm) =>
-      ["ConnectServerError", "SubscribeServerError"].includes(
-        alarm.MetricName ?? "",
-      ),
-    );
-    expect(realtime).toHaveLength(2);
-  });
-
-  it("does not alarm on the guard refusing somebody", () => {
-    // `ConnectClientError` and `SubscribeClientError` are what a refused
-    // non-member looks like. Alarming on those would page somebody every time
-    // the security boundary did its job.
-    const clientSide = alarms().filter((alarm) =>
-      (alarm.MetricName ?? "").endsWith("ClientError"),
-    );
-    expect(clientSide).toEqual([]);
-  });
-
   it("watches the handful of things worth being woken for", () => {
     // Deliberately few. An alarm nobody acts on trains everybody to ignore the
-    // next one. Eleven on the backend itself — ten health alarms plus
+    // next one. Seven on the backend itself — six health alarms plus
     // `ContentReports`, which is not a health alarm at all but a person saying
     // something is wrong on a board — plus the two SES reputation alarms that
-    // exist on prod only, and this template is the prod one.
-    expect(alarms()).toHaveLength(13);
+    // exist on prod only, and this template is the prod one. It was thirteen
+    // before the table backend went: two on the action handler and two on
+    // AppSync went with it.
+    expect(alarms()).toHaveLength(9);
   });
 
   it("pages on a single content report", () => {
@@ -224,7 +204,7 @@ describe("a stack nobody gave an address", () => {
     );
 
   it("still has the alarms, so turning them on is one property", () => {
-    quiet().resourceCountIs("AWS::CloudWatch::Alarm", 11);
+    quiet().resourceCountIs("AWS::CloudWatch::Alarm", 7);
   });
 
   it("subscribes nobody rather than inventing a destination", () => {
@@ -302,6 +282,6 @@ describe("the dashboard", () => {
     // ones, which is the point of the dashboard being built from the same
     // `watch` call rather than maintained beside it.
     expect(widgets("alarm")).toBe(1);
-    expect(widgets("metric")).toBe(13);
+    expect(widgets("metric")).toBe(9);
   });
 });
