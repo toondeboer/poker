@@ -229,7 +229,7 @@ export type {
   ChopValidationError,
 } from "./payouts/chop";
 
-// Poker (multiplayer)
+// Poker — the app deals, it does not run a game. See poker/deal.ts.
 export {
   SUITS,
   MIN_RANK,
@@ -251,42 +251,30 @@ export {
 export type { HandCategory, HandValue } from "./poker/handValue";
 export { evaluateHand, rankHands } from "./poker/evaluate";
 export type { EvaluatedHand } from "./poker/evaluate";
-export { buildPots, awardPots, potWinners, totalPotAmount } from "./poker/pots";
-export type { Contribution, Pot, Award } from "./poker/pots";
-export {
-  createBettingRound,
-  legalActions as roundLegalActions,
-  applyAction,
-  isRoundComplete,
-} from "./poker/bettingRound";
-export type {
-  BettingRound,
-  BettingAction,
-  RoundSeat,
-  SeatStatus,
-  LegalActions,
-} from "./poker/bettingRound";
 export {
   HOLE_CARDS,
   BOARD_CARDS,
   MAX_SEATS,
-  startHand,
-  act,
-  legalActions,
-  isHandComplete,
-} from "./poker/table";
-export type { Hand, HandSeat, Street, Showdown } from "./poker/table";
+  startDeal,
+  nextStreet as nextStreetOfDeal,
+  muck as muckInDeal,
+  unmuck as unmuckInDeal,
+  isDealComplete,
+  showdownFor,
+  stillIn,
+} from "./poker/deal";
+export type { Deal, DealtSeat, Street, Showdown } from "./poker/deal";
 export {
-  createSession,
-  startNextHand,
-  act as actOnSession,
-  isSessionComplete,
-  finishingOrder,
-  finishingPlacings,
-  toGameResult,
-  knockoutTally,
-} from "./poker/session";
-export type { GameSession, SessionSeat, Knockout } from "./poker/session";
+  createDealerSession,
+  dealNextHand,
+  nextStreet,
+  muck,
+  unmuck,
+  sitOut,
+  sitIn,
+  canDeal,
+} from "./poker/dealerSession";
+export type { DealerSession, DealerSeat } from "./poker/dealerSession";
 
 // Leaderboard
 export {
