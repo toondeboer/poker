@@ -111,14 +111,35 @@ leaderboard yet — but they are built on the same seam and gated in the app rat
 
 `apps/infra` is an AWS CDK stack: Cognito for identity, one DynamoDB table, AppSync Events for
 realtime, a Lambda that is the only thing allowed to change a poker table, and another behind the
-shared leaderboard. **It is deployed to a development environment and every route has been
-exercised by hand — and nothing in the app calls any of it.** `backendConfig` is `null` on purpose,
-so a shipped build cannot put real accounts in a stack that exists to be thrown away.
+shared leaderboard. **`PokerBackend-prod` is deployed and `backendConfig` points at it as of
+1.2.0**, so accounts, shared boards and the sign-up mail behind them are live rather than dead code
+behind a flag that never turns on.
+
+**The half the app uses, and the half it does not, are different halves.** This section used to say
+that nothing in the app called any of it, and that stopped being true — but it did not stop being
+true of everything at once, and the distinction is the thing worth holding on to:
+
+- **Live, and reached by the app**: Cognito sign-up/sign-in and `GET /me`, `GET /config` (the kill
+  switch), and the shared leaderboard — `/groups`, `/groups/{groupId}`, the roster and result
+  writes the outbox replays, `/invites/{token}`, and `DELETE /me`.
+- **Deployed, exercised by hand, and called by nothing**: the poker table.
+  `POST /tables/{tableId}/actions`, the AppSync Events channels and the subscribe authorizer are
+  all there and all correct, and **the app half was never built** — `sessionTransport` is `null`
+  ([`loopbackSessionTransport.ts`](./apps/mobile/src/services/loopbackSessionTransport.ts)), and
+  nothing under `apps/mobile` imports `tableChannel` or `playerChannel`. The dealt hold'em game
+  that 1.2.0 ships is **local and single-device**: one phone deals and gets passed around the
+  table. Online play is a backend waiting for a client.
+
+Some group routes are in the same position on a smaller scale — `/claims`, `/members`, the player
+and game deletions and the role changes are deployed and answer correctly, but the app only ever
+sends the three additive writes the outbox knows about (`createGroup`, `addPlayer`, `recordGame`),
+plus the board reads. See [`groupRequests.ts`](./packages/core/src/sync/groupRequests.ts) for the
+exact list.
 
 ```mermaid
 flowchart LR
   subgraph Phone["Phone (apps/mobile)"]
-    UI["Timer · Payouts · Leaderboard<br/><i>work with no backend at all</i>"]
+    UI["Timer · Payouts · Dealt game<br/><i>work with no backend at all</i>"]
     OB[("Outbox<br/><i>local-first queue</i>")]
   end
 
@@ -127,8 +148,8 @@ flowchart LR
     API["HTTP API<br/><i>JWT authorizer</i>"]
     CFG["Config λ<br/><b>kill switch</b><br/><i>public, no auth</i>"]
     IDN["Identity λ<br/>GET /me"]
-    GRP["Groups λ<br/>/groups/* · /invites/*"]
-    ACT["TableAction λ<br/><i>the only writer</i>"]
+    GRP["Groups λ<br/>/groups/* · /invites/*<br/>DELETE /me"]
+    ACT["TableAction λ<br/><i>the only writer</i><br/><b>no client yet</b>"]
     SUB["Subscribe<br/>authorizer λ"]
     DDB[("DynamoDB<br/><i>single table</i>")]
     EV(["AppSync Events"])
@@ -148,11 +169,13 @@ flowchart LR
   EV -.->|"public view<br/><i>hole cards stripped</i>"| UI
 ```
 
-Everything above the outbox works with no network. Only the table (one clock across several phones)
-is inherently online — it is server-authoritative by design, which is the same reason hole cards are
-safe.
+Everything above the outbox works with no network, including the hold'em game the app deals — that
+one is local to a single phone. Only the _shared_ table (one clock and one deal across several
+phones) is inherently online, and it is server-authoritative by design, which is the same reason
+hole cards are safe. **The dashed `ACT`/`EV`/`SUB` path is the part with no client**: it is drawn
+because it exists and is deployed, not because anything calls it.
 
-The single table holds several item types in one keyspace, and that shape *is* the permission model
+The single table holds several item types in one keyspace, and that shape _is_ the permission model
 — which is the part worth having a picture of:
 
 ```mermaid
@@ -183,10 +206,11 @@ strongly consistent read, and "is there another admin?" is a `ConditionCheck` on
 inside the transaction rather than a counter. [`SYNC.md`](./apps/infra/SYNC.md) records the first
 schema and why it was replaced — worth reading before changing any of this.
 
-That gap is the thing to hold on to when reading the rest: what is proven is that the routes answer
-correctly to a person with `curl`. What is unproven is everything about a _phone_ using them — a
-queue replaying writes after a bad evening's signal, a merge against local state, two people at one
-table acting at once.
+That gap has closed for the leaderboard and not for the table. The board routes are used by a real
+phone now — an outbox replaying writes after a bad evening's signal, a merge against local state —
+and 1.2.0 is the release that proves it. For the table, what is still only proven is that the
+routes answer correctly to a person with `curl`: two people at one table acting at once has never
+been exercised by anything but a test.
 
 Two decisions in it are structural rather than incidental:
 

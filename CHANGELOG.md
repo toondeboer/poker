@@ -402,6 +402,13 @@ platform-tagged heading (e.g. `## [1.1.3] - 2026-07-20 — Android`) when you cu
   the release that makes the simulated-gambling answer yes. `casino` and `bet` are out of the iOS
   keyword line, replaced at the same character count by `payout` and `pot`. The Pro feature list
   had drifted again — it said six things and omitted dealing a hand, the headline of the release.
+- Docs: `ARCHITECTURE.md` and `ROADMAP.md` said the backend was deployed but that "nothing in the
+  app calls any of it" and that `backendConfig` is `null`. Both stopped being true at PR #204, which
+  is the change that makes 1.2.0 mean anything. They now say which half of the backend the app
+  actually reaches — accounts, the kill switch and the shared leaderboard — and which half is
+  deployed with no client at all: the poker table, whose `sessionTransport` is still `null` and
+  whose channels nothing under `apps/mobile` imports. The dealt game 1.2.0 ships is local and
+  single-device, and the architecture diagram now says so rather than implying online play.
 - Accounts: declining at the Apple or Google prompt no longer shows an error. Changing your mind is
   not a failure, and the screen now says nothing at all — as it already did when you closed the
   sheet without signing in.
