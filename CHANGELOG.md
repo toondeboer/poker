@@ -478,6 +478,15 @@ platform-tagged heading (e.g. `## [1.1.3] - 2026-07-20 — Android`) when you cu
 
 ### Fixed
 
+- **An ordinary failure no longer red-screens a dev build.** Every failed auth call logged at
+  `error`, so being offline — or mistyping a password — put a full-screen LogBox over a message the
+  screen had already handled in words. In a dev build an offline sign-in looked like a crash, which
+  is the wrong signal to send somebody working through the manual pass, and it is the same shape as
+  the bug #219 fixed: treating an ordinary condition as an error. `AuthContext` now classifies
+  before it logs — a recognised `CognitoFailure` (offline, wrong password, address already taken)
+  logs at `warn`, and only an unrecognised one is an `error`, because only that means something here
+  is wrong rather than something out there. No user-visible change on a release build, which has no
+  LogBox and no logging at all.
 - **The account screen printed the same error twice.** `AccountScreen` keeps one `error` state and
   rendered it in four places; the "Sign in" card and the "Email and password" card are on screen
   together once _Use email instead_ is tapped, so a failed email sign-in also printed a red line
