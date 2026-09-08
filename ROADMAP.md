@@ -218,7 +218,38 @@ following a link from the app to a poker table is a conversation the release doe
     one to expect to lose if one is lost. Accepted deliberately: removing the calculator too would
     gut the feature the release is built on, and it is the single best-evidenced 4+ component in the
     whole product.
-12. 🟡 **UMP/ATT consent is still a placeholder** (`useAdsConsent.ts`). Serving AdMob to EEA/UK
+12. 🟡 **Guideline 1.2 (user-generated content) — three of four met, and the gap is not the one it
+    looks like.** Declaring UGC on the age-rating questionnaire brings the app under 1.2, which asks
+    for four things:
+
+    | Requirement                        | State | Where                                                                                                                                 |
+    | ---------------------------------- | ----- | ------------------------------------------------------------------------------------------------------------------------------------- |
+    | Filter objectionable material      | ✅    | `moderation/textFilter.ts`, tested, refuses names and board names                                                                     |
+    | Report mechanism + timely response | ✅    | `ReportBoardSheet` → `POST /groups/{id}/report`, a `ContentReports` alarm so a report is actually noticed, and `/support` explains it |
+    | **Block abusive users**            | 🟡    | Any member may **leave** a board; an admin may **remove** a member. There is no per-user block                                        |
+    | Published contact information      | ✅    | `poker.blinds.buzzer@gmail.com` on `/support`, with a 2-business-day commitment                                                       |
+
+    **The block requirement is defensible as built, and here is the argument.** Nobody can reach you
+    unless you redeemed their invite link — there is no discovery, no feed, no messaging, and no way
+    to be added to a board you did not join. The only content another person can put in front of you
+    is a board name or a player name, and **leaving the board removes all of it**. For a closed,
+    invite-only group, "leave" _is_ the block. Apple's own February 2026 clarification points the
+    other way — it extended 1.2 to apps that "connect strangers even briefly", which this
+    deliberately does not.
+
+    **The real gap is a EULA, and it is cheaper to close.** There is **no terms page, no EULA link
+    and no zero-tolerance statement anywhere** in the app or on the site — and a EULA with a
+    zero-tolerance clause is the item 1.2 rejection letters cite most often, more than the block.
+    Closing it needs **no binary change**: set the License Agreement field in App Store Connect (the
+    standard Apple EULA is accepted) and publish a short `/terms` page carrying the zero-tolerance
+    clause. Both are console and web only, so neither risks the build.
+
+    **Do both before submitting**, and say the block argument in the review notes rather than waiting
+    to be asked — see the hand-off section in [STORE_LISTING.md](./STORE_LISTING.md). A per-user
+    block is worth building if a reviewer pushes back, and not before: it would mean deciding what
+    blocking even means on a shared board somebody else administers.
+
+13. 🟡 **UMP/ATT consent is still a placeholder** (`useAdsConsent.ts`). Serving AdMob to EEA/UK
     without a certified CMP is a live gap, pre-existing and separate from this work.
 
 ## The week, in order

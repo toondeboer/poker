@@ -394,6 +394,17 @@ platform-tagged heading (e.g. `## [1.1.3] - 2026-07-20 — Android`) when you cu
   Pro and Club granted**, because a reviewer who cannot get past the paywall cannot see the dealer or
   the shared board, which is the release.
 
+- **Guideline 1.2 is ruled on rather than left as a worry.** Declaring user-generated content brings
+  the app under 1.2, which wants four things; three are already there — the name filter, the report
+  flow with an alarm behind it, and a published contact with a response commitment. The fourth,
+  "block abusive users", is met in substance for a closed invite-only board: nobody reaches you
+  unless you redeemed their link, and leaving removes every name on it. **The gap that actually
+  matters is a EULA** — there is no terms page and no zero-tolerance statement anywhere, which is
+  the item 1.2 rejections cite most often. Closing it needs no binary: the App Store Connect License
+  Agreement field plus a short `/terms` page. Recorded in `ROADMAP.md`, with the block argument
+  written out in `STORE_LISTING.md` so it goes in the review notes instead of being argued after a
+  rejection.
+
 ### Changed
 
 - **The infra docs describe the backend that is actually deployed.** `apps/infra/README.md` still

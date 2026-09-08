@@ -447,6 +447,25 @@ To review the dealer and the shared board, Pro and Club are required. Please use
 below, which has both entitlements granted.
 ```
 
+**Add this too, because Guideline 1.2 will otherwise be asked about.** The app declares
+user-generated content, and 1.2 wants a way to block abusive users. Say the argument rather than
+waiting for the question:
+
+```
+On user-generated content: the only content one person can put in front of another is a board name
+or a player name, both filtered on entry and both limited to 40 characters. Boards are invite-only.
+There is no discovery, no feed, no messaging, and no way to be added to a board you did not join by
+redeeming a link. Any member can leave a board at any time, which removes every name on it from
+their device; a board admin can remove a member outright. Offensive content can be reported from
+inside the app, and reports are monitored and answered — see the Support page.
+```
+
+**Before submitting, close the EULA gap.** There is currently no terms page and no zero-tolerance
+statement anywhere, and that is the item 1.2 rejection letters cite most often. Set the **License
+Agreement** field in App Store Connect (Apple's standard EULA is accepted) and publish a short
+`/terms` page with a zero-tolerance clause. Both are console and web only — **neither needs a new
+binary**, so neither can delay the build.
+
 **Leave a demo account and password in the review notes**, with Pro and Club granted in RevenueCat —
 a reviewer who cannot get past the paywall cannot review the feature the release is built on, and
 that is a rejection for reasons that have nothing to do with the app.
