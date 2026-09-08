@@ -97,7 +97,7 @@ bars. The split is by whether an action needs anybody else:
 | Works offline, syncs later         | Needs a connection                              |
 | ---------------------------------- | ----------------------------------------------- |
 | The timer, and everything about it | Seeing somebody else's changes                  |
-| Dealing a hand on one phone        | The multiplayer table                           |
+| Dealing a hand on one phone        | Reporting a board                               |
 | Recording a game you just played   | Claiming a player — it must not double-claim    |
 | Adding a player                    | Removing a player or a game — it is destructive |
 

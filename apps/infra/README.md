@@ -1,6 +1,6 @@
 # `@poker/infra` — the backend
 
-AWS CDK. Accounts, groups, cloud sync, the shared clock and the multiplayer table.
+AWS CDK. Accounts, groups and cloud sync for the shared leaderboard.
 
 **Both stages are deployed** — account `096695166445`, region `us-east-1`.
 
@@ -21,15 +21,14 @@ sufficient — see _What only a deploy could tell us_, below.
 
 ## Where prod is
 
-| Output             | Value                                                                     |
-| ------------------ | ------------------------------------------------------------------------- |
-| `ApiUrl`           | `https://poker-api.toondeboer.com`                                        |
-| `UserPoolId`       | `us-east-1_vJMiOQqvI`                                                     |
-| `UserPoolClientId` | `3qj1r450ssj3jba0g57dd8jnga`                                              |
-| `EventApiDns`      | `rmwfm4dlvnh5flzrm7mznoauvu.appsync-realtime-api.us-east-1.amazonaws.com` |
-| `TableName`        | `PokerBackend-prod-TableCD117FA1-R5UX8NJ0TCR2`                            |
-| `MailFrom`         | `Poker Blinds Timer <noreply@poker.toondeboer.com>`                       |
-| `DashboardName`    | `poker-prod`                                                              |
+| Output             | Value                                               |
+| ------------------ | --------------------------------------------------- |
+| `ApiUrl`           | `https://poker-api.toondeboer.com`                  |
+| `UserPoolId`       | `us-east-1_vJMiOQqvI`                               |
+| `UserPoolClientId` | `3qj1r450ssj3jba0g57dd8jnga`                        |
+| `TableName`        | `PokerBackend-prod-TableCD117FA1-R5UX8NJ0TCR2`      |
+| `MailFrom`         | `Poker Blinds Timer <noreply@poker.toondeboer.com>` |
+| `DashboardName`    | `poker-prod`                                        |
 
 **Out of the SES sandbox as of 2026-09-04.** `aws sesv2 get-account` reports
 `ReviewStatus: GRANTED` and a `Max24HourSend` of 50,000 against the sandbox's 200 — that quota is
@@ -43,13 +42,12 @@ use case can still wait. Ask first anyway — see step 1 of _Standing up product
 
 ## Where dev is
 
-| Output             | Value                                                                     |
-| ------------------ | ------------------------------------------------------------------------- |
-| `ApiUrl`           | `https://poker-api-dev.toondeboer.com`                                    |
-| `UserPoolId`       | `us-east-1_6iwLdpBIy`                                                     |
-| `UserPoolClientId` | `2lahhup3m7il6iqusctitu6lbc`                                              |
-| `EventApiDns`      | `55bempvj4fh2fcvzcy7x26vgy4.appsync-realtime-api.us-east-1.amazonaws.com` |
-| `TableName`        | `PokerBackend-dev-TableCD117FA1-FLOO5GQYD00E`                             |
+| Output             | Value                                         |
+| ------------------ | --------------------------------------------- |
+| `ApiUrl`           | `https://poker-api-dev.toondeboer.com`        |
+| `UserPoolId`       | `us-east-1_6iwLdpBIy`                         |
+| `UserPoolClientId` | `2lahhup3m7il6iqusctitu6lbc`                  |
+| `TableName`        | `PokerBackend-dev-TableCD117FA1-FLOO5GQYD00E` |
 
 `ApiUrl` is **a name we own**, and that is the point of it: the generated
 `https://<id>.execute-api.<region>.amazonaws.com` is baked into every shipped build, and the id
@@ -93,8 +91,9 @@ environment back rather than assuming it matches the one you already trust.
 3. **The account already had a GitHub OIDC provider**, so `PokerDeployment` needs
    `-c existingProviderArn=…`. The documented path worked; it just is not optional here. The
    `deploy:roles` script carries the flag.
-4. **`cdk deploy` does not undo an out-of-band change.** After breaking the action handler's
-   `TABLE_NAME` by hand to test an alarm, a redeploy answered `✅ no changes` and left it broken:
+4. **`cdk deploy` does not undo an out-of-band change.** After breaking a handler's `TABLE_NAME` by
+   hand to test an alarm — the action handler, since removed — a redeploy answered `✅ no changes`
+   and left it broken:
    CloudFormation compares templates, not live resources. **Anything changed with
    `aws lambda update-function-configuration` has to be changed back the same way** — or the stack
    forced with `cdk deploy --force`. A green deploy is not evidence the resource matches the code.
@@ -110,7 +109,7 @@ destroy`; a direct `DeleteTable` call is untouched by it, and this account also 
    reading the code. Two tests now assert the pair together so they cannot drift apart again.
 
 6. **The alarm subscription sits at `PendingConfirmation` until somebody clicks the email.** The
-   stack reports `CREATE_COMPLETE`, all ten alarms report `OK`, `ActionsEnabled` is `true` — and
+   stack reports `CREATE_COMPLETE`, every alarm reports `OK`, `ActionsEnabled` is `true` — and
    every one of them is firing into nothing. There is no state anywhere in CloudFormation that says
    so; the only way to know is
    `aws sns list-subscriptions-by-topic`, where the subscription ARN is the literal string
@@ -174,10 +173,12 @@ sitting on a namespace those channels never touch.
    connected, is a WAF rate rule at roughly $5 a month for a web ACL.
 4. **No considered dashboard.** There is one — `poker-<stage>`, in CDK, an alarm status row over a
    graph per alarm — but it was generated from the alarm definitions rather than designed. One of
-   those alarms has been seen to fire: the action handler was pointed at a table it had no
-   permission to read, and `ActionErrors` reached `ALARM` about a minute later and emailed.
-5. **No custom domain.** The API answers on its generated `execute-api` hostname, which is fine
-   until the day the stack is replaced and the hostname changes with it.
+   those alarms has been seen to fire: the action handler — since removed — was pointed at a table
+   it had no permission to read, and `ActionErrors` reached `ALARM` about a minute later and
+   emailed. The alarm is gone with the handler; the evidence that the pipeline works is not.
+5. ~~**No custom domain.**~~ **Done.** The API answers on `poker-api.toondeboer.com` (and
+   `poker-api-dev` for dev) — a name we own, precisely so that replacing the stack does not break
+   every installed build. See `apiDomain.ts`.
 6. **No federated sign-in.** Apple and Google need real client ids and secrets, and App Store
    guideline 4.8 requires Sign in with Apple alongside any other third-party provider.
    6a. **No dashboard beyond the one in code.** `poker-<stage>` is built by CDK from the same `watch`
@@ -298,13 +299,14 @@ Two of them are now built. The third is not, and cannot be as written:
   a metric filter, which is a different piece of work; it is listed here as absent rather than
   implied by a table.
 
-**Client errors are deliberately not alarmed on the realtime API.** `ConnectClientError` and
-`SubscribeClientError` are what a refused non-member looks like — the subscribe guard working — so
-paging on them would mean an email every time the security boundary did its job.
+**There is no realtime API any more**, so the alarms on it are gone with the table backend — as are
+the two on the action handler. What that section used to argue still holds for whatever replaces
+them: `ConnectClientError` and `SubscribeClientError` were what a refused non-member looked like,
+and paging on them would have meant an email every time the security boundary did its job.
 
-All ten are CloudWatch alarms into an SNS topic, delivered by email, and **one of them has been
-seen to fire** — the action handler was pointed at a table it could not read, and `ActionErrors`
-alarmed about a minute later. They were always going to be CloudWatch rather than declared in the
+The rest are CloudWatch alarms into an SNS topic, delivered by email, and **one has been seen to
+fire** — the action handler, before it was removed, was pointed at a table it could not read, and
+`ActionErrors` alarmed about a minute later. They were always going to be CloudWatch rather than declared in the
 telemetry backend, for a reason that survived the rewrite: **an alert defined in the telemetry
 pipeline stops working when the telemetry pipeline is what broke.**
 
@@ -734,13 +736,19 @@ Each step is a PR, CI-checked, and each is deployable on its own.
 measured and recorded — which is what ended the OpenTelemetry export. 6. Replace `stubAuthProvider` with Cognito in the app; environment configuration for dev vs prod. 7. Link the account screens into Settings — the entry point that has been deliberately absent. 8. Account deletion actually deletes server-side data (App Store 5.1.1(v) — the screen exists, the
 deletion does not).
 
-**C. Sync** — ✅ **the server half.** The access patterns, the store, the routes and account
-deletion are built, deployed and exercised by hand against dev; the design and the reasoning are in
-[SYNC.md](./SYNC.md). ⬜ What is left is the **app** half: the offline queue, the merge, and
-somewhere to say that a queued write was refused.
+**C. Sync** — ✅ **done, both halves.** The access patterns, the store, the routes and account
+deletion are built and deployed; the design and the reasoning are in [SYNC.md](./SYNC.md). The app
+half — the offline queue, the merge, and somewhere to say a queued write was refused — shipped in
+1.2.0.
 
-**D. The table** 11. **Close the `table` namespace authorization gate.** A Lambda authorizer on subscribe checking
-membership in DynamoDB. Nothing else in D lands before this. 12. The action handler's storage and publishing. 13. The shared clock's real `SessionTransport`, replacing the loopback. 14. Multiplayer table wired to the app; automatic recording into the leaderboard.
+**D. The table** — ❌ **removed, not deferred.** A server-authoritative betting engine with an
+AppSync Events bus, a subscribe authorizer guarding hole cards, and no client. It was deleted before
+1.2.0 shipped: betting chips is simulated gambling under Apple's definition, which forces an 18+
+rating and, on an Individual developer account, may prevent submission at all. See the Gambling
+classification section in [ROADMAP.md](../../ROADMAP.md#gambling-classification--blocking-120), and
+the `archive/betting-engine` tag for the code. **The shared clock is the one casualty**: it was
+waiting on a `session` namespace for a bus that existed, and the bus is gone, so it now needs that
+stood back up too.
 
 **E. Sign-in with Apple and Google** — needs credentials in both consoles, so it goes when you are
 back at a machine that has them.
