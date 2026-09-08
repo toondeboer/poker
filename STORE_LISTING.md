@@ -200,8 +200,10 @@ Go Pro to remove ads, deal a hand, work out the payouts, chop the last pot, keep
 ## Age rating — the answer is "no simulated gambling", and here is why
 
 **The app stays 4+ on Apple and 3+ on Google, and the honest answer to the simulated-gambling
-question is no** — because the betting engine is being removed before 1.2.0 ships. See
-[ROADMAP.md](./ROADMAP.md#gambling-classification--blocking-120) for the full decision record.
+question is no** — because two things are being removed before 1.2.0 ships: the betting engine, and
+money from the leaderboard. See
+[ROADMAP.md](./ROADMAP.md#gambling-classification--blocking-120) for the full decision record and
+the comparable-app evidence.
 
 **An earlier draft of this section said 18+, and that was right for the app as built.** Apple defines
 Simulated Gambling as _"Betting or wagering without using real money or in-game currency that can be
@@ -215,18 +217,27 @@ since 2020** and reaches Google Play through IARC, so Europe has no 13+ tier for
 restriction on gambling apps from **Individual developer accounts** — which this is — keys on whether
 the app contains simulated gambling at all, not on how much.
 
+**The second trigger was nearly missed.** Comparable apps show the line is not dealing and not
+calculating, but **accumulating real money across sessions**: a virtual card dealer is 4+ and a
+one-shot payout calculator is 4+, while a home-game buy-in/cash-out scorekeeper and a poker bankroll
+tracker are both **18+**. The leaderboard as built kept a running "won 120" per player, which is the
+bankroll-tracker shape. Money comes off the board for that reason.
+
 ### What to say if a reviewer asks
 
 There is no real money in the app: no wagering, no purchase of chips, no cash-out, and no currency
 symbol rendered anywhere. The payout screen is a calculator for money that changes hands at a
-kitchen table and never touches the app. That is the difference between simulated gambling (a
-rating) and real-money gambling (a different rulebook, which this app is not in).
+kitchen table and never touches the app, and nothing it produces is stored or synced. That is the
+difference between simulated gambling (a rating) and real-money gambling (a different rulebook,
+which this app is not in).
 
-After the cut the app deals cards and evaluates a showdown; it holds no chips, no stakes and no
-pots. **Do not overstate it.** The leaderboard still records `buyIn`, `bounty` and `winnings` for
-hand-entered games and syncs them to a shared board — that path predates the dealt game. The
-accurate claim is "the app does not let you wager, and no longer computes prize money from a game it
-dealt", never "real-money data was removed".
+The app deals cards and evaluates a showdown; it holds no chips, no stakes and no pots. The
+leaderboard records games played, wins and finishing positions — no amounts.
+
+**Say it plainly and do not embroider it.** An earlier draft of this file had to hedge, because the
+leaderboard was still syncing `buyIn`, `bounty` and `winnings` to a shared board. With money off the
+board that hedge is gone and the simple claim is true. If a future change puts money back on the
+board, this paragraph stops being accurate — check it before repeating it.
 
 ### Honest declaration is the whole strategy
 

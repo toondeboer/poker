@@ -13,23 +13,48 @@ are removed from this file when a release is cut rather than accumulating as ✅
 
 ## Gambling classification — blocking 1.2.0
 
-**The dealt game's betting engine is being removed before 1.2.0 ships.** This section is the record
-of why, because the engine is about to look like a half-finished feature somebody abandoned, and the
-next person to find it will be tempted to finish it. Don't.
+**Two things are being removed before 1.2.0 ships: the dealt game's betting engine, and money from
+the leaderboard.** This section is the record of why. The betting engine in particular is about to
+look like a half-finished feature somebody abandoned, and the next person to find it will be tempted
+to finish it. Don't.
 
 ### What forced it
 
 The live app (1.1.4) is a timer and is rated **4+ Apple / 3+ Google**. Everything money-related is
-new in 1.2.0 and the rating has never been tested against any of it. Exactly one feature changes the
-classification.
+new in 1.2.0 and the rating has never been tested against any of it.
 
-Apple defines **Simulated Gambling** as _"Betting or wagering without using real money or in-game
-currency that can be exchanged for real money"_ — 13+ if infrequent, 18+ if frequent. The betting
-engine (`bettingRound.ts`'s fold/check/call/raise, the Min/Pot/All-in controls) is betting, and as a
-headline Pro feature playable every game night it is frequent. Nothing else in the release triggers
-it: the timer, the payout calculator, the chop, the leaderboard, accounts and shared boards are all
-clear, and there is direct App Store precedent for the calculator half (_Cash Out_, _SettleChip_,
-_Poker Payout Calc_ all ship).
+**Two separate triggers, found in that order.**
+
+**1. Betting.** Apple defines **Simulated Gambling** as _"Betting or wagering without using real
+money or in-game currency that can be exchanged for real money"_ — 13+ if infrequent, 18+ if
+frequent. The betting engine (`bettingRound.ts`'s fold/check/call/raise, the Min/Pot/All-in
+controls) is betting, and as a headline Pro feature playable every game night it is frequent.
+
+**2. Tracking real money over time.** This one was missed at first and is the more surprising of the
+two. Comparable apps on the App Store today:
+
+| App                          | What it does                                           | Rating  | Descriptor                     |
+| ---------------------------- | ------------------------------------------------------ | ------- | ------------------------------ |
+| Deck of Cards — Virtual deal | Deals and shuffles cards                               | **4+**  | none                           |
+| Poker Payout Calc            | Computes payouts for 3–18 players                      | **4+**  | none                           |
+| Cash Out Poker               | Home-game scorekeeper: buy-in, cash-out, who owes whom | **18+** | "Contains Gambling"            |
+| Poker Bankroll Tracker       | Sessions, chip graphs, odds calculator, multi-currency | **18+** | "Frequent: Simulated Gambling" |
+
+**The line is not dealing, and it is not calculating — it is accumulating real money across
+sessions.** A one-shot payout calculation is 4+. A running total of what each player has won is 18+
+in both examples found. The leaderboard as built stores `totalWon` and renders "8 games · 3 wins ·
+won 120 · 5 KOs", which is functionally a bankroll tracker.
+
+**Interpret that evidence carefully.** App Store ratings are **self-declared** through the
+questionnaire, not assigned by Apple. Poker Payout Calc (4+) and Cash Out (18+) do broadly similar
+things and landed at opposite ends, which shows the questionnaire is genuinely ambiguous here and
+developers resolve it differently. This is evidence about how the question tends to be answered, not
+proof of what Apple would force.
+
+**What is safe, with precedent:** the timer, the payout calculator as a one-shot tool, the chop,
+accounts, and shared boards. **Dealing cards is also safe** — "Deck of Cards — Virtual deal" is a
+virtual dealer at 4+ with no descriptors at all, which is why dealer mode did not need a ruling from
+App Review.
 
 **13+ was never reachable.** Three independent reasons, each sufficient:
 
@@ -67,47 +92,66 @@ deck.
 
 ### Action items
 
-1. ⬜ **Ask App Review whether a deal-and-evaluate mode with no chips, bets or pots triggers the
-   simulated-gambling descriptor** (App Store Connect → Contact Us). **Blocking the dealer-mode
-   work.** On an Individual account the cost of guessing wrong is a 5.1.1(ix) rejection rather than
-   a rating, so this is asked before the work and not after. If the answer is unfavourable, the
-   fallback is deleting the dealt game outright.
+1. ✅ **Dealer mode does not need a ruling from App Review.** The question was going to be asked;
+   precedent answered it instead. "Deck of Cards — Virtual deal" is a virtual dealer rated **4+ with
+   no content descriptors**, and Apple's descriptor requires "betting or wagering", which dealing
+   cards is not. No ticket needed.
 2. ⬜ **Remove the betting engine; convert to dealer-only mode** — deal, tap-to-peek hole cards,
    community board, showdown evaluation. No chips, no bets, no pots; players bet with the physical
    chips they already have. The cut follows an existing seam: `cards.ts` has no imports and
    `evaluate.ts` imports only `cards`/`handValue`, so the card layer has zero dependency on the
    wagering layer.
-3. ⬜ **Delete the table backend** — `tableAction`, `tableStore`, `tablePublisher`, the AppSync
+3. ⬜ **Take money off the leaderboard.** Track games played, wins and finishing positions; store and
+   display no currency. Removes `Placing.winnings`, `GameResult.buyIn`, `GameResult.bounty`,
+   `LeaderboardStanding.totalWon` and `bountiesWon`, the "won 120" rendering, the money line in the
+   shared summary, and the `winnings`/`buyIn`/`bounty` fields from `cleanResult` and DynamoDB.
+   **The payout calculator stays** — a one-shot "what does each place win tonight" tool has 4+
+   precedent; what does not is accumulating those figures across sessions.
+
+   **This is also what makes the honest claim strong.** With money off the board, "no real-money data
+   leaves the device" becomes simply true, where before it needed careful hedging.
+   `RecordResultSheet` stops reading the payout structure, so the calculator and the record-keeping
+   become fully independent.
+
+4. ⬜ **Make Contests infrequent: drop "seasons".** Frame the board as a record of what happened —
+   games, wins, positions — rather than an ongoing competition. Apple's Contests descriptor is 4+
+   when infrequent and 13+ when frequent, and a tracker of offline results is the Strava shape, which
+   is 4+. The substance matters more than the vocabulary: what keeps this at 4+ is that the app
+   records a competition held elsewhere rather than hosting one.
+5. ⬜ **Delete the table backend** — `tableAction`, `tableStore`, `tablePublisher`, the AppSync
    Events API and the subscribe authorizer. It is a server-authoritative _betting_ engine with no
    client (nothing calls `startHand` server-side, so it cannot even deal), and it is the only other
    consumer of the betting engine — `tableAction.ts` imports `act`/`legalActions`/`BettingAction`
    from `@poker/core`, so the core deletion does not compile without it. **Its own deploy, after the
    app change merges**; diff the synthesised template deliberately.
-4. ⬜ **Full money separation** — the dealt game reads no `PayoutSettings` and writes no currency.
-   **Careful with the claim this supports:** it stops the app _producing_ prize money from a game it
-   dealt. It does not remove real-currency sync from the product — `RecordResultSheet` already
-   passes `buyIn`/`bounty`/`winnings` and `cleanResult` already syncs them, and that path predates
-   the dealt game. Saying "real-money data was removed" would be false.
-5. ⬜ **Set `maxAdContentRating`.** `ads.ts` calls `initialize()` with no request configuration at
+6. ⬜ **Full money separation** — the dealt game reads no `PayoutSettings` and writes no currency.
+   Largely subsumed by item 3: with money off the leaderboard there is no currency for a finished
+   game to write. What remains is removing the `computePayouts` import from `GameScreen` and the
+   auto-record path, so the calculator and the game never touch.
+7. ⬜ **Set `maxAdContentRating`.** `ads.ts` calls `initialize()` with no request configuration at
    all, and `MaxAdContentRating.MA` explicitly includes gambling — so the current default permits
    gambling ads to serve into a poker app aiming at 4+. **Do not set
    `tagForChildDirectedTreatment`**: this is not a child-directed app and the SDK warns that abusing
    that flag can terminate the Google account.
-6. ⬜ **Soften gambling-adjacent copy** across the app, website and store listing — "in your pocket",
+8. ⬜ **Soften gambling-adjacent copy** across the app, website and store listing — "in your pocket",
    "half in cash", "real casino sheets", "from cash games to deep stack tournaments".
-7. ⬜ **Add a factual no-real-money statement** to the website and the review notes. There is
+9. ⬜ **Add a factual no-real-money statement** to the website and the review notes. There is
    currently no disclaimer anywhere. Note Apple says stating something is "for entertainment
    purposes" _won't overcome a guideline_, so this supports the structural changes rather than
    substituting for them.
-8. ⬜ **Answer both age-rating questionnaires honestly and record the answers given**, so the next
-   release can be checked against them rather than re-derived. Apple's and Play's IARC are
-   independent and need not agree.
-9. 🟡 **Residual surface, accepted.** Dealer mode defensibly answers "no" to "does the app let you
-   bet?", but a reviewer still sees a payout screen computing a prize pool from a real buy-in and a
-   season board of money won. **The rating is answered per app, not per screen** — that composition
-   argument is the one to expect to lose if one is lost, and only full removal of the dealt game
-   makes it impossible.
-10. 🟡 **UMP/ATT consent is still a placeholder** (`useAdsConsent.ts`). Serving AdMob to EEA/UK
+10. ⬜ **Answer both age-rating questionnaires honestly and record the answers given**, so the next
+    release can be checked against them rather than re-derived. Apple's and Play's IARC are
+    independent and need not agree.
+11. 🟡 **Residual surface, accepted.** After items 2 and 3 the app deals cards without wagering and
+    keeps a board of games and wins without money — both shapes with 4+ precedent. What remains is
+    the **payout calculator**, which computes a prize pool from a real buy-in. Poker Payout Calc does
+    exactly that at 4+, so the precedent is good, but it is the last gambling-adjacent surface and
+    the one a reviewer would ask about. **The rating is answered per app, not per screen**, so the
+    composition argument — a poker app that deals, calculates prize money and keeps a board — is the
+    one to expect to lose if one is lost. Accepted deliberately: removing the calculator too would
+    gut the feature the release is built on, and it is the single best-evidenced 4+ component in the
+    whole product.
+12. 🟡 **UMP/ATT consent is still a placeholder** (`useAdsConsent.ts`). Serving AdMob to EEA/UK
     without a certified CMP is a live gap, pre-existing and separate from this work.
 
 ## The week, in order

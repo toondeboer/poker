@@ -405,15 +405,20 @@ platform-tagged heading (e.g. `## [1.1.3] - 2026-07-20 — Android`) when you cu
 
 ### Fixed
 
-- Docs: recorded the decision to remove the dealt game's betting engine before 1.2.0 ships, and why.
+- Docs: recorded the decision to keep the app at 4+/3+ by removing two things before 1.2.0 ships —
+  the dealt game's betting engine, and money from the leaderboard — and the evidence behind it.
   `STORE_LISTING.md` asserted the app would rate **18+** for frequent simulated gambling, which was
-  correct for the app as built — betting chips is simulated gambling under Apple's definition, and a
-  headline feature makes it frequent rather than infrequent. 13+ was never available: Apple's 13+
-  needs infrequent simulated gambling, PEGI has auto-rated any simulated gambling 18 since 2020 and
-  reaches Play through IARC, and Apple's restriction on gambling apps from Individual developer
-  accounts keys on whether the app contains simulated gambling at all rather than on how much of it.
-  `ROADMAP.md` now carries the full reasoning and the action items, so the engine is not mistaken for
-  an unfinished feature and completed by whoever finds it next.
+  correct for the app as built: betting chips is simulated gambling under Apple's definition, and a
+  headline feature makes it frequent rather than infrequent. 13+ was never available either — Apple's
+  13+ needs infrequent simulated gambling, PEGI has auto-rated any simulated gambling 18 since 2020
+  and reaches Play through IARC, and Apple's restriction on gambling apps from Individual developer
+  accounts keys on whether the app contains simulated gambling at all rather than how much.
+  Comparable apps then showed a second trigger that had been missed: a virtual card dealer and a
+  one-shot payout calculator are both 4+, while a home-game buy-in/cash-out scorekeeper and a poker
+  bankroll tracker are both 18+ — so the line is not dealing or calculating but **accumulating real
+  money across sessions**, which is what the leaderboard's running "won 120" did. `ROADMAP.md` now
+  carries the full reasoning and the action items, so neither change is mistaken for an unfinished
+  feature and completed by whoever finds it next.
 - **The privacy policy now describes the app that actually ships.** It claimed the app "does not
   collect, transmit, or store any personal data on external servers", offered "Device-Only Storage"
   and stated there were "No advertising networks or ad tracking" — three claims the binary
