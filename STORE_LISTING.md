@@ -237,6 +237,31 @@ leaderboard was still syncing `buyIn`, `bounty` and `winnings` to a shared board
 board that hedge is gone and the simple claim is true. If a future change puts money back on the
 board, this paragraph stops being accurate — check it before repeating it.
 
+### Paste-ready review note
+
+Everything above, in the form the App Review notes field wants. The same wording is published at
+[/support](https://poker-timer.toondeboer.com/support) under "Money, and what the app does with it", so a
+reviewer who checks finds the two agreeing.
+
+```
+Nothing is wagered, staked or paid through this app. There is no way to bet in it, buy chips in it,
+or cash anything out of it — no wallet, no balance, and no payment of any kind between players. The
+only money the app handles is its own one-time Pro purchase, taken by Apple.
+
+The card table deals: it shuffles, deals two cards to each player, turns the flop, turn and river
+when the host taps, and reads the showdown. It holds no chips and has no betting controls — players
+use the physical chips already in front of them.
+
+The payout screen is a calculator. Enter a buy-in and it works out what each place wins, the way a
+spreadsheet would. It settles nothing and stores nothing.
+
+The leaderboard records who played, who won and where people finished. No monetary amount is stored
+or shared anywhere in the app.
+```
+
+**Check it against the binary before pasting it.** It is accurate as of the 1.2.0 build; it is a
+statement Apple can hold the app to, and a wrong one is far more expensive than no statement.
+
 ### Honest declaration is the whole strategy
 
 Apple removes developers for _"trying to trick the review process"_ and _"manipulate ratings"_, and

@@ -9,6 +9,14 @@ platform-tagged heading (e.g. `## [1.1.3] - 2026-07-20 — Android`) when you cu
 
 ## [Unreleased]
 
+### Added
+
+- **The website says plainly what the app does with money.** A new section on the support page:
+  nothing is wagered, staked or paid through the app; the card table deals and holds no chips; the
+  payout screen is a calculator that settles nothing; the leaderboard records results and not
+  amounts. It is there because it is the question a poker app invites, and because the honest answer
+  is short.
+
 ### Changed
 
 - **Ads are capped at general-audience content.** The Google Mobile Ads SDK was started with no
