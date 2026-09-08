@@ -17,84 +17,6 @@ platform-tagged heading (e.g. `## [1.1.3] - 2026-07-20 — Android`) when you cu
   amounts. It is there because it is the question a poker app invites, and because the honest answer
   is short.
 
-### Changed
-
-- **Ads are capped at general-audience content.** The Google Mobile Ads SDK was started with no
-  request configuration at all, and its default admits the `MA` tier — which Google's own
-  documentation describes as including alcohol, **gambling**, sexual content and weapons. Gambling
-  ads served into a poker app is the one combination worth ruling out by hand, so the cap is now
-  set explicitly to match the rating the app asks for. The app is _not_ flagged as child-directed,
-  because it is not: a 4+ rating is a statement about what is in the app, not about who uses it.
-- **Copy across the app, website and store listing now describes what the app does.** Several lines
-  promised a game that no longer exists — "blinds, betting, side pots", a night that puts itself on
-  the leaderboard, progressive bounties, knockout tracking. Those are gone rather than reworded.
-  The board is described as a record of who won rather than a "season", and phrasing that read as
-  gambling promotion rather than home poker — "half their bounty in your pocket", "real casino
-  sheets", "from cash games to deep stack tournaments" — is softened without losing the meaning.
-
-- **The app deals the cards; it does not run the game.** "Play a hand" used to be a full no-limit
-  hold'em engine — stacks, blinds posted into a pot, fold/check/call/raise, side pots, all-in for
-  less. It is now a dealer: it shuffles, deals everybody two cards, turns the flop, turn and river
-  when the table is ready, keeps each player's cards hidden until they tap, and reads the showdown.
-  The chips are on the table in front of everybody, where they always were.
-
-  **Why:** betting chips is _simulated gambling_ under Apple's definition even when the chips are
-  worth nothing, which forces an 18+ rating, PEGI 18 across Europe, and — on an Individual developer
-  account — may prevent submission at all. Dealing cards is none of those things. Full reasoning and
-  the comparable-app evidence are in `ROADMAP.md`.
-
-  What goes with it: the starting stack and blind fields (there is nothing to post), the finishing
-  order (busting is a chip event, and the app cannot see one), and saving a dealt game straight to
-  the leaderboard. **A night still goes on the board** — through the record-a-game sheet, by hand,
-  exactly as a game the app did not deal always did. The control that takes somebody out of a hand
-  is now **Muck**, not Fold: folding is a betting action, and there is no betting.
-
-  A hand still survives the app closing, and that matters more than it did: the app is now the only
-  thing that knows the cards.
-
-### Removed
-
-- **The server-side poker table is gone**, and with it the AppSync Events realtime bus. It was a
-  server-authoritative betting engine — `POST /tables/{tableId}/actions`, two channel namespaces
-  and a subscribe authorizer that kept hole cards private — deployed, correct, and **called by
-  nothing**: the app half was never built. It went for two reasons at once. It is the other
-  consumer of the betting engine being removed from the app, so the engine could not go without
-  it; and a wagering authority sitting in a deployed stack undercuts the point of taking wagering
-  out of the app. Nobody loses anything, because nobody could reach it.
-
-  Nothing a person can see changes. Accounts, shared boards, the leaderboard, invites and the kill
-  switch are untouched — the deploy removes 21 resources and adds none, leaving DynamoDB, Cognito
-  and the HTTP API exactly as they were.
-
-  The code is kept at the `archive/betting-engine` tag: a tested no-limit implementation with side
-  pots and hand evaluation, the publisher, and the subscribe guard. **The shared clock now needs
-  more work than it did** — it was waiting on a `session` namespace for a bus that existed, and now
-  the bus has to be stood back up too. Recorded in `ROADMAP.md` so that is not a surprise.
-
-### Changed
-
-- **The leaderboard keeps score, not money.** It tracked what every player had won across game
-  nights — "8 games · 3 wins · won 120 · 5 KOs" — and now tracks games, wins and where people
-  finished. The payout calculator is untouched: set a buy-in and it still works out what each place
-  wins tonight, and the chop still splits what is left. What is gone is the running total, and with
-  it the buy-in and prize money that used to be stored against every game and sent to a shared
-  board. Nothing that names an amount of money leaves the phone any more.
-
-  This is a rating decision, and the reasoning is written down in `ROADMAP.md` rather than left to
-  be rediscovered. Comparable apps on the App Store put a virtual card dealer and a one-shot payout
-  calculator at 4+, and a home-game buy-in/cash-out scorekeeper and a poker bankroll tracker at 18+
-  — so the line is not dealing and not calculating, it is accumulating real money across sessions,
-  which is what the board was doing.
-
-  **Nobody loses a game night.** Boards, players and every result already recorded still load, and
-  finishing positions come back exactly as they were; the amounts attached to them fall away the
-  first time the board is written back. Anything sitting unsent in the outbox still sends. Progressive
-  bounties go with the money — they needed the app to watch every hand to know whose chips took whom
-  out — while flat bounties stay in the calculator, settled between players at the table as they
-  always were.
-
-### Added
-
 - **A finished game asks before it is thrown away.** Start a new game with an unsaved one on screen
   and the app offers to put it on the leaderboard first — it dealt every hand, so it already knows
   who finished where. Nothing is lost either way: a finished game survives the app closing, and its
@@ -285,17 +207,6 @@ platform-tagged heading (e.g. `## [1.1.3] - 2026-07-20 — Android`) when you cu
   evening a week, so almost every request is that first one. Nobody would have seen a bug; they
   would have seen the app feeling slow to wake up.
 
-### Removed
-
-- The Maestro end-to-end suite (26 flows) is gone. It had rotted while nothing referenced it: a
-  hardcoded LAN address and stale selectors, no npm script, and no CI job — running it would have
-  meant a ~20-minute cold Gradle build per PR, which is why it never got wired up. Verification now splits along a clearer line: logic is unit-tested in `@poker/core`,
-  and everything a unit test structurally cannot see (layout, real platform behaviour, purchases) is
-  a human pass driven by [RELEASE_TESTING.md](./RELEASE_TESTING.md), which now spells those rows out
-  instead of deferring them to a flow.
-
-### Added
-
 - Groundwork for the multiplayer game mode: a card model, a **seeded** shuffle and a hand
   evaluator in `@poker/core`. Nothing user-facing yet. Randomness is injected rather than
   generated, so a deal is reproducible from its seed — which is what lets the same hand be replayed
@@ -445,29 +356,11 @@ platform-tagged heading (e.g. `## [1.1.3] - 2026-07-20 — Android`) when you cu
   corrupt-value and storage-unavailable fallbacks in every loader, the shared store/entitlement ids,
   and blind-maths edges at the top and bottom of the chip ladder.
 
-### Added
-
 - **Sign in with Apple or Google.** Two taps instead of typing an address, waiting for a code and
   typing that too — the providers have already checked the address, so there is nothing to confirm.
   Email and password is still there behind _Use email instead_, and signing in either way lands on
   the same account: somebody who created one with a password and later taps Continue with Google
   finds their boards and their season where they left them.
-
-### Changed
-
-- **Signing in a different way finds the same account.** Somebody who created an account with an
-  email and password and later signs in with Apple or Google lands on the account they already
-  have, with their boards and their season, rather than on an empty one. This is groundwork for
-  social sign-in and does nothing visible on its own.
-
-### Changed
-
-- **The app now talks to a real server.** Accounts, board sharing and leaderboard sync were built
-  and tested throughout this release against a development backend, but every shipped build had
-  them switched off at the source — so none of it did anything. This release points at production,
-  which is what turns those features from code into something you can use.
-
-### Added
 
 - **You can report a shared board, and leave one.** A board somebody sent you carries names they
   typed, and until now there was nothing to do about an offensive one: the boards list has a flag
@@ -486,6 +379,102 @@ platform-tagged heading (e.g. `## [1.1.3] - 2026-07-20 — Android`) when you cu
   contain something — Scunthorpe, therapist and raccoon all pass, and there are tests to keep it
   that way. It stops the lazy case rather than a determined one, which is why reporting sits beside
   it rather than instead of it.
+
+### Changed
+
+- **Ads are capped at general-audience content.** The Google Mobile Ads SDK was started with no
+  request configuration at all, and its default admits the `MA` tier — which Google's own
+  documentation describes as including alcohol, **gambling**, sexual content and weapons. Gambling
+  ads served into a poker app is the one combination worth ruling out by hand, so the cap is now
+  set explicitly to match the rating the app asks for. The app is _not_ flagged as child-directed,
+  because it is not: a 4+ rating is a statement about what is in the app, not about who uses it.
+- **Copy across the app, website and store listing now describes what the app does.** Several lines
+  promised a game that no longer exists — "blinds, betting, side pots", a night that puts itself on
+  the leaderboard, progressive bounties, knockout tracking. Those are gone rather than reworded.
+  The board is described as a record of who won rather than a "season", and phrasing that read as
+  gambling promotion rather than home poker — "half their bounty in your pocket", "real casino
+  sheets", "from cash games to deep stack tournaments" — is softened without losing the meaning.
+
+- **The app deals the cards; it does not run the game.** "Play a hand" used to be a full no-limit
+  hold'em engine — stacks, blinds posted into a pot, fold/check/call/raise, side pots, all-in for
+  less. It is now a dealer: it shuffles, deals everybody two cards, turns the flop, turn and river
+  when the table is ready, keeps each player's cards hidden until they tap, and reads the showdown.
+  The chips are on the table in front of everybody, where they always were.
+
+  **Why:** betting chips is _simulated gambling_ under Apple's definition even when the chips are
+  worth nothing, which forces an 18+ rating, PEGI 18 across Europe, and — on an Individual developer
+  account — may prevent submission at all. Dealing cards is none of those things. Full reasoning and
+  the comparable-app evidence are in `ROADMAP.md`.
+
+  What goes with it: the starting stack and blind fields (there is nothing to post), the finishing
+  order (busting is a chip event, and the app cannot see one), and saving a dealt game straight to
+  the leaderboard. **A night still goes on the board** — through the record-a-game sheet, by hand,
+  exactly as a game the app did not deal always did. The control that takes somebody out of a hand
+  is now **Muck**, not Fold: folding is a betting action, and there is no betting.
+
+  A hand still survives the app closing, and that matters more than it did: the app is now the only
+  thing that knows the cards.
+
+- **The leaderboard keeps score, not money.** It tracked what every player had won across game
+  nights — "8 games · 3 wins · won 120 · 5 KOs" — and now tracks games, wins and where people
+  finished. The payout calculator is untouched: set a buy-in and it still works out what each place
+  wins tonight, and the chop still splits what is left. What is gone is the running total, and with
+  it the buy-in and prize money that used to be stored against every game and sent to a shared
+  board. Nothing that names an amount of money leaves the phone any more.
+
+  This is a rating decision, and the reasoning is written down in `ROADMAP.md` rather than left to
+  be rediscovered. Comparable apps on the App Store put a virtual card dealer and a one-shot payout
+  calculator at 4+, and a home-game buy-in/cash-out scorekeeper and a poker bankroll tracker at 18+
+  — so the line is not dealing and not calculating, it is accumulating real money across sessions,
+  which is what the board was doing.
+
+  **Nobody loses a game night.** Boards, players and every result already recorded still load, and
+  finishing positions come back exactly as they were; the amounts attached to them fall away the
+  first time the board is written back. Anything sitting unsent in the outbox still sends. Progressive
+  bounties go with the money — they needed the app to watch every hand to know whose chips took whom
+  out — while flat bounties stay in the calculator, settled between players at the table as they
+  always were.
+
+- **Signing in a different way finds the same account.** Somebody who created an account with an
+  email and password and later signs in with Apple or Google lands on the account they already
+  have, with their boards and their season, rather than on an empty one. This is groundwork for
+  social sign-in and does nothing visible on its own.
+
+- **The app now talks to a real server.** Accounts, board sharing and leaderboard sync were built
+  and tested throughout this release against a development backend, but every shipped build had
+  them switched off at the source — so none of it did anything. This release points at production,
+  which is what turns those features from code into something you can use.
+
+- Mobile: brought every Expo package up to the version SDK 56 actually expects — the project had
+  drifted 12 packages behind, including `expo` itself, the router, notifications, the splash screen
+  and `react-native-screens`. No new features; it's the accumulated bug-fix releases Expo has
+  published for this SDK.
+
+### Removed
+
+- **The server-side poker table is gone**, and with it the AppSync Events realtime bus. It was a
+  server-authoritative betting engine — `POST /tables/{tableId}/actions`, two channel namespaces
+  and a subscribe authorizer that kept hole cards private — deployed, correct, and **called by
+  nothing**: the app half was never built. It went for two reasons at once. It is the other
+  consumer of the betting engine being removed from the app, so the engine could not go without
+  it; and a wagering authority sitting in a deployed stack undercuts the point of taking wagering
+  out of the app. Nobody loses anything, because nobody could reach it.
+
+  Nothing a person can see changes. Accounts, shared boards, the leaderboard, invites and the kill
+  switch are untouched — the deploy removes 21 resources and adds none, leaving DynamoDB, Cognito
+  and the HTTP API exactly as they were.
+
+  The code is kept at the `archive/betting-engine` tag: a tested no-limit implementation with side
+  pots and hand evaluation, the publisher, and the subscribe guard. **The shared clock now needs
+  more work than it did** — it was waiting on a `session` namespace for a bus that existed, and now
+  the bus has to be stood back up too. Recorded in `ROADMAP.md` so that is not a surprise.
+
+- The Maestro end-to-end suite (26 flows) is gone. It had rotted while nothing referenced it: a
+  hardcoded LAN address and stale selectors, no npm script, and no CI job — running it would have
+  meant a ~20-minute cold Gradle build per PR, which is why it never got wired up. Verification now splits along a clearer line: logic is unit-tested in `@poker/core`,
+  and everything a unit test structurally cannot see (layout, real platform behaviour, purchases) is
+  a human pass driven by [RELEASE_TESTING.md](./RELEASE_TESTING.md), which now spells those rows out
+  instead of deferring them to a flow.
 
 ### Fixed
 
@@ -620,13 +609,6 @@ platform-tagged heading (e.g. `## [1.1.3] - 2026-07-20 — Android`) when you cu
   expo CLI resolves that package from its own nested location — so every one of those commands died
   with `Cannot find module 'expo-router/_ctx-shared'` before Metro served anything. The scripts now
   set `NODE_PATH`, which appends the workspace's own `node_modules` to the CLI's lookup path.
-
-### Changed
-
-- Mobile: brought every Expo package up to the version SDK 56 actually expects — the project had
-  drifted 12 packages behind, including `expo` itself, the router, notifications, the splash screen
-  and `react-native-screens`. No new features; it's the accumulated bug-fix releases Expo has
-  published for this SDK.
 
 ## [1.1.4] - 2026-08-19 — iOS & Android
 
