@@ -216,6 +216,11 @@ following a link from the app to a poker table is a conversation the release doe
    general posture it implies rather than as a ruling on this. Either way it points one direction:
    the statement supports the structural changes rather than substituting for them, which is why it
    took until items 2–7 were done to be worth writing.
+   **Release-cutting step 1 is already done.** `Info.plist`, `build.gradle` and `app.json` all read
+   `1.2.0` — bumped in `91fc66b` (#148), not left for cut time. Checked because the process in
+   `CLAUDE.md` lists it as a step to perform then, and doing it twice is harmless but looking for it at
+   the wrong moment is not.
+
 10. ⬜ **Answer both age-rating questionnaires honestly and record the answers given**, so the next
     release can be checked against them rather than re-derived. Apple's and Play's IARC are
     independent and need not agree.

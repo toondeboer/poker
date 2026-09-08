@@ -472,7 +472,9 @@ Mobile releases are batched on a short-lived branch per version, not shipped str
   even with `--clear-cache`). `apps/mobile/ios/Podfile` bakes
   `ENV['EXPO_USE_PRECOMPILED_MODULES'] = '0'` and `ENV['RCT_USE_PREBUILT_RNCORE'] = '0'` at the
   top, so a plain `pod install` / `npm run pods` is safe — no env prefix needed. `app.json`'s
-  `ios.buildReactNativeFromSource: true` documents the intent but has no effect on its own —
+  `buildReactNativeFromSource: true` — which lives under `expo.plugins` → `expo-build-properties`
+  → `ios`, **not** under `expo.ios`, where you will look for it first — documents the intent but
+  has no effect on its own —
   nothing bridges it to the env var, so the Podfile lines are what actually enforce this. The
   matching `eas.json` build-profile env vars are a redundant guard specifically for EAS Build,
   which sets `EXPO_USE_PRECOMPILED_MODULES=1` ambiently in its cloud environment. Verify:

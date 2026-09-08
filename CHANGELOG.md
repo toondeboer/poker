@@ -427,6 +427,17 @@ platform-tagged heading (e.g. `## [1.1.3] - 2026-07-20 — Android`) when you cu
   deleted with it. One deliberate exception: the API's deployed `description` string is still wrong
   and is left that way with a comment saying so, because correcting it would put the branch out of
   sync with the live stack for something cosmetic.
+- **`apps/infra/SYNC.md`'s key table was missing two of the eight item types.** It is the schema
+  reference — `ARCHITECTURE.md` points at it before changing any of this — and it listed neither the
+  **report** row (`GROUP#<groupId>` / `REPORT#<accountId>`, new in #222) nor the **invite**
+  (`INVITE#<token>` / `META`, which the prose below it describes but the table never showed). Its
+  "two partitions answer everything" was wrong for the same reason: the invite needs a third,
+  because whoever redeems a token does not know the group id yet. Both rows added, with why the
+  report is keyed by its reporter.
+- **`CLAUDE.md` pointed at the wrong path for `buildReactNativeFromSource`.** It reads
+  `ios.buildReactNativeFromSource`, and the key actually lives under `expo.plugins` →
+  `expo-build-properties` → `ios`. Anybody following the note would look under `expo.ios`, find
+  nothing, and conclude the guard had been removed — which is the one thing that note exists to stop.
 - **`ARCHITECTURE.md` said the app never calls `/members`; it has since 1.2.0.** `leaveBoard` sends
   `DELETE /groups/{groupId}/members/{accountId}` for the caller's own account — leaving is not an
   admin action, so it is the one member route a phone reaches, and it does not go through the
