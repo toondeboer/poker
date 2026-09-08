@@ -9,6 +9,28 @@ platform-tagged heading (e.g. `## [1.1.3] - 2026-07-20 — Android`) when you cu
 
 ## [Unreleased]
 
+### Changed
+
+- **The app deals the cards; it does not run the game.** "Play a hand" used to be a full no-limit
+  hold'em engine — stacks, blinds posted into a pot, fold/check/call/raise, side pots, all-in for
+  less. It is now a dealer: it shuffles, deals everybody two cards, turns the flop, turn and river
+  when the table is ready, keeps each player's cards hidden until they tap, and reads the showdown.
+  The chips are on the table in front of everybody, where they always were.
+
+  **Why:** betting chips is _simulated gambling_ under Apple's definition even when the chips are
+  worth nothing, which forces an 18+ rating, PEGI 18 across Europe, and — on an Individual developer
+  account — may prevent submission at all. Dealing cards is none of those things. Full reasoning and
+  the comparable-app evidence are in `ROADMAP.md`.
+
+  What goes with it: the starting stack and blind fields (there is nothing to post), the finishing
+  order (busting is a chip event, and the app cannot see one), and saving a dealt game straight to
+  the leaderboard. **A night still goes on the board** — through the record-a-game sheet, by hand,
+  exactly as a game the app did not deal always did. The control that takes somebody out of a hand
+  is now **Muck**, not Fold: folding is a betting action, and there is no betting.
+
+  A hand still survives the app closing, and that matters more than it did: the app is now the only
+  thing that knows the cards.
+
 ### Removed
 
 - **The server-side poker table is gone**, and with it the AppSync Events realtime bus. It was a

@@ -9,7 +9,7 @@ import {
   View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { finishingPlacings, MAX_SEATS } from "@poker/core";
+import { MAX_SEATS } from "@poker/core";
 import { usePremium } from "@/src/contexts/PremiumContext";
 import { useLeaderboard } from "@/src/contexts/LeaderboardContext";
 import {
@@ -24,9 +24,8 @@ import { Badge } from "@/src/components/ui/Badge";
 import { Button } from "@/src/components/ui/Button";
 import { Card, CardContent, CardHeader } from "@/src/components/ui/Card";
 import { ListRow } from "@/src/components/ui/ListRow";
-import { NumberField } from "@/src/components/ui/NumberField";
 import { useGame } from "@/src/contexts/GameContext";
-import { FinishingOrder, TableView } from "./TableView";
+import { TableView } from "./TableView";
 
 const MIN_PLAYERS = 2;
 
@@ -46,20 +45,13 @@ export function GameScreen() {
   const { width } = useWindowDimensions();
   const isTablet = isTabletWidth(width);
   const { isPremium } = usePremium();
-  const { players, activeGroupId } = useLeaderboard();
+  const { players } = useLeaderboard();
   const game = useGame();
 
   const [showPaywall, setShowPaywall] = useState(false);
   const [seated, setSeated] = useState<string[]>([]);
-  const [startingStack, setStartingStack] = useState(1000);
-  const [smallBlind, setSmallBlind] = useState(5);
-  const [bigBlind, setBigBlind] = useState(10);
 
-  const canStart =
-    seated.length >= MIN_PLAYERS &&
-    startingStack > bigBlind &&
-    bigBlind > smallBlind &&
-    smallBlind > 0;
+  const canStart = seated.length >= MIN_PLAYERS;
 
   /**
    * Seats hold player **ids**, not names.
@@ -124,44 +116,18 @@ export function GameScreen() {
       </Card>
 
       <Card>
-        <CardHeader icon="cash" title="Chips and blinds" />
         <CardContent>
-          <NumberField
-            label="Starting stack"
-            value={startingStack}
-            onChangeValue={setStartingStack}
-            min={1}
-          />
-          <NumberField
-            label="Small blind"
-            value={smallBlind}
-            onChangeValue={setSmallBlind}
-            min={1}
-          />
-          <NumberField
-            label="Big blind"
-            value={bigBlind}
-            onChangeValue={setBigBlind}
-            min={1}
-          />
+          {/* No stack, no blinds. The table has chips in front of them; the
+              app is only the deck. */}
           <Button
             label="Deal the first hand"
             icon="play"
-            onPress={() =>
-              game.startGame({
-                players: seated,
-                startingStack,
-                smallBlind,
-                bigBlind,
-                groupId: activeGroupId,
-              })
-            }
+            onPress={() => game.startGame({ players: seated })}
             disabled={!canStart}
           />
-          {!canStart && seated.length >= MIN_PLAYERS ? (
+          {!canStart ? (
             <Text style={styles.empty}>
-              The big blind has to be above the small blind, and everyone needs
-              a stack bigger than the big blind.
+              Seat at least {MIN_PLAYERS} players to deal.
             </Text>
           ) : null}
         </CardContent>
@@ -174,9 +140,9 @@ export function GameScreen() {
       <CardHeader icon="grid" title="Play a hand" />
       <CardContent>
         <Text style={styles.empty}>
-          Deal a real hand of hold&apos;em from the phone, for a table that has
-          chips but no cards. Everyone sees the board; only the player to act
-          sees their own two cards.
+          Deal a real hand of hold&apos;em from the phone, for a table with
+          chips but no cards. Everyone sees the board; each player&apos;s own
+          two cards stay hidden until they tap.
         </Text>
         <Button
           label="Unlock with Pro"
@@ -208,190 +174,69 @@ export function GameScreen() {
   );
 }
 
-/** A game in progress. All of its state lives in {@link GameProvider}. */
+/** A table in progress. All of its state lives in {@link GameProvider}. */
 function ActiveGame({ nameFor }: { nameFor: (id: string) => string }) {
   const {
     session,
-    setup,
-    legal,
-    complete,
-    order,
     handInProgress,
-    recorded,
-    markRecorded,
+    canDealNext,
     deal,
-    act,
+    advanceStreet,
+    toggleMuck,
     endGame,
   } = useGame();
-  const { recordResult, activeGroupId } = useLeaderboard();
-  const [refused, setRefused] = useState<string | null>(null);
-
-  /**
-   * **The game reads nothing from the payout setup, deliberately.**
-   *
-   * It used to price every finish from the host's buy-in and write the amounts
-   * onto the leaderboard, which is the shape that made this a money tracker.
-   * The calculator still works out what each place wins tonight; the game
-   * records who finished where and stops there. See the Gambling classification
-   * section in `ROADMAP.md`.
-   */
 
   if (!session) return null;
 
   /**
-   * Put the finished game on the leaderboard.
+   * **Nothing here records a result.**
    *
-   * This is the whole reason the engine exists rather than a chip counter: the
-   * app dealt every hand, so it already knows who went out fourth. Recording by
-   * hand is two taps per player and a memory test at the end of a long evening.
-   */
-  const record = (): boolean => {
-    // The board this game's players came from. Recording into whichever group
-    // happens to be selected now would file the night with people who were
-    // never at the table, and nothing downstream would notice.
-    if (setup && setup.groupId !== activeGroupId) {
-      setRefused(
-        "These players came from a different group. Switch back to it on the Leaderboard screen to save this game.",
-      );
-      return false;
-    }
-    const saved = recordResult({
-      playerIds: session.seats.map((seat) => seat.playerId),
-      placings: finishingPlacings(session),
-    });
-    // Only claim it was saved if it was. A refused result used to leave the
-    // message saying otherwise and took the retry away with it.
-    if (saved) markRecorded();
-    else
-      setRefused("That result couldn't be saved. Nothing has been recorded.");
-    // **Returned, because the caller may be about to throw the game away.**
-    // `record` refuses for two reasons that are invisible from outside it, and
-    // ending the game on the strength of a save that did not happen destroys
-    // the night *and* the message explaining why.
-    return saved;
-  };
-
-  /**
-   * Ending a game is the one action that throws it away.
-   *
-   * **So it is the moment to ask, and the completion itself is not.** An alert
-   * the instant the game ends covers the showdown — the board, the cards and
-   * who won what — which is the one hand everybody wants to look at, and is
-   * exactly why the table is kept drawn below rather than replaced by a
-   * summary.
-   *
-   * It is also the only place the night is genuinely at risk. A finished game
-   * survives the app closing and its Save button is still there next launch;
-   * this is what makes it gone.
+   * The app used to price every finish from the host's buy-in and write the
+   * amounts onto the leaderboard — that is what made it a money tracker. It
+   * cannot know who finished where now either: busting is a chip event and the
+   * chips are on the table. A night goes on the board through the record-a-game
+   * sheet, by hand, the same way a game the app did not deal always did. See
+   * the Gambling classification section in `ROADMAP.md`.
    */
   const confirmEndGame = () => {
-    // Nothing to lose: already on the leaderboard.
-    if (complete && recorded) {
+    if (session.handsPlayed === 0) {
       endGame();
       return;
     }
-
-    /**
-     * **A game still in progress is the worse loss**, and it reached this
-     * button unguarded. A finished one can at least be recorded; an evening
-     * halfway through cannot be reconstructed from anywhere, and "End the game"
-     * sits directly under "Next hand".
-     */
-    if (!complete) {
-      // **Nothing dealt is nothing to lose**, and warning that "the hands
-      // played so far cannot be recovered" when there are none is the kind of
-      // confirmation people learn to tap through. Same check the Deal /
-      // Next hand label uses.
-      if (session.handsPlayed === 0) {
-        endGame();
-        return;
-      }
-      Alert.alert(
-        "End this game?",
-        "The hands played so far cannot be recovered, and a game in progress cannot be put on the leaderboard.",
-        [
-          { text: "Keep playing", style: "cancel" },
-          { text: "End the game", style: "destructive", onPress: endGame },
-        ],
-      );
-      return;
-    }
-
-    /**
-     * **Save first in the array, destructive second.** iOS moves the `cancel`
-     * action to the bottom and keeps the rest in order, so `[Cancel, Discard,
-     * Save]` renders as Discard / Save / Cancel — putting the destructive
-     * choice in the easiest slot to hit, on the prompt written to prevent
-     * exactly that loss. This order renders Save / Discard / Cancel on iOS and
-     * reads the same way on Android.
-     */
     Alert.alert(
-      "Save this game first?",
-      "The app dealt every hand, so it already knows who finished where. Ending the game throws it away.",
+      "End this game?",
+      "The cards on screen go with it. Nothing else is lost — the leaderboard is recorded separately, from the Leaderboard screen.",
       [
-        {
-          /**
-           * **Only ends the game if the save actually happened.** `record`
-           * refuses when the players came from a board that is no longer
-           * active, and refusing then ending would clear the session — taking
-           * the night with it, and the explanation with it too, since this
-           * component renders nothing once there is no session.
-           */
-          text: "Save",
-          onPress: () => {
-            if (record()) endGame();
-          },
-        },
-        { text: "Discard", style: "destructive", onPress: endGame },
         { text: "Cancel", style: "cancel" },
+        { text: "End the game", style: "destructive", onPress: endGame },
       ],
     );
   };
 
   return (
     <>
-      {/* The table is drawn even once the game is over. Returning early here
-          hid the hand that decided it — the board, the showdown and who won
-          what — which is the one hand everybody wants to look at. */}
+      {/* The table stays drawn after the showdown. Returning early here hid the
+          hand that decided it, which is the one everybody wants to look at. */}
       <TableView
         session={session}
-        legal={legal}
-        onAct={act}
+        onAdvance={advanceStreet}
+        onMuck={toggleMuck}
         nameFor={nameFor}
       />
-      {complete ? (
-        <Card>
-          <CardHeader icon="trophy" title="Game over" />
-          <CardContent>
-            <FinishingOrder order={order} nameFor={nameFor} />
-            {/* No bounty accounting here any more. Bounties are settled between
-                players at the table as knockouts happen, and the board records
-                who finished where rather than what anything paid. */}
-            {recorded ? (
-              <Text style={styles.empty}>
-                Saved to the leaderboard. The standings have it already.
-              </Text>
-            ) : (
-              <>
-                {refused ? <Text style={styles.empty}>{refused}</Text> : null}
-                <Button
-                  label="Save to the leaderboard"
-                  icon="trophy"
-                  onPress={record}
-                />
-              </>
-            )}
-            <Button label="New game" icon="refresh" onPress={confirmEndGame} />
-          </CardContent>
-        </Card>
-      ) : !handInProgress ? (
+      {!handInProgress ? (
         <Card>
           <CardContent>
             <Button
               label={session.handsPlayed === 0 ? "Deal" : "Next hand"}
               icon="play"
               onPress={deal}
+              disabled={!canDealNext}
             />
+            {!canDealNext ? (
+              <Text style={styles.empty}>
+                Two players have to be in to deal a hand.
+              </Text>
+            ) : null}
             <Button
               label="End the game"
               variant="ghost"
