@@ -120,7 +120,7 @@ following a link from the app to a poker table is a conversation the release doe
    precedent answered it instead. "Deck of Cards — Virtual deal" is a virtual dealer rated **4+ with
    no content descriptors**, and Apple's descriptor requires "betting or wagering", which dealing
    cards is not. No ticket needed.
-2. ⬜ **Remove the betting engine; convert to dealer-only mode** — deal, tap-to-peek hole cards,
+2. ✅ **Betting engine removed; dealer-only mode shipped** — deal, tap-to-peek hole cards,
    community board, showdown evaluation. No chips, no bets, no pots; players bet with the physical
    chips they already have. The cut follows an existing seam: `cards.ts` has no imports and
    `evaluate.ts` imports only `cards`/`handValue`, so the card layer has zero dependency on the
@@ -132,7 +132,7 @@ following a link from the app to a poker table is a conversation the release doe
    recoverable at no maintenance cost, without leaving unreachable code in the tree for somebody to
    work out the status of later.
 
-3. ⬜ **Take money off the leaderboard.** Track games played, wins and finishing positions; store and
+3. ✅ **Money is off the leaderboard.** Track games played, wins and finishing positions; store and
    display no currency. Removes `Placing.winnings`, `GameResult.buyIn`, `GameResult.bounty`,
    `LeaderboardStanding.totalWon` and `bountiesWon`, the "won 120" rendering, the money line in the
    shared summary, and the `winnings`/`buyIn`/`bounty` fields from `cleanResult` and DynamoDB.
@@ -144,7 +144,7 @@ following a link from the app to a poker table is a conversation the release doe
    `RecordResultSheet` stops reading the payout structure, so the calculator and the record-keeping
    become fully independent.
 
-4. ⬜ **Make Contests infrequent: drop "seasons".** Frame the board as a record of what happened —
+4. ✅ **Contests made infrequent: "seasons" dropped.** Frame the board as a record of what happened —
    games, wins, positions — rather than an ongoing competition. Apple's Contests descriptor is 4+
    when infrequent and 13+ when frequent, and a tracker of offline results is the Strava shape, which
    is 4+. The substance matters more than the vocabulary: what keeps this at 4+ is that the app
@@ -158,17 +158,17 @@ following a link from the app to a poker table is a conversation the release doe
    **Still to deploy.** The code is merged; the stack is not. Run the infra deploy separately, and
    diff the template before approving — this destroys an AppSync Events API and two Lambdas.
 
-6. ⬜ **Full money separation** — the dealt game reads no `PayoutSettings` and writes no currency.
+6. ✅ **Full money separation** — the dealt game reads no `PayoutSettings` and writes no currency.
    Largely subsumed by item 3: with money off the leaderboard there is no currency for a finished
    game to write. What remains is removing the `computePayouts` import from `GameScreen` and the
    auto-record path, so the calculator and the game never touch.
-7. ⬜ **Set `maxAdContentRating`.** `ads.ts` calls `initialize()` with no request configuration at
-   all, and `MaxAdContentRating.MA` explicitly includes gambling — so the current default permits
-   gambling ads to serve into a poker app aiming at 4+. **Do not set
-   `tagForChildDirectedTreatment`**: this is not a child-directed app and the SDK warns that abusing
-   that flag can terminate the Google account.
-8. ⬜ **Soften gambling-adjacent copy** across the app, website and store listing — "in your pocket",
-   "half in cash", "real casino sheets", "from cash games to deep stack tournaments".
+7. ✅ **`maxAdContentRating` set to `G`.** `ads.ts` called `initialize()` with no request
+   configuration at all, and `MaxAdContentRating.MA` explicitly includes gambling — so the default
+   permitted gambling ads to serve into a poker app asking to be rated 4+. `G` matches the rating
+   the app is asking for. **`tagForChildDirectedTreatment` is deliberately not set**: this is not a
+   child-directed app, and the SDK warns that abusing that flag can terminate the Google account.
+   A 4+ rating is a statement about content, not about the audience.
+8. 🚧 **Soften gambling-adjacent copy** — app, website and store listing done; a final read of the whole listing before submission is still worth doing.
 9. ⬜ **Add a factual no-real-money statement** to the website and the review notes. There is
    currently no disclaimer anywhere. Note Apple says stating something is "for entertainment
    purposes" _won't overcome a guideline_, so this supports the structural changes rather than

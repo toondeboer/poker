@@ -54,7 +54,7 @@ and describe features the app actually has.
 **Stale as of 1.2.0** — it describes the 1.1.x app. Replacement:
 
 ```
-The blinds clock for home poker night — and now it deals, too. Big readable timer, custom levels, payouts worked out, and a leaderboard across the season.
+The blinds clock for home poker night — and now it deals, too. Big readable timer, custom levels, payouts worked out, and a leaderboard for your group.
 ```
 
 `154` chars. Re-count in the console before saving.
@@ -105,11 +105,10 @@ Built for real Texas Hold'em tournament nights at somebody's kitchen table:
 • Fully custom blind levels — set your own blind structure and round lengths, add or remove levels anytime, free
 • Loud buzzer & notification when a level ends, even if your phone is locked or the app is in the background
 • Live Activities on the Lock Screen — check the current blind level without unlocking your phone
-• Play a hand (Pro) — no cards, or nobody can find the deck? Pass the phone round the table and the app runs the whole game: blinds, betting, side pots, the showdown and who is out. Your cards stay hidden until you tap, and hide again the moment the turn passes
+• Deal a hand (Pro) — no cards, or nobody can find the deck? Pass the phone round and the app deals: two cards each, then the flop, turn and river when the table is ready, and it reads the showdown at the end. Your own two cards stay hidden until you tap. You play with the chips already in front of you
 • Work out the payouts (Pro) — enter the buy-in and the app splits the pool across the places that pay, with bounties, rebuys and add-ons counted. Every place below the winner is a round number you can count straight out of the pot
 • Chop the last pot (Pro) — ending early? Everyone left keeps the lowest prize still live and the rest splits by chip stack, so nobody drops below the place they'd locked up
-• Progressive bounties (Pro) — knock somebody out and half their bounty is yours, the other half goes on your own head. The format nobody can run on paper, because the app keeps the whole ledger
-• Keep a leaderboard (Pro) — who's won most across the season, with a separate board for each group you play with. A game the app dealt puts itself on the board, knockouts included
+• Keep a leaderboard (Pro) — who's won most, with a separate board for each group you play with. Recording a night is two taps per player and no typing
 • Share a board with your table (Club) — send a code, they paste it in, and the whole board is on their phone too. Joining is free: only the person who shares a board subscribes
 • Save tournament presets (Pro) — store your blind structure & round length, load them in one tap
 • Choose your alarm sound (Pro) — pick from a few bundled alarm packs beyond the default
@@ -150,11 +149,10 @@ Go Pro to remove ads, deal a hand, work out the payouts, chop the last pot, keep
   • Fully custom blind levels — set your own blind structure and round lengths, add or remove levels anytime, free
   • Loud buzzer & notification when a level ends, even if your phone is locked or the app is in the background
   • Keeps timing in the background — the clock won't drop out mid-tournament
-  • Play a hand (Pro) — no cards, or nobody can find the deck? Pass the phone round the table and the app runs the whole game: blinds, betting, side pots, the showdown and who is out. Your cards stay hidden until you tap, and hide again the moment the turn passes
+  • Deal a hand (Pro) — no cards, or nobody can find the deck? Pass the phone round and the app deals: two cards each, then the flop, turn and river when the table is ready, and it reads the showdown at the end. Your own two cards stay hidden until you tap. You play with the chips already in front of you
   • Work out the payouts (Pro) — enter the buy-in and the app splits the pool across the places that pay, with bounties, rebuys and add-ons counted. Every place below the winner is a round number you can count straight out of the pot
   • Chop the last pot (Pro) — ending early? Everyone left keeps the lowest prize still live and the rest splits by chip stack, so nobody drops below the place they'd locked up
-  • Progressive bounties (Pro) — knock somebody out and half their bounty is yours, the other half goes on your own head. The format nobody can run on paper, because the app keeps the whole ledger
-  • Keep a leaderboard (Pro) — who's won most across the season, with a separate board for each group you play with. A game the app dealt puts itself on the board, knockouts included
+    • Keep a leaderboard (Pro) — who's won most, with a separate board for each group you play with. Recording a night is two taps per player and no typing
   • Share a board with your table (Club) — send a code, they paste it in, and the whole board is on their phone too. Joining is free: only the person who shares a board subscribes
   • Save tournament presets (Pro) — store your blind structure & round length, load them in one tap
   • Choose your alarm sound (Pro) — pick from a few bundled alarm packs beyond the default
@@ -182,10 +180,10 @@ Go Pro to remove ads, deal a hand, work out the payouts, chop the last pot, keep
   question at review. The replacement, "at somebody's kitchen table", says the
   same thing about scale without the word.
 
-  **Both descriptions still need a second pass** once the betting engine is
-  removed: they currently promise "blinds, betting, side pots, the showdown", and
-  after the cut only the dealing and the showdown remain. See the table under
-  [Age rating](#age-rating).
+  **Rewritten again when the betting engine came out.** Both descriptions
+  promised "blinds, betting, side pots, the showdown"; the binary now deals,
+  turns the streets and reads the showdown, and nothing in it bets. Progressive
+  bounties and the auto-record bullet went with the engine.
 
   In exchange the description now **says plainly that the account is optional**,
   which is the single most useful sentence in it: the misunderstanding likeliest
@@ -260,7 +258,7 @@ question will read, so each is worth a deliberate decision rather than inheritin
 | Play release notes     | "half in cash, half onto your own head"                | **Moot** — progressive bounties are removed with the betting engine, so the sentence goes with the feature. It was the most gambling-flavoured line in the listing.                                     |
 | iOS release notes      | "Knockouts are tracked, and bounties finally add up"   | **Moot** — knockout attribution needs pots, which are gone.                                                                                                                                             |
 | Both                   | "buy-in", "prize", "pot", "payout", "winnings"         | Fine, and correct — this is what a tournament calculator is for. Do not sanitise these into vagueness; a listing that will not say what the app does is worse than one that does.                       |
-| Both long descriptions | "blinds, **betting**, side pots, the showdown"         | **Must change.** After the cut this describes a betting game the binary does not contain — the same metadata-accuracy failure as under-declaring, pointed the other way.                                |
+| Both long descriptions | "blinds, **betting**, side pots, the showdown"         | **Changed.** It described a betting game the binary no longer contains — the same metadata-accuracy failure as under-declaring, pointed the other way.                                                  |
 
 **What not to do, in both directions.** Do not describe the dealt game as less than it is to duck a
 rating — that is the failure mode that costs a rejection _and_ the resubmission. And now that the
@@ -371,15 +369,9 @@ person can use.
 `•` (U+2022), which is punctuation rather than emoji and renders everywhere.
 
 ```
-• Play a hand (Pro). The app deals. When you have chips but no cards — or nobody can find the deck — pass the phone round the table and it runs the whole game: blinds, betting, side pots, the showdown, and who is out. Your cards stay hidden until you tap, and hide again the moment the turn passes.
+• Deal a hand (Pro). When you have chips but no cards — or nobody can find the deck — pass the phone round the table and the app deals: two cards each, then the flop, turn and river when you are ready, and it reads the showdown at the end. Your own two cards stay hidden until you tap. You play with the chips already in front of you.
 
-• A game the app deals puts itself on the leaderboard (Pro). It watched every hand, so it already knows who went out fourth. One button saves the night, priced from your payout setup for the field that actually sat down.
-
-• Knockouts are tracked, and bounties finally add up (Pro). The app knows whose chips took whom out — including which side pot the last of them went into — so bounty money lands on the leaderboard instead of being remembered wrong at the end of the night.
-
-• Progressive bounties (Pro). Knock somebody out and half their bounty is yours in cash; the other half goes on your own head. Whoever is winning becomes the one worth beating. It is the format nobody can run on paper, and the app keeps the whole ledger.
-
-• A leaderboard for every group you play with (Pro). Thursdays and the office game are different seasons, kept apart, each with their own players and history.
+• A leaderboard for every group you play with (Pro). Thursdays and the office game are kept apart, each with their own players and history.
 
 • Share a board with the people you play with (Club). Send them a code, they paste it in, and the board — every player, every night already on it — is on their phone too. Whoever recorded the game does not have to be the one who reads it out. Joining is free: only the person who shares a board subscribes.
 
@@ -403,9 +395,7 @@ Re-count in App Store Connect before saving; the limit is 4000 characters and th
 ### Android — "Release notes" (Play Console, ≤500 chars per language)
 
 ```
-🃏 Play a hand (Pro): no cards? The app deals. Blinds, betting, side pots, showdown.
-🏆 A dealt game saves itself to the leaderboard, knockouts and all.
-💰 Progressive bounties (Pro): half in cash, half onto your own head.
+🃏 Deal a hand (Pro): no cards? The app deals. Flop, turn, river and the showdown.
 👥 A leaderboard per group — Thursdays and the office game kept apart.
 🔗 Share a board with your table (Club). Joining one is free.
 ♻️ Games survive the app closing, and sync when you have signal again.
@@ -419,9 +409,8 @@ likely to kill the feature is a table assuming all six of them need a subscripti
 is the line that decides whether anybody tries it.
 
 **Deliberately not mentioned:** the shared clock, which has no transport and is unreachable; Sign in
-with Apple and Google, which need credentials nobody has created; the record-a-game prompt's
-conditions; and that progressive bounties only work for a game the app deals. Those nuances belong
-in the app, not in 500 characters of store copy.
+with Apple and Google, which need credentials nobody has created; and the record-a-game prompt's
+conditions. Those nuances belong in the app, not in 500 characters of store copy.
 
 ---
 
