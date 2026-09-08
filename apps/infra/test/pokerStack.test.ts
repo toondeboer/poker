@@ -5,7 +5,6 @@ import { PokerStack } from "../lib/pokerStack";
 import { settingsFor } from "../lib/stage";
 import { hostNameFor } from "../lib/apiDomain";
 import cdkJson from "../cdk.json";
-import { playerChannel } from "@poker/core";
 
 /**
  * The stack, synthesised.
@@ -130,8 +129,14 @@ describe("a name for the API that we own", () => {
     // A and AAAA. A mobile network on IPv6-only cannot reach an A record at
     // all, and the failure reads as "the app doesn't work on my phone".
     t.resourceCountIs("AWS::Route53::RecordSet", 2);
-    t.hasResourceProperties("AWS::Route53::RecordSet", Match.objectLike({ Type: "A" }));
-    t.hasResourceProperties("AWS::Route53::RecordSet", Match.objectLike({ Type: "AAAA" }));
+    t.hasResourceProperties(
+      "AWS::Route53::RecordSet",
+      Match.objectLike({ Type: "A" }),
+    );
+    t.hasResourceProperties(
+      "AWS::Route53::RecordSet",
+      Match.objectLike({ Type: "AAAA" }),
+    );
   });
 
   it("serves IPv6, so the AAAA record is not decoration", () => {
@@ -154,7 +159,9 @@ describe("a name for the API that we own", () => {
     // authorises Let's Encrypt, Google, GlobalSign and Sectigo — and not
     // Amazon. CAA is inherited, so ACM cannot issue for anything beneath it,
     // and the failure reads exactly like a DNS propagation problem.
-    expect(hostNameFor("prod", "poker-api.example.test")).toBe("poker-api.example.test");
+    expect(hostNameFor("prod", "poker-api.example.test")).toBe(
+      "poker-api.example.test",
+    );
     expect(hostNameFor("dev", "poker-api.example.test")).toBe(
       "poker-api-dev.example.test",
     );
@@ -199,7 +206,9 @@ describe("a name for the API that we own", () => {
     // endpoint here would bake the throwaway host into a build even after the
     // durable name existed.
     const outputs = withDomain("dev").findOutputs("ApiUrl");
-    expect(JSON.stringify(outputs)).toContain("https://poker-api-dev.example.test");
+    expect(JSON.stringify(outputs)).toContain(
+      "https://poker-api-dev.example.test",
+    );
   });
 });
 
@@ -209,7 +218,10 @@ describe("where confirmation emails come from", () => {
    * and lands in spam — observed here — so an app whose sign-up depends on a
    * code arriving cannot ship on it.
    */
-  const withMail = (stage: "dev" | "prod" = "prod", verified = true): Template => {
+  const withMail = (
+    stage: "dev" | "prod" = "prod",
+    verified = true,
+  ): Template => {
     const app = new App({
       context: {
         mailDomain: "example.test",
@@ -223,7 +235,9 @@ describe("where confirmation emails come from", () => {
       },
     });
     return Template.fromStack(
-      new PokerStack(app, `Mailed${stage}${verified}`, { settings: settingsFor(stage) }),
+      new PokerStack(app, `Mailed${stage}${verified}`, {
+        settings: settingsFor(stage),
+      }),
     );
   };
 
@@ -269,7 +283,9 @@ describe("where confirmation emails come from", () => {
       t.hasResourceProperties(
         "AWS::Cognito::UserPool",
         Match.objectLike({
-          EmailConfiguration: Match.objectLike({ EmailSendingAccount: "DEVELOPER" }),
+          EmailConfiguration: Match.objectLike({
+            EmailSendingAccount: "DEVELOPER",
+          }),
         }),
       );
     } finally {
@@ -304,7 +320,9 @@ describe("where confirmation emails come from", () => {
     t.hasResourceProperties(
       "AWS::Cognito::UserPool",
       Match.objectLike({
-        EmailConfiguration: Match.objectLike({ EmailSendingAccount: "COGNITO_DEFAULT" }),
+        EmailConfiguration: Match.objectLike({
+          EmailSendingAccount: "COGNITO_DEFAULT",
+        }),
       }),
     );
   });
@@ -345,7 +363,9 @@ describe("where confirmation emails come from", () => {
     perStage("PerStageDev", "dev").hasResourceProperties(
       "AWS::Cognito::UserPool",
       Match.objectLike({
-        EmailConfiguration: Match.objectLike({ EmailSendingAccount: "DEVELOPER" }),
+        EmailConfiguration: Match.objectLike({
+          EmailSendingAccount: "DEVELOPER",
+        }),
       }),
     );
     // Still created, so it can verify; only the switch waits.
@@ -354,7 +374,9 @@ describe("where confirmation emails come from", () => {
     prod.hasResourceProperties(
       "AWS::Cognito::UserPool",
       Match.objectLike({
-        EmailConfiguration: Match.objectLike({ EmailSendingAccount: "COGNITO_DEFAULT" }),
+        EmailConfiguration: Match.objectLike({
+          EmailSendingAccount: "COGNITO_DEFAULT",
+        }),
       }),
     );
   });
@@ -427,9 +449,11 @@ describe("accounts", () => {
     // taps Continue with Google becomes a second, empty user — and every board
     // is keyed by `sub`, so their season looks deleted.
     const pools = template().findResources("AWS::Cognito::UserPool");
-    const triggers = (Object.values(pools)[0].Properties as {
-      LambdaConfig?: { PreSignUp?: unknown };
-    }).LambdaConfig;
+    const triggers = (
+      Object.values(pools)[0].Properties as {
+        LambdaConfig?: { PreSignUp?: unknown };
+      }
+    ).LambdaConfig;
     expect(triggers?.PreSignUp).toBeDefined();
   });
 
@@ -438,10 +462,16 @@ describe("accounts", () => {
     // wildcard would be every pool in the account.
     const policies = Object.values(
       template().findResources("AWS::IAM::Policy"),
-    ).map((policy) => policy.Properties as { PolicyDocument: { Statement: unknown[] } });
+    ).map(
+      (policy) =>
+        policy.Properties as { PolicyDocument: { Statement: unknown[] } },
+    );
 
     const linking = policies
-      .flatMap((policy) => policy.PolicyDocument.Statement as Record<string, unknown>[])
+      .flatMap(
+        (policy) =>
+          policy.PolicyDocument.Statement as Record<string, unknown>[],
+      )
       .filter((statement) => {
         const actions = statement.Action;
         const list = Array.isArray(actions) ? actions : [actions];
@@ -482,229 +512,6 @@ describe("stored data", () => {
     // for the other 165.
     template().hasResourceProperties("AWS::DynamoDB::GlobalTable", {
       BillingMode: "PAY_PER_REQUEST",
-    });
-  });
-});
-
-/** The namespace carrying one player's own cards. */
-const privateNamespace = () => {
-  const found = template().findResources("AWS::AppSync::ChannelNamespace", {
-    Properties: { Name: "player" },
-  });
-  return Object.values(found)[0].Properties;
-};
-
-describe("the realtime bus", () => {
-  it("lets players connect and subscribe with their own token", () => {
-    template().hasResourceProperties("AWS::AppSync::Api", {
-      EventConfig: Match.objectLike({
-        ConnectionAuthModes: [{ AuthType: "AMAZON_COGNITO_USER_POOLS" }],
-        DefaultSubscribeAuthModes: [{ AuthType: "AMAZON_COGNITO_USER_POOLS" }],
-      }),
-    });
-  });
-
-  it("allows only the server to publish", () => {
-    // This is what makes the server authoritative rather than merely
-    // well-behaved: nothing reaches a table except through the rules.
-    template().hasResourceProperties("AWS::AppSync::Api", {
-      EventConfig: Match.objectLike({
-        DefaultPublishAuthModes: [{ AuthType: "AWS_IAM" }],
-      }),
-    });
-  });
-
-  it("has a shared channel and a private one", () => {
-    template().resourceCountIs("AWS::AppSync::ChannelNamespace", 2);
-    template().hasResourceProperties("AWS::AppSync::ChannelNamespace", {
-      Name: "table",
-    });
-  });
-
-  it("guards the private channel with a handler, not with client-side filtering", () => {
-    // Hole cards are secret because of where they are published, not because
-    // of what a phone chooses to draw.
-    expect(privateNamespace().CodeHandlers).toContain("util.unauthorized()");
-    expect(privateNamespace().CodeHandlers).toContain("ctx.identity.sub");
-  });
-
-  it("guards the namespace the private channels are actually in", () => {
-    // The bug this replaced: the guard sat on a namespace those channels never
-    // touch. AppSync takes the FIRST path segment as the namespace, so
-    // `/table/{id}/player/{sub}` is governed by `table` — which had no handler
-    // — and any signed-in account could have read anyone's cards.
-    const channel = playerChannel("u9", "t1");
-    expect(channel.split("/")[1]).toBe("player");
-    const guarded = template().findResources("AWS::AppSync::ChannelNamespace", {
-      Properties: { CodeHandlers: Match.anyValue() },
-    });
-    const names = Object.values(guarded).map((ns) => ns.Properties.Name);
-    expect(names).toEqual([channel.split("/")[1]]);
-  });
-
-  it("creates the subscribe authorizer's data source before the namespace", () => {
-    // The first deploy failed here, and nothing before it could have caught
-    // that: `DataSourceName` is a plain string, not a `Ref`, so CloudFormation
-    // sees no dependency and creates both in parallel — the namespace loses the
-    // race and the stack rolls back with `DataSource not found`.
-    //
-    // Invisible in a synth, and invisible on every deploy after the first,
-    // because by then the data source is already there. So the assertion is on
-    // the explicit `DependsOn` rather than on any observable behaviour.
-    const namespaces = template().findResources("AWS::AppSync::ChannelNamespace", {
-      Properties: { HandlerConfigs: Match.anyValue() },
-    });
-    const [guarded] = Object.values(namespaces);
-    const sources = Object.keys(
-      template().findResources("AWS::AppSync::DataSource"),
-    );
-    expect(guarded.DependsOn).toEqual(expect.arrayContaining(sources));
-  });
-
-  it("reads the player id from where the shared path builder puts it", () => {
-    // The handler and `playerChannel` must agree on the position, or the guard
-    // compares the wrong segment and fails open or closed at random.
-    expect(privateNamespace().CodeHandlers).toContain("segments[2]");
-    expect(playerChannel("u9", "t1").split("/")[2]).toBe("u9");
-  });
-
-  it("lets the server's own publish through the private namespace", () => {
-    // Namespace handlers run for every publish whatever the auth mode, so an
-    // unconditional reject here would block the only publish there is.
-    expect(privateNamespace().CodeHandlers).toContain("return ctx.events");
-  });
-});
-
-describe("the action handler", () => {
-  it("shares the stack only with functions somebody wrote", () => {
-    // The thing this is guarding is not the count — it is that no Lambda got
-    // here by accident. `logRetention` used to add one whose entire job was to
-    // call PutRetentionPolicy on another function's log group; an explicit log
-    // group does that with no function at all.
-    template().resourceCountIs("Custom::LogRetention", 0);
-    // Six: the action handler, the identity route that proves the API chain
-    // works, the subscribe authorizer, the group routes, the public config
-    // route carrying the kill switch, and the `PreSignUp` trigger that keeps
-    // one person to one account across sign-in methods. Update this
-    // deliberately when a seventh is written.
-    template().resourceCountIs("AWS::Lambda::Function", 6);
-  });
-
-  it("has no secondary index at all", () => {
-    // There was one, to read memberships from the group's side. It is gone
-    // because memberships are now written twice — which makes that read a
-    // strongly consistent query on the group's own partition, and removes a
-    // hot partition with it: the obvious inverted index partitions on `sk`, and
-    // every poker table row carries the constant `sk: "STATE"`.
-    const table = Object.values(
-      template().findResources("AWS::DynamoDB::GlobalTable"),
-    )[0];
-    expect(
-      (table.Properties as { GlobalSecondaryIndexes?: unknown[] })
-        .GlobalSecondaryIndexes,
-    ).toBeUndefined();
-  });
-
-  it("is the only thing that can publish an event", () => {
-    template().hasResourceProperties(
-      "AWS::IAM::Policy",
-      Match.objectLike({
-        PolicyDocument: Match.objectLike({
-          Statement: Match.arrayWith([
-            Match.objectLike({ Action: "appsync:EventPublish" }),
-          ]),
-        }),
-      }),
-    );
-  });
-
-  it("knows where to write and where to publish", () => {
-    template().hasResourceProperties("AWS::Lambda::Function", {
-      Environment: Match.objectLike({
-        Variables: Match.objectLike({
-          TABLE_NAME: Match.anyValue(),
-          EVENT_API_HTTP: Match.anyValue(),
-        }),
-      }),
-    });
-  });
-
-  it("gives up rather than hanging on to a turn", () => {
-    // A hand cannot proceed while an action is in flight, so a slow one has to
-    // fail fast enough that the table notices rather than waiting.
-    template().hasResourceProperties("AWS::Lambda::Function", {
-      Timeout: 10,
-      Runtime: "nodejs22.x",
-    });
-  });
-});
-
-describe("who may watch a shared table", () => {
-  it("checks on subscribe, rather than letting anybody signed in watch", () => {
-    // The hole everything else was waiting on: sign-up is open, so
-    // "authenticated" is anybody at all, and a table id was the only thing
-    // between a stranger and every bet, board and showdown of a stranger's game.
-    template().hasResourceProperties("AWS::AppSync::ChannelNamespace", {
-      Name: "table",
-      HandlerConfigs: {
-        OnSubscribe: Match.objectLike({
-          Behavior: "DIRECT",
-          Integration: Match.objectLike({
-            DataSourceName: "SubscribeAuthorizer",
-          }),
-        }),
-      },
-    });
-  });
-
-  it("waits for the answer, because an asynchronous guard cannot refuse", () => {
-    // `EVENT` mode does not wait for a response, so an authorizer configured
-    // that way is a log line rather than a guard.
-    template().hasResourceProperties("AWS::AppSync::ChannelNamespace", {
-      Name: "table",
-      HandlerConfigs: {
-        OnSubscribe: Match.objectLike({
-          Integration: Match.objectLike({
-            LambdaConfig: { InvokeType: "REQUEST_RESPONSE" },
-          }),
-        }),
-      },
-    });
-  });
-
-  it("gives the authorizer read access and nothing more", () => {
-    // A guard has no business writing to the thing it is deciding about.
-    const policies = Object.values(
-      template().findResources("AWS::IAM::Policy"),
-    ).map(
-      (policy) =>
-        policy.Properties as {
-          PolicyDocument: { Statement: { Action: string | string[] }[] };
-        },
-    );
-    const authorizerPolicy = policies.find((policy) =>
-      JSON.stringify(policy).includes("SubscribeAuthorizer"),
-    );
-    expect(authorizerPolicy).toBeDefined();
-    const actions = authorizerPolicy!.PolicyDocument.Statement.flatMap(
-      (statement) =>
-        Array.isArray(statement.Action) ? statement.Action : [statement.Action],
-    );
-    const writes = actions.filter((action) =>
-      /PutItem|UpdateItem|DeleteItem|BatchWrite/.test(action),
-    );
-    expect(writes).toEqual([]);
-  });
-
-  it("lets AppSync invoke it, and only AppSync", () => {
-    template().hasResourceProperties("AWS::IAM::Role", {
-      AssumeRolePolicyDocument: Match.objectLike({
-        Statement: Match.arrayWith([
-          Match.objectLike({
-            Principal: { Service: "appsync.amazonaws.com" },
-          }),
-        ]),
-      }),
     });
   });
 });

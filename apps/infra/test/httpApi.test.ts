@@ -26,7 +26,7 @@ describe("something can finally call the backend", () => {
     template().hasOutput("ApiUrl", {});
   });
 
-  it("takes an action for a table, says who you are, and keeps a board", () => {
+  it("says who you are, and keeps a board", () => {
     expect(
       routes()
         .map((route) => route.RouteKey)
@@ -48,7 +48,6 @@ describe("something can finally call the backend", () => {
       "POST /groups/{groupId}/players",
       "POST /groups/{groupId}/report",
       "POST /invites/{token}",
-      "POST /tables/{tableId}/actions",
       "PUT /groups/{groupId}/members/{accountId}",
     ]);
   });

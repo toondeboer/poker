@@ -149,12 +149,15 @@ following a link from the app to a poker table is a conversation the release doe
    when infrequent and 13+ when frequent, and a tracker of offline results is the Strava shape, which
    is 4+. The substance matters more than the vocabulary: what keeps this at 4+ is that the app
    records a competition held elsewhere rather than hosting one.
-5. ⬜ **Delete the table backend** — `tableAction`, `tableStore`, `tablePublisher`, the AppSync
-   Events API and the subscribe authorizer. It is a server-authoritative _betting_ engine with no
-   client (nothing calls `startHand` server-side, so it cannot even deal), and it is the only other
-   consumer of the betting engine — `tableAction.ts` imports `act`/`legalActions`/`BettingAction`
-   from `@poker/core`, so the core deletion does not compile without it. **Its own deploy, after the
-   app change merges**; diff the synthesised template deliberately.
+5. ✅ **Table backend deleted.** `tableAction`, `tableStore`, `tablePublisher`, `subscribeAuthorizer`,
+   `sigv4`, the AppSync Events API, both channel namespaces and `POST /tables/{tableId}/actions`.
+   The synth diff removed **21 resources and added none** — 1 AppSync API, 2 channel namespaces, 1
+   data source, 2 Lambdas, 4 alarms, 3 roles, 3 policies, 2 log groups, 1 route and its integration
+   — leaving DynamoDB, Cognito and the HTTP API untouched (Lambdas 6→4, routes 18→17).
+
+   **Still to deploy.** The code is merged; the stack is not. Run the infra deploy separately, and
+   diff the template before approving — this destroys an AppSync Events API and two Lambdas.
+
 6. ⬜ **Full money separation** — the dealt game reads no `PayoutSettings` and writes no currency.
    Largely subsumed by item 3: with money off the leaderboard there is no currency for a finished
    game to write. What remains is removing the `computePayouts` import from `GameScreen` and the
@@ -388,8 +391,9 @@ on its way out. They are kept until the work lands so the removal can be checked
 - 🚧 **Nothing links to `/session`, because `sessionTransport` is `null`.** The protocol, the join
   code, the screen and the whole send/receive loop are written and were looked at on a simulator
   against an in-process loopback transport. What is missing is a transport that reaches another
-  phone: the AppSync Events API is deployed, but it carries only the `table` and `player` namespaces
-  — there is no `session` one for a shared clock to publish on. A join code
+  phone: **there is no AppSync Events API any more.** It was deployed carrying only the `table` and
+  `player` namespaces, and went with the table backend — so a shared clock now needs the realtime
+  bus stood back up as well as a `session` namespace on it. A join code
   nobody else can join is worse than no join code, so the Settings row goes in with the transport —
   one constant in `loopbackSessionTransport.ts` decides it.
 - ⬜ **The `session` namespace has no subscribe rule.** Anyone holding a code may watch a clock,
