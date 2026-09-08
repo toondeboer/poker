@@ -43,8 +43,6 @@ const game = (id = "r1", playedAt = 1_700_000_000_000): GameResult => ({
   playedAt,
   playerIds: ["p1"],
   placings: [],
-  buyIn: 10,
-  bounty: 0,
 });
 
 describe("reading a board", () => {
@@ -82,14 +80,18 @@ describe("the permission read", () => {
       { Item: memberItem("g1", "acc", "admin", 1) },
     ]);
     const store = createGroupStore("T", client);
-    expect(await store.membership("acc", "g1")).toMatchObject({ role: "admin" });
+    expect(await store.membership("acc", "g1")).toMatchObject({
+      role: "admin",
+    });
     expect(sent[0].ConsistentRead).toBe(true);
     expect(sent[0].IndexName).toBeUndefined();
   });
 
   it("is nobody when the row does not parse", async () => {
     const { client } = fakeClient([{ Item: { role: "owner" } }]);
-    expect(await createGroupStore("T", client).membership("acc", "g1")).toBeNull();
+    expect(
+      await createGroupStore("T", client).membership("acc", "g1"),
+    ).toBeNull();
   });
 });
 
@@ -138,12 +140,18 @@ describe("removing things", () => {
         CancellationReasons: [{ Code: "ConditionalCheckFailed" }],
       }),
     ]);
-    const outcome = await createGroupStore("T", client).removePlayer("g1", "nope", 1);
+    const outcome = await createGroupStore("T", client).removePlayer(
+      "g1",
+      "nope",
+      1,
+    );
     expect(outcome).toEqual({
       status: "conflict",
       reason: "the player changed while it was being removed",
     });
-    const ops = sent[1].TransactItems as { Put?: { ConditionExpression?: string } }[];
+    const ops = sent[1].TransactItems as {
+      Put?: { ConditionExpression?: string };
+    }[];
     expect(ops[0].Put?.ConditionExpression).toBe(
       "attribute_exists(pk) AND attribute_not_exists(accountId)",
     );
@@ -155,7 +163,9 @@ describe("removing things", () => {
     const { client, sent } = fakeClient([{ Item: { accountId: "acc" } }, {}]);
     await createGroupStore("T", client).removePlayer("g1", "p1", 1);
     const ops = sent[1].TransactItems as { Delete?: { Key: { sk: string } } }[];
-    expect(ops.filter((o) => o.Delete).map((o) => o.Delete!.Key.sk)).toEqual(["CLAIM#g1"]);
+    expect(ops.filter((o) => o.Delete).map((o) => o.Delete!.Key.sk)).toEqual([
+      "CLAIM#g1",
+    ]);
   });
 
   it("refuses if the player was claimed between the read and the write", async () => {
@@ -163,7 +173,9 @@ describe("removing things", () => {
     // player is tombstoned and the claimer keeps a seat pointing at nothing.
     const { client, sent } = fakeClient([{ Item: { playerId: "p1" } }, {}]);
     await createGroupStore("T", client).removePlayer("g1", "p1", 1);
-    const ops = sent[1].TransactItems as { Put?: { ConditionExpression?: string } }[];
+    const ops = sent[1].TransactItems as {
+      Put?: { ConditionExpression?: string };
+    }[];
     expect(ops[0].Put?.ConditionExpression).toBe(
       "attribute_exists(pk) AND attribute_not_exists(accountId)",
     );
@@ -206,7 +218,10 @@ describe("removing things", () => {
     // A throttle is not two people racing. Reporting it as a conflict would
     // tell the caller to decide again when it should simply retry.
     const { client } = fakeClient([
-      new ProvisionedThroughputExceededException({ $metadata: {}, message: "slow" }),
+      new ProvisionedThroughputExceededException({
+        $metadata: {},
+        message: "slow",
+      }),
     ]);
     await expect(
       createGroupStore("T", client).removePlayer("g1", "p1", 1),
@@ -272,10 +287,15 @@ describe("claiming a player", () => {
     // `if_not_exists` gives both halves: the row appears for somebody joining
     // by claiming, and an existing admin keeps their role and `joinedAt`.
     const { items } = await claim();
-    const membership = items.find((i) => i.Update && !i.Update.ConditionExpression)
-      ?.Update;
-    expect(membership?.UpdateExpression).toContain("if_not_exists(#role, :member)");
-    expect(membership?.UpdateExpression).toContain("if_not_exists(joinedAt, :now)");
+    const membership = items.find(
+      (i) => i.Update && !i.Update.ConditionExpression,
+    )?.Update;
+    expect(membership?.UpdateExpression).toContain(
+      "if_not_exists(#role, :member)",
+    );
+    expect(membership?.UpdateExpression).toContain(
+      "if_not_exists(joinedAt, :now)",
+    );
     // No condition, or it can fail the transaction for an existing member.
     expect(membership?.ConditionExpression).toBeUndefined();
   });
@@ -304,9 +324,9 @@ describe("claiming a player", () => {
     // Without this, a claim arriving just after an admin removed somebody
     // re-creates their membership through the upsert and undoes the removal.
     const { client } = fakeClient([{ Item: undefined }]);
-    expect(await createGroupStore("T", client).claimPlayer("acc", "g1", "p1", 1)).toEqual(
-      { status: "conflict", reason: "you are not on this board" },
-    );
+    expect(
+      await createGroupStore("T", client).claimPlayer("acc", "g1", "p1", 1),
+    ).toEqual({ status: "conflict", reason: "you are not on this board" });
   });
 
   it("does not call a throttled transaction a conflict", async () => {
@@ -357,9 +377,9 @@ describe("releasing a claim", () => {
     // Account deletion re-runs. A second pass has to be able to find this
     // already done and carry on.
     const { client } = fakeClient([conditionFailed()]);
-    expect(await createGroupStore("T", client).releaseClaim("acc", "g1", "p1")).toEqual(
-      { status: "conflict", reason: "claim already released" },
-    );
+    expect(
+      await createGroupStore("T", client).releaseClaim("acc", "g1", "p1"),
+    ).toEqual({ status: "conflict", reason: "claim already released" });
   });
 });
 
@@ -397,9 +417,17 @@ describe("changing a role", () => {
     // asserting it inside the transaction means exactly one of them wins, and
     // there is no counter for four separate paths to keep in step.
     const { client, sent } = fakeClient([{}]);
-    await createGroupStore("T", client).setRole("acc", "g1", "member", "keeper");
-    const check = (sent[0].TransactItems as { ConditionCheck?: { Key: { sk: string }; ConditionExpression: string } }[])
-      .find((o) => o.ConditionCheck);
+    await createGroupStore("T", client).setRole(
+      "acc",
+      "g1",
+      "member",
+      "keeper",
+    );
+    const check = (
+      sent[0].TransactItems as {
+        ConditionCheck?: { Key: { sk: string }; ConditionExpression: string };
+      }[]
+    ).find((o) => o.ConditionCheck);
     expect(check?.ConditionCheck?.Key.sk).toBe("MEMBER#keeper");
     expect(check?.ConditionCheck?.ConditionExpression).toBe("#role = :admin");
   });
@@ -409,7 +437,9 @@ describe("changing a role", () => {
     // attribute and a read that might be stale. They cannot drift.
     const { client, sent } = fakeClient([{}]);
     await createGroupStore("T", client).setRole("acc", "g1", "admin", null);
-    const keys = (sent[0].TransactItems as { Update?: { Key: { pk: string } } }[])
+    const keys = (
+      sent[0].TransactItems as { Update?: { Key: { pk: string } } }[]
+    )
       .filter((o) => o.Update)
       .map((o) => o.Update!.Key.pk);
     expect(keys).toEqual(["GROUP#g1", "ACCOUNT#acc"]);
@@ -435,9 +465,9 @@ describe("creating a board twice", () => {
       }),
       { Item: memberItem("g1", "me", "admin", 1) },
     ]);
-    expect(await createGroupStore("T", client).createGroup("g1", "T", "me", 1)).toEqual(
-      { status: "ok" },
-    );
+    expect(
+      await createGroupStore("T", client).createGroup("g1", "T", "me", 1),
+    ).toEqual({ status: "ok" });
   });
 
   it("is still a conflict when the id belongs to somebody else", async () => {
@@ -449,9 +479,9 @@ describe("creating a board twice", () => {
       }),
       { Item: undefined },
     ]);
-    expect(await createGroupStore("T", client).createGroup("g1", "T", "me", 1)).toEqual(
-      { status: "conflict", reason: "group exists" },
-    );
+    expect(
+      await createGroupStore("T", client).createGroup("g1", "T", "me", 1),
+    ).toEqual({ status: "conflict", reason: "group exists" });
   });
 });
 
@@ -461,7 +491,10 @@ describe("not resurrecting what somebody deleted", () => {
     // row somebody has since deleted brings it back — the exact failure the
     // whole tombstone scheme exists to prevent.
     const { client, sent } = fakeClient([{}]);
-    await createGroupStore("T", client).addPlayer("g1", { id: "p1", name: "Ann" });
+    await createGroupStore("T", client).addPlayer("g1", {
+      id: "p1",
+      name: "Ann",
+    });
     expect(sent[0].ConditionExpression).toBe("attribute_not_exists(deletedAt)");
   });
 
@@ -470,7 +503,10 @@ describe("not resurrecting what somebody deleted", () => {
     // anybody rename anybody, including a player somebody else has claimed.
     // Renaming is not in the permission table.
     const { client, sent } = fakeClient([{}]);
-    await createGroupStore("T", client).addPlayer("g1", { id: "p1", name: "New" });
+    await createGroupStore("T", client).addPlayer("g1", {
+      id: "p1",
+      name: "New",
+    });
     expect(sent[0].UpdateExpression).toContain("if_not_exists(#name, :name)");
   });
 
@@ -480,7 +516,10 @@ describe("not resurrecting what somebody deleted", () => {
     // seat, and locked them out of claiming again. An `Update` touches the name
     // and nothing else.
     const { client, sent } = fakeClient([{}]);
-    await createGroupStore("T", client).addPlayer("g1", { id: "p1", name: "Ann" });
+    await createGroupStore("T", client).addPlayer("g1", {
+      id: "p1",
+      name: "Ann",
+    });
     expect(sent[0].UpdateExpression).toBe(
       "SET #name = if_not_exists(#name, :name), playerId = :id",
     );
@@ -504,7 +543,10 @@ describe("reading more than one page", () => {
     // return are rows nobody deletes, *after* the Cognito user is gone and no
     // token exists to ask again with.
     const { client, sent } = fakeClient([
-      { Items: [{ pk: "ACCOUNT#a", sk: "GROUP#g1" }], LastEvaluatedKey: { pk: "x" } },
+      {
+        Items: [{ pk: "ACCOUNT#a", sk: "GROUP#g1" }],
+        LastEvaluatedKey: { pk: "x" },
+      },
       { Items: [{ pk: "ACCOUNT#a", sk: "CLAIM#g1#p1" }] },
     ]);
     const rows = await createGroupStore("T", client).belongings("a");

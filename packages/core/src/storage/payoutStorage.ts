@@ -1,5 +1,5 @@
 import { StorageAdapter } from "./StorageAdapter";
-import { PayoutOptions, type BountyMode } from "../payouts/payoutStructure";
+import { PayoutOptions } from "../payouts/payoutStructure";
 
 export const PAYOUT_KEY = "payout_settings";
 
@@ -19,7 +19,6 @@ export type PayoutSettings = {
   addOns: number;
   addOnPrice: number;
   bounty: number;
-  bountyMode: BountyMode;
   paidPlaces: number | null;
   denomination: number;
 };
@@ -35,7 +34,6 @@ export const DEFAULT_PAYOUT_SETTINGS: PayoutSettings = {
   bounty: 0,
   // Flat by default: it is one number everybody at the table understands, and
   // progressive is only playable at all for a game the app deals.
-  bountyMode: "flat",
   paidPlaces: null,
   denomination: 5,
 };
@@ -54,7 +52,6 @@ export const toPayoutOptions = (settings: PayoutSettings): PayoutOptions => ({
   addOns: settings.addOns,
   addOnPrice: settings.addOnPrice,
   bounty: settings.bounty,
-  bountyMode: settings.bountyMode,
   paidPlaces: settings.paidPlaces ?? undefined,
   denomination: settings.denomination,
 });
@@ -85,7 +82,6 @@ const coerce = (raw: unknown): PayoutSettings => {
     bounty: numberOr(value.bounty, DEFAULT_PAYOUT_SETTINGS.bounty),
     // Anything unrecognised reads as flat, which is the safe direction: it
     // pays exactly what the screen says it pays.
-    bountyMode: value.bountyMode === "progressive" ? "progressive" : "flat",
     paidPlaces:
       typeof paidPlaces === "number" && Number.isFinite(paidPlaces)
         ? paidPlaces

@@ -77,14 +77,6 @@ export {
   DEFAULT_PAYOUT_SETTINGS,
 } from "./storage/payoutStorage";
 export type { PayoutStorage, PayoutSettings } from "./storage/payoutStorage";
-export type { BountyLedger } from "./payouts/progressiveBounties";
-export {
-  createBountyLedger,
-  applyKnockout,
-  awardFinalBounty,
-  runBounties,
-  ledgerTotal,
-} from "./payouts/progressiveBounties";
 export { createGameStorage } from "./storage/gameStorage";
 export type {
   GameStorage,
@@ -227,7 +219,6 @@ export type {
   Payout,
   PayoutStructure,
   PayoutOptions,
-  BountyMode,
   PayoutValidationError,
 } from "./payouts/payoutStructure";
 export { computeChop, validateChop } from "./payouts/chop";
@@ -294,9 +285,6 @@ export {
   finishingPlacings,
   toGameResult,
   knockoutTally,
-  knockoutCounts,
-  knockoutsFullyRecorded,
-  unclaimedBounty,
 } from "./poker/session";
 export type { GameSession, SessionSeat, Knockout } from "./poker/session";
 
@@ -313,13 +301,11 @@ export {
   removeGameResult,
   MAX_GAME_RESULTS,
   MAX_PLAYERS,
-  bountiesWon,
 } from "./leaderboard/gameResult";
 export type {
   Player,
   Placing,
   GameResult,
-  KnockoutCount,
   GameResultValidationError,
 } from "./leaderboard/gameResult";
 export { computeStandings } from "./leaderboard/standings";

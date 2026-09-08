@@ -1,55 +1,40 @@
 import { GameResult, Player } from "./gameResult";
 
-/** One row of the leaderboard. */
+/**
+ * One row of the leaderboard.
+ *
+ * **No money on this row, deliberately.** It carried `totalWon`, `bountiesWon`
+ * and a `cashes` count until the 1.2.0 rating work. A board that accumulates
+ * what each player has won across sessions is a bankroll tracker, and the
+ * comparable ones on the App Store are rated 18+ where a one-shot payout
+ * calculator is 4+ — so the calculator kept its job and the board gave up money
+ * entirely. See the Gambling classification section in `ROADMAP.md`.
+ *
+ * `cashes` went with it rather than being redefined. It meant "finished in a
+ * place that actually paid", which needed the prize table to be knowable; the
+ * only thing left to redefine it as is "was ranked", which is a different and
+ * much less interesting fact wearing the old name.
+ */
 export type LeaderboardStanding = {
   playerId: string;
   name: string;
-  /** Games bought into, whether or not they cashed. */
+  /** Games played, whether or not they placed. */
   gamesPlayed: number;
   /** First-place finishes — what the board is ranked by. */
   wins: number;
   /** Top-three finishes, used to break a tie on wins. */
   podiums: number;
-  /**
-   * Games finishing in a place that actually won money.
-   *
-   * Not simply "was ranked": `RecordResultSheet` deliberately records finishes
-   * past the paid places so the podium tie-break has something to work from in
-   * small fields, and those win nothing. Counting them here would make "cashes"
-   * mean "was ranked", which is a different and much less interesting fact.
-   */
-  cashes: number;
-  /**
-   * Money won: prize money, plus bounties from any game that knew about them.
-   *
-   * Deliberately **not** net profit. Buy-ins paid are knowable, but a game
-   * recorded by hand cannot say who collected which bounties, so subtracting
-   * stakes would produce a confidently wrong number for anyone in a bounty
-   * game. "Won" is a figure the app can stand behind — and it grew a little
-   * more honest the moment the app started dealing, because a game it dealt
-   * knows exactly whose chips went where.
-   */
-  totalWon: number;
-  /**
-   * People knocked out, across games that tracked it.
-   *
-   * Only games the app dealt do. A player with a long history of hand-recorded
-   * nights shows a low number here — not a wrong one, just one that starts
-   * counting from when the app began watching.
-   */
-  knockouts: number;
-  /** The part of {@link totalWon} that came from those knockouts. */
-  bountiesWon: number;
 };
 
 /**
  * Aggregate results into a ranked leaderboard.
  *
  * Ranked by **wins**, which is the question the feature exists to answer.
- * Every tie-break after that is deterministic and total — podiums, then money,
- * then fewer games to get there, then name — because a leaderboard that
- * reorders itself between renders on equal rows looks broken, and a stable
- * order is the only thing that makes this testable.
+ * Every tie-break after that is deterministic and total — podiums, then fewer
+ * games to get there, then name, then id — because a leaderboard that reorders
+ * itself between renders on equal rows looks broken, and a stable order is the
+ * only thing that makes this testable. Money used to sit between podiums and
+ * games played; the chain is still total without it.
  *
  * Players with no games are included, at the bottom. Someone just added to the
  * roster should appear on the board rather than vanish until their first game.
@@ -71,10 +56,6 @@ export const computeStandings = (
       gamesPlayed: 0,
       wins: 0,
       podiums: 0,
-      cashes: 0,
-      totalWon: 0,
-      knockouts: 0,
-      bountiesWon: 0,
     });
   }
 
@@ -94,36 +75,16 @@ export const computeStandings = (
     // Deduplicated for the same reason `playerIds` is: `validateGameResult`
     // rejects a repeated placing, but nothing re-validates on the way *out* of
     // storage, so a hand-edited or half-written record could still carry one.
-    // Left alone it would double a player's wins, podiums, cashes and winnings
-    // off a single game while `gamesPlayed` counted it once.
+    // Left alone it would double a player's wins and podiums off a single game
+    // while `gamesPlayed` counted it once.
     const placed = new Set<string>();
     for (const placing of result.placings) {
       const standing = standings.get(placing.playerId);
       if (!standing) continue;
       if (placed.has(placing.playerId)) continue;
       placed.add(placing.playerId);
-      if (placing.winnings > 0) standing.cashes += 1;
-      standing.totalWon += placing.winnings;
       if (placing.place === 1) standing.wins += 1;
       if (placing.place <= 3) standing.podiums += 1;
-    }
-
-    // Bounties are counted over everybody who played, not only the placed:
-    // knocking three people out and busting fifth is a perfectly ordinary
-    // evening, and it is money.
-    const credited = new Set<string>();
-    for (const knockout of result.knockouts ?? []) {
-      const standing = standings.get(knockout.playerId);
-      if (!standing) continue;
-      if (credited.has(knockout.playerId)) continue;
-      credited.add(knockout.playerId);
-      // The money the game recorded, not the count times the bounty: a chopped
-      // pot pays one bounty between two people, and multiplying would credit
-      // each of them the whole thing.
-      const won = knockout.bounty;
-      standing.knockouts += knockout.count;
-      standing.bountiesWon += won;
-      standing.totalWon += won;
     }
   }
 
@@ -138,7 +99,6 @@ const compareStandings = (
 ): number => {
   if (a.wins !== b.wins) return b.wins - a.wins;
   if (a.podiums !== b.podiums) return b.podiums - a.podiums;
-  if (a.totalWon !== b.totalWon) return b.totalWon - a.totalWon;
   if (a.gamesPlayed !== b.gamesPlayed) return a.gamesPlayed - b.gamesPlayed;
   // A plain comparison rather than localeCompare: this only has to be stable
   // and identical everywhere, and locale-aware collation is neither.

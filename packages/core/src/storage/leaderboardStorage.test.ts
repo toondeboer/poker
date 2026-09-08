@@ -27,7 +27,9 @@ const store = (adapter: Parameters<typeof createLeaderboardStorage>[0]) =>
   createLeaderboardStorage(adapter, MIGRATION);
 
 /** The one group a migrated legacy board produces. */
-const board = (state: GroupedLeaderboard): Pick<GroupState, "players" | "results"> =>
+const board = (
+  state: GroupedLeaderboard,
+): Pick<GroupState, "players" | "results"> =>
   state.groups[0] ?? { players: [], results: [] };
 
 const STATE: LeaderboardState = {
@@ -39,15 +41,14 @@ const STATE: LeaderboardState = {
     createGameResult({
       id: "g1",
       playerIds: ["a", "b"],
-      placings: [{ playerId: "a", place: 1, winnings: 40 }],
-      buyIn: 20,
-      bounty: 5,
+      placings: [{ playerId: "a", place: 1 }],
       now: 1234,
     }),
   ],
 };
 
-const seeded = (raw: string) => store(createMemoryAdapter({ leaderboard: raw }));
+const seeded = (raw: string) =>
+  store(createMemoryAdapter({ leaderboard: raw }));
 
 /** `STATE` as it looks once migrated — what a save/load round-trip produces. */
 const GROUPED: GroupedLeaderboard = migrateToGroups(STATE, {
@@ -122,7 +123,7 @@ describe("createLeaderboardStorage", () => {
       JSON.stringify({
         players: [],
         results: [
-          { id: "good", playerIds: ["a"], placings: [], buyIn: 20, bounty: 0 },
+          { id: "good", playerIds: ["a"], placings: [] },
           { playerIds: ["a"] },
           { id: "noPlayers" },
           42,
@@ -130,8 +131,6 @@ describe("createLeaderboardStorage", () => {
             id: "good2",
             playerIds: ["a", "b"],
             placings: [],
-            buyIn: 10,
-            bounty: 0,
           },
         ],
       }),
@@ -149,21 +148,22 @@ describe("createLeaderboardStorage", () => {
             id: "g",
             playerIds: ["a", "b"],
             placings: [
-              { playerId: "a", place: 1, winnings: 40 },
-              { playerId: "b", place: "2", winnings: 10 },
-              { place: 3, winnings: 5 },
-              { playerId: "b", place: 2, winnings: null },
+              { playerId: "a", place: 1 },
+              // A place that is a string, a placing with no player, and a
+              // hole in the array — each unusable on its own terms.
+              { playerId: "b", place: "2" },
+              { place: 3 },
               null,
+              { playerId: "b", place: 2 },
             ],
-            buyIn: 20,
-            bounty: 0,
           },
         ],
       }),
     );
     const loaded = board(await storage.loadLeaderboard());
     expect(loaded.results[0].placings).toEqual([
-      { playerId: "a", place: 1, winnings: 40 },
+      { playerId: "a", place: 1 },
+      { playerId: "b", place: 2 },
     ]);
   });
 
@@ -176,8 +176,6 @@ describe("createLeaderboardStorage", () => {
     );
     const [loaded] = board(await storage.loadLeaderboard()).results;
     expect(loaded.playedAt).toBe(0);
-    expect(loaded.buyIn).toBe(0);
-    expect(loaded.bounty).toBe(0);
     expect(loaded.placings).toEqual([]);
   });
 
@@ -188,10 +186,9 @@ describe("createLeaderboardStorage", () => {
         results: [{ id: "g", playerIds: ["a", 3, null, "b"] }],
       }),
     );
-    expect(board(await storage.loadLeaderboard()).results[0].playerIds).toEqual([
-      "a",
-      "b",
-    ]);
+    expect(board(await storage.loadLeaderboard()).results[0].playerIds).toEqual(
+      ["a", "b"],
+    );
   });
 
   it("treats non-array players/results as empty", async () => {
@@ -317,7 +314,11 @@ describe("reading a grouped board back", () => {
     const raw = grouped({
       groups: [
         { group: { id: 1, name: "bad" }, players: [], results: [] },
-        { group: { id: "g2", name: "Good", createdAt: 7 }, players: [], results: [] },
+        {
+          group: { id: "g2", name: "Good", createdAt: 7 },
+          players: [],
+          results: [],
+        },
       ],
       activeGroupId: "g2",
     });
@@ -328,18 +329,20 @@ describe("reading a grouped board back", () => {
 
   it("defaults a missing createdAt rather than dropping the group", async () => {
     const raw = grouped({
-      groups: [{ group: { id: "g1", name: "Thursday" }, players: [], results: [] }],
+      groups: [
+        { group: { id: "g1", name: "Thursday" }, players: [], results: [] },
+      ],
       activeGroupId: "g1",
     });
     const loaded = await seeded(raw).loadLeaderboard();
     expect(loaded.groups[0].group.createdAt).toBe(0);
   });
 
-  it("carries knockouts back, so a bounty game keeps its money", async () => {
-    // **They used to be dropped on every read.** `coerceResults` rebuilt each
-    // result field by field and never named `knockouts`, so a game the app
-    // dealt came back with none — `computeStandings` reported 0 bounties won
-    // for everybody, and the next save wrote the stripped result back.
+  it("drops the money from a result saved before it came off the board", async () => {
+    // The upgrade path. Results written by the previous version carry winnings,
+    // buyIn, bounty and knockouts; they must still load — losing them would
+    // lose the game night — but the amounts are not read, so they fall away on
+    // the next write.
     const raw = grouped({
       groups: [
         {
@@ -353,47 +356,19 @@ describe("reading a grouped board back", () => {
               placings: [{ playerId: "a", place: 1, winnings: 10 }],
               buyIn: 20,
               bounty: 5,
-              knockouts: [
-                { playerId: "a", count: 2, bounty: 10 },
-                { playerId: "b", count: "no", bounty: 1 },
-              ],
+              knockouts: [{ playerId: "a", count: 2, bounty: 10 }],
             },
           ],
         },
       ],
       activeGroupId: "g1",
     });
-    const loaded = await seeded(raw).loadLeaderboard();
-    // The unusable row goes; the good one survives whole.
-    expect(loaded.groups[0].results[0].knockouts).toEqual([
-      { playerId: "a", count: 2, bounty: 10 },
-    ]);
-  });
-
-  it("leaves knockouts absent for a game recorded by hand", async () => {
-    // Absent, never `[]`: an empty list would claim nobody knocked anybody
-    // out, which is false of every game ever played.
-    const raw = grouped({
-      groups: [
-        {
-          group: { id: "g1", name: "Thursday", createdAt: 1 },
-          players: [],
-          results: [
-            {
-              id: "r1",
-              playedAt: 2,
-              playerIds: ["a"],
-              placings: [],
-              buyIn: 20,
-              bounty: 0,
-            },
-          ],
-        },
-      ],
-      activeGroupId: "g1",
-    });
-    const loaded = await seeded(raw).loadLeaderboard();
-    expect("knockouts" in loaded.groups[0].results[0]).toBe(false);
+    const [result] = (await seeded(raw).loadLeaderboard()).groups[0].results;
+    expect(result.id).toBe("r1");
+    expect(result.playerIds).toEqual(["a", "b"]);
+    expect(result.placings).toEqual([{ playerId: "a", place: 1 }]);
+    expect(result).not.toHaveProperty("buyIn");
+    expect(result).not.toHaveProperty("knockouts");
   });
 
   it("carries which account a board is on the server under", async () => {
@@ -440,7 +415,13 @@ describe("reading a grouped board back", () => {
     // Otherwise the app opens on an empty board indistinguishable from a real
     // one, with no way for the user to tell anything was lost.
     const raw = grouped({
-      groups: [{ group: { id: "g1", name: "Thursday", createdAt: 1 }, players: [], results: [] }],
+      groups: [
+        {
+          group: { id: "g1", name: "Thursday", createdAt: 1 },
+          players: [],
+          results: [],
+        },
+      ],
       activeGroupId: "gone",
     });
     expect((await seeded(raw).loadLeaderboard()).activeGroupId).toBe("g1");
@@ -550,7 +531,10 @@ describe("what this phone deleted", () => {
       ],
     });
     const loaded = await storage.loadLeaderboard();
-    expect(loaded.groups[0].deleted).toEqual({ players: ["p1"], results: ["r1"] });
+    expect(loaded.groups[0].deleted).toEqual({
+      players: ["p1"],
+      results: ["r1"],
+    });
   });
 
   it("is absent on a board that has deleted nothing", async () => {
@@ -560,10 +544,16 @@ describe("what this phone deleted", () => {
     await storage.saveLeaderboard({
       activeGroupId: "g1",
       groups: [
-        { group: { id: "g1", name: "Thursday", createdAt: 1 }, players: [], results: [] },
+        {
+          group: { id: "g1", name: "Thursday", createdAt: 1 },
+          players: [],
+          results: [],
+        },
       ],
     });
-    expect((await storage.loadLeaderboard()).groups[0]).not.toHaveProperty("deleted");
+    expect((await storage.loadLeaderboard()).groups[0]).not.toHaveProperty(
+      "deleted",
+    );
   });
 
   it("drops ids that are not ids", async () => {
@@ -575,7 +565,10 @@ describe("what this phone deleted", () => {
           group: { id: "g1", name: "Thursday", createdAt: 1 },
           players: [],
           results: [],
-          deleted: { players: ["p1", 7 as unknown as string], results: "nope" as never },
+          deleted: {
+            players: ["p1", 7 as unknown as string],
+            results: "nope" as never,
+          },
         },
       ],
     });
@@ -629,14 +622,16 @@ describe("what this account may do on a board", () => {
   it("is absent when nobody has said, rather than guessed at", async () => {
     const storage = store(createMemoryAdapter());
     await storage.saveLeaderboard(boardWith());
-    expect((await storage.loadLeaderboard()).groups[0]).not.toHaveProperty("role");
+    expect((await storage.loadLeaderboard()).groups[0]).not.toHaveProperty(
+      "role",
+    );
   });
 
   it("drops a role this version does not understand", async () => {
     const storage = store(createMemoryAdapter());
-    await storage.saveLeaderboard(
-      boardWith("owner" as unknown as "admin"),
+    await storage.saveLeaderboard(boardWith("owner" as unknown as "admin"));
+    expect((await storage.loadLeaderboard()).groups[0]).not.toHaveProperty(
+      "role",
     );
-    expect((await storage.loadLeaderboard()).groups[0]).not.toHaveProperty("role");
   });
 });

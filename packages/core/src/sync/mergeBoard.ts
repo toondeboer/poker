@@ -29,7 +29,10 @@ import { withPending, type SyncQueue } from "./pendingWrites";
  * Ids only — a tombstone has had its payload stripped so a deleted game cannot
  * be read back out of the table.
  */
-export type Deletions = { players: readonly string[]; results: readonly string[] };
+export type Deletions = {
+  players: readonly string[];
+  results: readonly string[];
+};
 
 export const NOTHING_DELETED: Deletions = Object.freeze({
   players: Object.freeze([]) as readonly string[],
@@ -75,7 +78,8 @@ const byId = <T extends { id: string }>(
    * that was just typed into. A game is immutable, so results never reach this.
    */
   for (const item of mine) merged.set(item.id, item);
-  for (const item of theirs) if (!merged.has(item.id)) merged.set(item.id, item);
+  for (const item of theirs)
+    if (!merged.has(item.id)) merged.set(item.id, item);
   // `Array.from` rather than spreading the iterator: core targets a lib without
   // downlevel iteration, so spreading a `MapIterator` does not compile.
   return Array.from(merged.values());
@@ -93,7 +97,10 @@ const byId = <T extends { id: string }>(
  * `groupId` overrides the server's, for a caller that knows the id it asked
  * about; they are the same board or something is very wrong.
  */
-export const boardFromRemote = (remote: RemoteBoard, groupId?: string): GroupState => ({
+export const boardFromRemote = (
+  remote: RemoteBoard,
+  groupId?: string,
+): GroupState => ({
   ...remote.state,
   ...(groupId ? { group: { ...remote.state.group, id: groupId } } : {}),
   ...(remote.role ? { role: remote.role } : {}),
@@ -113,8 +120,14 @@ export const mergeBoard = (
    * next foreground. A deleted game would come back into the standings, which
    * is somebody's leaderboard changing on its own.
    */
-  const goneP = new Set([...remote.deleted.players, ...(local.deleted?.players ?? [])]);
-  const goneR = new Set([...remote.deleted.results, ...(local.deleted?.results ?? [])]);
+  const goneP = new Set([
+    ...remote.deleted.players,
+    ...(local.deleted?.players ?? []),
+  ]);
+  const goneR = new Set([
+    ...remote.deleted.results,
+    ...(local.deleted?.results ?? []),
+  ]);
 
   const players = byId<Player>(local.players, remote.state.players).filter(
     (player) => !goneP.has(player.id),
@@ -139,7 +152,7 @@ export const mergeBoard = (
     results,
     ...(local.deleted ? { deleted: local.deleted } : {}),
     // The server's answer, or the last one it gave. Never invented here.
-    ...(remote.role ?? local.role ? { role: remote.role ?? local.role } : {}),
+    ...((remote.role ?? local.role) ? { role: remote.role ?? local.role } : {}),
   };
 
   /**
@@ -162,7 +175,9 @@ const str = (value: unknown): string | null =>
   typeof value === "string" && value.length > 0 ? value : null;
 
 const ids = (value: unknown): string[] =>
-  Array.isArray(value) ? value.filter((id): id is string => typeof id === "string") : [];
+  Array.isArray(value)
+    ? value.filter((id): id is string => typeof id === "string")
+    : [];
 
 const isPlayer = (value: unknown): value is Player => {
   const p = value as Player | null;
@@ -184,22 +199,13 @@ const isResult = (value: unknown): value is GameResult => {
     Array.isArray(r.playerIds) &&
     r.playerIds.every((id) => typeof id === "string") &&
     Array.isArray(r.placings) &&
+    // Money is neither required nor read. A board on the server written before
+    // money came off it still carries `winnings`/`buyIn`/`bounty`; requiring
+    // them would make every such board unreadable, and requiring their absence
+    // would make every *old* one unreadable. Ignoring them does both.
     r.placings.every(
-      (p) =>
-        typeof p?.playerId === "string" &&
-        typeof p?.place === "number" &&
-        typeof p?.winnings === "number",
-    ) &&
-    typeof r.buyIn === "number" &&
-    typeof r.bounty === "number" &&
-    (r.knockouts === undefined ||
-      (Array.isArray(r.knockouts) &&
-        r.knockouts.every(
-          (k) =>
-            typeof k?.playerId === "string" &&
-            typeof k?.count === "number" &&
-            typeof k?.bounty === "number",
-        )))
+      (p) => typeof p?.playerId === "string" && typeof p?.place === "number",
+    )
   );
 };
 
@@ -230,7 +236,25 @@ export const readRemoteBoard = (value: unknown): RemoteBoard | null => {
     state: {
       group: { id, name, createdAt },
       players: Array.isArray(body.players) ? body.players.filter(isPlayer) : [],
-      results: Array.isArray(body.results) ? body.results.filter(isResult) : [],
+      /**
+       * **Rebuilt field by field rather than passed through**, so a board the
+       * server stored before money came off it cannot put money back into this
+       * phone. `isResult` only validates; without this the old `winnings`,
+       * `buyIn` and `bounty` keys would ride along into local state and be
+       * written back out again on the next sync. Copying only what a result is
+       * now made of means the server's history can go stale but never leaks.
+       */
+      results: Array.isArray(body.results)
+        ? body.results.filter(isResult).map((result) => ({
+            id: result.id,
+            playedAt: result.playedAt,
+            playerIds: [...result.playerIds],
+            placings: result.placings.map((placing) => ({
+              playerId: placing.playerId,
+              place: placing.place,
+            })),
+          }))
+        : [],
     },
     // **Absent means nothing was deleted, not "unknown".** An older server that
     // does not send this yet is one whose boards have had nothing removed as

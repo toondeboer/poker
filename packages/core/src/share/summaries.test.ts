@@ -6,7 +6,6 @@ import {
 } from "./summaries";
 import { computePayouts, PayoutOptions } from "../payouts/payoutStructure";
 import { computeStandings } from "../leaderboard/standings";
-import type { LeaderboardStanding } from "../leaderboard/standings";
 import { createGameResult, createPlayer } from "../leaderboard/gameResult";
 
 const summarise = (options: PayoutOptions) => {
@@ -84,14 +83,12 @@ const player = (id: string, name: string) => createPlayer({ id, name });
 const game = (
   id: string,
   playerIds: string[],
-  placings: { playerId: string; place: number; winnings: number }[],
+  placings: { playerId: string; place: number }[],
 ) =>
   createGameResult({
     id,
     playerIds,
     placings,
-    buyIn: 20,
-    bounty: 0,
     now: 1,
   });
 
@@ -102,11 +99,11 @@ describe("formatStandingsSummary", () => {
       "g1",
       ["a", "b", "c"],
       [
-        { playerId: "a", place: 1, winnings: 80 },
-        { playerId: "b", place: 2, winnings: 50 },
+        { playerId: "a", place: 1 },
+        { playerId: "b", place: 2 },
       ],
     ),
-    game("g2", ["a", "b", "c"], [{ playerId: "a", place: 1, winnings: 90 }]),
+    game("g2", ["a", "b", "c"], [{ playerId: "a", place: 1 }]),
   ];
 
   it("ranks the players who have actually played", () => {
@@ -118,8 +115,8 @@ describe("formatStandingsSummary", () => {
       [
         "Leaderboard — 2 games",
         "",
-        "1. Ana — 2 wins, 2 games, won 170",
-        "2. Ben — 2 games, won 50",
+        "1. Ana — 2 wins, 2 games",
+        "2. Ben — 2 games",
         "3. Cy — 2 games",
       ].join("\n"),
     );
@@ -150,7 +147,7 @@ describe("formatStandingsSummary", () => {
       player(`p${i}`, `P${i}`),
     );
     const played = many.map((p, i) =>
-      game(`g${i}`, [p.id], [{ playerId: p.id, place: 1, winnings: 10 }]),
+      game(`g${i}`, [p.id], [{ playerId: p.id, place: 1 }]),
     );
     const summary = formatStandingsSummary({
       standings: computeStandings(many, played),
@@ -168,83 +165,5 @@ describe("formatStandingsSummary", () => {
       gamesRecorded: results.length,
     });
     expect(summary).not.toMatch(/[*_`#|]/);
-  });
-});
-
-describe("knockouts in a shared board", () => {
-  it("mentions them when the app dealt the games", () => {
-    const standings: LeaderboardStanding[] = [
-      {
-        playerId: "a",
-        name: "Ann",
-        gamesPlayed: 3,
-        wins: 2,
-        podiums: 2,
-        cashes: 2,
-        totalWon: 120,
-        knockouts: 5,
-        bountiesWon: 25,
-      },
-    ];
-    expect(formatStandingsSummary({ standings, gamesRecorded: 3 })).toContain("5 KOs");
-  });
-
-  it("says nothing about them for a board recorded by hand", () => {
-    // Zero here means "nobody was watching", not "nobody knocked anybody out".
-    const standings: LeaderboardStanding[] = [
-      {
-        playerId: "a",
-        name: "Ann",
-        gamesPlayed: 3,
-        wins: 2,
-        podiums: 2,
-        cashes: 2,
-        totalWon: 120,
-        knockouts: 0,
-        bountiesWon: 0,
-      },
-    ];
-    expect(formatStandingsSummary({ standings, gamesRecorded: 3 })).not.toContain("KO");
-  });
-
-  it("counts one knockout in the singular", () => {
-    const standings: LeaderboardStanding[] = [
-      {
-        playerId: "a",
-        name: "Ann",
-        gamesPlayed: 1,
-        wins: 1,
-        podiums: 1,
-        cashes: 1,
-        totalWon: 40,
-        knockouts: 1,
-        bountiesWon: 5,
-      },
-    ];
-    expect(formatStandingsSummary({ standings, gamesRecorded: 3 })).toContain("1 KO");
-    expect(formatStandingsSummary({ standings, gamesRecorded: 3 })).not.toContain("1 KOs");
-  });
-});
-
-describe("sharing a bounty tournament", () => {
-  const options: PayoutOptions = { buyIn: 20, entrants: 8, bounty: 5 };
-
-  it("says what a flat bounty pays", () => {
-    const structure = computePayouts(options)!;
-    expect(
-      formatPayoutSummary({ structure, buyIn: 20, entrants: 8 }),
-    ).toContain("Bounty 5 per knockout");
-  });
-
-  it("says what a progressive one does instead", () => {
-    // Somebody reading this in a group chat is deciding what to bring; the two
-    // formats pay differently enough that one line cannot describe both.
-    const structure = computePayouts({
-      ...options,
-      bountyMode: "progressive",
-    })!;
-    const summary = formatPayoutSummary({ structure, buyIn: 20, entrants: 8 });
-    expect(summary).toContain("Progressive bounty");
-    expect(summary).not.toContain("per knockout");
   });
 });

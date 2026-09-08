@@ -15,7 +15,6 @@ import {
   MAX_PLAYERS,
   type GameResult,
   type GroupState,
-  type KnockoutCount,
   type Placing,
   type Player,
 } from "@poker/core";
@@ -150,34 +149,8 @@ export const cleanResult = (result: GameResult): GameResult => ({
   placings: result.placings.slice(0, MAX_PLAYERS).map((placing) => ({
     playerId: placing.playerId,
     place: placing.place,
-    winnings: placing.winnings,
   })),
-  buyIn: result.buyIn,
-  bounty: result.bounty,
-  // Optional, and only for a game the app dealt — a game written down by hand
-  // cannot say who knocked whom out.
-  ...(Array.isArray(result.knockouts)
-    ? {
-        knockouts: result.knockouts.slice(0, MAX_PLAYERS).map((k) => ({
-          playerId: k.playerId,
-          count: k.count,
-          bounty: k.bounty,
-        })),
-      }
-    : {}),
 });
-
-const isKnockout = (value: unknown): boolean => {
-  if (typeof value !== "object" || value === null) return false;
-  const knockout = value as KnockoutCount;
-  return (
-    isUsableId(knockout.playerId) &&
-    Number.isInteger(knockout.count) &&
-    knockout.count >= 0 &&
-    typeof knockout.bounty === "number" &&
-    Number.isFinite(knockout.bounty)
-  );
-};
 
 const isPlacing = (value: unknown): boolean => {
   if (typeof value !== "object" || value === null) return false;
@@ -185,9 +158,7 @@ const isPlacing = (value: unknown): boolean => {
   return (
     isUsableId(placing.playerId) &&
     Number.isInteger(placing.place) &&
-    placing.place > 0 &&
-    typeof placing.winnings === "number" &&
-    Number.isFinite(placing.winnings)
+    placing.place > 0
   );
 };
 
@@ -212,17 +183,11 @@ const isResult = (value: unknown): value is GameResult => {
     Array.isArray(result.playerIds) &&
     result.playerIds.every(isUsableId) &&
     Array.isArray(result.placings) &&
-    result.placings.every(isPlacing) &&
-    // Optional — only a game the app dealt knows who knocked whom out — but
-    // checked when present. `cleanResult` copies these fields through, so
-    // waiving them here would put arbitrary client types on a shared board.
-    (result.knockouts === undefined ||
-      (Array.isArray(result.knockouts) &&
-        result.knockouts.every(isKnockout))) &&
-    typeof result.buyIn === "number" &&
-    Number.isFinite(result.buyIn) &&
-    typeof result.bounty === "number" &&
-    Number.isFinite(result.bounty)
+    result.placings.every(isPlacing)
+    // **No money is checked, because none is stored.** `cleanResult` is a
+    // whitelist, so a client still sending `winnings`, `buyIn`, `bounty` or
+    // `knockouts` has them dropped rather than refused — refusing would break
+    // a client mid-upgrade for fields the board no longer has any use for.
   );
 };
 

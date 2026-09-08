@@ -48,7 +48,6 @@ import {
   LeaderboardStanding,
   Placing,
   Player,
-  type KnockoutCount,
   type NameRejection,
   type RefusedWrite,
   type ReportReason,
@@ -161,15 +160,13 @@ type LeaderboardContextValue = {
    * instead of reporting a save that never happened. */
   recordResult: (params: {
     playerIds: string[];
-    placings: Placing[];
-    buyIn: number;
-    bounty: number;
     /**
-     * Who knocked out how many, when that is actually known — which is only
-     * ever a game the app dealt. Left off by the record-a-game sheet, because
-     * nobody can say afterwards.
+     * Who finished where. **No money**: the board records the result of a game,
+     * not what it paid — see the Gambling classification section in
+     * `ROADMAP.md`. The payout calculator still works out what each place wins
+     * on the night; nothing it produces is stored.
      */
-    knockouts?: readonly KnockoutCount[];
+    placings: Placing[];
   }) => boolean;
   deleteResult: (id: string) => void;
   /** The player this account holds on the active board, if any. */
@@ -670,13 +667,7 @@ export function LeaderboardProvider({
   );
 
   const recordResult = useCallback(
-    (params: {
-      playerIds: string[];
-      placings: Placing[];
-      buyIn: number;
-      bounty: number;
-      knockouts?: readonly KnockoutCount[];
-    }) => {
+    (params: { playerIds: string[]; placings: Placing[] }) => {
       // Guard the persistence boundary, not just the UI. The sheet already
       // constrains what it can build, but this is the one store whose data
       // can't be recreated by retyping it, so a malformed result must not reach
@@ -684,7 +675,6 @@ export function LeaderboardProvider({
       const invalid = validateGameResult({
         playerIds: params.playerIds,
         placings: params.placings,
-        knockouts: params.knockouts ? [...params.knockouts] : undefined,
       });
       if (invalid) {
         logger.error("Refusing to record an invalid game result:", invalid);
@@ -694,10 +684,7 @@ export function LeaderboardProvider({
         id: generateId(),
         playerIds: params.playerIds,
         placings: params.placings,
-        buyIn: params.buyIn,
-        bounty: params.bounty,
         now: Date.now(),
-        knockouts: params.knockouts,
       });
       const groupId = withActiveGroup((entry) => ({
         ...entry,

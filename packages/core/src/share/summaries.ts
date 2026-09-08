@@ -42,13 +42,7 @@ export const formatPayoutSummary = (params: {
   lines.push("");
   lines.push(`Prize pool ${structure.prizePool}`);
   if (structure.bountyPerKnockout > 0) {
-    // The two formats pay differently enough that one line cannot describe
-    // both — somebody reading this in a group chat is deciding what to bring.
-    lines.push(
-      structure.bountyMode === "progressive"
-        ? `Progressive bounty, ${structure.bountyPerKnockout} a head — half in cash, half onto yours`
-        : `Bounty ${structure.bountyPerKnockout} per knockout`,
-    );
+    lines.push(`Bounty ${structure.bountyPerKnockout} per knockout`);
   }
 
   return lines.join("\n");
@@ -88,15 +82,8 @@ export const formatStandingsSummary = (params: {
     if (standing.wins > 0) {
       parts.unshift(`${standing.wins} ${standing.wins === 1 ? "win" : "wins"}`);
     }
-    if (standing.totalWon > 0) parts.push(`won ${standing.totalWon}`);
-    // Absent rather than zero for a board of hand-recorded games: nobody can
-    // say who collected which bounties after the fact, so there is nothing to
-    // share.
-    if (standing.knockouts > 0) {
-      parts.push(
-        `${standing.knockouts} KO${standing.knockouts === 1 ? "" : "s"}`,
-      );
-    }
+    // No money here any more. The board tracks who turned up and who won, and
+    // a shared summary says exactly what the board says.
     lines.push(`${index + 1}. ${standing.name} — ${parts.join(", ")}`);
   });
 

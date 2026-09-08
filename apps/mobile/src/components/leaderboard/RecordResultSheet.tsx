@@ -1,14 +1,7 @@
 // src/components/leaderboard/RecordResultSheet.tsx
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import { StyleSheet, Text, View } from "react-native";
-import {
-  computePayouts,
-  formatPlace,
-  toPayoutOptions,
-  Placing,
-  Player,
-} from "@poker/core";
-import { usePayouts } from "@/src/contexts/PayoutContext";
+import { formatPlace, Placing, Player } from "@poker/core";
 import { colors, space, text } from "@/src/theme";
 import { Badge } from "@/src/components/ui/Badge";
 import { Button } from "@/src/components/ui/Button";
@@ -24,9 +17,10 @@ import { Sheet } from "@/src/components/ui/Sheet";
  * would otherwise need and the one that makes recording a result feel like
  * paperwork at the end of a long evening.
  *
- * Winnings are **not entered** — they come from the payout structure the host
- * already set up, recomputed for the field that actually turned up rather than
- * the one they planned for. That's the whole reason payouts was built first.
+ * **No money is entered or recorded.** The board keeps who played and who
+ * finished where; the payout calculator works out what each place wins on the
+ * night, and the two no longer touch. See the Gambling classification section
+ * in `ROADMAP.md`.
  */
 export function RecordResultSheet({
   visible,
@@ -45,47 +39,21 @@ export function RecordResultSheet({
    * duplicate placing, a place out of range — and closing on a refusal loses
    * every tap with nothing on screen saying why.
    */
-  onRecord: (params: {
-    playerIds: string[];
-    placings: Placing[];
-    buyIn: number;
-    bounty: number;
-  }) => boolean;
+  onRecord: (params: { playerIds: string[]; placings: Placing[] }) => boolean;
 }) {
-  const { settings } = usePayouts();
   const [playedIds, setPlayedIds] = useState<string[]>([]);
   const [order, setOrder] = useState<string[]>([]);
   const [refused, setRefused] = useState<string | null>(null);
 
   /**
-   * The saved setup, with the field replaced by who actually turned up.
+   * How many finishes can be ranked: the podium, or fewer in a tiny field.
    *
-   * Derived from `toPayoutOptions` rather than hand-built: listing the fields
-   * out meant that adding rebuys and add-ons silently left them behind here,
-   * so recorded winnings came from a smaller pool than the Payouts screen was
-   * showing — and got stored that way permanently. Spreading keeps this
-   * correct the next time the model grows.
+   * This used to stretch to however many places the prize table paid, because
+   * who got paid and who finished where were different questions. With no
+   * money on the board there is only the second question, and the podium is
+   * what the leaderboard's tie-break works from.
    */
-  const structure = useMemo(
-    () =>
-      computePayouts({
-        ...toPayoutOptions(settings),
-        entrants: playedIds.length,
-      }),
-    [settings, playedIds.length],
-  );
-
-  const paidPlaces = structure?.payouts.length ?? 0;
-
-  /**
-   * How many finishes can be ranked — deliberately **not** just the paid
-   * places. Who got paid and who finished where are different questions: a
-   * four-player game pays one place, so tying ranking to payouts would make
-   * second and third unrecordable and leave the leaderboard's podium tie-break
-   * with nothing to work from in exactly the field sizes a home game runs.
-   * Places past the paid ones simply win nothing.
-   */
-  const rankablePlaces = Math.max(paidPlaces, Math.min(playedIds.length, 3));
+  const rankablePlaces = Math.min(playedIds.length, 3);
 
   const reset = () => {
     setPlayedIds([]);
@@ -126,10 +94,7 @@ export function RecordResultSheet({
       placings: order.map((playerId, index) => ({
         playerId,
         place: index + 1,
-        winnings: structure?.payouts[index]?.amount ?? 0,
       })),
-      buyIn: settings.buyIn,
-      bounty: settings.bounty,
     });
     // **Only clear the evening's entry if it was actually recorded.** Closing
     // on a refusal wipes every tap and puts nothing on the board, with no way
@@ -181,9 +146,7 @@ export function RecordResultSheet({
                   title={player.name}
                   selected={playedIds.includes(player.id)}
                   onPress={() => togglePlayed(player.id)}
-                  meta={
-                    playedIds.includes(player.id) ? "Bought in" : undefined
-                  }
+                  meta={playedIds.includes(player.id) ? "Bought in" : undefined}
                 />
               ))}
             </View>
@@ -193,27 +156,18 @@ export function RecordResultSheet({
             <View style={styles.section}>
               <Text style={styles.heading}>Finishing order</Text>
               <Text style={styles.hint}>
-                {paidPlaces > 0
-                  ? `Tap players in the order they finished, top ${rankablePlaces}. ${paidPlaces} of them ${paidPlaces === 1 ? "is paid" : "are paid"} from a ${playedIds.length}-player field.`
-                  : `Tap players in the order they finished, top ${rankablePlaces}. Set a buy-in on the Payouts screen to work out the winnings.`}
+                {`Tap players in the order they finished, top ${rankablePlaces}.`}
               </Text>
               <View style={styles.list}>
                 {playedPlayers.map((player) => {
                   const index = order.indexOf(player.id);
-                  const payout = structure?.payouts[index];
                   return (
                     <ListRow
                       key={player.id}
                       title={player.name}
                       selected={index >= 0}
                       onPress={() => toggleOrder(player.id)}
-                      meta={
-                        index < 0
-                          ? "Tap to rank"
-                          : payout
-                            ? `${formatPlace(index + 1)} · won ${payout.amount}`
-                            : `${formatPlace(index + 1)} · no prize`
-                      }
+                      meta={index < 0 ? "Tap to rank" : formatPlace(index + 1)}
                       right={
                         index >= 0 ? (
                           <Badge label={formatPlace(index + 1)} tone="live" />

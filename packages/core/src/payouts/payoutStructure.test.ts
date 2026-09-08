@@ -133,9 +133,9 @@ describe("validatePayoutOptions", () => {
     // 1.2 really is less than 1.5, but both floor to 1 — which would mean a
     // "valid" tournament whose entire buy-in is bounty and whose prize pool is
     // zero. Validation has to see the same integers the calculator uses.
-    expect(validatePayoutOptions({ buyIn: 1.5, entrants: 6, bounty: 1.2 })).toBe(
-      "bounty-not-below-buy-in",
-    );
+    expect(
+      validatePayoutOptions({ buyIn: 1.5, entrants: 6, bounty: 1.2 }),
+    ).toBe("bounty-not-below-buy-in");
     expect(computePayouts({ buyIn: 1.5, entrants: 6, bounty: 1.2 })).toBeNull();
   });
 
@@ -203,11 +203,15 @@ describe("computePayouts", () => {
   });
 
   it("clamps an override to the field size and to MAX_PAID_PLACES", () => {
-    expect(structure({ buyIn: 10, entrants: 2, paidPlaces: 5 }).payouts).toHaveLength(2);
+    expect(
+      structure({ buyIn: 10, entrants: 2, paidPlaces: 5 }).payouts,
+    ).toHaveLength(2);
     expect(
       structure({ buyIn: 10, entrants: 50, paidPlaces: 99 }).payouts,
     ).toHaveLength(MAX_PAID_PLACES);
-    expect(structure({ buyIn: 10, entrants: 50, paidPlaces: 0 }).payouts).toHaveLength(1);
+    expect(
+      structure({ buyIn: 10, entrants: 50, paidPlaces: 0 }).payouts,
+    ).toHaveLength(1);
     expect(
       structure({ buyIn: 10, entrants: 50, paidPlaces: Number.NaN }).payouts,
     ).toHaveLength(1);
@@ -490,9 +494,7 @@ describe("suggestedBounty", () => {
       expect(bounty).toBeGreaterThanOrEqual(1);
       expect(bounty).toBeLessThan(buyIn);
       expect(Number.isInteger(bounty)).toBe(true);
-      expect(
-        validatePayoutOptions({ buyIn, entrants: 8, bounty }),
-      ).toBeNull();
+      expect(validatePayoutOptions({ buyIn, entrants: 8, bounty })).toBeNull();
     }
   });
 
@@ -530,38 +532,5 @@ describe("formatPlace", () => {
   it("survives nonsense rather than rendering NaN into the table", () => {
     expect(formatPlace(Number.NaN)).toBe("0th");
     expect(formatPlace(2.9)).toBe("2nd");
-  });
-});
-
-describe("the bounty mode on a structure", () => {
-  const base = { buyIn: 20, entrants: 8, bounty: 5 };
-
-  it("is flat unless asked otherwise", () => {
-    expect(computePayouts(base)?.bountyMode).toBe("flat");
-  });
-
-  it("is progressive when asked", () => {
-    expect(
-      computePayouts({ ...base, bountyMode: "progressive" })?.bountyMode,
-    ).toBe("progressive");
-  });
-
-  it("changes nothing about the money in the pools", () => {
-    // Progressive is a claim about how the bounty money *moves*, not how much
-    // of it there is: the same amount is carved out of the same buy-ins.
-    const flat = computePayouts(base);
-    const progressive = computePayouts({ ...base, bountyMode: "progressive" });
-    expect(progressive?.prizePool).toBe(flat?.prizePool);
-    expect(progressive?.bountyPool).toBe(flat?.bountyPool);
-    expect(progressive?.payouts).toEqual(flat?.payouts);
-  });
-
-  it("refuses to call a tournament progressive when there is no bounty", () => {
-    // Otherwise the screen promises an escalating bounty that the game has no
-    // money to escalate.
-    expect(
-      computePayouts({ ...base, bounty: 0, bountyMode: "progressive" })
-        ?.bountyMode,
-    ).toBe("flat");
   });
 });

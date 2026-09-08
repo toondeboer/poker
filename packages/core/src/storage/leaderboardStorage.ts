@@ -75,47 +75,26 @@ const coerceResults = (raw: unknown): GameResult[] => {
     const playerIds = entry.playerIds.filter(
       (id): id is string => typeof id === "string",
     );
+    /**
+     * **`winnings` is deliberately not required, and that is the upgrade
+     * path.** Results written before money came off the board carry
+     * `winnings`, `buyIn`, `bounty` and `knockouts`; results written after it
+     * do not. Requiring any of them here would silently discard every new
+     * result, and requiring none of them means an old one still parses — its
+     * extra keys are simply not read, so the money drops off the first time
+     * the board is written back. That is the intended migration: nobody loses
+     * a game night, they lose the amounts attached to it.
+     */
     const placings = Array.isArray(entry.placings)
       ? entry.placings.flatMap((placing) =>
           isObject(placing) &&
           typeof placing.playerId === "string" &&
           typeof placing.place === "number" &&
-          Number.isFinite(placing.place) &&
-          typeof placing.winnings === "number" &&
-          Number.isFinite(placing.winnings)
-            ? [
-                {
-                  playerId: placing.playerId,
-                  place: placing.place,
-                  winnings: placing.winnings,
-                },
-              ]
+          Number.isFinite(placing.place)
+            ? [{ playerId: placing.playerId, place: placing.place }]
             : [],
         )
       : [];
-    // **Carried, or a bounty game loses its money on every relaunch.** The
-    // key is omitted rather than defaulted to `[]`: absent means "recorded by
-    // hand, nobody knows", and an empty array would claim nobody knocked
-    // anybody out. Same validation as `mergeBoard.isResult`, which is the
-    // other reader of this field.
-    const knockouts = Array.isArray(entry.knockouts)
-      ? entry.knockouts.flatMap((knockout) =>
-          isObject(knockout) &&
-          typeof knockout.playerId === "string" &&
-          typeof knockout.count === "number" &&
-          Number.isFinite(knockout.count) &&
-          typeof knockout.bounty === "number" &&
-          Number.isFinite(knockout.bounty)
-            ? [
-                {
-                  playerId: knockout.playerId,
-                  count: knockout.count,
-                  bounty: knockout.bounty,
-                },
-              ]
-            : [],
-        )
-      : undefined;
     results.push({
       id: entry.id,
       playedAt:
@@ -124,9 +103,6 @@ const coerceResults = (raw: unknown): GameResult[] => {
           : 0,
       playerIds,
       placings,
-      buyIn: typeof entry.buyIn === "number" ? entry.buyIn : 0,
-      bounty: typeof entry.bounty === "number" ? entry.bounty : 0,
-      ...(knockouts ? { knockouts } : {}),
     });
   }
   return results;
@@ -155,7 +131,9 @@ const coerceGroup = (raw: unknown, fallbackName: string): Group | null => {
 };
 
 const coerceIds = (raw: unknown): string[] =>
-  Array.isArray(raw) ? raw.filter((id): id is string => typeof id === "string") : [];
+  Array.isArray(raw)
+    ? raw.filter((id): id is string => typeof id === "string")
+    : [];
 
 const coerceGroups = (raw: unknown, fallbackName: string): GroupState[] => {
   if (!Array.isArray(raw)) return [];
@@ -178,12 +156,14 @@ const coerceGroups = (raw: unknown, fallbackName: string): GroupState[] => {
       : null;
     // Kept across launches so the share button does not flicker back on for a
     // board this account is only a member of, until the first pull lands.
-    const role = entry.role === "admin" || entry.role === "member" ? entry.role : null;
+    const role =
+      entry.role === "admin" || entry.role === "member" ? entry.role : null;
     // Which account this board is on the server under. Omitted rather than
     // stored empty, so a board from before this existed reads back adoptable
     // rather than owned by nobody in particular — see `GroupState`.
     const ownerAccountId =
-      typeof entry.ownerAccountId === "string" && entry.ownerAccountId.length > 0
+      typeof entry.ownerAccountId === "string" &&
+      entry.ownerAccountId.length > 0
         ? entry.ownerAccountId
         : null;
     groups.push({
@@ -258,7 +238,10 @@ export function createLeaderboardStorage(
 
         // Already grouped: read it back as it was written.
         if (Array.isArray(parsed.groups)) {
-          const groups = coerceGroups(parsed.groups, migration.defaultGroupName);
+          const groups = coerceGroups(
+            parsed.groups,
+            migration.defaultGroupName,
+          );
           /**
            * **Read back, and read back *before* the empty check.** A deleted
            * board's membership is still on the server and `GET /groups` keeps
@@ -308,7 +291,10 @@ export function createLeaderboardStorage(
         // the alternative is a user with a full season of history seeing an
         // empty board because the disk was full.
         try {
-          await storage.setItem(LEADERBOARD_KEY, JSON.stringify(toStored(migrated)));
+          await storage.setItem(
+            LEADERBOARD_KEY,
+            JSON.stringify(toStored(migrated)),
+          );
         } catch {
           // Nothing to do but try again next launch.
         }

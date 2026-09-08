@@ -15,7 +15,6 @@ const SETTINGS: PayoutSettings = {
   addOns: 3,
   addOnPrice: 15,
   bounty: 5,
-  bountyMode: "progressive",
   paidPlaces: 4,
   denomination: 10,
 };
@@ -155,34 +154,20 @@ describe("toPayoutOptions", () => {
 });
 
 describe("the bounty mode", () => {
-  it("defaults to flat for settings saved before it existed", async () => {
-    // Field-by-field coercion, so there is no migration — but the *direction*
-    // matters: flat pays exactly what the screen says it pays.
+  it("ignores a bounty mode saved before the setting was removed", async () => {
+    // Progressive bounties went with the betting engine, and the field is no
+    // longer read. Settings saved by the previous version still carry it, and
+    // must load rather than fail on the unknown key.
     const adapter = createMemoryAdapter({
-      payout_settings: JSON.stringify({ buyIn: 20, bounty: 5 }),
+      payout_settings: JSON.stringify({
+        buyIn: 20,
+        bounty: 5,
+        bountyMode: "progressive",
+      }),
     });
     const loaded = await createPayoutStorage(adapter).loadPayoutSettings();
-    expect(loaded.bountyMode).toBe("flat");
-  });
-
-  it("reads anything it does not recognise as flat", async () => {
-    const failures: string[] = [];
-    for (const stored of ["progressiv", "FLAT", 3, null, {}]) {
-      const adapter = createMemoryAdapter({
-        payout_settings: JSON.stringify({ bountyMode: stored }),
-      });
-      const loaded = await createPayoutStorage(adapter).loadPayoutSettings();
-      if (loaded.bountyMode !== "flat") failures.push(JSON.stringify(stored));
-    }
-    expect(failures).toEqual([]);
-  });
-
-  it("carries through to the options the calculator reads", async () => {
-    const settings = await createPayoutStorage(
-      createMemoryAdapter({
-        payout_settings: JSON.stringify({ bountyMode: "progressive" }),
-      }),
-    ).loadPayoutSettings();
-    expect(toPayoutOptions(settings).bountyMode).toBe("progressive");
+    expect(loaded.buyIn).toBe(20);
+    expect(loaded.bounty).toBe(5);
+    expect(loaded).not.toHaveProperty("bountyMode");
   });
 });

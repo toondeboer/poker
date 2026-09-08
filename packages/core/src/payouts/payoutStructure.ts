@@ -41,32 +41,18 @@ export type PayoutStructure = {
   /** The part of the take paid out per knockout: `totalEntries × bounty`. */
   bountyPool: number;
   /**
-   * What one elimination is worth at the start. 0 with no bounty.
+   * What one elimination is worth. 0 with no bounty.
    *
-   * Flat: exactly what every knockout pays, all evening. Progressive: what
-   * every head starts at — half of it is paid in cash and half goes onto the
-   * winner's own head, so by the end it is neither the amount collected nor
-   * the amount on anybody's head. See {@link bountyMode}.
+   * Flat, and only flat: exactly what every knockout pays, all evening, settled
+   * between the players as it happens. A progressive mode existed briefly and
+   * was removed with the betting engine — it needed the app to watch every hand
+   * to know whose chips took whom out, which a dealer that holds no chips
+   * cannot do. See the Gambling classification section in `ROADMAP.md`.
    */
   bountyPerKnockout: number;
-  /**
-   * How the bounty is paid out. `"flat"` unless asked for otherwise.
-   *
-   * This changes nothing about the pool arithmetic — the same money is carved
-   * out of the same buy-ins either way. What it changes is who ends up holding
-   * it, which the game itself decides hand by hand.
-   */
-  bountyMode: BountyMode;
   /** One entry per paid place, descending by amount. Sums exactly to `prizePool`. */
   payouts: Payout[];
 };
-
-/**
- * Flat pays the same for every knockout. Progressive splits each one in half:
- * half in cash, half onto the winner's own head, so the players doing the
- * knocking become the ones worth knocking out.
- */
-export type BountyMode = "flat" | "progressive";
 
 export type PayoutOptions = {
   /** Whole currency units each player puts in. */
@@ -93,14 +79,6 @@ export type PayoutOptions = {
    * {@link validatePayoutOptions}.
    */
   bounty?: number;
-  /**
-   * Flat or progressive. Defaults to flat.
-   *
-   * Progressive is only meaningful for a game the app deals: the bounty on
-   * every head changes with each elimination, and no home game is keeping that
-   * ledger by hand between hands.
-   */
-  bountyMode?: BountyMode;
   /**
    * Override the number of paid places. Defaults to
    * {@link defaultPaidPlaces} for the field size, and is clamped to
@@ -278,12 +256,6 @@ export const computePayouts = (
   const totalCollected = buyIn * totalEntries + addOnPool;
   const bountyPool = bounty * totalEntries;
   const prizePool = totalCollected - bountyPool;
-  // Progressive is a claim about how the bounty money moves, so it means
-  // nothing when there is none — and calling a tournament progressive when
-  // every bounty in it is 0 would put a promise on screen the game cannot keep.
-  const bountyMode: BountyMode =
-    bounty > 0 && options.bountyMode === "progressive" ? "progressive" : "flat";
-
   const requested = options.paidPlaces ?? defaultPaidPlaces(entrants);
   const paidPlaces = clamp(
     Math.floor(sanitize(requested, 1)),
@@ -316,7 +288,6 @@ export const computePayouts = (
     prizePool,
     bountyPool,
     bountyPerKnockout: bounty,
-    bountyMode,
     payouts: amounts.map((amount, index) => ({ place: index + 1, amount })),
   };
 };

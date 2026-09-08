@@ -44,20 +44,10 @@ import { TextField } from "@/src/components/ui/TextField";
 import { GroupsSheet } from "./GroupsSheet";
 import { RecordResultSheet } from "./RecordResultSheet";
 
-/** Rendered as "8 games · 3 wins · won 120 · 5 KOs", skipping what is zero. */
-const describeStanding = (
-  wins: number,
-  games: number,
-  won: number,
-  knockouts: number,
-) => {
+/** Rendered as "8 games · 3 wins", skipping what is zero. */
+const describeStanding = (wins: number, games: number) => {
   const parts = [`${games} ${games === 1 ? "game" : "games"}`];
   if (wins > 0) parts.push(`${wins} ${wins === 1 ? "win" : "wins"}`);
-  if (won > 0) parts.push(`won ${won}`);
-  // Only ever non-zero for games the app dealt — nobody can reconstruct
-  // knockouts from a night written down afterwards, so a board of
-  // hand-recorded games simply never shows this rather than showing zeros.
-  if (knockouts > 0) parts.push(`${knockouts} KO${knockouts === 1 ? "" : "s"}`);
   return parts.join(" · ");
 };
 
@@ -291,12 +281,7 @@ export function LeaderboardScreen() {
                 <ListRow
                   key={standing.playerId}
                   title={`${formatPlace(index + 1)}  ${standing.name}`}
-                  meta={describeStanding(
-                    standing.wins,
-                    standing.gamesPlayed,
-                    standing.totalWon,
-                    standing.knockouts,
-                  )}
+                  meta={describeStanding(standing.wins, standing.gamesPlayed)}
                   right={
                     standing.wins > 0 ? (
                       <Badge label={`${standing.wins}`} tone="live" />

@@ -1,5 +1,5 @@
 // src/components/game/GameScreen.tsx
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import {
   Alert,
   ScrollView,
@@ -9,18 +9,9 @@ import {
   View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import {
-  computePayouts,
-  finishingPlacings,
-  knockoutCounts,
-  knockoutsFullyRecorded,
-  unclaimedBounty,
-  MAX_SEATS,
-  toPayoutOptions,
-} from "@poker/core";
+import { finishingPlacings, MAX_SEATS } from "@poker/core";
 import { usePremium } from "@/src/contexts/PremiumContext";
 import { useLeaderboard } from "@/src/contexts/LeaderboardContext";
-import { usePayouts } from "@/src/contexts/PayoutContext";
 import {
   colors,
   isTabletWidth,
@@ -219,46 +210,31 @@ export function GameScreen() {
 
 /** A game in progress. All of its state lives in {@link GameProvider}. */
 function ActiveGame({ nameFor }: { nameFor: (id: string) => string }) {
-  const { session, setup, legal, complete, order, handInProgress, recorded,
-    markRecorded, deal, act, endGame } = useGame();
-  const { settings } = usePayouts();
+  const {
+    session,
+    setup,
+    legal,
+    complete,
+    order,
+    handInProgress,
+    recorded,
+    markRecorded,
+    deal,
+    act,
+    endGame,
+  } = useGame();
   const { recordResult, activeGroupId } = useLeaderboard();
   const [refused, setRefused] = useState<string | null>(null);
 
   /**
-   * What each finishing position pays, from the payout setup the host already
-   * made — priced for the field that actually sat down rather than the one on
-   * the Payouts screen, exactly as the record-a-game sheet does it.
+   * **The game reads nothing from the payout setup, deliberately.**
    *
-   * A game with no buy-in set produces nothing, and the finishes are recorded
-   * winning zero. That is deliberate: who finished where is a different
-   * question from who got paid, and a friendly game still has a winner.
+   * It used to price every finish from the host's buy-in and write the amounts
+   * onto the leaderboard, which is the shape that made this a money tracker.
+   * The calculator still works out what each place wins tonight; the game
+   * records who finished where and stops there. See the Gambling classification
+   * section in `ROADMAP.md`.
    */
-  const winningsByPlace = useMemo(() => {
-    if (!session) return [];
-    // The field is who sat down, and there are **no rebuys or add-ons**: this
-    // game is dealt by the app with fixed starting stacks and no way to buy
-    // back in. Carrying the Payouts screen's saved rebuy count over would
-    // price a pool that nobody paid into — settings left at four rebuys turn a
-    // real 80 into a recorded 200 for the winner.
-    const structure = computePayouts({
-      ...toPayoutOptions(settings),
-      entrants: session.seats.length,
-      rebuys: 0,
-      addOns: 0,
-    });
-    if (!structure) return [];
-    const byPlace: number[] = [];
-    for (const payout of structure.payouts) byPlace[payout.place - 1] = payout.amount;
-    return byPlace.map((amount) => amount ?? 0);
-  }, [session, settings]);
-
-  // Two things the table has to be told about the bounty money, both computed
-  // from the same ledger the recorded amounts come from.
-  const unclaimed = session
-    ? unclaimedBounty(session, settings.bounty, settings.bountyMode)
-    : 0;
-  const fullyRecorded = session ? knockoutsFullyRecorded(session) : true;
 
   if (!session) return null;
 
@@ -281,26 +257,19 @@ function ActiveGame({ nameFor }: { nameFor: (id: string) => string }) {
     }
     const saved = recordResult({
       playerIds: session.seats.map((seat) => seat.playerId),
-      placings: finishingPlacings(session, winningsByPlace),
-      buyIn: settings.buyIn,
-      bounty: settings.bounty,
-      // The thing a game recorded by hand can never carry: the app watched
-      // every hand, so it knows whose chips took whom out. Without it a bounty
-      // game's money column is prize money only, which is most of the point of
-      // playing one missing.
-      knockouts: knockoutCounts(session, settings.bounty, settings.bountyMode),
+      placings: finishingPlacings(session),
     });
     // Only claim it was saved if it was. A refused result used to leave the
     // message saying otherwise and took the retry away with it.
     if (saved) markRecorded();
-    else setRefused("That result couldn't be saved. Nothing has been recorded.");
+    else
+      setRefused("That result couldn't be saved. Nothing has been recorded.");
     // **Returned, because the caller may be about to throw the game away.**
     // `record` refuses for two reasons that are invisible from outside it, and
     // ending the game on the strength of a save that did not happen destroys
     // the night *and* the message explaining why.
     return saved;
   };
-
 
   /**
    * Ending a game is the one action that throws it away.
@@ -395,25 +364,9 @@ function ActiveGame({ nameFor }: { nameFor: (id: string) => string }) {
           <CardHeader icon="trophy" title="Game over" />
           <CardContent>
             <FinishingOrder order={order} nameFor={nameFor} />
-            {/* Money that reached nobody: a pot everyone eligible folded out
-                of leaves the bounty on that head with nowhere to go. Said out
-                loud, because somebody is otherwise counting the cash at the
-                end of the night and finding it short with no explanation. */}
-            {unclaimed > 0 ? (
-              <Text style={styles.empty}>
-                {`${unclaimed} in bounties went unclaimed — the pot that busted them was won by nobody.`}
-              </Text>
-            ) : null}
-            {/* An evening resumed from a build that did not track knockouts.
-                Flat still pays the ones it knows about correctly; progressive
-                does not, because every unrecorded exit leaves a head loaded and
-                stops the chain after it escalating. */}
-            {settings.bountyMode === "progressive" && !fullyRecorded ? (
-              <Text style={styles.empty}>
-                Some knockouts from earlier in this game were never recorded, so
-                the bounty amounts below are short of what was really won.
-              </Text>
-            ) : null}
+            {/* No bounty accounting here any more. Bounties are settled between
+                players at the table as knockouts happen, and the board records
+                who finished where rather than what anything paid. */}
             {recorded ? (
               <Text style={styles.empty}>
                 Saved to the leaderboard. The standings have it already.
