@@ -427,6 +427,14 @@ platform-tagged heading (e.g. `## [1.1.3] - 2026-07-20 — Android`) when you cu
   deleted with it. One deliberate exception: the API's deployed `description` string is still wrong
   and is left that way with a comment saying so, because correcting it would put the branch out of
   sync with the live stack for something cosmetic.
+- **The last two unsourced claims in the gambling section are now sourced or marked.** Apple's
+  "for entertainment purposes" line is real and now carries its number — **guideline 1.1.6** — with
+  the note that it was written about false information rather than gambling, so it is read as a
+  posture rather than a ruling. The claim that "AdSense restricts only real-money gambling" was
+  **never checked against Google's publisher policy**; it sits in an option that was rejected on
+  other grounds, so it is marked unverified rather than quietly relied on. Also confirmed against
+  primary sources while there: `MaxAdContentRating.MA` does name gambling (the library's own type
+  docs), and Belgium's loot-box exposure is criminal fines to €800,000 plus imprisonment.
 - **The PEGI claim was stated more broadly than PEGI states it.** Both files said PEGI "auto-rates
   _any_ simulated gambling 18". PEGI's own wording is narrower — content that "encourages or teaches
   gambling", meaning "games of chance normally carried out in casinos or gambling halls". A betting

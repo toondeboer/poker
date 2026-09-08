@@ -129,8 +129,11 @@ deck.
 ### Keeping the betting engine for the web only — considered, rejected
 
 Store guidelines and PEGI/IARC govern apps distributed through stores and have no jurisdiction over
-the website, and AdSense restricts only _real-money_ gambling, so play-money poker on the site would
-not touch ad revenue. **On the rules, this was clean.** It failed on everything else:
+the website. The ad-revenue half of that argument — that AdSense restricts only _real-money_
+gambling, so play-money poker on the site would not touch it — **was never actually checked against
+Google's publisher policy, and is not relied on here**: the option was rejected on everything below,
+and anyone reviving it has to verify that first. **On the store rules, this was clean.** It failed on
+everything else:
 
 - **Entitlements cannot cross platforms today.** `revenueCatProvider.ts` calls
   `Purchases.configure({ apiKey })` with no `appUserID` and never calls `logIn()`, so entitlements
@@ -207,10 +210,12 @@ following a link from the app to a poker table is a conversation the release doe
 8. ✅ **Gambling-adjacent copy softened** across app, website and store listing. A final read of the whole listing before submission is still worth doing, but nothing specific is outstanding.
 9. ✅ **Factual no-real-money statement added** — a "Money, and what the app does with it"
    section on `/support`, and a paste-ready block in `STORE_LISTING.md` for the App Review notes
-   field, worded identically so a reviewer who checks finds the two agreeing. Note Apple says
-   stating something is "for entertainment purposes" _won't overcome a guideline_: this supports the
-   structural changes rather than substituting for them, which is why it took until items 2–7 were
-   done to be worth writing.
+   field, worded identically so a reviewer who checks finds the two agreeing. Apple's exact words,
+   in **guideline 1.1.6**, are _"Stating that the app is 'for entertainment purposes' won't overcome
+   this guideline."_ — written about false information rather than about gambling, so read it as the
+   general posture it implies rather than as a ruling on this. Either way it points one direction:
+   the statement supports the structural changes rather than substituting for them, which is why it
+   took until items 2–7 were done to be worth writing.
 10. ⬜ **Answer both age-rating questionnaires honestly and record the answers given**, so the next
     release can be checked against them rather than re-derived. Apple's and Play's IARC are
     independent and need not agree.
