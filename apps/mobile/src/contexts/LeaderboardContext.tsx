@@ -59,6 +59,7 @@ import {
 import { generateId } from "@/src/utils/id";
 import { logger } from "@/src/utils/logger";
 import { useGroupSync } from "@/src/hooks/useGroupSync";
+import { usePushRegistration } from "@/src/hooks/usePushRegistration";
 import { usePremium } from "@/src/contexts/PremiumContext";
 // Module-level, because `AuthProviderContext` is mounted *inside* this one —
 // the same reason `useGroupSync` reads the token this way.
@@ -264,6 +265,13 @@ export function LeaderboardProvider({
   // Only the hosting entitlement is decided here. Pro decides what is *shown*,
   // which is the screens' business, and joining needs neither.
   const { hasClub } = usePremium();
+
+  /**
+   * Where this device can be reached, registered once there is an account to
+   * hang it on. Here rather than at the root because a push is only ever about
+   * a board, so it belongs with the thing that has them.
+   */
+  usePushRegistration();
 
   const sync = useGroupSync();
   // The stable half of it. `sync` itself changes whenever the queue does, and a

@@ -379,6 +379,25 @@ platform-tagged heading (e.g. `## [1.1.3] - 2026-07-20 — Android`) when you cu
   contain something — Scunthorpe, therapist and raccoon all pass, and there are tests to keep it
   that way. It stops the lazy case rather than a determined one, which is why reporting sits beside
   it rather than instead of it.
+- **Push notifications when somebody records a game on a shared board.** Through **Expo's push
+  service** rather than APNs and FCM: the app is already an Expo app, so a token is one call away
+  and Expo holds the platform credentials — the alternative was an APNs key, an FCM service account,
+  two payload shapes and a per-platform failure mode, for the same result. A token is a row per
+  device (`ACCOUNT#<id>` / `PUSH#<token>`), so signing in on a phone and a tablet buzzes both, and
+  Expo's `DeviceNotRegistered` is used to forget a device that was uninstalled — the only signal
+  there is that one was.
+
+  **The notification names the board, not the player.** "Ann won" is the more interesting sentence
+  and the wrong one: a board name is chosen by the group, a player name is typed by whoever added
+  them, and a push is the one surface that puts text on a locked screen in front of somebody who did
+  not open the app. Keeping user-typed names off it means moderation here is the story the board
+  already has rather than a new one.
+
+  **It cannot fail a recorded game.** Every failure is swallowed and logged, it only fires when the
+  write actually landed — never on the outbox replaying a duplicate — and it never tells the person
+  who pressed the button, who is holding the phone. The app registers on sign-in and rides on the
+  notification permission the timer already asked for, so it never prompts for its own.
+
 - **The shared clock has a transport, and it is HTTP rather than AppSync.** Three routes
   (`POST /sessions`, `GET|POST /sessions/{code}`), one `SESSION#<code>` row on the table that
   already had the right TTL, and a polling transport in the app. `ROADMAP.md` assumed this needed

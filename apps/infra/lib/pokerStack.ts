@@ -795,6 +795,10 @@ export class PokerStack extends Stack {
       ["/groups/{groupId}/invite", [HttpMethod.POST]],
       // Reporting what is on a board. Members only — see the handler.
       ["/groups/{groupId}/report", [HttpMethod.POST]],
+      // Where to reach this account's devices. On the groups handler because
+      // that is what sends to them, so the registration and the send share one
+      // view of the rows.
+      ["/me/push-token", [HttpMethod.POST, HttpMethod.DELETE]],
       [
         "/groups/{groupId}/members/{accountId}",
         [HttpMethod.PUT, HttpMethod.DELETE],

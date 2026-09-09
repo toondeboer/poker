@@ -28,6 +28,8 @@ import {
   type Role,
 } from "./groupKeys";
 import { createGroupStore, type GroupStore } from "./groupStore";
+import { createPushSender, type PushSender } from "./push";
+import { createPushStore, isExpoPushToken, type PushStore } from "./pushStore";
 import { deleteAccount } from "./deleteAccount";
 import { randomBytes, randomUUID } from "node:crypto";
 import {
@@ -358,7 +360,47 @@ export const handler = async (request: VerifiedRequest): Promise<Response> => {
       if (!allowed.ok) return allowed.response;
       if (!isResult(body.result)) return json(400, { error: "no result" });
       const outcome = await store.recordGame(groupId, cleanResult(body.result));
+      /**
+       * **Only on a write that actually landed, and never in its way.**
+       * `recordGame` answers `conflict` for a replayed write — the ordinary
+       * case, since the outbox retries — and telling a board about the same
+       * game twice is worse than not telling it at all.
+       *
+       * Awaited rather than left dangling: a Lambda is frozen the moment it
+       * returns, so a floating promise here is a notification that sometimes
+       * sends and sometimes does not, depending on how busy the runtime was.
+       * The sender swallows its own failures, so awaiting it cannot fail this
+       * request — see `push.ts`.
+       */
+      if (outcome.status === "ok") {
+        const board = await store.board(groupId);
+        const members = await store.members(groupId);
+        await pushSender().resultRecorded({
+          groupId,
+          boardName: board?.group?.name ?? "Your board",
+          memberIds: members.map((member) => member.accountId),
+          actorId: caller,
+        });
+      }
       return answer(outcome, requestId, { groupId, caller });
+    }
+
+    case "POST /me/push-token": {
+      // The account comes from the token, never the body — the same rule every
+      // other route here follows about who a caller may act as.
+      if (!isExpoPushToken(body.token)) {
+        return json(400, { error: "not a push token" });
+      }
+      await pushTokens().remember(caller, body.token, Date.now());
+      return json(204, {});
+    }
+
+    case "DELETE /me/push-token": {
+      if (!isExpoPushToken(body.token)) {
+        return json(400, { error: "not a push token" });
+      }
+      await pushTokens().forget(caller, body.token);
+      return json(204, {});
     }
 
     case "POST /groups/{groupId}/claims": {
@@ -597,6 +639,34 @@ const groupStore = (): GroupStore => {
 /** For tests, which need each case to start from a known store. */
 export const useGroupStore = (replacement: GroupStore | null): void => {
   store = replacement;
+};
+
+let tokens: PushStore | null = null;
+const pushTokens = (): PushStore => {
+  if (tokens) return tokens;
+  const tableName = process.env.TABLE_NAME;
+  if (!tableName) throw new Error("TABLE_NAME is not set");
+  tokens = createPushStore(tableName);
+  return tokens;
+};
+
+let sender: PushSender | null = null;
+const pushSender = (): PushSender => {
+  if (sender) return sender;
+  sender = createPushSender(pushTokens());
+  return sender;
+};
+
+/**
+ * For tests. Both, because a test that swapped only the sender would still have
+ * the real store underneath it looking for a table.
+ */
+export const usePush = (
+  replacementTokens: PushStore | null,
+  replacementSender: PushSender | null,
+): void => {
+  tokens = replacementTokens;
+  sender = replacementSender;
 };
 
 /**
