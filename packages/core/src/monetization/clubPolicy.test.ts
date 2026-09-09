@@ -49,9 +49,9 @@ describe("sharing a board of your own", () => {
   });
 
   it("asks for a sign-in before it asks for money", () => {
-    expect(hostRefusal({ ...paidUp, signedIn: false, hasClub: false })).toContain(
-      "Sign in",
-    );
+    expect(
+      hostRefusal({ ...paidUp, signedIn: false, hasClub: false }),
+    ).toContain("Sign in");
   });
 
   it("waits rather than refusing while the store has not answered", () => {
@@ -104,7 +104,9 @@ describe("which boards can be looked at", () => {
     // known role as "shared" would hand the Pro leaderboard to anybody who
     // signed in on a device that had pulled its own boards — Pro unlocked by
     // syncing, which is not a thing anybody bought.
-    expect(boardIsVisible({ isPremium: false, isGuestBoard: false })).toBe(false);
+    expect(boardIsVisible({ isPremium: false, isGuestBoard: false })).toBe(
+      false,
+    );
     expect(boardIsVisible({ isPremium: true, isGuestBoard: false })).toBe(true);
   });
 });
@@ -114,7 +116,9 @@ describe("what a purchase grants", () => {
     // **A shared board is a leaderboard, and the leaderboard is Pro.** Without
     // this a subscriber hosts a board they cannot open — not an awkward state,
     // a broken one, sold deliberately.
-    expect(entitlementsFrom({ pro: false, club: true, clubEver: true })).toEqual({
+    expect(
+      entitlementsFrom({ pro: false, club: true, clubEver: true }),
+    ).toEqual({
       isPremium: true,
       hasClub: true,
       // Not bought, only included — and it goes when the subscription does.
@@ -124,7 +128,9 @@ describe("what a purchase grants", () => {
 
   it("does not give a Pro buyer hosting", () => {
     // The rule runs one way only. Pro has never included hosting.
-    expect(entitlementsFrom({ pro: true, club: false, clubEver: false })).toEqual({
+    expect(
+      entitlementsFrom({ pro: true, club: false, clubEver: false }),
+    ).toEqual({
       isPremium: true,
       hasClub: false,
       ownsProOutright: true,
@@ -132,7 +138,9 @@ describe("what a purchase grants", () => {
   });
 
   it("grants nothing to somebody who has bought nothing", () => {
-    expect(entitlementsFrom({ pro: false, club: false, clubEver: false })).toEqual({
+    expect(
+      entitlementsFrom({ pro: false, club: false, clubEver: false }),
+    ).toEqual({
       isPremium: false,
       hasClub: false,
       ownsProOutright: false,
@@ -150,19 +158,21 @@ describe("what a purchase grants", () => {
 
   it("does not keep hosting after it lapses", () => {
     // Pro persists; hosting is the thing being paid for and stops.
-    expect(entitlementsFrom({ pro: false, club: false, clubEver: true }).hasClub).toBe(
-      false,
-    );
+    expect(
+      entitlementsFrom({ pro: false, club: false, clubEver: true }).hasClub,
+    ).toBe(false);
   });
 
   it("lets somebody hold both without contradiction", () => {
     // Somebody who bought Pro years ago and later subscribes.
-    expect(entitlementsFrom({ pro: true, club: true, clubEver: true })).toEqual({
-      isPremium: true,
-      hasClub: true,
-      // Their Pro survives the subscription ending; that is what they paid for.
-      ownsProOutright: true,
-    });
+    expect(entitlementsFrom({ pro: true, club: true, clubEver: true })).toEqual(
+      {
+        isPremium: true,
+        hasClub: true,
+        // Their Pro survives the subscription ending; that is what they paid for.
+        ownsProOutright: true,
+      },
+    );
   });
 });
 
@@ -173,13 +183,19 @@ describe("whose board is it, on the server", () => {
     // and every player behind it refused "no such group", because this account
     // cannot see it.
     expect(
-      boardBelongsToAnotherAccount({ ownerAccountId: "acct-a", accountId: "acct-b" }),
+      boardBelongsToAnotherAccount({
+        ownerAccountId: "acct-a",
+        accountId: "acct-b",
+      }),
     ).toBe(true);
   });
 
   it("is not somebody else's when the same account owns it", () => {
     expect(
-      boardBelongsToAnotherAccount({ ownerAccountId: "acct-a", accountId: "acct-a" }),
+      boardBelongsToAnotherAccount({
+        ownerAccountId: "acct-a",
+        accountId: "acct-a",
+      }),
     ).toBe(false);
   });
 
@@ -187,7 +203,10 @@ describe("whose board is it, on the server", () => {
     // A board made offline, or made before this field existed. Answering `true`
     // would strand every board on an upgraded install.
     expect(
-      boardBelongsToAnotherAccount({ ownerAccountId: undefined, accountId: "acct-a" }),
+      boardBelongsToAnotherAccount({
+        ownerAccountId: undefined,
+        accountId: "acct-a",
+      }),
     ).toBe(false);
   });
 
@@ -195,7 +214,10 @@ describe("whose board is it, on the server", () => {
     // Nothing is going to be sent anyway, and `true` here would have the UI
     // describe a board as another person's purely for want of a session.
     expect(
-      boardBelongsToAnotherAccount({ ownerAccountId: "acct-a", accountId: null }),
+      boardBelongsToAnotherAccount({
+        ownerAccountId: "acct-a",
+        accountId: null,
+      }),
     ).toBe(false);
   });
 });
@@ -205,10 +227,18 @@ describe("a board that belongs to another account", () => {
     // **Club is not permission to re-home somebody else's board.** Without this
     // the outbox re-announces the previous account's boards on every launch.
     expect(
-      boardSyncs({ hasClub: true, isOnServer: true, belongsToAnotherAccount: true }),
+      boardSyncs({
+        hasClub: true,
+        isOnServer: true,
+        belongsToAnotherAccount: true,
+      }),
     ).toBe(false);
     expect(
-      boardSyncs({ hasClub: true, isOnServer: false, belongsToAnotherAccount: true }),
+      boardSyncs({
+        hasClub: true,
+        isOnServer: false,
+        belongsToAnotherAccount: true,
+      }),
     ).toBe(false);
   });
 

@@ -162,7 +162,11 @@ export function useSessionSync({
   useEffect(() => {
     if (!settled || !mayPublish) return;
     const beat = setInterval(() => {
-      const { state: current, blindIndex: level, publish: send } = localRef.current;
+      const {
+        state: current,
+        blindIndex: level,
+        publish: send,
+      } = localRef.current;
       void send(
         (version) =>
           toSyncMessage({

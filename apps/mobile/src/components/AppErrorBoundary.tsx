@@ -1,7 +1,10 @@
 // src/components/AppErrorBoundary.tsx
 import { useState } from "react";
 import { Alert, ScrollView, StyleSheet, Text, View } from "react-native";
-import { SafeAreaProvider, useSafeAreaInsets } from "react-native-safe-area-context";
+import {
+  SafeAreaProvider,
+  useSafeAreaInsets,
+} from "react-native-safe-area-context";
 import type { ErrorBoundaryProps } from "expo-router";
 import * as Notifications from "expo-notifications";
 import { clearForRecovery } from "@poker/core";
@@ -99,7 +102,10 @@ function RecoveryScreen({ error, retry }: ErrorBoundaryProps) {
       <ScrollView
         contentContainerStyle={[
           styles.content,
-          { paddingTop: insets.top + space.xl, paddingBottom: insets.bottom + space.xl },
+          {
+            paddingTop: insets.top + space.xl,
+            paddingBottom: insets.bottom + space.xl,
+          },
         ]}
       >
         <Card>

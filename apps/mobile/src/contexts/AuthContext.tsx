@@ -8,9 +8,16 @@ import {
   useRef,
   useState,
 } from "react";
-import { validateCredentials, type Account, type CredentialError } from "@poker/core";
+import {
+  validateCredentials,
+  type Account,
+  type CredentialError,
+} from "@poker/core";
 import { stubAuthProvider } from "@/src/services/stubAuthProvider";
-import { createCognitoAuthProvider, CognitoFailure } from "@/src/services/cognitoAuthProvider";
+import {
+  createCognitoAuthProvider,
+  CognitoFailure,
+} from "@/src/services/cognitoAuthProvider";
 import { backendConfig } from "@/src/services/backendConfig";
 import { logger } from "@/src/utils/logger";
 
@@ -278,7 +285,10 @@ export function AuthProviderContext({
 
   /** Wraps a call that neither signs in nor signs out — just succeeds or does not. */
   const plain = useCallback(
-    async (run: () => Promise<void>, what: string): Promise<AuthError | null> => {
+    async (
+      run: () => Promise<void>,
+      what: string,
+    ): Promise<AuthError | null> => {
       setBusy(true);
       try {
         await run();
@@ -355,7 +365,10 @@ export function AuthProviderContext({
    * That is the exact flow App Store guideline 5.1.1(v) is reviewed against.
    */
   const end = useCallback(
-    async (run: () => Promise<void>, what: string): Promise<AuthError | null> => {
+    async (
+      run: () => Promise<void>,
+      what: string,
+    ): Promise<AuthError | null> => {
       setBusy(true);
       try {
         await run();

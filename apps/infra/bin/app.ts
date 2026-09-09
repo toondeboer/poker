@@ -55,9 +55,7 @@ const env = (() => {
  */
 const alertEmail = app.node.tryGetContext("alertEmail") as string | undefined;
 const budget = app.node.tryGetContext("monthlyBudgetUsd") as
-  | string
-  | number
-  | undefined;
+  string | number | undefined;
 
 for (const stage of STAGES) {
   new PokerStack(app, stackNameFor(stage), {
@@ -79,7 +77,6 @@ new DeploymentStack(app, "PokerDeployment", {
     (app.node.tryGetContext("repository") as string | undefined) ??
     "toondeboer/poker",
   existingProviderArn: app.node.tryGetContext("existingProviderArn") as
-    | string
-    | undefined,
+    string | undefined,
   description: "GitHub Actions deployment roles for the Poker backend",
 });

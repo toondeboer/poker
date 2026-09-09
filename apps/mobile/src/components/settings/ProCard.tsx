@@ -16,8 +16,8 @@ export function ProCard({ onRequestPro }: { onRequestPro: () => void }) {
       <Card style={styles.unlockedCard}>
         <View style={styles.unlockedRow}>
           <Text style={styles.unlockedText}>
-            Pro unlocked — no ads, payouts, leaderboard, presets, and your
-            pick of alarm sound.
+            Pro unlocked — no ads, payouts, leaderboard, presets, and your pick
+            of alarm sound.
           </Text>
           <Badge label="Unlocked" tone="live" />
         </View>

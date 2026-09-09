@@ -134,7 +134,9 @@ describe("evaluateHand — invariants", () => {
           // Each five-card subset is the seven minus two cards.
           const subset = cards.filter((_, i) => i !== a && i !== b);
           if (evaluateFive(subset) > best) {
-            failures.push(`subset beat the best of ${cards.map(cardToString).join(" ")}`);
+            failures.push(
+              `subset beat the best of ${cards.map(cardToString).join(" ")}`,
+            );
           }
         }
       }
@@ -217,7 +219,9 @@ describe("rankHands", () => {
       const tiers = rankHands(entries);
       const seen = tiers.flatMap((tier) => tier.ids);
       if (seen.length !== entries.length) {
-        failures.push(`seed ${seed}: ${seen.length} of ${entries.length} ranked`);
+        failures.push(
+          `seed ${seed}: ${seen.length} of ${entries.length} ranked`,
+        );
       }
       if (new Set(seen).size !== entries.length) {
         failures.push(`seed ${seed}: a player appeared twice`);

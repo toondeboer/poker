@@ -20,7 +20,10 @@ import {
   type CognitoTokens,
   type SignUpResult,
 } from "@poker/core";
-import { backendConfig, type BackendConfig } from "@/src/services/backendConfig";
+import {
+  backendConfig,
+  type BackendConfig,
+} from "@/src/services/backendConfig";
 import { AUTH_REDIRECT_URI } from "@/src/services/socialSignIn";
 import { asyncStorageAdapter } from "@/src/services/storageAdapter";
 import { logger } from "@/src/utils/logger";
@@ -286,7 +289,8 @@ export const createCognitoAuthProvider = (
         if (response.status === 401 || response.status === 403) {
           throw new CognitoFailure("session-expired");
         }
-        if (response.status === 429) throw new CognitoFailure("too-many-attempts");
+        if (response.status === 429)
+          throw new CognitoFailure("too-many-attempts");
         logger.warn("Account deletion refused:", response.status);
         throw new CognitoFailure("network");
       }

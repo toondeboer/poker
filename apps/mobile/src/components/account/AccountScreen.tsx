@@ -11,7 +11,10 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { MIN_PASSWORD_LENGTH } from "@poker/core";
 import {
-  accountsAreReal, useAuth, type AuthError } from "@/src/contexts/AuthContext";
+  accountsAreReal,
+  useAuth,
+  type AuthError,
+} from "@/src/contexts/AuthContext";
 import { useLeaderboard } from "@/src/contexts/LeaderboardContext";
 import { useKeyboardFocusScroll } from "@/src/hooks/useKeyboardFocusScroll";
 import {
@@ -39,7 +42,8 @@ const MESSAGE: Record<AuthError, string> = {
   "email-empty": "Enter the email address you want to use.",
   "email-malformed": "That doesn't look like an email address.",
   "password-too-short": `Use at least ${MIN_PASSWORD_LENGTH} characters.`,
-  "email-taken": "There's already an account with that address. Sign in instead.",
+  "email-taken":
+    "There's already an account with that address. Sign in instead.",
   "email-unknown": "No account with that address. Create one below.",
   "credentials-wrong": "That email and password don't match an account.",
   "code-wrong": "That code isn't right. Check the email and try again.",
@@ -196,8 +200,6 @@ export function AccountScreen() {
     setCode("");
     setError(await signIn(email, password));
   };
-
-
 
   const confirmDelete = () => {
     Alert.alert(
@@ -356,53 +358,54 @@ export function AccountScreen() {
    * and password that had just been submitted, with a Create-an-account button
    * that would start the whole thing again.
    */
-  const emailForm = !showEmail || awaitingCode ? null : (
-    <Card>
-      <CardHeader icon="mail" title="Email and password" />
-      <CardContent>
-        <TextField
-          label="Email"
-          value={email}
-          onChangeText={(next) => {
-            setEmail(next);
-            setError(null);
-          }}
-          autoCapitalize="none"
-          autoCorrect={false}
-          keyboardType="email-address"
-          textContentType="emailAddress"
-          placeholder="you@example.com"
-        />
-        <TextField
-          label="Password"
-          value={password}
-          onChangeText={(next) => {
-            setPassword(next);
-            setError(null);
-          }}
-          secureTextEntry
-          autoCapitalize="none"
-          autoCorrect={false}
-          textContentType="password"
-          helper={`At least ${MIN_PASSWORD_LENGTH} characters.`}
-        />
-        {error ? <Text style={styles.error}>{MESSAGE[error]}</Text> : null}
-        <Button
-          label="Sign in"
-          icon="log-in-outline"
-          onPress={() => void attemptSignIn()}
-          disabled={busy}
-        />
-        <Button
-          label="Create an account"
-          variant="secondary"
-          icon="person-add-outline"
-          onPress={() => void attemptSignUp()}
-          disabled={busy}
-        />
-      </CardContent>
-    </Card>
-  );
+  const emailForm =
+    !showEmail || awaitingCode ? null : (
+      <Card>
+        <CardHeader icon="mail" title="Email and password" />
+        <CardContent>
+          <TextField
+            label="Email"
+            value={email}
+            onChangeText={(next) => {
+              setEmail(next);
+              setError(null);
+            }}
+            autoCapitalize="none"
+            autoCorrect={false}
+            keyboardType="email-address"
+            textContentType="emailAddress"
+            placeholder="you@example.com"
+          />
+          <TextField
+            label="Password"
+            value={password}
+            onChangeText={(next) => {
+              setPassword(next);
+              setError(null);
+            }}
+            secureTextEntry
+            autoCapitalize="none"
+            autoCorrect={false}
+            textContentType="password"
+            helper={`At least ${MIN_PASSWORD_LENGTH} characters.`}
+          />
+          {error ? <Text style={styles.error}>{MESSAGE[error]}</Text> : null}
+          <Button
+            label="Sign in"
+            icon="log-in-outline"
+            onPress={() => void attemptSignIn()}
+            disabled={busy}
+          />
+          <Button
+            label="Create an account"
+            variant="secondary"
+            icon="person-add-outline"
+            onPress={() => void attemptSignUp()}
+            disabled={busy}
+          />
+        </CardContent>
+      </Card>
+    );
 
   return (
     <View style={styles.container} ref={containerRef}>

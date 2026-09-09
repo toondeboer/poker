@@ -69,7 +69,9 @@ describe("evaluateFive — categories", () => {
     // Five cards of one rank means at least one duplicate, so this is caught
     // by the same guard — previously it fell through the count loop (which
     // only runs 4 down to 1) and silently returned a value of 0.
-    expect(() => evaluateFive(hand("Ah Ah Ah Ah Ah"))).toThrow(/same card twice/);
+    expect(() => evaluateFive(hand("Ah Ah Ah Ah Ah"))).toThrow(
+      /same card twice/,
+    );
   });
 
   it("still accepts four of a kind, which is the legitimate limit", () => {
@@ -91,7 +93,9 @@ describe("evaluateFive — ordering", () => {
       ["straight-flush", "As Ks Qs Js Ts"],
     ];
     // Sanity: the examples are in the same order the type declares.
-    expect(examples.map(([category]) => category)).toEqual([...HAND_CATEGORIES]);
+    expect(examples.map(([category]) => category)).toEqual([
+      ...HAND_CATEGORIES,
+    ]);
 
     const values = examples.map(([, notation]) => evaluateFive(hand(notation)));
     for (let i = 1; i < values.length; i++) {
@@ -185,9 +189,10 @@ describe("packHandValue", () => {
     // and would show up as a wildly wrong winner rather than a near miss.
     const failures: string[] = [];
     for (let i = 1; i < HAND_CATEGORIES.length; i++) {
-      const strongestBelow = packHandValue(HAND_CATEGORIES[i - 1], [
-        14, 14, 14, 14, 14,
-      ]);
+      const strongestBelow = packHandValue(
+        HAND_CATEGORIES[i - 1],
+        [14, 14, 14, 14, 14],
+      );
       const weakestAbove = packHandValue(HAND_CATEGORIES[i], [0, 0, 0, 0, 0]);
       if (strongestBelow >= weakestAbove) {
         failures.push(

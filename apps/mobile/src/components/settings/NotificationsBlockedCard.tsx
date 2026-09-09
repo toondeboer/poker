@@ -28,8 +28,12 @@ import { colors, space, text } from "@/src/theme";
  * Settings, and hiding it would take away the only route back.
  */
 export function NotificationsBlockedCard() {
-  const { hasPermission, checkPermission, requestPermissionDetailed, showPermissionAlert } =
-    useNotificationPermission();
+  const {
+    hasPermission,
+    checkPermission,
+    requestPermissionDetailed,
+    showPermissionAlert,
+  } = useNotificationPermission();
 
   /**
    * Re-check whenever the app comes back.

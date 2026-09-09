@@ -149,8 +149,16 @@ const subjectOf = (write: PendingWrite): string =>
     write.kind === "createGroup"
       ? write
       : write.kind === "addPlayer"
-        ? { kind: "addPlayer", groupId: write.groupId, playerId: write.player.id }
-        : { kind: "recordGame", groupId: write.groupId, resultId: write.result.id },
+        ? {
+            kind: "addPlayer",
+            groupId: write.groupId,
+            playerId: write.player.id,
+          }
+        : {
+            kind: "recordGame",
+            groupId: write.groupId,
+            resultId: write.result.id,
+          },
   );
 
 /**
@@ -324,7 +332,9 @@ export const refuse = (
 
 /** What a write was about, for explaining why something else did not go. */
 const describe = (write: QueuedWrite): string =>
-  write.kind === "createGroup" ? "the board it belongs to" : "the player it names";
+  write.kind === "createGroup"
+    ? "the board it belongs to"
+    : "the player it names";
 
 /** Somebody has read the bad news. */
 export const dismiss = (queue: SyncQueue, id: string): SyncQueue => ({

@@ -6,7 +6,10 @@ import { settingsFor } from "../lib/stage";
 
 /** The identifiers as `cdk.json` actually declares them. */
 const CONTEXT = {
-  googleClientId: { prod: "prod-abc.apps.googleusercontent.com", dev: "dev-abc.apps.googleusercontent.com" },
+  googleClientId: {
+    prod: "prod-abc.apps.googleusercontent.com",
+    dev: "dev-abc.apps.googleusercontent.com",
+  },
   appleServicesId: {
     prod: "com.toondeboer.pokerkit.signin",
     dev: "com.toondeboer.pokerkit.signin.dev",
@@ -88,18 +91,35 @@ describe("signing in with Apple and Google", () => {
     // sign-in, and the dev secret held prod's client secret to match.
     const clientOf = (t: Template) =>
       Object.values(t.findResources("AWS::Cognito::UserPoolIdentityProvider"))
-        .map((p) => p.Properties as { ProviderType: string; ProviderDetails: Record<string, string> })
+        .map(
+          (p) =>
+            p.Properties as {
+              ProviderType: string;
+              ProviderDetails: Record<string, string>;
+            },
+        )
         .find((p) => p.ProviderType === "Google")?.ProviderDetails.client_id;
-    expect(clientOf(configured("prod"))).toBe("prod-abc.apps.googleusercontent.com");
-    expect(clientOf(configured("dev"))).toBe("dev-abc.apps.googleusercontent.com");
+    expect(clientOf(configured("prod"))).toBe(
+      "prod-abc.apps.googleusercontent.com",
+    );
+    expect(clientOf(configured("dev"))).toBe(
+      "dev-abc.apps.googleusercontent.com",
+    );
   });
 
   it("gives each stage its own Apple Services ID", () => {
     // A dev callback must not be a valid redirect for the production pool.
     const idOf = (t: Template) =>
       Object.values(t.findResources("AWS::Cognito::UserPoolIdentityProvider"))
-        .map((p) => p.Properties as { ProviderType: string; ProviderDetails: Record<string, string> })
-        .find((p) => p.ProviderType === "SignInWithApple")?.ProviderDetails.client_id;
+        .map(
+          (p) =>
+            p.Properties as {
+              ProviderType: string;
+              ProviderDetails: Record<string, string>;
+            },
+        )
+        .find((p) => p.ProviderType === "SignInWithApple")?.ProviderDetails
+        .client_id;
     expect(idOf(configured("prod"))).toBe("com.toondeboer.pokerkit.signin");
     expect(idOf(configured("dev"))).toBe("com.toondeboer.pokerkit.signin.dev");
   });
@@ -143,7 +163,9 @@ describe("signing in with Apple and Google", () => {
     // a week.
     const half = Template.fromStack(
       new PokerStack(
-        new App({ context: { googleClientId: "123-abc.apps.googleusercontent.com" } }),
+        new App({
+          context: { googleClientId: "123-abc.apps.googleusercontent.com" },
+        }),
         "HalfSocial",
         { settings: settingsFor("prod") },
       ),

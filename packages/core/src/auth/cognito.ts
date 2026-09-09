@@ -153,8 +153,7 @@ export const refreshCall = (
 export const signOutCall = (
   config: CognitoConfig,
   accessToken: string,
-): CognitoCall =>
-  call(config, "GlobalSignOut", { AccessToken: accessToken });
+): CognitoCall => call(config, "GlobalSignOut", { AccessToken: accessToken });
 
 /**
  * Delete the account from inside the app — **Cognito only**.
@@ -267,8 +266,7 @@ export const tokensFrom = (
     refreshToken,
     // Anchored on the local clock at receipt, for the same reason the shared
     // timer is: the server's notion of now is not comparable to this device's.
-    expiresAt:
-      now + (typeof expiresIn === "number" ? expiresIn : 3600) * 1000,
+    expiresAt: now + (typeof expiresIn === "number" ? expiresIn : 3600) * 1000,
   };
 };
 

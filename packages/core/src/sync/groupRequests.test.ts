@@ -93,7 +93,9 @@ describe("what an answer means", () => {
       status: "refused",
       reason: "already recorded",
     });
-    expect(resultForStatus(403, "an admin has to do that").status).toBe("refused");
+    expect(resultForStatus(403, "an admin has to do that").status).toBe(
+      "refused",
+    );
   });
 
   it("does not take a 5xx as a refusal", () => {
@@ -114,7 +116,9 @@ describe("what an answer means", () => {
     // **The dangerous one.** `drain` carries on past refusals, so one stale
     // token would refuse every pending write in a single pass and move the lot
     // somewhere nothing retries — an expired session eating an evening's work.
-    expect(resultForStatus(401, "Unauthorized")).toEqual({ status: "unreachable" });
+    expect(resultForStatus(401, "Unauthorized")).toEqual({
+      status: "unreachable",
+    });
   });
 
   it("still refuses a 403, because that is an answer", () => {

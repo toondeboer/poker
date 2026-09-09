@@ -58,8 +58,12 @@ describe("what goes over the wire", () => {
   it("rounds to whole seconds, which is all the timer displays", () => {
     const fractional = { ...running, timeLeft: 42.4 };
     expect(
-      toSyncMessage({ state: fractional, version: 1, blindIndex: 0, sender: "a" })
-        .remaining,
+      toSyncMessage({
+        state: fractional,
+        version: 1,
+        blindIndex: 0,
+        sender: "a",
+      }).remaining,
     ).toBe(42);
   });
 });
@@ -80,14 +84,19 @@ describe("clock skew", () => {
   });
 
   it("gives a paused round no expiry instant, like the local machine does", () => {
-    const applied = applySyncMessage(message({ paused: true, remaining: 120 }), 9);
+    const applied = applySyncMessage(
+      message({ paused: true, remaining: 120 }),
+      9,
+    );
     expect(applied.paused).toBe(true);
     expect(applied.endTime).toBeUndefined();
     expect(applied.timeLeft).toBe(120);
   });
 
   it("carries the round length, so a device that joined late knows it", () => {
-    expect(applySyncMessage(message({ duration: 480 }), 0).timerDuration).toBe(480);
+    expect(applySyncMessage(message({ duration: 480 }), 0).timerDuration).toBe(
+      480,
+    );
   });
 });
 
@@ -97,13 +106,21 @@ describe("ordering", () => {
   });
 
   it("applies something newer", () => {
-    const seen = receiveSyncMessage(EMPTY_SHARED_SESSION, message({ version: 4 }), 0);
+    const seen = receiveSyncMessage(
+      EMPTY_SHARED_SESSION,
+      message({ version: 4 }),
+      0,
+    );
     expect(shouldApply(seen, message({ version: 5 }))).toBe(true);
   });
 
   it("ignores something older, however it got here", () => {
     // Messages can arrive out of order, and a late one must not undo a pause.
-    const seen = receiveSyncMessage(EMPTY_SHARED_SESSION, message({ version: 9 }), 0);
+    const seen = receiveSyncMessage(
+      EMPTY_SHARED_SESSION,
+      message({ version: 9 }),
+      0,
+    );
     expect(shouldApply(seen, message({ version: 8 }))).toBe(false);
     expect(receiveSyncMessage(seen, message({ version: 8 }), 1).applied).toBe(
       seen.applied,
@@ -119,31 +136,46 @@ describe("ordering", () => {
       message({ version: 4, sender: "phone-a" }),
       0,
     );
-    expect(shouldApply(seen, message({ version: 4, sender: "phone-b" }))).toBe(true);
+    expect(shouldApply(seen, message({ version: 4, sender: "phone-b" }))).toBe(
+      true,
+    );
 
     const other = receiveSyncMessage(
       EMPTY_SHARED_SESSION,
       message({ version: 4, sender: "phone-b" }),
       0,
     );
-    expect(shouldApply(other, message({ version: 4, sender: "phone-a" }))).toBe(false);
+    expect(shouldApply(other, message({ version: 4, sender: "phone-a" }))).toBe(
+      false,
+    );
   });
 
   it("ignores the same version twice", () => {
     // A reconnect replaying the last state is the ordinary case. Reapplying
     // re-anchors the countdown to now, which on the phone at the table looks
     // like the clock jumping backwards by however long the round has run.
-    const seen = receiveSyncMessage(EMPTY_SHARED_SESSION, message({ version: 3 }), 0);
-    expect(shouldApply(seen, message({ version: 3, remaining: 1 }))).toBe(false);
+    const seen = receiveSyncMessage(
+      EMPTY_SHARED_SESSION,
+      message({ version: 3 }),
+      0,
+    );
+    expect(shouldApply(seen, message({ version: 3, remaining: 1 }))).toBe(
+      false,
+    );
     expect(
-      receiveSyncMessage(seen, message({ version: 3, remaining: 1 }), 1).applied,
+      receiveSyncMessage(seen, message({ version: 3, remaining: 1 }), 1)
+        .applied,
     ).toBe(seen.applied);
   });
 
   it("numbers a device's first message above whatever the table is on", () => {
     // A phone joining late must not send a 1 that everybody ignores.
     expect(nextVersion(EMPTY_SHARED_SESSION)).toBe(1);
-    const seen = receiveSyncMessage(EMPTY_SHARED_SESSION, message({ version: 12 }), 0);
+    const seen = receiveSyncMessage(
+      EMPTY_SHARED_SESSION,
+      message({ version: 12 }),
+      0,
+    );
     expect(nextVersion(seen)).toBe(13);
   });
 
@@ -180,7 +212,9 @@ describe("a session in use", () => {
         session = receiveSyncMessage(session, stream[index], index);
       }
       if (session.applied?.version !== 5) {
-        failures.push(`${order.join(",")} ended on ${session.applied?.version}`);
+        failures.push(
+          `${order.join(",")} ended on ${session.applied?.version}`,
+        );
       }
     }
     expect(failures).toEqual([]);
@@ -240,7 +274,11 @@ describe("knowing whether we are still in touch", () => {
   it("counts a repeat of an already-applied version as being in touch", () => {
     // Most heartbeats repeat the current version. Treating those as silence
     // reports a perfectly healthy session as stale within fifteen seconds.
-    const seen = receiveSyncMessage(EMPTY_SHARED_SESSION, message({ version: 2 }), 0);
+    const seen = receiveSyncMessage(
+      EMPTY_SHARED_SESSION,
+      message({ version: 2 }),
+      0,
+    );
     const beat = receiveSyncMessage(seen, message({ version: 2 }), 12_000);
     expect(beat.applied?.version).toBe(2);
     expect(sessionHealth(beat, 13_000)).toBe("live");
@@ -337,15 +375,15 @@ describe("having something to say", () => {
     // Schedules are not synced. A phone with four levels following a table on
     // level 9 sits on its last one — and must not report that as a change,
     // which would drag everybody else back to it.
-    expect(check({ message: { blindIndex: 9 }, blindIndex: 4, levelCount: 5 })).toBe(
-      true,
-    );
+    expect(
+      check({ message: { blindIndex: 9 }, blindIndex: 4, levelCount: 5 }),
+    ).toBe(true);
   });
 
   it("survives a schedule with nothing in it", () => {
-    expect(check({ message: { blindIndex: 3 }, blindIndex: 0, levelCount: 0 })).toBe(
-      true,
-    );
+    expect(
+      check({ message: { blindIndex: 3 }, blindIndex: 0, levelCount: 0 }),
+    ).toBe(true);
   });
 });
 
@@ -358,8 +396,12 @@ describe("what this phone said itself", () => {
     const sent = recordSentMessage(EMPTY_SHARED_SESSION, mine, 100);
     expect(sent.applied).toBe(mine);
     expect(sent.appliedAt).toBe(100);
-    expect(shouldApply(sent, message({ version: 4, sender: "phone-b" }))).toBe(true);
-    expect(shouldApply(sent, message({ version: 4, sender: "phone-A" }))).toBe(false);
+    expect(shouldApply(sent, message({ version: 4, sender: "phone-b" }))).toBe(
+      true,
+    );
+    expect(shouldApply(sent, message({ version: 4, sender: "phone-A" }))).toBe(
+      false,
+    );
   });
 
   it("is not evidence that anybody is listening", () => {
@@ -371,14 +413,22 @@ describe("what this phone said itself", () => {
   });
 
   it("leaves a session alone when the table has already moved past it", () => {
-    const ahead = receiveSyncMessage(EMPTY_SHARED_SESSION, message({ version: 9 }), 0);
+    const ahead = receiveSyncMessage(
+      EMPTY_SHARED_SESSION,
+      message({ version: 9 }),
+      0,
+    );
     expect(recordSentMessage(ahead, message({ version: 8 }), 100)).toBe(ahead);
   });
 
   it("anchors a projection where the applied message landed, not the last one", () => {
     // A message too old to apply still proves the connection is alive, but must
     // not move the point a running countdown is measured from.
-    const applied = receiveSyncMessage(EMPTY_SHARED_SESSION, message({ version: 5 }), 1_000);
+    const applied = receiveSyncMessage(
+      EMPTY_SHARED_SESSION,
+      message({ version: 5 }),
+      1_000,
+    );
     const stale = receiveSyncMessage(applied, message({ version: 4 }), 9_000);
     expect(stale.appliedAt).toBe(1_000);
     expect(stale.lastMessageAt).toBe(9_000);

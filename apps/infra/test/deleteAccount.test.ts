@@ -1,6 +1,15 @@
 import { describe, expect, it, vi } from "vitest";
-import { claimGroupOf, deleteAccount, groupIdOf } from "../lib/lambda/deleteAccount";
-import { anotherAdmin, heirTo, memberItem, type MemberItem } from "../lib/lambda/groupKeys";
+import {
+  claimGroupOf,
+  deleteAccount,
+  groupIdOf,
+} from "../lib/lambda/deleteAccount";
+import {
+  anotherAdmin,
+  heirTo,
+  memberItem,
+  type MemberItem,
+} from "../lib/lambda/groupKeys";
 import type { GroupStore, WriteOutcome } from "../lib/lambda/groupStore";
 
 const member = (
@@ -64,7 +73,12 @@ describe("who guarantees a group still has an admin", () => {
   });
 
   it("finds nobody when the leaver is the only admin", () => {
-    expect(anotherAdmin([member("me", "admin", 1), member("you", "member", 2)], "me")).toBeNull();
+    expect(
+      anotherAdmin(
+        [member("me", "admin", 1), member("you", "member", 2)],
+        "me",
+      ),
+    ).toBeNull();
   });
 
   it("hands an orphaned group to the longest-standing member", () => {
@@ -118,7 +132,10 @@ describe("the sequence", () => {
     // transaction, that a specific other admin still is one — so a concurrent
     // demotion of that person cannot slip between the decision and the write.
     const { store: s, calls } = store({
-      members: async () => [member("me", "admin", 1), member("you", "admin", 2)],
+      members: async () => [
+        member("me", "admin", 1),
+        member("you", "admin", 2),
+      ],
     });
     await deleteAccount("me", s, async () => {});
     expect(calls).toContain("leave(guaranteed by you)");
@@ -126,7 +143,10 @@ describe("the sequence", () => {
 
   it("leaves without a guarantor when it was never an admin", async () => {
     const { store: s, calls } = store({
-      members: async () => [member("me", "member", 1), member("you", "admin", 2)],
+      members: async () => [
+        member("me", "member", 1),
+        member("you", "admin", 2),
+      ],
     });
     await deleteAccount("me", s, async () => {});
     expect(calls).toContain("leave");
@@ -134,7 +154,10 @@ describe("the sequence", () => {
 
   it("promotes an heir when the leaver was the last admin", async () => {
     const { store: s, calls } = store({
-      members: async () => [member("me", "admin", 1), member("you", "member", 2)],
+      members: async () => [
+        member("me", "admin", 1),
+        member("you", "member", 2),
+      ],
     });
     const report = await deleteAccount("me", s, async () => {});
     expect(calls).toContain("setRole");
@@ -145,7 +168,10 @@ describe("the sequence", () => {
     // Reporting it as inherited anyway would tell somebody a group is looked
     // after when it is not — and the account leaves either way.
     const { store: s } = store({
-      members: async () => [member("me", "admin", 1), member("gone", "member", 2)],
+      members: async () => [
+        member("me", "admin", 1),
+        member("gone", "member", 2),
+      ],
       setRole: async () => ({ status: "conflict", reason: "not a member" }),
     });
     const report = await deleteAccount("me", s, async () => {});
@@ -159,7 +185,10 @@ describe("the sequence", () => {
     // Cognito, or the account can never finish being deleted.
     const deleted = vi.fn(async () => {});
     const { store: s } = store({
-      releaseClaim: async () => ({ status: "conflict", reason: "already released" }),
+      releaseClaim: async () => ({
+        status: "conflict",
+        reason: "already released",
+      }),
     });
     const report = await deleteAccount("me", s, deleted);
     expect(report.claimsReleased).toBe(0);

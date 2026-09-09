@@ -85,20 +85,17 @@ export class DeploymentStack extends Stack {
       const role = new Role(this, `Deploy${titleCase(stage)}`, {
         roleName: `poker-github-deploy-${stage}`,
         description: `GitHub Actions deploys the ${stage} backend`,
-        assumedBy: new WebIdentityPrincipal(
-          provider.openIdConnectProviderArn,
-          {
-            StringEquals: {
-              [`${issuerHost()}:aud`]: "sts.amazonaws.com",
-            },
-            // The subject is what actually restricts this. `StringLike` because
-            // the dev pattern ends in a wildcard over refs; prod does not, and
-            // an exact string in a `StringLike` is still exact.
-            StringLike: {
-              [`${issuerHost()}:sub`]: subjectFor(props.repository, stage),
-            },
+        assumedBy: new WebIdentityPrincipal(provider.openIdConnectProviderArn, {
+          StringEquals: {
+            [`${issuerHost()}:aud`]: "sts.amazonaws.com",
           },
-        ),
+          // The subject is what actually restricts this. `StringLike` because
+          // the dev pattern ends in a wildcard over refs; prod does not, and
+          // an exact string in a `StringLike` is still exact.
+          StringLike: {
+            [`${issuerHost()}:sub`]: subjectFor(props.repository, stage),
+          },
+        }),
       });
 
       // Everything a CDK deploy needs, and nothing else: the four roles
@@ -118,7 +115,6 @@ export class DeploymentStack extends Stack {
         description: `Put this in the ${stage} workflow's role-to-assume`,
       });
     }
-
   }
 }
 

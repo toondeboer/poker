@@ -13,10 +13,5 @@
     "types": ["node"],
     "noEmit": true
   },
-  "include": [
-    "bin/**/*.ts",
-    "lib/**/*.ts",
-    "test/**/*.ts",
-    "scripts/**/*.ts"
-  ]
+  "include": ["bin/**/*.ts", "lib/**/*.ts", "test/**/*.ts", "scripts/**/*.ts"]
 }

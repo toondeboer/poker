@@ -1,10 +1,7 @@
 {
   "app": "npx tsx bin/app.ts",
   "watch": {
-    "exclude": [
-      "**/*.test.ts",
-      "node_modules/**"
-    ]
+    "exclude": ["**/*.test.ts", "node_modules/**"]
   },
   "context": {
     "alertEmail": "poker.blinds.buzzer@gmail.com",

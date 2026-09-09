@@ -23,9 +23,17 @@
  * fork of this repo pointing at somebody else's account still synthesises.
  */
 
-import { Certificate, CertificateValidation } from "aws-cdk-lib/aws-certificatemanager";
+import {
+  Certificate,
+  CertificateValidation,
+} from "aws-cdk-lib/aws-certificatemanager";
 import { DomainName, IpAddressType } from "aws-cdk-lib/aws-apigatewayv2";
-import { ARecord, AaaaRecord, HostedZone, RecordTarget } from "aws-cdk-lib/aws-route53";
+import {
+  ARecord,
+  AaaaRecord,
+  HostedZone,
+  RecordTarget,
+} from "aws-cdk-lib/aws-route53";
 import { ApiGatewayv2DomainProperties } from "aws-cdk-lib/aws-route53-targets";
 import { Construct } from "constructs";
 import type { Stage } from "./stage";
@@ -57,14 +65,21 @@ export type ApiDomain = { domainName: DomainName; hostName: string };
 export const hostNameFor = (stage: Stage, apiHost: string): string => {
   if (stage === "prod") return apiHost;
   const dot = apiHost.indexOf(".");
-  return dot === -1 ? `${apiHost}-dev` : `${apiHost.slice(0, dot)}-dev${apiHost.slice(dot)}`;
+  return dot === -1
+    ? `${apiHost}-dev`
+    : `${apiHost.slice(0, dot)}-dev${apiHost.slice(dot)}`;
 };
 
-export const domainFor = (scope: Construct, stage: Stage): ApiDomain | undefined => {
+export const domainFor = (
+  scope: Construct,
+  stage: Stage,
+): ApiDomain | undefined => {
   // The **production** host, in full. Dev derives from it — see `hostNameFor`.
   const base = scope.node.tryGetContext("apiDomain") as string | undefined;
-  const hostedZoneId = scope.node.tryGetContext("hostedZoneId") as string | undefined;
-  const zoneName = scope.node.tryGetContext("hostedZoneName") as string | undefined;
+  const hostedZoneId = scope.node.tryGetContext("hostedZoneId") as
+    string | undefined;
+  const zoneName = scope.node.tryGetContext("hostedZoneName") as
+    string | undefined;
   // All three or none. Two of them is a half-configured domain that fails at
   // deploy time with something unhelpful about a missing zone.
   if (!base || !hostedZoneId || !zoneName) return undefined;

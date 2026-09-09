@@ -23,7 +23,8 @@ import {
   wasDismissed,
 } from "./groups";
 
-const group = (id: string, name = id, now = 0) => createGroup({ id, name, now });
+const group = (id: string, name = id, now = 0) =>
+  createGroup({ id, name, now });
 
 /** A board with one group and the given player names on its roster. */
 const withPlayers = (names: string[]): GroupedLeaderboard => {
@@ -52,7 +53,8 @@ describe("groups", () => {
 
   it("stops at the maximum", () => {
     let state = EMPTY_LEADERBOARD;
-    for (let i = 0; i < MAX_GROUPS; i++) state = addGroup(state, group(`g${i}`));
+    for (let i = 0; i < MAX_GROUPS; i++)
+      state = addGroup(state, group(`g${i}`));
     expect(state.groups).toHaveLength(MAX_GROUPS);
     const full = addGroup(state, group("one-too-many"));
     expect(full).toBe(state);
@@ -102,7 +104,9 @@ describe("groups", () => {
     expect(updateGroup(state, "nope", (entry) => entry)).toBe(state);
     expect(removeGroup(state, "nope")).toBe(state);
     expect(setActiveGroup(state, "nope")).toBe(state);
-    expect(unclaimPlayer(state, { groupId: "nope", playerId: "x" })).toBe(state);
+    expect(unclaimPlayer(state, { groupId: "nope", playerId: "x" })).toBe(
+      state,
+    );
   });
 
   it("cannot be corrupted through the shared empty value", () => {
@@ -349,7 +353,10 @@ describe("unclaiming", () => {
       accountId: "acct-1",
     });
     if (!claimed.ok) throw new Error("unreachable");
-    const after = unclaimPlayer(claimed.state, { groupId: "g1", playerId: "Dave" });
+    const after = unclaimPlayer(claimed.state, {
+      groupId: "g1",
+      playerId: "Dave",
+    });
     expect(Object.hasOwn(after.groups[0].players[0], "accountId")).toBe(false);
     expect(JSON.parse(JSON.stringify(after))).toEqual(after);
   });
@@ -362,21 +369,34 @@ describe("unclaiming", () => {
       accountId: "acct-1",
     });
     if (!claimed.ok) throw new Error("unreachable");
-    const freed = unclaimPlayer(claimed.state, { groupId: "g1", playerId: "Dave" });
+    const freed = unclaimPlayer(claimed.state, {
+      groupId: "g1",
+      playerId: "Dave",
+    });
     expect(
-      claimPlayer(freed, { groupId: "g1", playerId: "Sam", accountId: "acct-1" }).ok,
+      claimPlayer(freed, {
+        groupId: "g1",
+        playerId: "Sam",
+        accountId: "acct-1",
+      }).ok,
     ).toBe(true);
   });
 
   it("does nothing for a player who was never claimed", () => {
     const state = withPlayers(["Dave"]);
-    expect(unclaimPlayer(state, { groupId: "g1", playerId: "Dave" })).toBe(state);
+    expect(unclaimPlayer(state, { groupId: "g1", playerId: "Dave" })).toBe(
+      state,
+    );
   });
 
   it("does nothing for a player or group that isn't there", () => {
     const state = withPlayers(["Dave"]);
-    expect(unclaimPlayer(state, { groupId: "g1", playerId: "nope" })).toBe(state);
-    expect(unclaimPlayer(state, { groupId: "nope", playerId: "Dave" })).toBe(state);
+    expect(unclaimPlayer(state, { groupId: "g1", playerId: "nope" })).toBe(
+      state,
+    );
+    expect(unclaimPlayer(state, { groupId: "nope", playerId: "Dave" })).toBe(
+      state,
+    );
   });
 });
 
@@ -410,12 +430,18 @@ describe("migrating the board that shipped first", () => {
     // Someone who never used the feature should not find a group they now
     // have to delete.
     expect(
-      migrateToGroups({ players: [], results: [] }, { id: "g1", name: "x", now: 1 }),
+      migrateToGroups(
+        { players: [], results: [] },
+        { id: "g1", name: "x", now: 1 },
+      ),
     ).toEqual(EMPTY_LEADERBOARD);
   });
 
   it("keeps a roster with no games yet", () => {
-    const legacy = { players: [createPlayer({ id: "p1", name: "Dave" })], results: [] };
+    const legacy = {
+      players: [createPlayer({ id: "p1", name: "Dave" })],
+      results: [],
+    };
     const migrated = migrateToGroups(legacy, { id: "g1", name: "x", now: 1 });
     expect(migrated.groups[0].players).toHaveLength(1);
   });
@@ -449,7 +475,10 @@ describe("putting a joined board on this device", () => {
   });
 
   it("arrives with its roster and season", () => {
-    const after = addBoard({ groups: [], activeGroupId: null }, boardOf("g1", "Thursday"));
+    const after = addBoard(
+      { groups: [], activeGroupId: null },
+      boardOf("g1", "Thursday"),
+    );
     expect(after.groups).toHaveLength(1);
     expect(after.groups[0].players).toHaveLength(1);
     // The first board on an empty device has to be shown, or the app shows
@@ -470,24 +499,33 @@ describe("putting a joined board on this device", () => {
     // sends it twice. Two boards with one id would be resolved by every lookup
     // taking the first, which is a bug nobody would find quickly.
     const state = { groups: [boardOf("g1", "Thursday")], activeGroupId: "g1" };
-    const after = addBoard(state, { ...boardOf("g1", "Thursday"), players: [] });
+    const after = addBoard(state, {
+      ...boardOf("g1", "Thursday"),
+      players: [],
+    });
     expect(after.groups).toHaveLength(1);
     expect(after.groups[0].players).toEqual([]);
   });
 
   it("refuses to go past the limit with a new board", () => {
     const full = {
-      groups: Array.from({ length: MAX_GROUPS }, (_, i) => boardOf(`g${i}`, `B${i}`)),
+      groups: Array.from({ length: MAX_GROUPS }, (_, i) =>
+        boardOf(`g${i}`, `B${i}`),
+      ),
       activeGroupId: "g0",
     };
-    expect(addBoard(full, boardOf("new", "New")).groups).toHaveLength(MAX_GROUPS);
+    expect(addBoard(full, boardOf("new", "New")).groups).toHaveLength(
+      MAX_GROUPS,
+    );
   });
 
   it("still updates a board it already has when full", () => {
     // The limit is about how many boards this device carries, not about
     // refusing news for one it already has.
     const full = {
-      groups: Array.from({ length: MAX_GROUPS }, (_, i) => boardOf(`g${i}`, `B${i}`)),
+      groups: Array.from({ length: MAX_GROUPS }, (_, i) =>
+        boardOf(`g${i}`, `B${i}`),
+      ),
       activeGroupId: "g0",
     };
     const after = addBoard(full, { ...boardOf("g3", "B3"), players: [] });
@@ -511,7 +549,11 @@ describe("noting what this phone deleted", () => {
   });
 
   it("keeps players and games apart", () => {
-    const after = noteDeleted(noteDeleted(bare, "players", "p1"), "results", "r1");
+    const after = noteDeleted(
+      noteDeleted(bare, "players", "p1"),
+      "results",
+      "r1",
+    );
     expect(after.deleted).toEqual({ players: ["p1"], results: ["r1"] });
   });
 
@@ -535,7 +577,10 @@ describe("putting a pulled board back", () => {
       groups: [boardFor("g1", "Thursday"), boardFor("g2", "Sunday")],
       activeGroupId: "g1",
     };
-    const merged = { ...boardFor("g1", "Thursday"), players: [{ id: "p1", name: "Ann" }] };
+    const merged = {
+      ...boardFor("g1", "Thursday"),
+      players: [{ id: "p1", name: "Ann" }],
+    };
     const after = replaceBoard(state, merged);
     expect(after.groups[0].players).toHaveLength(1);
     expect(after.groups[1].group.name).toBe("Sunday");
@@ -545,7 +590,12 @@ describe("putting a pulled board back", () => {
   it("does not resurrect a board somebody deleted mid-pull", () => {
     // A pull takes as long as the network does, and a group can be deleted
     // while one is in flight. Adding it back would undo a deletion just made.
-    const state: GroupedLeaderboard = { groups: [boardFor("g2", "Sunday")], activeGroupId: "g2" };
-    expect(replaceBoard(state, boardFor("g1", "Thursday")).groups).toHaveLength(1);
+    const state: GroupedLeaderboard = {
+      groups: [boardFor("g2", "Sunday")],
+      activeGroupId: "g2",
+    };
+    expect(replaceBoard(state, boardFor("g1", "Thursday")).groups).toHaveLength(
+      1,
+    );
   });
 });

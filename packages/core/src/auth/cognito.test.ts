@@ -171,7 +171,13 @@ describe("reading the tokens back", () => {
 
   it("assumes an hour when Cognito does not say", () => {
     const tokens = tokensFrom(
-      { AuthenticationResult: { IdToken: "i", AccessToken: "a", RefreshToken: "r" } },
+      {
+        AuthenticationResult: {
+          IdToken: "i",
+          AccessToken: "a",
+          RefreshToken: "r",
+        },
+      },
       0,
     );
     expect(tokens?.expiresAt).toBe(3_600_000);
@@ -224,9 +230,9 @@ describe("what went wrong, in words a form can show", () => {
   });
 
   it("strips the namespace prefix too", () => {
-    expect(errorFrom({ __type: "com.amazon.coral.service#CodeMismatchException" })).toBe(
-      "code-wrong",
-    );
+    expect(
+      errorFrom({ __type: "com.amazon.coral.service#CodeMismatchException" }),
+    ).toBe("code-wrong");
   });
 
   it("says nothing rather than guessing at a name it does not know", () => {
@@ -307,9 +313,9 @@ describe("reading a token this device already had", () => {
   it("survives something outside the basic plane", () => {
     // Emoji in a display name is not hypothetical, and it needs a surrogate
     // pair rather than one code unit.
-    expect(accountFromIdToken(jwt({ sub: "u-1", email: "🂡@example.com" }))?.email).toBe(
-      "🂡@example.com",
-    );
+    expect(
+      accountFromIdToken(jwt({ sub: "u-1", email: "🂡@example.com" }))?.email,
+    ).toBe("🂡@example.com");
   });
 
   it("does not need padding, and tolerates it", () => {

@@ -179,16 +179,14 @@ export function ChopSheet({
                       key={share.index}
                       title={`Player ${share.index + 1}`}
                       meta={`${share.chips} chips`}
-                      right={
-                        <Text style={styles.amount}>{share.amount}</Text>
-                      }
+                      right={<Text style={styles.amount}>{share.amount}</Text>}
                     />
                   ))}
                 </View>
                 <Text style={styles.hint}>
                   {result.remainingMoney} still to play for ·{" "}
-                  {result.guaranteedEach} guaranteed each ·{" "}
-                  {result.surplus} split by chips
+                  {result.guaranteedEach} guaranteed each · {result.surplus}{" "}
+                  split by chips
                 </Text>
               </View>
             )}

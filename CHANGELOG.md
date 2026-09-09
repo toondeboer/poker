@@ -379,6 +379,20 @@ platform-tagged heading (e.g. `## [1.1.3] - 2026-07-20 — Android`) when you cu
   contain something — Scunthorpe, therapist and raccoon all pass, and there are tests to keep it
   that way. It stops the lazy case rather than a determined one, which is why reporting sits beside
   it rather than instead of it.
+- **Prettier, and a CI step that enforces it.** The repo had no formatter at all — not a dependency
+  in any workspace, no `.prettierrc`, no `.prettierignore`, and nothing in CI — so `npx prettier`
+  was silently downloading a version and checking against its defaults. **71 of 315 source files had
+  drifted from those defaults**, across all four workspaces. Now pinned exactly (`prettier` `3.9.6`
+  in the root devDependencies, alongside `turbo` and `typescript` as cross-cutting tooling), with
+  the defaults written out in `.prettierrc.json` so a future version cannot change the style
+  underneath us, and `npm run format` / `format:check` at the root. CI runs the check between lint
+  and test.
+
+  The whole tree is reformatted in the same commit. That is unavoidable and is the cost of the
+  change: whitespace only. Verified after — 893 core tests, 260 infra tests, typecheck and lint all
+  pass, and the app still launches and renders on a device, which matters because this rewrote
+  source that Metro bundles.
+
 - **`STORE_LISTING.md` carries a submission hand-off: every console step, with the answers.** Both
   age-rating questionnaires written out — including Apple's July 2025 **Capabilities** section,
   which this repo had not accounted for anywhere — plus App Privacy and Data Safety derived from the

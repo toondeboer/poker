@@ -41,7 +41,9 @@ describe("prod keeps what cannot be recreated", () => {
     // nights is impossible, and the moment this becomes a live question is the
     // moment it is too late to change it.
     const prod = templateFor("prod");
-    prod.hasResource("AWS::DynamoDB::GlobalTable", { DeletionPolicy: "Retain" });
+    prod.hasResource("AWS::DynamoDB::GlobalTable", {
+      DeletionPolicy: "Retain",
+    });
     prod.hasResource("AWS::Cognito::UserPool", { DeletionPolicy: "Retain" });
   });
 

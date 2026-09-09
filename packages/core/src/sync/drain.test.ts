@@ -84,7 +84,11 @@ describe("when the server cannot be reached", () => {
 
   it("puts the write back rather than leaving it flagged as in flight", async () => {
     // A write left marked as sent is one every later attempt skips forever.
-    const q = queueOf({ kind: "addPlayer", groupId: "g1", player: player("p2") });
+    const q = queueOf({
+      kind: "addPlayer",
+      groupId: "g1",
+      player: player("p2"),
+    });
     const report = await drain(q, sender({ status: "unreachable" }));
     expect(applyReport(q, report, 1).pending[0].sentAt).toBeUndefined();
   });
@@ -94,7 +98,10 @@ describe("when the server cannot be reached", () => {
       { kind: "addPlayer", groupId: "g1", player: player("p2") },
       { kind: "addPlayer", groupId: "g1", player: player("p3") },
     );
-    const report = await drain(q, sender({ status: "ok" }, { status: "unreachable" }));
+    const report = await drain(
+      q,
+      sender({ status: "ok" }, { status: "unreachable" }),
+    );
     expect(report.settled).toHaveLength(1);
     expect(applyReport(q, report, 1).pending).toHaveLength(1);
   });
@@ -132,9 +139,18 @@ describe("when the server says no", () => {
   });
 
   it("keeps the reason for somebody to read", async () => {
-    const q = queueOf({ kind: "recordGame", groupId: "g1", result: game("r1") });
-    const report = await drain(q, sender({ status: "refused", reason: "already recorded" }));
-    expect(applyReport(q, report, 1).refused[0].reason).toBe("already recorded");
+    const q = queueOf({
+      kind: "recordGame",
+      groupId: "g1",
+      result: game("r1"),
+    });
+    const report = await drain(
+      q,
+      sender({ status: "refused", reason: "already recorded" }),
+    );
+    expect(applyReport(q, report, 1).refused[0].reason).toBe(
+      "already recorded",
+    );
   });
 });
 
@@ -145,7 +161,11 @@ describe("a queue that changed while the drain ran", () => {
     // overwrote anything queued in that window with a snapshot taken before it
     // existed. Naming what settled instead lets the caller apply it to whatever
     // the queue has become.
-    const before = queueOf({ kind: "addPlayer", groupId: "g1", player: player("p2") });
+    const before = queueOf({
+      kind: "addPlayer",
+      groupId: "g1",
+      player: player("p2"),
+    });
     const report = await drain(before, sender());
     const meanwhile = enqueue(
       before,
@@ -161,13 +181,14 @@ describe("a sender that throws", () => {
     // React Native's `fetch` rejects on a network failure rather than
     // resolving. Letting it propagate discarded the whole report — including
     // refusals already recorded in that pass, which nobody would get again.
-    const q = queueOf({ kind: "addPlayer", groupId: "g1", player: player("p2") });
-    const report = await drain(
-      q,
-      async () => {
-        throw new Error("network down");
-      },
-    );
+    const q = queueOf({
+      kind: "addPlayer",
+      groupId: "g1",
+      player: player("p2"),
+    });
+    const report = await drain(q, async () => {
+      throw new Error("network down");
+    });
     expect(report.stopped).toBe(true);
     expect(report.refused).toEqual([]);
     expect(applyReport(q, report, 1).pending).toHaveLength(1);
@@ -179,13 +200,10 @@ describe("a sender that throws", () => {
       { kind: "addPlayer", groupId: "g1", player: player("p2") },
       { kind: "addPlayer", groupId: "g1", player: player("p3") },
     );
-    const report = await drain(
-      q,
-      async () => {
-        if (++call === 1) return { status: "refused", reason: "nope" };
-        throw new Error("network down");
-      },
-    );
+    const report = await drain(q, async () => {
+      if (++call === 1) return { status: "refused", reason: "nope" };
+      throw new Error("network down");
+    });
     expect(report.refused).toHaveLength(1);
     expect(report.stopped).toBe(true);
   });
@@ -196,7 +214,11 @@ describe("retrying", () => {
     // The phone died before finding out whether it landed, and the only honest
     // thing is to send it again. Safe because the server was built for it:
     // adding is an update, and recording a game it already has answers ok.
-    const q = queueOf({ kind: "addPlayer", groupId: "g1", player: player("p2") });
+    const q = queueOf({
+      kind: "addPlayer",
+      groupId: "g1",
+      player: player("p2"),
+    });
     const stale: SyncQueue = {
       ...q,
       pending: q.pending.map((w) => ({ ...w, sentAt: 1 })),

@@ -5,9 +5,14 @@ describe("a log line", () => {
   it("is an object, because that is the only kind either tool can search", () => {
     // "Something is erroring" is a shrug. `filter accountId = "..."` is an
     // answer, and the difference is whether the line was JSON.
-    expect(logLine("info", "acted", { accountId: "u-1", tableId: "t-1" })).toEqual(
-      { level: "info", message: "acted", accountId: "u-1", tableId: "t-1" },
-    );
+    expect(
+      logLine("info", "acted", { accountId: "u-1", tableId: "t-1" }),
+    ).toEqual({
+      level: "info",
+      message: "acted",
+      accountId: "u-1",
+      tableId: "t-1",
+    });
   });
 
   it("leaves out fields nobody set", () => {
@@ -56,7 +61,9 @@ describe("what must never reach a log", () => {
       "clientSecret",
       "sessionId",
       "authHeader",
-    ].filter((key) => logLine("info", "x", { [key]: "s" })[key] !== "[redacted]");
+    ].filter(
+      (key) => logLine("info", "x", { [key]: "s" })[key] !== "[redacted]",
+    );
     expect(failures).toEqual([]);
   });
 
@@ -73,7 +80,9 @@ describe("what must never reach a log", () => {
   it("gives up rather than following something pathological all the way down", () => {
     let nested: Record<string, unknown> = { deepest: "value" };
     for (let level = 0; level < 20; level += 1) nested = { nested };
-    expect(JSON.stringify(logLine("info", "x", nested))).toContain("[too deep]");
+    expect(JSON.stringify(logLine("info", "x", nested))).toContain(
+      "[too deep]",
+    );
   });
 
   it("cannot be talked out of its own level or message", () => {

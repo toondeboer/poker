@@ -63,7 +63,10 @@ export const HOSTED_SCOPES = ["openid", "email", "profile"] as const;
 
 const encode = (params: Record<string, string>): string =>
   Object.entries(params)
-    .map(([key, value]) => `${encodeURIComponent(key)}=${encodeURIComponent(value)}`)
+    .map(
+      ([key, value]) =>
+        `${encodeURIComponent(key)}=${encodeURIComponent(value)}`,
+    )
     .join("&");
 
 /**
