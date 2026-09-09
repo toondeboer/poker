@@ -13,7 +13,7 @@
  *
  * **OpenTelemetry runs inside a function**, so it sees spans and custom metrics
  * from code somebody wrote — and it cannot see API Gateway 5xx, DynamoDB
- * throttles, AppSync connection errors or a cold start, because those happen
+ * throttles or a cold start, because those happen
  * outside it. Those are CloudWatch service metrics. With a third-party backend
  * that meant two pipelines and a scrape to join them; with CloudWatch both
  * halves are already in one place, and the dashboard below draws them together.
@@ -243,7 +243,7 @@ export class Observability extends Construct {
 /**
  * A CloudWatch metric for something the account owns rather than the stack.
  *
- * AppSync Events and Cognito are not modelled as CDK constructs with `.metric`
+ * SES and Cognito are not modelled as CDK constructs with `.metric`
  * helpers, so their metrics are named by hand. Kept here so the dimension names
  * — the part that silently produces an empty graph when wrong — are in one
  * place rather than scattered through the stack.

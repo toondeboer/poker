@@ -33,23 +33,31 @@ controls) is betting, and as a headline Pro feature playable every game night it
 **2. Tracking real money over time.** This one was missed at first and is the more surprising of the
 two. Comparable apps on the App Store today:
 
-| App                          | What it does                                           | Rating  | Descriptor                     |
-| ---------------------------- | ------------------------------------------------------ | ------- | ------------------------------ |
-| Deck of Cards — Virtual deal | Deals and shuffles cards                               | **4+**  | none                           |
-| Poker Payout Calc            | Computes payouts for 3–18 players                      | **4+**  | none                           |
-| Cash Out Poker               | Home-game scorekeeper: buy-in, cash-out, who owes whom | **18+** | "Contains Gambling"            |
-| Poker Bankroll Tracker       | Sessions, chip graphs, odds calculator, multi-currency | **18+** | "Frequent: Simulated Gambling" |
+| App                          | What it does                                           | Rating  | Descriptor                            |
+| ---------------------------- | ------------------------------------------------------ | ------- | ------------------------------------- |
+| Deck of Cards — Virtual deal | Deals and shuffles cards                               | **4+**  | none                                  |
+| Poker Payout Calc            | Computes payouts for 3–18 players                      | **4+**  | none                                  |
+| Cash Out Poker               | Home-game scorekeeper: buy-in, cash-out, who owes whom | **18+** | `Gambling`                            |
+| Poker Bankroll Tracker       | Sessions, chip graphs, odds calculator, multi-currency | **18+** | `Frequent/Intense Simulated Gambling` |
+| Bink Poker Bankroll Tracker  | A bankroll tracker of the same shape as the row above  | **12+** | `Infrequent/Mild Simulated Gambling`  |
 
 **The line is not dealing, and it is not calculating — it is accumulating real money across
 sessions.** A one-shot payout calculation is 4+. A running total of what each player has won is 18+
 in both examples found. The leaderboard as built stores `totalWon` and renders "8 games · 3 wins ·
 won 120 · 5 KOs", which is functionally a bankroll tracker.
 
+**Every rating in that table was read back from the App Store on 2026-09-08** via the public lookup
+API, not from memory — an earlier pass asserted Cash Out was safe precedent without checking it, and
+it is the 18+ row. Re-check them rather than trusting this table; a rating can change whenever its
+developer answers the questionnaire again. Note the API still returns the **legacy `17+`** label for
+the two 18+ rows: that is the pre-2025 tier, and both map to 18+ under the current table.
+
 **Interpret that evidence carefully.** App Store ratings are **self-declared** through the
 questionnaire, not assigned by Apple. Poker Payout Calc (4+) and Cash Out (18+) do broadly similar
-things and landed at opposite ends, which shows the questionnaire is genuinely ambiguous here and
-developers resolve it differently. This is evidence about how the question tends to be answered, not
-proof of what Apple would force.
+things and landed at opposite ends, and the two bankroll trackers — same shape, one 18+ and one
+12+ — disagree with each other. The questionnaire is genuinely ambiguous here and developers resolve
+it differently. This is evidence about how the question tends to be answered, not proof of what
+Apple would force.
 
 **What is safe, with precedent:** the timer, the payout calculator as a one-shot tool, the chop,
 accounts, and shared boards. **Dealing cards is also safe** — "Deck of Cards — Virtual deal" is a
@@ -60,9 +68,36 @@ App Review.
 
 1. Apple's 13+ needs _infrequent_ simulated gambling, which a full no-limit engine is not — and
    under-declaring is the one thing that genuinely endangers a developer account.
-2. **PEGI has auto-rated any simulated gambling 18 since 2020**, and PEGI reaches Google Play through
-   IARC. There is no 13+ door in Europe at all.
+2. **PEGI put gambling content at 18 in 2020**, and PEGI reaches Google Play through IARC. There was
+   no 13+ door in Europe for a betting engine.
 3. The account rule below does not care about the tier.
+
+**The PEGI claim used to be stated more broadly than PEGI states it, and the correction matters.**
+This said "auto-rated _any_ simulated gambling 18". PEGI's own wording is narrower: the descriptor is
+for a game that "contains elements that **encourage or teach gambling**", where "these simulations of
+gambling refer to games of chance that are normally carried out in **casinos or gambling halls**".
+Betting chips in a no-limit engine is squarely inside that. A dealer that holds no chips is not
+obviously inside it at all.
+
+**And there is a precedent that cuts both ways, which this section did not have.** _Balatro_ — a
+poker-shaped roguelike with no money in it — was rated **PEGI 18 for explaining poker hands**, and
+had it **reduced to PEGI 12 on appeal**, the Complaints Board finding its fantastical elements
+mitigating. PEGI then said it would build more granular criteria, keeping 18 for games that
+"simulate gambling typically played in casinos and betting halls".
+
+Read honestly, that is **one signal in each direction**:
+
+- **Against us:** the thing that first drew an 18 was _explaining poker hands_, and the showdown
+  names hands ("pair", "high card") with none of Balatro's fantastical mitigation. This app is a
+  literal poker dealer.
+- **For us:** the 18 did not survive contact with the appeal, and the category PEGI kept 18 for is
+  casino-and-betting-hall gambling, which a dealer holding no chips and settling nothing is not.
+
+**It does not change the answer given** — the app contains no betting, so "does it contain gambling
+or simulated gambling" is still honestly No, and IARC asks that, not "does it name a poker hand".
+What it changes is that the **Google 3+ carries a risk this section previously did not acknowledge
+at all**, because PEGI was only ever invoked here to close off 13+ for the engine. If a rating comes
+back higher than 3+ from Play, this is the reason, and Balatro is the appeal precedent to cite.
 
 **The account rule is what actually decided it.** This account is enrolled as an **Individual**.
 Apple: _"we are no longer allowing gambling apps submitted by individual developers"_ — explicitly
@@ -81,7 +116,8 @@ deck.
 
 - **This is not real-money gambling and needs no licence.** Verified in code: no consumable IAP, no
   chip purchase, no chip↔money conversion, and no currency symbol rendered anywhere — every amount
-  is a bare integer. Chips come from a fixed stack and are conserved.
+  is a bare integer. The app holds no chips at all now; the only place the word appears in the UI is
+  the chop sheet, where the host types the stacks that are sitting on the real table.
 - **Legal exposure is close to nil.** The category actually criminalised in Europe is paid loot
   boxes (Belgium: fines to €800,000). There is no purchasable randomness anywhere in this repo.
 - **A second app does not help**, and was rejected: the restriction attaches to the _submitting
@@ -93,8 +129,11 @@ deck.
 ### Keeping the betting engine for the web only — considered, rejected
 
 Store guidelines and PEGI/IARC govern apps distributed through stores and have no jurisdiction over
-the website, and AdSense restricts only _real-money_ gambling, so play-money poker on the site would
-not touch ad revenue. **On the rules, this was clean.** It failed on everything else:
+the website. The ad-revenue half of that argument — that AdSense restricts only _real-money_
+gambling, so play-money poker on the site would not touch it — **was never actually checked against
+Google's publisher policy, and is not relied on here**: the option was rejected on everything below,
+and anyone reviving it has to verify that first. **On the store rules, this was clean.** It failed on
+everything else:
 
 - **Entitlements cannot cross platforms today.** `revenueCatProvider.ts` calls
   `Purchases.configure({ apiKey })` with no `appUserID` and never calls `logIn()`, so entitlements
@@ -171,13 +210,42 @@ following a link from the app to a poker table is a conversation the release doe
 8. ✅ **Gambling-adjacent copy softened** across app, website and store listing. A final read of the whole listing before submission is still worth doing, but nothing specific is outstanding.
 9. ✅ **Factual no-real-money statement added** — a "Money, and what the app does with it"
    section on `/support`, and a paste-ready block in `STORE_LISTING.md` for the App Review notes
-   field, worded identically so a reviewer who checks finds the two agreeing. Note Apple says
-   stating something is "for entertainment purposes" _won't overcome a guideline_: this supports the
-   structural changes rather than substituting for them, which is why it took until items 2–7 were
-   done to be worth writing.
+   field, worded identically so a reviewer who checks finds the two agreeing. Apple's exact words,
+   in **guideline 1.1.6**, are _"Stating that the app is 'for entertainment purposes' won't overcome
+   this guideline."_ — written about false information rather than about gambling, so read it as the
+   general posture it implies rather than as a ruling on this. Either way it points one direction:
+   the statement supports the structural changes rather than substituting for them, which is why it
+   took until items 2–7 were done to be worth writing.
+   **Release-cutting step 1 is already done.** `Info.plist`, `build.gradle` and `app.json` all read
+   `1.2.0` — bumped in `91fc66b` (#148), not left for cut time. Checked because the process in
+   `CLAUDE.md` lists it as a step to perform then, and doing it twice is harmless but looking for it at
+   the wrong moment is not.
+
 10. ⬜ **Answer both age-rating questionnaires honestly and record the answers given**, so the next
     release can be checked against them rather than re-derived. Apple's and Play's IARC are
     independent and need not agree.
+
+    **Apple's questionnaire was overhauled in July 2025 and this section predates it.** The tiers are
+    now 4+ / 9+ / **13+ / 16+ / 18+** (12+ and 17+ are gone), and there is a new mandatory
+    **Capabilities** section that has nothing to do with chance-based activities. 1.2.0 has to answer
+    it, and two of the answers are yes:
+
+    | Capability              | 1.2.0   | Effect on the tier                                                               |
+    | ----------------------- | ------- | -------------------------------------------------------------------------------- |
+    | User-Generated Content  | **Yes** | Disclosure only — player and board names typed by one member and shown to others |
+    | Advertising             | **Yes** | Disclosure only — AdMob on the free tier                                         |
+    | Messaging and Chat      | No      | —                                                                                |
+    | Social Media            | No      | **Would force 13+** — a board is not a feed with likes, comments or shares       |
+    | Unrestricted Web Access | No      | **Would force 16+** — the app embeds no browser                                  |
+
+    **So 4+ survives**, because the two that raise a tier are both no. But declaring UGC also brings
+    the app under **Guideline 1.2**, which requires four things: a filter (`textFilter.ts` ✅), a
+    report mechanism (`ReportBoardSheet` + `POST /groups/{id}/report` ✅), published contact
+    information (`/support` ✅) and **"the ability to block abusive users from the service"**. That
+    last one is served today only by leaving a board and by an admin removing a member. In a
+    closed-invite group that is arguably enough; it is worth a deliberate decision rather than an
+    assumption, because it is a rejection reason rather than a rating one.
+
 11. 🟡 **Residual surface, accepted.** After items 2 and 3 the app deals cards without wagering and
     keeps a board of games and wins without money — both shapes with 4+ precedent. What remains is
     the **payout calculator**, which computes a prize pool from a real buy-in. Poker Payout Calc does
@@ -187,7 +255,38 @@ following a link from the app to a poker table is a conversation the release doe
     one to expect to lose if one is lost. Accepted deliberately: removing the calculator too would
     gut the feature the release is built on, and it is the single best-evidenced 4+ component in the
     whole product.
-12. 🟡 **UMP/ATT consent is still a placeholder** (`useAdsConsent.ts`). Serving AdMob to EEA/UK
+12. 🟡 **Guideline 1.2 (user-generated content) — three of four met, and the gap is not the one it
+    looks like.** Declaring UGC on the age-rating questionnaire brings the app under 1.2, which asks
+    for four things:
+
+    | Requirement                        | State | Where                                                                                                                                 |
+    | ---------------------------------- | ----- | ------------------------------------------------------------------------------------------------------------------------------------- |
+    | Filter objectionable material      | ✅    | `moderation/textFilter.ts`, tested, refuses names and board names                                                                     |
+    | Report mechanism + timely response | ✅    | `ReportBoardSheet` → `POST /groups/{id}/report`, a `ContentReports` alarm so a report is actually noticed, and `/support` explains it |
+    | **Block abusive users**            | 🟡    | Any member may **leave** a board; an admin may **remove** a member. There is no per-user block                                        |
+    | Published contact information      | ✅    | `poker.blinds.buzzer@gmail.com` on `/support`, with a 2-business-day commitment                                                       |
+
+    **The block requirement is defensible as built, and here is the argument.** Nobody can reach you
+    unless you redeemed their invite link — there is no discovery, no feed, no messaging, and no way
+    to be added to a board you did not join. The only content another person can put in front of you
+    is a board name or a player name, and **leaving the board removes all of it**. For a closed,
+    invite-only group, "leave" _is_ the block. Apple's own February 2026 clarification points the
+    other way — it extended 1.2 to apps that "connect strangers even briefly", which this
+    deliberately does not.
+
+    **The real gap is a EULA, and it is cheaper to close.** There is **no terms page, no EULA link
+    and no zero-tolerance statement anywhere** in the app or on the site — and a EULA with a
+    zero-tolerance clause is the item 1.2 rejection letters cite most often, more than the block.
+    Closing it needs **no binary change**: set the License Agreement field in App Store Connect (the
+    standard Apple EULA is accepted) and publish a short `/terms` page carrying the zero-tolerance
+    clause. Both are console and web only, so neither risks the build.
+
+    **Do both before submitting**, and say the block argument in the review notes rather than waiting
+    to be asked — see the hand-off section in [STORE_LISTING.md](./STORE_LISTING.md). A per-user
+    block is worth building if a reviewer pushes back, and not before: it would mean deciding what
+    blocking even means on a shared board somebody else administers.
+
+13. 🟡 **UMP/ATT consent is still a placeholder** (`useAdsConsent.ts`). Serving AdMob to EEA/UK
     without a certified CMP is a live gap, pre-existing and separate from this work.
 
 ## The week, in order

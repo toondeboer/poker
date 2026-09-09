@@ -379,8 +379,122 @@ platform-tagged heading (e.g. `## [1.1.3] - 2026-07-20 — Android`) when you cu
   contain something — Scunthorpe, therapist and raccoon all pass, and there are tests to keep it
   that way. It stops the lazy case rather than a determined one, which is why reporting sits beside
   it rather than instead of it.
+- **`STORE_LISTING.md` carries a submission hand-off: every console step, with the answers.** Both
+  age-rating questionnaires written out — including Apple's July 2025 **Capabilities** section,
+  which this repo had not accounted for anywhere — plus App Privacy and Data Safety derived from the
+  code rather than from a PR description, the Club product setup, and a Guideline 2.3.1 "Notes for
+  Review" that names what was **removed** as well as what was added. Recorded rather than worked out
+  at submission time, which is what ROADMAP item 10 asks for: the next release gets checked against
+  these instead of re-deriving them under pressure.
+
+  Two things it pins down that were previously vague. **"Used for Tracking" is No**, and that answer
+  is load-bearing: `BannerAdSlot` sets `requestNonPersonalizedAdsOnly: true`, which is the only
+  reason the missing ATT prompt and UMP flow are currently defensible — so nobody should switch
+  personalized ads on without doing that work first. And **the review notes need a demo account with
+  Pro and Club granted**, because a reviewer who cannot get past the paywall cannot see the dealer or
+  the shared board, which is the release.
+
+- **A Terms of Use page, with the zero-tolerance clause Guideline 1.2 wants** — `/terms` on the
+  website, linked from `/support` and in the sitemap. It states plainly that objectionable content
+  and abusive behaviour on a shared board are not tolerated, lists what that covers, says what
+  happens to an account that posts it, and explains that boards are invite-only and that leaving one
+  removes its names from your device. It also repeats the no-wagering statement, so a reviewer who
+  follows the link from the listing finds it agreeing with the review note and with `/support`.
+  Set the **License Agreement** field in App Store Connect to point at it — that is the console step
+  this page exists for, and it needs no new binary.
+- **Guideline 1.2 is ruled on rather than left as a worry.** Declaring user-generated content brings
+  the app under 1.2, which wants four things; three are already there — the name filter, the report
+  flow with an alarm behind it, and a published contact with a response commitment. The fourth,
+  "block abusive users", is met in substance for a closed invite-only board: nobody reaches you
+  unless you redeemed their link, and leaving removes every name on it. **The gap that actually
+  matters is a EULA** — there is no terms page and no zero-tolerance statement anywhere, which is
+  the item 1.2 rejections cite most often. Closing it needs no binary: the App Store Connect License
+  Agreement field plus a short `/terms` page. Recorded in `ROADMAP.md`, with the block argument
+  written out in `STORE_LISTING.md` so it goes in the review notes instead of being argued after a
+  rejection.
 
 ### Changed
+
+- **The infra docs describe the backend that is actually deployed.** `apps/infra/README.md` still
+  advertised the deleted table backend as current: a `Publishing` row describing SigV4 hole-card
+  channels, "sixteen routes" including a poker table (there are seventeen, and no table), X-Ray on
+  "all three functions" (there are four), a TTL "for live hands" (tombstones), 277 tests (260), and
+  an alarm table listing four alarms that no longer exist while missing the three that do. The same
+  sweep reached the stale prose in `pokerStack.ts`, `observability.ts` and `scripts/smoke.ts` —
+  whose header still described seeding a hand and asserting on two AppSync channels, though its
+  code has driven boards since the table backend went — plus a dead
+  `import {} from "aws-cdk-lib/aws-appsync"` and an orphaned doc comment for alarms that were
+  deleted with it. One deliberate exception: the API's deployed `description` string is still wrong
+  and is left that way with a comment saying so, because correcting it would put the branch out of
+  sync with the live stack for something cosmetic.
+- **`apps/infra/SYNC.md`'s key table was missing two of the eight item types.** It is the schema
+  reference — `ARCHITECTURE.md` points at it before changing any of this — and it listed neither the
+  **report** row (`GROUP#<groupId>` / `REPORT#<accountId>`, new in #222) nor the **invite**
+  (`INVITE#<token>` / `META`, which the prose below it describes but the table never showed). Its
+  "two partitions answer everything" was wrong for the same reason: the invite needs a third,
+  because whoever redeems a token does not know the group id yet. Both rows added, with why the
+  report is keyed by its reporter.
+- **`CLAUDE.md` pointed at the wrong path for `buildReactNativeFromSource`.** It reads
+  `ios.buildReactNativeFromSource`, and the key actually lives under `expo.plugins` →
+  `expo-build-properties` → `ios`. Anybody following the note would look under `expo.ios`, find
+  nothing, and conclude the guard had been removed — which is the one thing that note exists to stop.
+- **`ARCHITECTURE.md` said the app never calls `/members`; it has since 1.2.0.** `leaveBoard` sends
+  `DELETE /groups/{groupId}/members/{accountId}` for the caller's own account — leaving is not an
+  admin action, so it is the one member route a phone reaches, and it does not go through the
+  outbox. Removing somebody else still has no client, and `/claims`, the deletions and the role
+  changes are still unreached, so the paragraph's point survives; it was just one route out of date.
+- **`README.md` did not say that `npm run eas:submit` goes to a testing track.** It described the
+  scripts as uploading to App Store Connect and Play, with nothing about `--profile internal` or the
+  `:production` variants — and this is the exact distinction that put 1.1.4 on Play's production
+  track with its billing rows never run. The warning `CLAUDE.md` carries now appears where somebody
+  reading the deploy instructions will actually meet it.
+- **Two character counts in `STORE_LISTING.md` were wrong, and every other one was measured.** The
+  promotional text is 151 characters, not 154; the 1.2.0 Play release notes are 283, not 421. Both
+  were under their limits, so neither would have bitten — but the whole value of a file that
+  pre-counts store fields is that the counts can be trusted. Every remaining block was measured:
+  name 27, subtitle 30, keywords 99, all four IAP strings, and the 1.1.3/1.1.4 release notes all
+  match what they claim. The Play notes now also record that their four emoji cost three more units
+  in UTF-16 than as code points, which is what a console counts.
+- **The last two unsourced claims in the gambling section are now sourced or marked.** Apple's
+  "for entertainment purposes" line is real and now carries its number — **guideline 1.1.6** — with
+  the note that it was written about false information rather than gambling, so it is read as a
+  posture rather than a ruling. The claim that "AdSense restricts only real-money gambling" was
+  **never checked against Google's publisher policy**; it sits in an option that was rejected on
+  other grounds, so it is marked unverified rather than quietly relied on. Also confirmed against
+  primary sources while there: `MaxAdContentRating.MA` does name gambling (the library's own type
+  docs), and Belgium's loot-box exposure is criminal fines to €800,000 plus imprisonment.
+- **The PEGI claim was stated more broadly than PEGI states it.** Both files said PEGI "auto-rates
+  _any_ simulated gambling 18". PEGI's own wording is narrower — content that "encourages or teaches
+  gambling", meaning "games of chance normally carried out in casinos or gambling halls". A betting
+  engine is squarely inside that; a dealer holding no chips is not obviously inside it at all.
+  Corrected, and the _Balatro_ precedent added, which the section did not have and which cuts both
+  ways: it drew a **PEGI 18 for explaining poker hands**, then had it **reduced to 12 on appeal**.
+  The answer given to the questionnaire does not change — there is no betting, so "does it contain
+  simulated gambling" is still honestly No — but the **Google 3+ carries a risk the section did not
+  acknowledge**, because PEGI had only ever been invoked to close off 13+ for the engine. If Play
+  returns higher than 3+, that is the reason and Balatro is the appeal precedent.
+- **The rating record says how its evidence was obtained.** Every comparable-app rating in
+  `ROADMAP.md` was read back from the App Store rather than from memory — the previous pass asserted
+  one was safe precedent without checking, and it is an 18+ app. The table now carries the
+  descriptors the store actually returns, a note that the lookup API still serves the pre-2025 `17+`
+  label for both 18+ rows, and a bankroll tracker rated 12+ that disagrees with the one rated 18+.
+- **`STORE_LISTING.md` no longer states the Individual-developer-account rule as settled fact.** It
+  is an unresolved risk, which is what `ROADMAP.md` has always said; the two now agree, and the
+  listing records the counter-evidence and that the rule is moot for 1.2.0 either way.
+- **The age-rating item covers Apple's 2025 questionnaire, which it predated.** The tiers are now
+  4+/9+/13+/16+/18+, and there is a mandatory Capabilities section unrelated to chance-based
+  activities. 1.2.0 answers yes to User-Generated Content and Advertising — both disclosure-only —
+  and no to Social Media and Unrestricted Web Access, which are the two that would force 13+ and
+  16+. So 4+ survives, but declaring UGC brings the app under Guideline 1.2, whose "block abusive
+  users" requirement is the one thing served today only by leaving a board. Recorded as a decision
+  to make rather than an assumption.
+- **The architecture diagram shows the `LinkAccounts` Lambda.** It has been a pre-sign-up trigger
+  since #209 and the diagram has been edited four times since without it.
+- **§14b says the stale-dev-client crash is not scoped to sign-in.** It read as though an
+  un-rebuilt dev client only blocked the Apple/Google rows. `socialSignIn.ts` imports `expo-crypto`
+  at module scope and is reached through `cognitoAuthProvider` → `AuthContext` → `_layout`, so such
+  a build red-screens with `Cannot find native module 'ExpoCrypto'` before anything renders and
+  **no** section of the checklist can be run on it. Found by hitting it.
 
 - **Ads are capped at general-audience content.** The Google Mobile Ads SDK was started with no
   request configuration at all, and its default admits the `MA` tier — which Google's own

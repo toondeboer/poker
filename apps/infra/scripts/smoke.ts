@@ -1,28 +1,29 @@
 /**
- * The parts of the backend no screen can reach yet, exercised from a laptop.
+ * The shared-leaderboard routes, exercised end to end from a laptop.
  *
- * `GET /me` can be checked with `curl` and a token. The table cannot: **no
- * route creates one**, so `POST /tables/{id}/actions` answers `404 no such
- * table` until a row exists, and the subscribe guard has nothing to guard. That
- * is not an oversight — a table is created by a game starting, and the app side
- * of that is unbuilt — but it does mean the two most interesting pieces of the
- * stack are unreachable without something like this.
+ * `GET /me` can be checked with `curl` and a token. A board cannot: creating
+ * one, adding players, recording a game, inviting somebody and having a second
+ * account redeem that invite is a sequence, and each step depends on the ids
+ * the last one returned. So this drives the whole sequence against a real
+ * stack, with real Cognito tokens, and asserts what came back at each step.
  *
- * So this seeds a hand, subscribes the way a phone would, sends one action, and
- * asserts what came back on each channel. What it proves, in one run:
+ * What it proves, in one run:
  *
  * 1. Cognito issues tokens for a real account, using the same request shaping
  *    the phone uses.
  * 2. The HTTP API's JWT authorizer accepts them.
- * 3. The action handler reads DynamoDB, runs the `@poker/core` rules, writes
- *    back under a version check, and publishes.
- * 4. **Hole cards go only where they should.** The shared channel carries a
- *    hand with every hole card stripped; the private channel carries exactly
- *    the caller's two.
- * 5. A replayed request is refused as stale rather than folding a hand twice.
- * 6. With `--as-stranger`: a signed-in account that is not at the table cannot
- *    subscribe to it. This is the check worth doing by hand however good the
+ * 3. The groups handler reads and writes DynamoDB under the key schema in
+ *    `groupKeys.ts`, and the board comes back the way it went in.
+ * 4. Players, games, claims, members and invites all round-trip.
+ * 5. With `--as-stranger`: a signed-in account that is not a member of a board
+ *    cannot read it. This is the check worth doing by hand however good the
  *    unit tests look, because it is the one whose failure is silent.
+ *
+ * **This used to drive a server-authoritative poker table** — seeding a hand,
+ * subscribing to two AppSync channels and asserting that hole cards went only
+ * to their owner. That backend was deleted before 1.2.0 shipped, along with the
+ * betting engine it enforced; see the Gambling classification section in
+ * `ROADMAP.md` and the `archive/betting-engine` tag.
  *
  * ## What it deliberately does not do
  *
@@ -32,9 +33,8 @@
  * person did once.
  *
  * It has no unit tests, and should not. Everything it drives is already covered
- * by the suite; its correctness is that it imports `@poker/core` and
- * `tableStore` rather than restating them, so a hand or an item it builds
- * cannot drift from the ones the handler expects.
+ * by the suite; its correctness is that it imports `@poker/core` rather than
+ * restating what it builds, so it cannot drift from what the handler expects.
  *
  * ## Running it
  *
@@ -97,8 +97,8 @@ const AS_STRANGER = has("--as-stranger");
  */
 const stackOutputs = (stackName: string): Record<string, string> => {
   // A refusal rather than a flag, because there is nothing this script does to
-  // production that anybody wants: it writes a hand into the table and sends an
-  // action as a real account.
+  // production that anybody wants: it creates a board, players and games as a
+  // real account.
   if (stackName.endsWith("-prod")) {
     throw new Error(`refusing to run against ${stackName}`);
   }

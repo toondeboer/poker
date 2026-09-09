@@ -137,11 +137,17 @@ What the app reaches: Cognito sign-up/sign-in and `GET /me`, `GET /config` (the 
 the shared leaderboard — `/groups`, `/groups/{groupId}`, the roster and result writes the outbox
 replays, `/invites/{token}`, `/groups/{groupId}/report`, and `DELETE /me`.
 
-Some group routes are in the same position on a smaller scale — `/claims`, `/members`, the player
-and game deletions and the role changes are deployed and answer correctly, but the app only ever
-sends the three additive writes the outbox knows about (`createGroup`, `addPlayer`, `recordGame`),
-plus the board reads. See [`groupRequests.ts`](./packages/core/src/sync/groupRequests.ts) for the
-exact list.
+Some group routes are in the same position on a smaller scale — `/claims`, the player and game
+deletions and the role changes are deployed and answer correctly, but nothing in the app sends
+them. The outbox knows three additive writes (`createGroup`, `addPlayer`, `recordGame`); see
+[`groupRequests.ts`](./packages/core/src/sync/groupRequests.ts) for that list.
+
+**`/members` came off that list in 1.2.0** and this paragraph said otherwise until it was checked.
+`leaveBoard` in [`groupApi.ts`](./apps/mobile/src/services/groupApi.ts) sends
+`DELETE /groups/{groupId}/members/{accountId}` for the caller's own account — leaving is not an
+admin action, so it is the one member route a phone reaches. Removing _somebody else_ still is an
+admin action and still has no client. The calls outside the outbox are worth knowing about: it
+replays queued writes, and these do not queue.
 
 ```mermaid
 flowchart LR
@@ -156,6 +162,7 @@ flowchart LR
     CFG["Config λ<br/><b>kill switch</b><br/><i>public, no auth</i>"]
     IDN["Identity λ<br/>GET /me"]
     GRP["Groups λ<br/>/groups/* · /invites/*<br/>DELETE /me"]
+    LNK["LinkAccounts λ<br/><i>Cognito trigger, not a route —<br/>one person, one account</i>"]
     DDB[("DynamoDB<br/><i>single table</i>")]
   end
 
@@ -165,6 +172,7 @@ flowchart LR
   UI -.->|"sign up / in"| COG
   API --> IDN & GRP
   COG -.->|"verifies token"| API
+  COG -.->|"pre-sign-up trigger"| LNK
   IDN & GRP --> DDB
 ```
 

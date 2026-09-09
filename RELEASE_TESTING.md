@@ -577,6 +577,12 @@ verify on the iOS simulator, so they have never been exercised by anything but a
 **Needs `backendConfig = DEV_BACKEND` and a rebuilt dev client** — `expo-web-browser` and
 `expo-crypto` are native, so a reloaded JS bundle talks to a binary that does not have them.
 
+**And this is not scoped to sign-in — it takes the whole app down at launch.** `socialSignIn.ts`
+imports `expo-crypto` at module scope, and it is pulled in by `cognitoAuthProvider` →
+`AuthContext` → `_layout`, so a dev client built before #211 red-screens with
+`Cannot find native module 'ExpoCrypto'` before anything renders. **No section of this checklist
+can be run on such a build**, not just this one. Rebuild first — see §0.
+
 | Row                                                                                                                                                                                                                           | iOS | Android |
 | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --- | ------- |
 | **Continue with Apple** on a fresh install creates an account and signs in                                                                                                                                                    | ✅  | ⬜      |

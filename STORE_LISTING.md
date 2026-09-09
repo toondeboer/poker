@@ -57,7 +57,7 @@ and describe features the app actually has.
 The blinds clock for home poker night — and now it deals, too. Big readable timer, custom levels, payouts worked out, and a leaderboard for your group.
 ```
 
-`154` chars. Re-count in the console before saving.
+`151` chars. Re-count in the console before saving.
 
 Previous, kept as the record of what was live:
 
@@ -210,10 +210,19 @@ betting, and as a headline Pro feature they are frequent, not infrequent — whi
 changed is the app, not the reading.
 
 **13+ was never available**, for three separate reasons worth recording so nobody re-litigates it:
-Apple's 13+ requires _infrequent_ simulated gambling; **PEGI has auto-rated any simulated gambling 18
-since 2020** and reaches Google Play through IARC, so Europe has no 13+ tier for this; and Apple's
-restriction on gambling apps from **Individual developer accounts** — which this is — keys on whether
-the app contains simulated gambling at all, not on how much.
+Apple's 13+ requires _infrequent_ simulated gambling; **PEGI put gambling content at 18 in 2020** and
+reaches Google Play through IARC, so Europe had no 13+ tier for a betting engine; and Apple's
+restriction on gambling apps from **Individual developer accounts** — which this is — would not care
+about the tier either way.
+
+**That last one is an unresolved risk, not a settled fact**, and this file used to state it as
+though it were. It traces to an October 2018 announcement; the current guideline 5.1.1(ix) says apps
+that _"provide services in"_ highly regulated fields — gambling among them — _"should be submitted
+by a legal entity … and not by an individual developer"_, which arguably excludes a play-money game.
+Against enforcement-as-written: **Cash Out Poker carries Apple's `Gambling` descriptor today and
+ships under a seller name with no entity suffix.** It is moot for 1.2.0 regardless — with betting
+gone there is no gambling descriptor for the rule to attach to — and matters only if betting ever
+comes back. See [ROADMAP.md](./ROADMAP.md#gambling-classification--blocking-120).
 
 **The second trigger was nearly missed.** Comparable apps show the line is not dealing and not
 calculating, but **accumulating real money across sessions**: a virtual card dealer is 4+ and a
@@ -290,6 +299,179 @@ rating — that is the failure mode that costs a rejection _and_ the resubmissio
 betting is going, do not leave copy describing betting that the binary no longer has: an app that
 under-delivers against its own listing is the same accuracy problem wearing the other hat. **Write
 the listing from the built binary, every time.**
+
+## Submission hand-off — every console step, with the answers
+
+**Nothing in this section has been entered anywhere yet.** It exists so the answers are decided
+once, from the built binary and the code, and **recorded** — ROADMAP item 10 asks for exactly that,
+so the next release can be checked against these rather than re-deriving them under time pressure.
+
+Derived on 2026-09-08 from the code, not copied from a PR description. Where an answer turns on
+something in the repo, the file is named so it can be re-checked.
+
+### 1. Apple age rating (App Store Connect → App Information → Age Rating)
+
+**Apple overhauled this questionnaire in July 2025.** The tiers are now 4+ / 9+ / **13+ / 16+ / 18+**
+(12+ and 17+ are gone), and there is a **Capabilities** section that has nothing to do with
+chance-based activities. Responses were required by 31 January 2026, so this may already be
+half-answered on the existing listing — check what is there before assuming it is blank.
+
+**Chance-Based Activities**
+
+| Question               | Answer              | Why                                                                                                         |
+| ---------------------- | ------------------- | ----------------------------------------------------------------------------------------------------------- |
+| **Gambling**           | **No**              | No real money and no in-game currency exchangeable for it. No wallet, no balance, no consumable IAP         |
+| **Simulated Gambling** | **None**            | Apple's definition is "betting or wagering". The betting engine was removed before 1.2.0 — see `ROADMAP.md` |
+| **Contests**           | **Infrequent/Mild** | The board records games held offline. Infrequent is 4+; frequent would be 13+                               |
+| **Loot Boxes**         | **No**              | No purchasable randomness anywhere in the repo                                                              |
+
+**Capabilities** — the new section, and the one most likely to be missed:
+
+| Question                    | Answer  | Effect on the tier                                                                              |
+| --------------------------- | ------- | ----------------------------------------------------------------------------------------------- |
+| **User-Generated Content**  | **Yes** | Disclosure only. Player and board names are typed by one member and shown to the others         |
+| **Advertising**             | **Yes** | Disclosure only. AdMob banner on the free tier                                                  |
+| **Messaging and Chat**      | **No**  | There is no way to send anybody a message                                                       |
+| **Social Media**            | **No**  | **Would force 13+.** A shared board is not a feed — no likes, comments, shares or amplification |
+| **Unrestricted Web Access** | **No**  | **Would force 16+.** No embedded browser; the only external links open the system browser       |
+
+**In-App Controls:** Parental Controls **No**, Age Assurance **No**. Both are disclosure-only.
+
+**Expected result: 4+.** If the questionnaire returns anything else, stop and find out which answer
+moved it rather than adjusting an answer to reach 4+ — under-declaring is the one thing that
+genuinely endangers a developer account.
+
+### 2. Google Play IARC (Play Console → Policy → App content → Content rating)
+
+Answered **independently** of Apple's; the two need not agree, and IARC asks differently.
+
+- **Does the app contain gambling or simulated gambling?** **No.** This is the answer that matters
+  most in Europe, and it is honest only because the betting engine went. PEGI's descriptor is for
+  content that "encourages or teaches gambling", meaning "games of chance normally carried out in
+  casinos or gambling halls" — narrower than the "any simulated gambling" this file used to claim,
+  and a dealer holding no chips is not in it. **If Play comes back above 3+, appeal**: _Balatro_ was
+  rated PEGI 18 for explaining poker hands and had it cut to 12 on appeal. See `ROADMAP.md`.
+- **Does the app contain user-generated content shared with others?** **Yes.** Board and player
+  names on a shared board. Declare it: the app has the filter, the report flow and the contact
+  address that this answer commits you to.
+- **Does the app share user-provided content?** **Yes**, between members of a board only.
+- **Ads:** yes, and the app requests non-personalized only.
+- **Purchases:** yes — one non-consumable and two subscriptions.
+
+**Expected result: 3+ (PEGI 3).**
+
+### 3. App Privacy (ASC) and Data Safety (Play)
+
+**The app no longer qualifies as "Data Not Collected".** Re-derived from the code: `apps/mobile`
+declares exactly two third-party SDKs that collect anything — `react-native-google-mobile-ads` and
+`react-native-purchases`. **There is no crash reporter and no analytics SDK in the mobile app**, so
+nothing to declare under Diagnostics.
+
+| Data                           | Collected           | Linked to the user | Purpose                 | Where it comes from                                      |
+| ------------------------------ | ------------------- | ------------------ | ----------------------- | -------------------------------------------------------- |
+| **Email address**              | Yes, if you sign up | Yes                | App Functionality       | Cognito username _and_ attribute — see `auth/cognito.ts` |
+| **User ID** (Cognito `sub`)    | Yes, if you sign up | Yes                | App Functionality       | `ACCOUNT#<accountId>` in DynamoDB                        |
+| **Other User Content**         | Yes, if you share   | Yes                | App Functionality       | Board names, player names, report free-text              |
+| **Purchase history**           | Yes                 | Yes                | App Functionality       | RevenueCat entitlement state                             |
+| **Device ID / advertising ID** | Yes, free tier only | No                 | Third-Party Advertising | AdMob                                                    |
+
+**Not collected, and worth stating because a poker app invites the question:** no location of any
+precision, no contacts, no photos, no health data, no browsing history, no financial information —
+and **no monetary amount of any kind**. Money came off the leaderboard deliberately; `groups.ts`
+whitelists fields so a stale client sending `winnings`, `buyIn` or `bounty` has them stripped
+server-side.
+
+**"Used for Tracking": No — and this is load-bearing.** `BannerAdSlot.tsx` sets
+`requestNonPersonalizedAdsOnly: true`, so the app does not ask for personalized ads and does not
+join identifiers across apps. **Do not answer Yes here**, and do not turn personalized ads on
+without first doing the UMP/ATT work below.
+
+**The consent gap, stated plainly.** `useAdsConsent.ts` is a placeholder: it resolves immediately
+and requests nothing. There is **no ATT prompt and no `NSUserTrackingUsageDescription`** in
+`Info.plist`, and no Google UMP flow. Non-personalized-only is the reason this is currently
+defensible, and it is the "simplest compliant posture" the hook's own comment claims. It is still a
+live gap for EEA/UK, it is **pre-existing and not 1.2.0's doing**, and it is tracked in `ROADMAP.md`.
+Serving personalized ads without a certified CMP would not be defensible.
+
+### 4. Club products — sharing is unreachable without these
+
+**The paywall currently sells something that cannot be bought.** Create in both stores, then map in
+RevenueCat. Ids are in `packages/core/src/monetization/products.ts` and must match exactly:
+
+| Product        | Type                        | Where                                                    |
+| -------------- | --------------------------- | -------------------------------------------------------- |
+| `pro_lifetime` | Non-consumable              | Already exists                                           |
+| `club_monthly` | Auto-renewable subscription | ASC → Subscriptions, and Play → Monetize → Subscriptions |
+| `club_yearly`  | Auto-renewable subscription | Same, same group as monthly                              |
+
+**Both Club products must grant `club` _and_ `pro` entitlements in RevenueCat.** A shared board is a
+leaderboard, so Club without Pro is a broken state. `entitlementsFrom` in `clubPolicy.ts` defends
+against a missed checkbox, so it is survivable rather than shipped — but set it correctly.
+
+**Both stores or neither.** One platform able to buy Club and the other not is worse than neither.
+
+### 5. Store console copy
+
+Everything above the age-rating section in this file, typed in as-is: name, subtitle, keywords,
+promotional text, description — plus the **IAP descriptions in all three consoles** (ASC, Play, and
+RevenueCat), which are the ones most often forgotten.
+
+Android also still wants the feature graphic uploaded — `store-assets/android/feature-graphic.png`,
+see `ROADMAP.md`.
+
+### 6. Notes for Review (App Store Connect)
+
+**Guideline 2.3.1 requires new functionality to be described with specificity** — "generic
+descriptions will be rejected" — and this release changed a great deal. Paste the money paragraph
+from _Paste-ready review note_ above, then this:
+
+```
+New in this version:
+
+- Accounts (optional). Email/password, Sign in with Apple, and Sign in with Google, backed by
+  Amazon Cognito. Everything in the app works signed out; an account exists only to keep boards
+  across devices.
+- Shared leaderboards. A host can invite others to a board by link. Members see the board's player
+  names and the games recorded on it: who played, who won, and finishing positions. No monetary
+  amount is stored or shared.
+- Reporting and leaving a board, plus a name filter, because board and player names are
+  user-generated and visible to other members.
+- A card dealer. The phone shuffles and deals two cards per player, turns the flop, turn and river
+  when the host taps, and reads the showdown. Each player's own cards stay hidden until they tap,
+  and hide again when the phone moves on. It holds no chips and has no betting controls.
+- A payout calculator and a chop calculator. Both are one-shot calculators for money that changes
+  hands away from the phone. Neither settles nor stores anything.
+
+Removed in this version: an earlier build of 1.2.0 contained a betting engine for the dealt game
+(fold/check/call/raise, pots, side pots). It was removed before submission, along with all monetary
+amounts on the leaderboard. There is no wagering anywhere in this app.
+
+To review the dealer and the shared board, Pro and Club are required. Please use the demo account
+below, which has both entitlements granted.
+```
+
+**Add this too, because Guideline 1.2 will otherwise be asked about.** The app declares
+user-generated content, and 1.2 wants a way to block abusive users. Say the argument rather than
+waiting for the question:
+
+```
+On user-generated content: the only content one person can put in front of another is a board name
+or a player name, both filtered on entry and both limited to 40 characters. Boards are invite-only.
+There is no discovery, no feed, no messaging, and no way to be added to a board you did not join by
+redeeming a link. Any member can leave a board at any time, which removes every name on it from
+their device; a board admin can remove a member outright. Offensive content can be reported from
+inside the app, and reports are monitored and answered — see the Support page.
+```
+
+**Before submitting, close the EULA gap.** There is currently no terms page and no zero-tolerance
+statement anywhere, and that is the item 1.2 rejection letters cite most often. Set the **License
+Agreement** field in App Store Connect (Apple's standard EULA is accepted) and publish a short
+`/terms` page with a zero-tolerance clause. Both are console and web only — **neither needs a new
+binary**, so neither can delay the build.
+
+**Leave a demo account and password in the review notes**, with Pro and Club granted in RevenueCat —
+a reviewer who cannot get past the paywall cannot review the feature the release is built on, and
+that is a rejection for reasons that have nothing to do with the app.
 
 ## In-app purchase — `pro_lifetime` description (keep in sync with the paywall)
 
@@ -426,8 +608,10 @@ Re-count in App Store Connect before saving; the limit is 4000 characters and th
 ♻️ Games survive the app closing, and sync when you have signal again.
 ```
 
-`421` chars — fits the 500-char Play Console limit. Re-count in the
-console before saving, since emoji and locale can shift it.
+`283` chars — comfortably inside the 500-char Play Console limit. Re-count in
+the console before saving, since emoji and locale can shift it: those four emoji
+cost three more units in UTF-16 than they do as code points, which is what a
+console counts.
 
 **"Joining one is free" earns its place in 500 characters**, because the misunderstanding most
 likely to kill the feature is a table assuming all six of them need a subscription. One line, and it

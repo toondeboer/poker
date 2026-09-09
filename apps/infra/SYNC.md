@@ -34,9 +34,19 @@ and are what the app persists locally today. The schema serves those rather than
 | **Member** | `GROUP#<groupId>` | `MEMBER#<accountId>` | `role`, `joinedAt`                             |
 | Membership | `ACCOUNT#<sub>`   | `GROUP#<groupId>`    | `role`, `joinedAt`                             |
 | Claim      | `ACCOUNT#<sub>`   | `CLAIM#<groupId>`    | `playerId`, `claimedAt`                        |
+| **Report** | `GROUP#<groupId>` | `REPORT#<accountId>` | `reason`, `detail`, `reportedAt`               |
+| Invite     | `INVITE#<token>`  | `META`               | the group it admits to                         |
 
-**No index.** Two partitions answer everything: a group's own partition holds the board _and_ its
-members, and an account's holds its boards and its claims.
+**No index.** Two partitions answer nearly everything: a group's own partition holds the board, its
+members _and_ any reports against it, and an account's holds its boards and its claims. The
+exception is the invite, which needs a third: whoever is redeeming a token does not know the group
+id yet, which is the entire point of being invited.
+
+**The report row is keyed by the reporter, not by the report.** One report per person per board, and
+a second replaces the first — which loses the history of somebody reporting the same board twice,
+and in exchange bounds what one account can write into a partition. The operator is emailed on every
+report regardless (the `ContentReports` alarm in `pokerStack.ts`), so the history lives in that mail;
+what this row answers is "which boards have open reports".
 
 ### This is the second schema, and the first one is why
 
@@ -203,7 +213,7 @@ thing that needs one.
 ## Open, and worth settling before code
 
 **Joining is by a pasted code** — decided, and built on both sides. The host shares a 32-character
-token, whoever receives it pastes it into *Groups → Join a board*, and redeeming it writes the
+token, whoever receives it pastes it into _Groups → Join a board_, and redeeming it writes the
 membership. The token is its own partition (`INVITE#<token>`) because whoever is redeeming it does
 not know the group id yet; any other keying is a scan.
 
@@ -211,8 +221,8 @@ not know the group id yet; any other keying is a scan.
   table and deliberately drops `O`/`0`, `I`/`1` and `S`/`5` — it is short because it is spoken, and
   short means guessable. **These invites never expire**, so one lucky guess is permanent access to a
   board's whole history. A code that is pasted rather than spoken can carry real entropy, and does.
-- **Why a code rather than a link.** A `pokerkit://` link only opens for somebody who *already has
-  the app* — sent to anybody else it does nothing at all, which is most of the point of an invite
+- **Why a code rather than a link.** A `pokerkit://` link only opens for somebody who _already has
+  the app_ — sent to anybody else it does nothing at all, which is most of the point of an invite
   gone. An `https://` one needs a domain worth publicising, universal links configured on both
   platforms, and a page on the website to catch the tap. A code needs none of that and gives up
   nothing: it is the same token either way.
@@ -245,31 +255,31 @@ board is invisible to them entirely, which may be right or may be the missing ha
   shape is already the one that supports it, and `INVITE_BASE` is the one line that changes.
 - **Local history is backfilled once, on the board's first announce.** A board the server has never
   answered about gets its whole roster and season queued alongside the `createGroup` — otherwise it
-  arrives *empty*, because the outbox only carries writes made from now on and the pull only merges
+  arrives _empty_, because the outbox only carries writes made from now on and the pull only merges
   downward, and a board with a year on it would look to everybody it was shared with like a board
   with nothing on it. Bounded by the `role` the first pull brings back: once the server has told us
   what we are on a board, its contents are known to be up there and nothing is re-sent. A season is
   a few hundred writes drained one at a time, once.
 - **A board cannot be renamed on the server.** There is no `PATCH /groups/{groupId}`, so the name a
-  board is created with is the name it keeps. The app replaces a *queued* `createGroup` when
+  board is created with is the name it keeps. The app replaces a _queued_ `createGroup` when
   somebody renames a board, which covers a board renamed before it ever synced; a board the server
   already has keeps the old name. **The merge therefore keeps the local name**, because taking the
   server's would revert somebody's rename on the very next foreground, permanently. The consequence
   is that two members can see different names for the same board until a rename route exists.
 - **Nothing removes a player or a game from the server.** Both are deliberately not queueable: a
-  removal has to be checked against who you are *now*, and a queue replayed a week later cannot be.
+  removal has to be checked against who you are _now_, and a queue replayed a week later cannot be.
   So a deletion made offline reaches the server only if the matching write had not gone yet, which
   the app handles by withdrawing it. Once a write has landed, deleting locally diverges from the
   shared board until somebody with admin removes it there too.
   - **The phone keeps its own tombstones for exactly this reason.** Without them a pull reads the
-    row back — it is still in the server's list, and absent from the server's *deleted* list — and
+    row back — it is still in the server's list, and absent from the server's _deleted_ list — and
     faithfully restores what somebody just deleted, a game included, back into the standings. So a
     local delete is recorded in `GroupState.deleted` and the merge honours both sides' lists. It
     stops a deletion undoing itself; it does not make one propagate.
   - **The same for a whole board.** Deleting one leaves the membership on the server, `GET /groups`
     keeps listing it, and the discovery half of a pull would put the entire board back on every
     foreground. `GroupedLeaderboard.dismissed` holds the ids; redeeming a link for one clears it,
-    because tapping a link is asking for the board back. There is still no route that *leaves* a
+    because tapping a link is asking for the board back. There is still no route that _leaves_ a
     board, so the membership itself stays.
 - **A membership can outlive its group, and nothing prunes it.** `GET /groups` lists what the
   account is on; a board that has since gone answers 404 to the read that follows, and the app

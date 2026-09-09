@@ -4,15 +4,15 @@ AWS CDK. Accounts, groups and cloud sync for the shared leaderboard.
 
 **Both stages are deployed** — account `096695166445`, region `us-east-1`.
 
-Dev has been exercised end to end: sign-up with a real emailed code, sign-in, `GET /me`, a hand
-seeded and acted on, events arriving on both channels, a replay refused as stale, and a non-member
-refused from both channels. **35 checks**, run by [`scripts/smoke.ts`](./scripts/smoke.ts) with
+Dev has been exercised end to end: sign-up with a real emailed code, sign-in, `GET /me`, a board
+created, players added, a game recorded, an invite redeemed by a second account, and a non-member
+refused a board they are not in. **20 checks**, run by [`scripts/smoke.ts`](./scripts/smoke.ts) with
 `--as-stranger`.
 
 **Prod exists as of 2026-09-04** and was stood up by walking _Standing up production_ below, in two
 deploys as that section requires. It answers `200` on `/config` and `401` on `/me` without a token,
 sends from its own DKIM-verified domain, and holds zero users and zero rows. The smoke script
-**refuses to run against it** by design — it writes a hand into the table — so what has been checked
+**refuses to run against it** by design — it creates real boards and games — so what has been checked
 there is the configuration, read back from the live resources, and the two public routes.
 
 `cdk synth` and the tests still run with no credentials, which is what lets CI check the whole stack
@@ -67,8 +67,9 @@ so a name beside the site issues fine.
 None of these are secrets — a user pool id and a public app client id are public by design. They are
 mirrored in `DEV_BACKEND` in
 [`apps/mobile/src/services/backendConfig.ts`](../mobile/src/services/backendConfig.ts), where
-`backendConfig` is still `null` on purpose so a 1.2.0 build cannot ship pointing at a development
-stack.
+`backendConfig` is `PROD_BACKEND` on the release branch. Pointing it at `DEV_BACKEND` is a local
+edit for development and **must never be committed** — a shipped build aimed at a development stack
+is the failure this indirection exists to prevent.
 
 ## What only a deploy could tell us
 
@@ -118,22 +119,29 @@ destroy`; a direct `DeleteTable` call is untouched by it, and this account also 
 
 ## What exists today
 
-|                  |                                                                                                                                                                                                                                                                                                          |
-| ---------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Cognito**      | User pool + client, email recovery, `RETAIN`                                                                                                                                                                                                                                                             |
-| **DynamoDB**     | `TableV2`, single-table `pk`/`sk`, on-demand billing, PITR on, `RETAIN`, `expiresAt` TTL for live hands                                                                                                                                                                                                  |
-| **Publishing**   | Signed with the Lambda's own IAM credentials (SigV4 by hand, `node:crypto`, checked against AWS's published vectors). The shared channel gets a hand with every hole card stripped; each player's own cards go to a channel only they can subscribe to                                                   |
-| **HTTP API**     | Sixteen routes — identity, the poker table, and the shared leaderboard (groups, players, games, claims, invites, members, `DELETE /me`) — all behind a Cognito JWT authorizer that is the API's **default**, so a route added later is authenticated because nobody did anything. Access logs, throttled |
-| **Groups**       | Shared boards: several admins, anybody may add a player or record a game, only an admin may remove one. Invite links that do not expire and are revoked by rotation. **Every read is authorized, not merely authenticated** — see [SYNC.md](./SYNC.md)                                                   |
-| **Environments** | `PokerBackend-dev` and `PokerBackend-prod`, plus `PokerDeployment` for the GitHub OIDC roles                                                                                                                                                                                                             |
-| **Telemetry**    | X-Ray `Tracing.ACTIVE` on all three functions, CloudWatch metrics and structured logs, and a `poker-<stage>` dashboard built in CDK from the alarm definitions. No third-party export — see decision 2                                                                                                   |
-| **Alarms**       | Ten, into an SNS topic, each carrying what it means; a forecast budget alarm alongside. One has been seen to fire                                                                                                                                                                                        |
-| **Tests**        | 277, covering the synthesised template and the handlers' decision-making                                                                                                                                                                                                                                 |
+|                  |                                                                                                                                                                                                                                                                                                                                                                                                                                       |
+| ---------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Cognito**      | User pool + client, email recovery, `RETAIN`                                                                                                                                                                                                                                                                                                                                                                                          |
+| **DynamoDB**     | `TableV2`, single-table `pk`/`sk`, on-demand billing, PITR on, `RETAIN`, `expiresAt` TTL for deletion tombstones                                                                                                                                                                                                                                                                                                                      |
+| **HTTP API**     | Seventeen routes — identity, config, and the shared leaderboard (groups, players, games, claims, invites, members, reports, `DELETE /me`) — behind a Cognito JWT authorizer that is the API's **default**, so a route added later is authenticated because nobody did anything. `GET /config` is the one deliberate exception, an explicit `HttpNoneAuthorizer` so the kill switch is readable before sign-in. Access logs, throttled |
+| **Groups**       | Shared boards: several admins, anybody may add a player or record a game, only an admin may remove one. Invite links that do not expire and are revoked by rotation. **Every read is authorized, not merely authenticated** — see [SYNC.md](./SYNC.md)                                                                                                                                                                                |
+| **Environments** | `PokerBackend-dev` and `PokerBackend-prod`, plus `PokerDeployment` for the GitHub OIDC roles                                                                                                                                                                                                                                                                                                                                          |
+| **Telemetry**    | X-Ray `Tracing.ACTIVE` on all four functions, CloudWatch metrics and structured logs, and a `poker-<stage>` dashboard built in CDK from the alarm definitions. No third-party export — see decision 2                                                                                                                                                                                                                                 |
+| **Alarms**       | Nine in prod, seven in dev — the two SES reputation alarms are prod-only — into an SNS topic, each carrying what it means; a forecast budget alarm alongside. One has been seen to fire                                                                                                                                                                                                                                               |
+| **Tests**        | 260, covering the synthesised template and the handlers' decision-making                                                                                                                                                                                                                                                                                                                                                              |
 
-**Hole cards are private because of where they are published**, not because a client declines to
-draw them. Both sides build channel paths from `playerChannel` in `@poker/core`, because the two
-disagreeing about a path is a silent security bug — and was one, until a review caught the guard
-sitting on a namespace those channels never touch.
+**There is no push side any more, and that table used to list one.** The server-authoritative poker
+table — the AppSync Events API, both channel namespaces, `TableAction`, `SubscribeAuthorizer` and
+the by-hand SigV4 signing — was deleted before 1.2.0 shipped, along with the betting engine it
+enforced. See the
+Gambling classification section in [`ROADMAP.md`](../../ROADMAP.md#gambling-classification--blocking-120),
+and the `archive/betting-engine` tag for the code.
+
+One idea from it is worth keeping in writing, because anything that replaces it will face the same
+problem: **hole cards were private because of where they were published**, not because a client
+declined to draw them. Both sides built channel paths from one function in `@poker/core`, because
+the app and the backend disagreeing about a path is a _silent_ security bug — and was one, until a
+review caught the guard sitting on a namespace those channels never touched.
 
 ## What does not exist
 
@@ -158,13 +166,13 @@ sitting on a namespace those channels never touch.
    `Tracing.ACTIVE` costs within noise of nothing, because the X-Ray daemon is part of the execution
    environment rather than a Go binary each function has to start.
 
-   **The other half of the bill was the scrape.** Grafana cannot see API Gateway 5xx, DynamoDB
-   throttles or AppSync connection errors on its own — those are CloudWatch metrics — so the plan
+   **The other half of the bill was the scrape.** Grafana cannot see API Gateway 5xx or DynamoDB
+   throttles on its own — those are CloudWatch metrics — so the plan
    was its CloudWatch scrape, at roughly **$3–9/month against an account that spends $0.64**. That
    is paying to copy metrics out of the place they already are, in order to look at them.
 
    What was given up is vendor neutrality, which was the original argument and the weakest one
-   here: the backend is Cognito, AppSync Events, DynamoDB and CDK. Telemetry was the one portable
+   here: the backend is Cognito, API Gateway, DynamoDB and CDK. Telemetry was the one portable
    piece of something entirely AWS-specific.
 
 3. **The throttle protects the bill, not availability.** It is per route and shared by everybody,
@@ -179,8 +187,9 @@ sitting on a namespace those channels never touch.
 5. ~~**No custom domain.**~~ **Done.** The API answers on `poker-api.toondeboer.com` (and
    `poker-api-dev` for dev) — a name we own, precisely so that replacing the stack does not break
    every installed build. See `apiDomain.ts`.
-6. **No federated sign-in.** Apple and Google need real client ids and secrets, and App Store
-   guideline 4.8 requires Sign in with Apple alongside any other third-party provider.
+6. ~~**No federated sign-in.**~~ **Done.** Google and Apple are wired as user-pool identity
+   providers, with per-stage credentials resolved by `socialSignInFor` in `socialSignIn.ts` — see
+   §14b of [`RELEASE_TESTING.md`](../../RELEASE_TESTING.md) for the rows that exercise them.
    6a. **No dashboard beyond the one in code.** `poker-<stage>` is built by CDK from the same `watch`
    calls that declare the alarms, so the two cannot drift. It is a starting point, not a considered
    layout.
@@ -190,14 +199,12 @@ sitting on a namespace those channels never touch.
    no way to raise it, which is a cap on sign-ups per day for the whole app. Production wants
    `withSES()` against a verified domain with SPF/DKIM/DMARC. Fine for dev; not a launch
    configuration.
-7. **Nothing in the app points at it yet** — `backendConfig` is `null` deliberately, not for want of
-   somewhere to point. **This is the largest caveat on the group backend**: every route has been
-   exercised by hand, and none has ever been called by a phone, replayed from an offline queue, or
-   merged against local state. Those are the parts most likely to be wrong.
-8. **No route creates a table.** A table is created by a game starting, and the app side of that is
-   unbuilt, so `POST /tables/{id}/actions` answers `404 no such table` until a row exists. This is
-   why the smoke script seeds one directly.
-9. **The budget is account-wide, despite being named `poker-dev`.** `CfnBudget` is created with no
+7. ~~**Nothing in the app points at it yet.**~~ `backendConfig` is `PROD_BACKEND` on the release
+   branch, and the board routes are called by a real phone — an outbox replaying writes after a bad
+   evening's signal, merged against local state. **What is still true is that this has never been
+   through a full manual pass**: §14 and §15 of [`RELEASE_TESTING.md`](../../RELEASE_TESTING.md) are
+   the rows that close it, and they are the ones most likely to find something.
+8. **The budget is account-wide, despite being named `poker-dev`.** `CfnBudget` is created with no
    `CostFilters`, so it forecasts the whole account — which here also runs `sailor-prod` and
    `investments-tracker-prod`. At $0.64/month across everything it will not misfire, and it will
    still catch a runaway loop, so it is left alone. Filtering it properly means activating the
@@ -228,14 +235,12 @@ side, which is unchanged.
 The alternatives were considered and rejected for concrete reasons rather than taste. A **function
 URL** is cheaper and means verifying JWTs by hand and losing per-route metrics and throttling —
 which are exactly the things this plan is being asked to provide. **Direct Lambda invoke** from the
-client puts AWS credentials on every phone. **Full AppSync GraphQL** would replace a working Events
-API with a schema describing messages that already have a shape in `@poker/core`.
+client puts AWS credentials on every phone.
 
-**Requests go out, events come back.** A client never learns the result of its action from the HTTP
-response — it learns it from the event, the same way every other player does. The response says
-"accepted" or "rejected"; the truth arrives on the channel. That keeps one code path for state
-rather than two that can disagree, and it is what makes optimistic prediction on the client safe:
-the phone runs `@poker/core` locally, and the authoritative event either confirms it or replaces it.
+**A request now carries its own answer.** With the push side gone there is one code path: the app
+writes, the response says what happened, and the outbox retries whatever did not land. The
+_"requests go out, events come back"_ split that used to be documented here belonged to the table
+backend and went with it.
 
 ### 2. CloudWatch, X-Ray and a dashboard in code — after trying the other thing
 
@@ -247,11 +252,12 @@ reason is a number.
 
 **The collector layer cost ~1.9 s of cold start**, against a published 50–200 ms (measured table at
 the top of this file). This app is the worst possible case for that: a table plays one evening a
-week, so cold starts are the _common_ case rather than a rounding error on a warm fleet, and
-`SubscribeAuthorizer` runs before a player can see a table on a three-second timeout.
+week, so cold starts are the _common_ case rather than a rounding error on a warm fleet. The
+sharpest case at the time was `SubscribeAuthorizer`, which ran before a player could see a table on
+a three-second timeout — that function is gone, but the cold-start argument is not.
 
 **And the infrastructure half would have cost more than the whole backend.** OTel runs _inside_ a
-Lambda, so it cannot see API Gateway 5xx, DynamoDB throttles, AppSync connection errors or cold
+Lambda, so it cannot see API Gateway 5xx, DynamoDB throttles or cold
 starts — those happen outside the function and are CloudWatch metrics. Reaching them from Grafana
 means its CloudWatch scrape, at roughly **$3–9/month against an account that spends $0.64** — to
 copy metrics out of the place they already were so they could be looked at elsewhere.
@@ -276,19 +282,18 @@ property: handler` and fails every invocation.
 
 **What to alert on** (an alert nobody acts on is worse than no alert):
 
-| Alarm                       | Metric                                    | Why it is worth waking up for                                       |
-| --------------------------- | ----------------------------------------- | ------------------------------------------------------------------- |
-| `ActionErrors`              | Lambda `Errors`                           | The rules are rejecting real actions, or something is throwing      |
-| `ActionSlow`                | Lambda `Duration` p99                     | A table is waiting on a turn that will not land                     |
-| `IdentityErrors`            | Lambda `Errors`                           | Sign-in is broken from the app's point of view                      |
-| `ApiServerErrors`           | API Gateway `5xx`                         | The API is failing before a handler runs                            |
-| `ApiClientErrors`           | API Gateway `4xx`                         | Sustained 4xx — a client version that no longer agrees with the API |
-| `TableThrottled`            | DynamoDB `ThrottledRequests`              | On-demand should not throttle; if it does, something is very wrong  |
-| `TableSystemErrors`         | DynamoDB `SystemErrors`                   | DynamoDB itself is erroring                                         |
-| `TableContention`           | DynamoDB `ConditionalCheckFailedRequests` | Optimistic concurrency thrashing — two clients fighting             |
-| `RealtimeConnectFailures`   | AppSync `ConnectServerError`              | Players cannot connect — **the failure nobody reports**             |
-| `RealtimeSubscribeFailures` | AppSync `SubscribeServerError`            | The subscribe authorizer is erroring rather than refusing           |
-| Monthly spend > a threshold | Budgets, forecast                         | The only alarm that catches a loop nobody noticed                   |
+| Alarm                       | Metric                                     | Why it is worth waking up for                                                                     |
+| --------------------------- | ------------------------------------------ | ------------------------------------------------------------------------------------------------- |
+| `IdentityErrors`            | Lambda `Errors`                            | Sign-in is broken from the app's point of view                                                    |
+| `ContentReports`            | Custom metric, threshold 0                 | Somebody reported a shared board — both stores require reports to be acted on, not just collected |
+| `ApiServerErrors`           | API Gateway `5xx`                          | The API is failing before a handler runs                                                          |
+| `ApiClientErrors`           | API Gateway `4xx`                          | Sustained 4xx — a client version that no longer agrees with the API                               |
+| `TableThrottled`            | DynamoDB `ThrottledRequests`               | On-demand should not throttle; if it does, something is very wrong                                |
+| `TableSystemErrors`         | DynamoDB `SystemErrors`                    | DynamoDB itself is erroring                                                                       |
+| `TableContention`           | DynamoDB `ConditionalCheckFailedRequests`  | Optimistic concurrency thrashing — two clients fighting                                           |
+| `MailBounceRate`            | SES `Reputation.BounceRate` (prod only)    | Above 5% AWS puts the account under review; near 10% it pauses sending                            |
+| `MailComplaintRate`         | SES `Reputation.ComplaintRate` (prod only) | Above 0.1% — AWS's review threshold                                                               |
+| Monthly spend > a threshold | Budgets, forecast                          | The only alarm that catches a loop nobody noticed                                                 |
 
 **This table used to be a design and is now a description.** Three of the alarms it once listed did
 not exist — and the gap survived a review, because a documented alarm reads exactly like a real one.
