@@ -492,6 +492,13 @@ platform-tagged heading (e.g. `## [1.1.3] - 2026-07-20 — Android`) when you cu
   together once _Use email instead_ is tapped, so a failed email sign-in also printed a red line
   under the Apple and Google buttons — about a provider nobody had touched. It now shows once, in
   the card the action came from. Found running §14 on Android.
+- **§15 says it needs two accounts, not just two devices.** The section warned about needing two
+  phones and about `club` not being granted until the subscription exists; it did not say that
+  sharing is gated on `accountsAreReal && account && mayShare && group.canInvite` and joining on
+  being signed in, so **every row is blocked behind §14's sign-up rows** — which are blocked on
+  somebody with an inbox. Worth knowing before setting two phones up, because `FORCE_PRO_IN_DEV`
+  does not help with that half. Two things were confirmed without an account: signed out, the sheet
+  explains itself rather than failing, and the share control is absent rather than broken.
 - **§14 of `RELEASE_TESTING.md` carries what could be run and why the rest could not.** Every row
   that turns on receiving a confirmation code is marked blocked — not on a store build, but on
   somebody with an inbox, which is the one step no script can do honestly. They remain the largest

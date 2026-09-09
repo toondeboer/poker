@@ -717,6 +717,17 @@ board — only shows with two.
 button and join field are simply absent, silently and correctly, which reads exactly like sync being
 broken.
 
+**It needs two accounts as well as two devices, and that is the harder half.** Checked on Android
+on 2026-09-09: the share control is gated on `accountsAreReal && account && mayShare &&
+group.canInvite` (`GroupsSheet.tsx`), and joining is gated on being signed in. So **every row here
+is blocked behind §14's sign-up rows**, which are themselves blocked on somebody with an inbox —
+budget for that before setting two phones up, because `FORCE_PRO_IN_DEV` does not help with it.
+
+Two things were confirmed without an account, and neither needs repeating: with nobody signed in the
+sheet **explains itself rather than failing** — _"Sign in to join a board. Joining is free — the
+person who shares a board is the one who pays for it."_ — and the share control is **absent rather
+than broken**, which is the shape the guest rows below are about.
+
 |                                                                                                                                                    | iOS | Android |
 | -------------------------------------------------------------------------------------------------------------------------------------------------- | --- | ------- |
 | **The host shares a board** — the code arrives in the share sheet with a message naming the app                                                    | ⬜  | ⬜      |
