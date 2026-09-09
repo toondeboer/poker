@@ -8,7 +8,10 @@ import {
   useState,
 } from "react";
 import type { Entitlements } from "@poker/core";
-import { revenueCatProvider } from "@/src/services/revenueCatProvider";
+import {
+  revenueCatProvider,
+  type ClubPlan,
+} from "@/src/services/revenueCatProvider";
 
 // Flip to true to unlock Pro locally without going through RevenueCat/StoreKit —
 // real purchases aren't testable in the Simulator without StoreKit Testing +
@@ -63,6 +66,16 @@ type PremiumContextValue = {
   refreshProPrice: () => void;
   /** Start the Pro purchase flow. Throws on failure for the caller to surface. */
   purchasePro: () => Promise<void>;
+  /**
+   * The Club plans on sale, with their prices. Empty until they load, and
+   * empty for good on a build where the subscriptions do not exist — which is
+   * the ordinary state until they are live in both stores.
+   */
+  clubPlans: ClubPlan[];
+  /** Re-attempt the Club fetch, on the same terms as {@link refreshProPrice}. */
+  refreshClubPlans: () => void;
+  /** Buy one, by the id from {@link clubPlans}. */
+  purchaseClub: (planId: string) => Promise<void>;
   /** Restore a previous purchase. Throws on failure for the caller to surface. */
   restore: () => Promise<void>;
 };
@@ -103,6 +116,8 @@ export function PremiumProvider({
   );
   const [purchasing, setPurchasing] = useState(false);
   const [proPriceString, setProPriceString] = useState<string | null>(null);
+  const [clubPlans, setClubPlans] = useState<ClubPlan[]>([]);
+  const clubFetchInFlightRef = useRef(false);
 
   // Guards against overlapping fetches (mount + a paywall opened immediately
   // after) firing two offering requests for the same answer. Not state: nothing
@@ -176,6 +191,34 @@ export function PremiumProvider({
     };
   }, [refreshProPrice, applyEntitlements]);
 
+  const refreshClubPlans = useCallback(() => {
+    if (clubFetchInFlightRef.current) return;
+    clubFetchInFlightRef.current = true;
+    revenueCatProvider
+      .getClubPlans()
+      .then((plans) => {
+        // Same rule as the Pro price: never replace plans already on screen
+        // with an empty list, or a flaky refresh blanks a section somebody is
+        // looking at.
+        if (plans.length > 0) setClubPlans(plans);
+      })
+      .finally(() => {
+        clubFetchInFlightRef.current = false;
+      });
+  }, []);
+
+  const purchaseClub = useCallback(
+    async (planId: string) => {
+      setPurchasing(true);
+      try {
+        applyEntitlements(await revenueCatProvider.purchaseClub(planId));
+      } finally {
+        setPurchasing(false);
+      }
+    },
+    [applyEntitlements],
+  );
+
   const purchasePro = useCallback(async () => {
     setPurchasing(true);
     try {
@@ -205,6 +248,9 @@ export function PremiumProvider({
         proPriceString,
         refreshProPrice,
         purchasePro,
+        clubPlans,
+        refreshClubPlans,
+        purchaseClub,
         restore,
       }}
     >

@@ -770,6 +770,33 @@ something they already own**, which is the failure that reaches a store review.
 | Nobody is ever told to buy something they hold — check the messages for a Pro-only, a Club-only, and a signed-out account                                         | ⬜  | ⬜      |
 | A **signed-out** person tapping "Join a board" is offered a sign-in, not a paywall and not an empty sheet                                                         | ⬜  | ⬜      |
 
+### 16b. Buying Club · **the rows a subscription is rejected over**
+
+**Guideline 3.1.2 is the reason for most of these.** An app selling an auto-renewable subscription
+has to show its title, the length of its period and its price **in the app**, and carry working
+links to the Terms of Use and the Privacy Policy. A missing link is a rejection, and it is the kind
+that costs a whole review cycle.
+
+🚫 **None of it can be run until the subscriptions are approved in both stores** — RevenueCat
+returns no plans before that, and the section is deliberately absent rather than empty, because
+advertising something nobody can buy is worse than saying nothing.
+
+|                                                                                                                                         | iOS | Android |
+| --------------------------------------------------------------------------------------------------------------------------------------- | --- | ------- |
+| **The Club section appears at all** once the products are live — and is absent before, rather than showing an empty box                 | ⬜  | ⬜      |
+| **Both plans show a price**, taken from the store rather than written into the app — so it is right in every currency                   | ⬜  | ⬜      |
+| **Each says its billing period** — "Monthly" and "Annual". Price without period is the 3.1.2 rejection                                  | ⬜  | ⬜      |
+| It says **renews until cancelled**, and where to cancel — App Store on iOS, Play Store on Android                                       | ⬜  | ⬜      |
+| **"Joining a board is always free" is on screen.** The misunderstanding most likely to kill the feature                                 | ⬜  | ⬜      |
+| **Terms of Use opens `/terms`** in a browser, and the page loads                                                                        | ⬜  | ⬜      |
+| **Privacy Policy opens `/privacy-policy`**, and the page loads                                                                          | ⬜  | ⬜      |
+| Buying **monthly** grants `club` **and** `pro` — the board opens straight away, with no second purchase                                 | ⬜  | ⬜      |
+| Buying **annual** does the same                                                                                                         | ⬜  | ⬜      |
+| **Cancelling at the store** removes hosting but **leaves Pro** — the boards stay visible. This is the promise `clubEver` exists to keep | ⬜  | ⬜      |
+| **The Club section disappears once subscribed** — nobody is sold what they hold                                                         | ⬜  | ⬜      |
+| Cancelling a purchase halfway leaves the sheet usable, with no error — cancelling is not a failure                                      | ⬜  | ⬜      |
+| **Restore brings back both entitlements** on a fresh install                                                                            | ⬜  | ⬜      |
+
 ---
 
 ## 17. The kill switch
