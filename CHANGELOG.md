@@ -379,6 +379,22 @@ platform-tagged heading (e.g. `## [1.1.3] - 2026-07-20 — Android`) when you cu
   contain something — Scunthorpe, therapist and raccoon all pass, and there are tests to keep it
   that way. It stops the lazy case rather than a determined one, which is why reporting sits beside
   it rather than instead of it.
+- **The shared clock has a transport, and it is HTTP rather than AppSync.** Three routes
+  (`POST /sessions`, `GET|POST /sessions/{code}`), one `SESSION#<code>` row on the table that
+  already had the right TTL, and a polling transport in the app. `ROADMAP.md` assumed this needed
+  the deleted realtime bus stood back up; the protocol disagreed — `HEARTBEAT_MS` is 5s,
+  `STALE_AFTER_MS` is 15s, a message is a whole state snapshot rather than a delta so a missed one
+  is repaired by the next, and `SessionTransport.subscribe` returns its own unsubscribe, which is
+  `clearInterval`. `sessionTransport` is no longer `null` on any build that has a backend.
+
+  **The routes are authenticated, and the first version had them public.** The argument for open —
+  that a session carries a countdown and no cards, so the worst case is a stranger watching one — is
+  about _subscribing_. A session is peer-to-peer: any participant may publish, which is why the
+  protocol breaks version ties on `sender`, so the join code is a write credential and a guessed one
+  would pause a table's clock and jump its blind level. The app already asks for an account to join
+  a shared board; asking for one to join a shared clock adds nothing new and keeps a polled route
+  off the public surface. A test pins it.
+
 - **`.git-blame-ignore-revs`, so the reformat does not eat `git blame`.** Adopting Prettier rewrote
   77 files, which would otherwise make every line in them blame to the formatting commit instead of
   to whoever wrote it. GitHub reads this file automatically; locally it needs
