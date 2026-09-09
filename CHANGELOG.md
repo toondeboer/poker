@@ -379,6 +379,12 @@ platform-tagged heading (e.g. `## [1.1.3] - 2026-07-20 — Android`) when you cu
   contain something — Scunthorpe, therapist and raccoon all pass, and there are tests to keep it
   that way. It stops the lazy case rather than a determined one, which is why reporting sits beside
   it rather than instead of it.
+- **`.git-blame-ignore-revs`, so the reformat does not eat `git blame`.** Adopting Prettier rewrote
+  77 files, which would otherwise make every line in them blame to the formatting commit instead of
+  to whoever wrote it. GitHub reads this file automatically; locally it needs
+  `git config blame.ignoreRevsFile .git-blame-ignore-revs` once. Only provably formatting-only
+  commits belong in it — for the one listed, every reformatted file was checked to equal
+  `prettier(previous version)`.
 - **Prettier, and a CI step that enforces it.** The repo had no formatter at all — not a dependency
   in any workspace, no `.prettierrc`, no `.prettierignore`, and nothing in CI — so `npx prettier`
   was silently downloading a version and checking against its defaults. **71 of 315 source files had
