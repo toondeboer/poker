@@ -430,6 +430,28 @@ platform-tagged heading (e.g. `## [1.1.3] - 2026-07-20 — Android`) when you cu
   a shared board; asking for one to join a shared clock adds nothing new and keeps a polled route
   off the public surface. A test pins it.
 
+- **The monetization section is revisited, and its pricing rested on a wrong number.** It said Pro
+  was "around €5–6" and concluded that one month of Club being a permanent Pro was an unresolved
+  leak. **Pro is €2.99.** Setting the Club monthly to €2.99 makes subscribing-and-cancelling cost
+  exactly what Pro costs, so the arbitrage disappears by construction — no receipt logic, no
+  minimum-months rule. A problem that only existed because of a figure nobody had checked against
+  the store.
+
+  The section now also records what the rating work cost **Club** rather than Pro: both features
+  `products.ts` names as Club's future are gone — playing a hand together permanently, the shared
+  clock temporarily — which left hosting as its only feature. Club launches with three (hosting,
+  shared clock, push notifications) or not at all, with the cheap path for each written down, why a
+  web view of a board is blocked on cross-platform entitlements rather than on the rating, and the
+  sales figure that should temper the whole plan.
+
+- **The shared clock does not need AppSync, and the protocol proves it.** The section said it needs
+  "the realtime bus stood back up" — the entire Events API, channel namespace, subscribe authorizer
+  and SigV4 publishing that #227 deleted. But `HEARTBEAT_MS` is 5s and `STALE_AFTER_MS` is 15s, a
+  message is a whole state snapshot rather than a delta, and `SessionTransport.subscribe` returns
+  its own unsubscribe — which is `clearInterval`. **HTTP polling on the existing API satisfies the
+  interface**: three routes, one item type on a table that already has the right TTL, and ~40 lines
+  in the app. The cost is up to four seconds of latency on a second screen, and the transport is
+  swappable if that ever stops being acceptable.
 - **`.git-blame-ignore-revs`, so the reformat does not eat `git blame`.** Adopting Prettier rewrote
   77 files, which would otherwise make every line in them blame to the formatting commit instead of
   to whoever wrote it. GitHub reads this file automatically; locally it needs

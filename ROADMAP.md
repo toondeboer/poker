@@ -505,13 +505,47 @@ on its way out. They are kept until the work lands so the removal can be checked
 
 - 🚧 **Nothing links to `/session`, because `sessionTransport` is `null`.** The protocol, the join
   code, the screen and the whole send/receive loop are written and were looked at on a simulator
-  against an in-process loopback transport. What is missing is a transport that reaches another
-  phone: **there is no AppSync Events API any more.** It was deployed carrying only the `table` and
-  `player` namespaces, and went with the table backend — so a shared clock now needs the realtime
-  bus stood back up as well as a `session` namespace on it. A join code
-  nobody else can join is worse than no join code, so the Settings row goes in with the transport —
-  one constant in `loopbackSessionTransport.ts` decides it.
-- ⬜ **The `session` namespace has no subscribe rule.** Anyone holding a code may watch a clock,
+  against an in-process loopback transport. A join code nobody else can join is worse than no join
+  code, so the Settings row goes in with the transport — one constant in
+  `loopbackSessionTransport.ts` decides it.
+
+- ✅ **It does not need AppSync. That was an assumption, and the protocol disproves it.** This
+  section used to say a shared clock needs "the realtime bus stood back up" — the whole AppSync
+  Events API, channel namespace, subscribe authorizer and by-hand SigV4 publishing that #227
+  deleted. Three things in the code say otherwise:
+
+  - **`HEARTBEAT_MS = 5_000` and `STALE_AFTER_MS = 15_000`.** The protocol already assumes a
+    five-second cadence and tolerates fifteen. It was never designed for a low-latency event stream.
+  - **A message is a whole state snapshot** — `{version, sender, remaining, duration, paused,
+blindIndex}` — not a delta. Miss one and the next one repairs you, which is exactly what makes
+    polling safe and what makes a dropped socket frame dangerous.
+  - **`SessionTransport.subscribe` returns its own unsubscribe.** That is `clearInterval`. Nothing
+    in the interface wants a socket.
+
+  **So the transport is HTTP polling on the API that already exists**, and the whole job is:
+
+  | Piece                                                   | Work                                                                 |
+  | ------------------------------------------------------- | -------------------------------------------------------------------- |
+  | `POST /sessions` → host, returns id                     | one handler, one `SESSION#<code>` item                               |
+  | `GET /sessions/{code}` → resolve + read current message | same handler                                                         |
+  | `POST /sessions/{code}` → publish a snapshot            | same handler, last-write-wins on `version`                           |
+  | Expiry                                                  | **the table already has `expiresAt` TTL** — a session is one evening |
+  | The app side                                            | ~40 lines: `setInterval` at 4s, return the clear                     |
+
+  No new AWS service, no authorizer Lambda, no SigV4, no connection handling, and none of the four
+  alarms that went with the bus. **Knowing the six-character code is the authorization**, which is
+  the same threat model the AppSync version was going to have, and a session carries no cards — the
+  worst case is a stranger watching a countdown.
+
+  Cost is negligible: eight devices polling every four seconds for a four-hour game night is ~29,000
+  requests, about **three cents** at API Gateway's million-request pricing.
+
+  **What polling actually costs is latency**: a pause shows up on a second screen up to four seconds
+  late. For a clock whose authority is the host's phone and whose other screens are informational,
+  that is a fair trade for deleting an entire subsystem from the plan. If it ever is not, the
+  interface is unchanged — swap the transport and nothing above it moves.
+
+- ⬜ **If the AppSync route is taken anyway, the `session` namespace has no subscribe rule.** Anyone holding a code may watch a clock,
   which is the intended rule, but it still has to be written — and the code is six characters, so
   guessing one is not out of the question. A session carries no cards, so the worst case is a
   stranger watching a countdown; that is why this is not in the gate list below.
@@ -568,9 +602,10 @@ not open. Not an awkward state: a broken one, sold deliberately. It is enforced 
 checkbox away from shipping exactly that. The reverse does not hold: Pro has never included
 hosting.
 
-**Priced at the bottom of the category — decided.** Roughly **€2–3 a month or €12–15 a year**, and
-the exact figure is set in the stores. The reasoning is worth keeping, because the market medians
-argue for four times that and they are wrong for this app:
+**Priced at the bottom of the category — decided.** **€2.99 a month or €19.99 a year**, matching
+Pro's €2.99 exactly on the monthly — see _What a lapsed subscriber keeps_ below, where that parity
+does real work. The reasoning is worth keeping, because the market medians argue for four times that
+and they are wrong for this app:
 
 - Every serious poker-timer competitor is **one-time**, between $2.99 and $7.99 — NextBlind $7.99,
   PokerTimer $6.99, Texas Holdem "The Works" $5.99, Easy Poker Timer $2.99. The subscription
@@ -585,6 +620,52 @@ argue for four times that and they are wrong for this app:
 **Named for the axis, not the tier.** "Pro+" would say the thing people already bought had been
 demoted. "Club" also outlives shared boards: the shared clock and playing a hand together belong to
 the same subscription and will not need it renamed.
+
+### Club does not launch on one feature — revisited 2026-09-09
+
+**The removals cost Club its roadmap, not Pro its features.** Everything cut for the rating —
+betting, money on the leaderboard, the auto-recorded game — was Pro. Pro lost surface area and kept
+its shape. Club lost both of the features `products.ts` names as its future:
+
+| Named as Club's future  | Status                                                                                                                 |
+| ----------------------- | ---------------------------------------------------------------------------------------------------------------------- |
+| Playing a hand together | **Permanently dead.** It needs the deleted table backend, and multiplayer betting is the 18+ trigger. Do not revive it |
+| The shared clock        | **Alive, and cheaper than this file assumed** — see the transport section                                              |
+
+That left hosting as Club's only feature, which is the worst thing a subscription can be in a
+category where every serious competitor is one-time €2.99–7.99. **So Club launches with three, or it
+does not launch:**
+
+| Club at launch — €2.99/mo, €19.99/yr                                    | State                                                      |
+| ----------------------------------------------------------------------- | ---------------------------------------------------------- |
+| Host a shared board                                                     | ✅ shipped                                                 |
+| **Shared clock**                                                        | 🚧 built; needs a transport, which is now a small job      |
+| **Push notifications** — "game night tomorrow", "Ann recorded a result" | ⬜ not started; **there is no push infrastructure at all** |
+
+**On notifications: `expo-notifications` is only used for local timer alerts.** No push tokens, no
+APNs/FCM, nothing server-side. But the cheap path is real: `getExpoPushTokenAsync()` on the device,
+the token stored on the account row, and the existing groups handler POSTing to **Expo's push
+service** when a result is recorded. No new AWS services and no certificates — Expo holds the
+credentials. That is the difference between a couple of days and a week.
+
+**A web view of your board is blocked, and not by the rating.** `revenueCatProvider.ts` calls
+`Purchases.configure({ apiKey })` with **no `appUserID` and never calls `logIn()`**, so entitlements
+belong to the store account rather than the Cognito account and a website cannot tell whether a
+visitor subscribes. Same blocker that killed web-only poker further up this file. It needs
+`logIn(cognitoSub)`, which touches every purchase and restore path — worth doing one day, not before
+Club launches.
+
+**None of the three touches the rating.** It turns on betting, wagering and accumulating money
+across sessions. A synced countdown, a reminder and a standings page are none of those.
+
+### The number that should temper all of this
+
+**Pro has sold 9 copies in two months at €2.99** — roughly €10/month net, as of 2026-09-09. Packaging
+is not what limits that; discovery is. Club with three features will not change it either, and the
+honest reading is that **weeks of transport and push work are a poor trade against an audience of
+nine payers** unless the install and conversion numbers say something different. Get those before
+committing to the build. This section describes the right shape for Club when it is worth building —
+not an argument that now is the moment.
 
 ### The seam is built. What is left is store configuration and one decision.
 
@@ -626,12 +707,16 @@ the leaderboard, and that is what Pro is — but it takes the sight of every boa
 those boards carry on syncing for the members still reading them. Nothing is destroyed and it all
 returns on resubscribing, but somebody would reasonably call that the app eating their season.
 
-- 🟡 **The consequence: one month of Club is a permanent Pro.** So the monthly price has to be worth
-  at least what Pro costs, or subscribing and cancelling is simply the cheaper way to buy Pro. With
-  Pro around €5–6 and the monthly at €2–3, it _is_ cheaper — **that is a live pricing decision, not
-  a bug**. Either set the monthly at or above the Pro price, or accept the leak on the grounds that
-  somebody doing it has still paid and probably was not going to buy Pro anyway. Worth settling
-  before the products are created rather than after.
+- ✅ **The consequence: one month of Club is a permanent Pro — and at parity that costs nothing.**
+  This entry used to say Pro was "around €5–6" and conclude the leak was real and unresolved. **Pro
+  is €2.99.** Setting the Club monthly to €2.99 as well makes subscribing-and-cancelling cost
+  _exactly_ what buying Pro costs, so the arbitrage disappears by construction — no receipt logic,
+  no minimum-months rule, nothing to build. The problem was an artefact of a wrong number, and it is
+  worth recording that it took reading the store to find it.
+
+  **The annual is where the thinking should go instead.** €2.99/month is €35.88 a year against a
+  €2.99 app — a 12× ratio, and a lot to ask of this audience. €19.99/year is the realistic seller;
+  treat the monthly as the trial rather than the plan.
 
 Guests are unaffected either way. They never paid.
 
