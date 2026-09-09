@@ -592,6 +592,48 @@ platform-tagged heading (e.g. `## [1.1.3] - 2026-07-20 — Android`) when you cu
 
 ### Fixed
 
+- **An ordinary failure no longer red-screens a dev build.** Every failed auth call logged at
+  `error`, so being offline — or mistyping a password — put a full-screen LogBox over a message the
+  screen had already handled in words. In a dev build an offline sign-in looked like a crash, which
+  is the wrong signal to send somebody working through the manual pass, and it is the same shape as
+  the bug #219 fixed: treating an ordinary condition as an error. `AuthContext` now classifies
+  before it logs — a recognised `CognitoFailure` (offline, wrong password, address already taken)
+  logs at `warn`, and only an unrecognised one is an `error`, because only that means something here
+  is wrong rather than something out there. No user-visible change on a release build, which has no
+  LogBox and no logging at all.
+- **The account screen printed the same error twice.** `AccountScreen` keeps one `error` state and
+  rendered it in four places; the "Sign in" card and the "Email and password" card are on screen
+  together once _Use email instead_ is tapped, so a failed email sign-in also printed a red line
+  under the Apple and Google buttons — about a provider nobody had touched. It now shows once, in
+  the card the action came from. Found running §14 on Android.
+- **§15 says it needs two accounts, not just two devices.** The section warned about needing two
+  phones and about `club` not being granted until the subscription exists; it did not say that
+  sharing is gated on `accountsAreReal && account && mayShare && group.canInvite` and joining on
+  being signed in, so **every row is blocked behind §14's sign-up rows** — which are blocked on
+  somebody with an inbox. Worth knowing before setting two phones up, because `FORCE_PRO_IN_DEV`
+  does not help with that half. Two things were confirmed without an account: signed out, the sheet
+  explains itself rather than failing, and the share control is absent rather than broken.
+- **§14 of `RELEASE_TESTING.md` carries what could be run and why the rest could not.** Every row
+  that turns on receiving a confirmation code is marked blocked — not on a store build, but on
+  somebody with an inbox, which is the one step no script can do honestly. They remain the largest
+  untested surface in the release, and saying so is more useful than a blank column.
+- **§13 of `RELEASE_TESTING.md` has been run on Android and carries its results.** Thirteen rows
+  pass, verified in screenshots rather than by assertion; one failed and is the fix above. Three are
+  marked with why they are not ✅ rather than left blank — the locked state needs a store build,
+  "readable across a table" needs a real table, and the button moving between hands is not drawn on
+  screen so there is nothing to check it against. The sitting-out row is **deleted**: `GameContext`
+  exposes `toggleSittingOut` and `@poker/core` tests `sitOut`, but no component calls it, so the row
+  could never have passed.
+- **An uncontested hand is no longer shown at the showdown.** When everybody else mucked, the table
+  printed "Everyone else mucked — no hand had to be shown" and displayed the remaining player's
+  hole cards immediately above it. `showdownFor` in `@poker/core` was right — it returns `null` when
+  fewer than two players are contesting, and that is tested — but `TableView` keyed the reveal on
+  reaching the showdown rather than on anybody having to show, so the copy and the cards disagreed.
+  This is the one thing the screen exists to prevent: the phone goes round the table at the
+  showdown, so a hand exposed there is exposed to everybody, and the winner of an uncontested pot
+  gives away how they play for nothing. Tapping a seat still peeks, and now warns while it does —
+  previously the "make sure nobody else can see" line was suppressed at the showdown, which was
+  exactly where it was most needed. Found by driving §13 on a device; no unit test could see it.
 - Docs: swept the remaining files for claims that stopped being true when the table backend and the
   betting engine went. `README.md` was the worst — it described the backend as "for accounts and
   **online play**", "**not deployed**", and "nothing in the app talks to it yet", all three of which

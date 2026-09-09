@@ -105,6 +105,29 @@ const reasonFor = (error: unknown): AuthError =>
     ? (error.reason as AuthError)
     : "failed";
 
+/**
+ * Log a failed auth call at the level it deserves, and classify it.
+ *
+ * **A recognised `CognitoFailure` is not a defect.** Being offline, mistyping a
+ * password, using an address somebody already took — the screen answers all of
+ * those in words, which is the feature working. Logging them at `error` put a
+ * full-screen LogBox over a message the UI had already handled: in a dev build
+ * an offline sign-in looked like a crash, which is exactly the wrong signal to
+ * send somebody working through the manual test pass.
+ *
+ * Only an unrecognised failure is worth an `error`, because only that one means
+ * something here is wrong rather than something out there is.
+ *
+ * Same shape as the fix in #219 — declining at the provider is not an error
+ * either.
+ */
+const logAndClassify = (error: unknown, what: string): AuthError => {
+  const reason = reasonFor(error);
+  if (reason === "failed") logger.error(`${what}:`, error);
+  else logger.warn(`${what} — ${reason}`);
+  return reason;
+};
+
 type AuthContextValue = {
   account: Account | null;
   isLoading: boolean;
@@ -219,8 +242,7 @@ export function AuthProviderContext({
         setAccount(await run(email.trim(), password));
         return null;
       } catch (error) {
-        logger.error("Account request failed:", error);
-        return reasonFor(error);
+        return logAndClassify(error, "Account request failed");
       } finally {
         setBusy(false);
       }
@@ -246,8 +268,7 @@ export function AuthProviderContext({
         setAccount(result.account);
         return null;
       } catch (error) {
-        logger.error("Sign-up failed:", error);
-        return reasonFor(error);
+        return logAndClassify(error, "Sign-up failed");
       } finally {
         setBusy(false);
       }
@@ -263,8 +284,7 @@ export function AuthProviderContext({
         await run();
         return null;
       } catch (error) {
-        logger.error(`Failed to ${what}:`, error);
-        return reasonFor(error);
+        return logAndClassify(error, `Failed to ${what}`);
       } finally {
         setBusy(false);
       }
@@ -309,12 +329,14 @@ export function AuthProviderContext({
         for (const listener of signInListeners) listener();
         return null;
       } catch (error) {
-        logger.error("Failed to sign in with a provider:", error);
         // `network` survives as itself so the message can say the phone is
         // offline rather than blaming the provider; everything else is
         // `failed`, because a Cognito reason code means nothing to somebody
-        // who just tapped a button with an Apple logo on it.
-        return error instanceof CognitoFailure && error.reason === "network"
+        // who just tapped a button with an Apple logo on it. Logged through
+        // the same classifier so being offline does not red-screen a dev
+        // build — see `logAndClassify`.
+        return logAndClassify(error, "Failed to sign in with a provider") ===
+          "network"
           ? "network"
           : "failed";
       } finally {
@@ -340,8 +362,7 @@ export function AuthProviderContext({
         setAccount(null);
         return null;
       } catch (error) {
-        logger.error(`Failed to ${what}:`, error);
-        return reasonFor(error);
+        return logAndClassify(error, `Failed to ${what}`);
       } finally {
         setBusy(false);
       }

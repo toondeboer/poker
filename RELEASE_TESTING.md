@@ -548,25 +548,50 @@ is happening from across it.
 hands and somebody seeing a hand they should not. They were also the rows a synthetic tap could not
 verify on the iOS simulator, so they have never been exercised by anything but a human.
 
+**Run on Android, 2026-09-08** (`Pixel_stable`, API 35, dev client rebuilt for #211's native
+modules), driven through `adb` against real element bounds and checked in screenshots rather than by
+assertion. **One row failed and is fixed in #234**: with everybody else mucked, the table printed
+"Everyone else mucked — no hand had to be shown" and displayed the remaining player's hole cards
+directly above it. `showdownFor` was right; `TableView` keyed the reveal on reaching the showdown
+rather than on anybody having to show. Exactly the defect class this section exists for — invisible
+to a unit test, obvious in a screenshot.
+
 |                                                                                                                                                    | iOS | Android |
 | -------------------------------------------------------------------------------------------------------------------------------------------------- | --- | ------- |
-| Locked state: Pro pill on the Settings row, the screen still opens and offers the unlock                                                           | ⬜  | ⬜      |
-| Seating: tapping a player seats them, tapping again unseats; Deal stays disabled below two                                                         | ⬜  | ⬜      |
-| **Tapping a seat shows only that seat's two cards**, and tapping it again hides them                                                               | ⬜  | ⬜      |
-| **Tapping a second seat hides the first.** Never two hands visible at once — this is the one that matters when the phone is going round            | ⬜  | ⬜      |
-| **Turning a street hides whatever was showing.** Deal the flop with a hand revealed and it must close, or the next player inherits it              | ⬜  | ⬜      |
-| Muck takes a seat out: the row dims, they are left out of the showdown, and the "in" count drops                                                   | ⬜  | ⬜      |
-| Mucking down to one player ends the hand with **no cards shown** — an uncontested hand is not revealed                                             | ⬜  | ⬜      |
-| The showdown reveals every hand still in, ranked best first, with the winner starred and each hand named                                           | ⬜  | ⬜      |
-| **No chips, no pot, no bet and no amount appear anywhere on the screen.** Check by eye, in a screenshot — this is the property the rating rests on | ⬜  | ⬜      |
-| The action to take a seat out reads **Muck**, never Fold                                                                                           | ⬜  | ⬜      |
-| **A hand survives a force-stop.** Deal, kill the app from the switcher, reopen → the same board and the same hole cards come back                  | ⬜  | ⬜      |
-| A finished hand survives too: the showdown is still on screen after a relaunch                                                                     | ⬜  | ⬜      |
-| "Next hand" deals again and the button moves on; a seat sitting out is skipped                                                                     | ⬜  | ⬜      |
-| Ending a game where **nothing has been dealt** does not ask — there is nothing to lose                                                             | ⬜  | ⬜      |
-| Ending a game mid-evening asks first, and cancelling keeps the cards                                                                               | ⬜  | ⬜      |
-| Readable across a table — card faces and whose cards are showing, at arm's length                                                                  | ⬜  | ⬜      |
+| Locked state: Pro pill on the Settings row, the screen still opens and offers the unlock                                                           | ⬜  | 🚫      |
+| Seating: tapping a player seats them, tapping again unseats; Deal stays disabled below two                                                         | ⬜  | ✅      |
+| **Tapping a seat shows only that seat's two cards**, and tapping it again hides them                                                               | ⬜  | ✅      |
+| **Tapping a second seat hides the first.** Never two hands visible at once — this is the one that matters when the phone is going round            | ⬜  | ✅      |
+| **Turning a street hides whatever was showing.** Deal the flop with a hand revealed and it must close, or the next player inherits it              | ⬜  | ✅      |
+| Muck takes a seat out: the row dims, they are left out of the showdown, and the "in" count drops                                                   | ⬜  | ✅      |
+| Mucking down to one player leaves **no cards shown** at the showdown — an uncontested hand is not revealed                                         | ⬜  | ✅      |
+| The showdown reveals every hand still in, ranked best first, with the winner starred and each hand named                                           | ⬜  | ✅      |
+| **No chips, no pot, no bet and no amount appear anywhere on the screen.** Check by eye, in a screenshot — this is the property the rating rests on | ⬜  | ✅      |
+| The action to take a seat out reads **Muck**, never Fold                                                                                           | ⬜  | ✅      |
+| **A hand survives a force-stop.** Deal, kill the app from the switcher, reopen → the same board and the same hole cards come back                  | ⬜  | ✅      |
+| A finished hand survives too: the showdown is still on screen after a relaunch                                                                     | ⬜  | ✅      |
+| "Next hand" deals again and the button moves on                                                                                                    | ⬜  | 🟡      |
+| Ending a game where **nothing has been dealt** does not ask — there is nothing to lose                                                             | ⬜  | ✅      |
+| Ending a game mid-evening asks first, and cancelling keeps the cards                                                                               | ⬜  | ✅      |
+| Readable across a table — card faces and whose cards are showing, at arm's length                                                                  | ⬜  | 🚫      |
 | Tablet: the table is capped and centred rather than running the full width                                                                         | ⬜  | ⬜      |
+
+**Why three rows are not ✅ on Android:**
+
+- **Locked state — 🚫 on a dev build.** `FORCE_PRO_IN_DEV` has to be `true` to reach this screen at
+  all locally, which is the same switch that hides the locked state. Needs the TestFlight / Play
+  internal build, like the billing rows.
+- **"Next hand" — 🟡 dealing again is verified; the button moving is not.** The button index is not
+  drawn anywhere on the table, so there is nothing on screen to check it against. The rotation is
+  unit-tested in `dealerSession.test.ts`.
+- **Readable across a table — 🚫 by nature.** An emulator on a laptop cannot answer "legible at
+  arm's length across a kitchen table". Needs a real device and a real table.
+
+**A seat sitting out is not reachable from the app.** `GameContext` exposes `toggleSittingOut` and
+`@poker/core` implements and tests `sitOut`, but **no component calls it** — there is no control
+anywhere in the dealer UI. The row that used to test it has been dropped rather than left permanently
+unrunnable. Either wire it up or delete the dead path; until then, a player who leaves is handled by
+unseating them and starting a new game.
 
 ---
 
@@ -630,21 +655,53 @@ backgrounded the phone mid-flow, and never had to find the entry point.
 must point at a real backend or they cannot work at all. If sign-up says the build cannot do it,
 that is the switch, not a bug.
 
+**Partly run on Android, 2026-09-08.** What a laptop can drive was driven; **every row that needs a
+confirmation code is 🚫, because running it needs somebody with an inbox.** Those are the rows the
+feature rests on and they are still outstanding — see the note under the table.
+
+Two defects came out of the part that could be run. One is fixed; one is dev-only and deliberately
+left:
+
+- **Fixed: the same error was printed twice.** `AccountScreen` keeps one `error` state and rendered
+  it in four places. The "Sign in" card and the "Email and password" card are on screen together
+  once _Use email instead_ is tapped, so a failed email sign-in also printed a red line under the
+  Apple and Google buttons — about a provider nobody had touched.
+- **Dev-only, not fixed: an offline sign-in red-screens a dev build.** The app handles it correctly
+  in the UI ("Couldn't reach the server. Check your connection.") and then calls `console.error`,
+  which LogBox turns into a full-screen Console Error over the top. Nothing is wrong and release
+  builds have no LogBox — but it looks alarming, and it is the same shape as the bug #219 fixed:
+  treating an ordinary condition as an error. Worth demoting to `warn` at some point.
+
 |                                                                                                                                                                                                                                                                    | iOS | Android |
 | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | --- | ------- |
-| Settings shows the account row, and it opens the account screen                                                                                                                                                                                                    | ⬜  | ⬜      |
-| **Sign up with a real address → the code arrives.** This is the row the whole feature rests on: Cognito's own sender was capped and landed in spam, which is why it now goes through SES                                                                           | ⬜  | ⬜      |
-| The code arrives **in the inbox, not spam**, and is from `Poker Blinds Timer`                                                                                                                                                                                      | ⬜  | ⬜      |
-| Confirming with the emailed code signs you in                                                                                                                                                                                                                      | ⬜  | ⬜      |
-| **After confirming, the account can reset its password.** A user confirmed without the emailed code ends up `email_verified: false` and Cognito refuses to send to them at all — it reads as a mail failure and is not one. [See D-note](#accounts-email-verified) | ⬜  | ⬜      |
-| A **wrong code** says so and lets you try again, rather than dead-ending                                                                                                                                                                                           | ⬜  | ⬜      |
-| An **already-taken email** says so in words, not an error code                                                                                                                                                                                                     | ⬜  | ⬜      |
-| A **wrong password** on sign-in says so and does not clear the email field                                                                                                                                                                                         | ⬜  | ⬜      |
-| Sign out, then sign back in — the boards are still there                                                                                                                                                                                                           | ⬜  | ⬜      |
-| **Force-quit mid-sign-up, relaunch** → not signed in and not stuck; signing up again with the same address behaves sanely                                                                                                                                          | ⬜  | ⬜      |
-| **Airplane mode during sign-in** says there is no connection, and does **not** sign you out of an existing session                                                                                                                                                 | ⬜  | ⬜      |
-| **Delete account removes the data, not just the login.** Delete, then sign up again with the same address: no old boards, no old claims. App Store 5.1.1(v) asks for the data as well                                                                              | ⬜  | ⬜      |
-| After deleting, the app still works — local boards intact, timer fine, no crash on next launch                                                                                                                                                                     | ⬜  | ⬜      |
+| Settings shows the account row, and it opens the account screen                                                                                                                                                                                                    | ⬜  | ✅      |
+| **Sign up with a real address → the code arrives.** This is the row the whole feature rests on: Cognito's own sender was capped and landed in spam, which is why it now goes through SES                                                                           | ⬜  | 🚫      |
+| The code arrives **in the inbox, not spam**, and is from `Poker Blinds Timer`                                                                                                                                                                                      | ⬜  | 🚫      |
+| Confirming with the emailed code signs you in                                                                                                                                                                                                                      | ⬜  | 🚫      |
+| **After confirming, the account can reset its password.** A user confirmed without the emailed code ends up `email_verified: false` and Cognito refuses to send to them at all — it reads as a mail failure and is not one. [See D-note](#accounts-email-verified) | ⬜  | 🚫      |
+| A **wrong code** says so and lets you try again, rather than dead-ending                                                                                                                                                                                           | ⬜  | 🚫      |
+| An **already-taken email** says so in words, not an error code                                                                                                                                                                                                     | ⬜  | 🚫      |
+| A **wrong password** on sign-in says so and does not clear the email field                                                                                                                                                                                         | ⬜  | 🟡      |
+| Sign out, then sign back in — the boards are still there                                                                                                                                                                                                           | ⬜  | 🚫      |
+| **Force-quit mid-sign-up, relaunch** → not signed in and not stuck; signing up again with the same address behaves sanely                                                                                                                                          | ⬜  | 🚫      |
+| **Airplane mode during sign-in** says there is no connection, and does **not** sign you out of an existing session                                                                                                                                                 | ⬜  | 🟡      |
+| **Delete account removes the data, not just the login.** Delete, then sign up again with the same address: no old boards, no old claims. App Store 5.1.1(v) asks for the data as well                                                                              | ⬜  | 🚫      |
+| After deleting, the app still works — local boards intact, timer fine, no crash on next launch                                                                                                                                                                     | ⬜  | 🚫      |
+
+**These 🚫 are a different blocker from the billing rows.** They are not blocked on a store build —
+`DEV_BACKEND` reaches a real Cognito pool and SES has production access, so the flow works. They are
+blocked on **somebody with an inbox**: every one of them turns on receiving a confirmation code, and
+that is the one step no script can do honestly. Run them by hand against `DEV_BACKEND` with a real
+address. They remain the largest untested surface in 1.2.0.
+
+**What the two 🟡 mean:**
+
+- **Wrong password.** The half that could be checked was checked: a failed sign-in **keeps the email
+  field**, which is what the row is really guarding against. The wording of the wrong-password
+  message itself needs an account that exists.
+- **Airplane mode.** Says there is no connection, in words, and keeps what was typed — verified. The
+  second half of the row, that it does **not** sign you out of an existing session, needs a session,
+  so it needs the sign-up rows above first.
 
 <a id="accounts-email-verified"></a>
 
@@ -665,6 +722,17 @@ board — only shows with two.
 `FORCE_PRO_IN_DEV` in `PremiumContext.tsx`, which forces both entitlements. Without it the share
 button and join field are simply absent, silently and correctly, which reads exactly like sync being
 broken.
+
+**It needs two accounts as well as two devices, and that is the harder half.** Checked on Android
+on 2026-09-09: the share control is gated on `accountsAreReal && account && mayShare &&
+group.canInvite` (`GroupsSheet.tsx`), and joining is gated on being signed in. So **every row here
+is blocked behind §14's sign-up rows**, which are themselves blocked on somebody with an inbox —
+budget for that before setting two phones up, because `FORCE_PRO_IN_DEV` does not help with it.
+
+Two things were confirmed without an account, and neither needs repeating: with nobody signed in the
+sheet **explains itself rather than failing** — _"Sign in to join a board. Joining is free — the
+person who shares a board is the one who pays for it."_ — and the share control is **absent rather
+than broken**, which is the shape the guest rows below are about.
 
 |                                                                                                                                                    | iOS | Android |
 | -------------------------------------------------------------------------------------------------------------------------------------------------- | --- | ------- |
