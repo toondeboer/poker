@@ -379,6 +379,25 @@ platform-tagged heading (e.g. `## [1.1.3] - 2026-07-20 — Android`) when you cu
   contain something — Scunthorpe, therapist and raccoon all pass, and there are tests to keep it
   that way. It stops the lazy case rather than a determined one, which is why reporting sits beside
   it rather than instead of it.
+- **Club can be bought.** The paywall gains a Club section with both plans, each showing its price
+  from the store rather than a number written into the app, and its billing period beside it.
+  `purchaseClub` mirrors the Pro path, cancelling included — cancelling is not an error.
+
+  **Built to what guideline 3.1.2 actually asks for**, because the app had none of it: a
+  subscription has to show its title, the length of its period and its price **in the app**, and
+  carry working links to the Terms of Use and the Privacy Policy. The app had no Terms or Privacy
+  link anywhere — fine for a one-time purchase, a rejection for a subscription. Both now link out,
+  which is what `/terms` was built for.
+
+  **The plans are found by billing period, not by product id.** The stores disagree about what a
+  Club product is called — `club_monthly` on Apple, `club:monthly` on Play, because Google models
+  one subscription with base plans — so matching a name would work on one platform and silently
+  return nothing on the other. `packageType` is RevenueCat's normalisation of exactly that.
+
+  The section is **absent** until the products are live rather than empty, and disappears once
+  somebody subscribes: nobody is sold what they already hold. §16b carries the rows, all blocked
+  until the subscriptions are approved.
+
 - **Firebase wired for Android push.** `google-services.json` for the `poker-blinds-buzzer` project,
   the `com.google.gms.google-services` plugin applied in both Gradle files, and
   `android.googleServicesFile` in `app.json`. Applied **by hand rather than by `expo prebuild`**,

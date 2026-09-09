@@ -2,11 +2,15 @@
 import { useState } from "react";
 import {
   ActivityIndicator,
+  Linking,
+  Platform,
   StyleSheet,
   Text,
   TouchableOpacity,
   View,
 } from "react-native";
+import { SITE_URL } from "@poker/core";
+import { colors, radius, space, text } from "@/src/theme";
 import { usePremium } from "@/src/contexts/PremiumContext";
 import { Sheet } from "@/src/components/ui/Sheet";
 
@@ -55,6 +59,9 @@ export function Paywall({
     proPriceString,
     refreshProPrice,
     purchasePro,
+    clubPlans,
+    refreshClubPlans,
+    purchaseClub,
     restore,
   } = usePremium();
   const [error, setError] = useState<string | null>(null);
@@ -68,7 +75,12 @@ export function Paywall({
   const [wasVisible, setWasVisible] = useState(visible);
   if (wasVisible !== visible) {
     setWasVisible(visible);
-    if (visible) refreshProPrice();
+    if (visible) {
+      refreshProPrice();
+      // Same edge, same reason: the plans are wanted before the sheet has
+      // finished animating in, not after somebody has looked at an empty space.
+      refreshClubPlans();
+    }
   }
 
   // With no price, the button says what it does and the subtitle already says
@@ -130,6 +142,72 @@ export function Paywall({
       )}
 
       {/**
+       * **The Club section, and the three things Apple requires on it.**
+       *
+       * Guideline 3.1.2 wants a subscription's title, the length of its
+       * period and its price shown *in the app* — not only in the store — plus
+       * working links to the Terms of Use and the Privacy Policy. All five are
+       * here, and the links are the reason `/terms` exists.
+       *
+       * Absent entirely when there are no plans, which is the state until the
+       * subscriptions are live in both stores. Advertising something nobody can
+       * buy is worse than saying nothing.
+       */}
+      {clubPlans.length > 0 && !hasClub ? (
+        <View style={styles.club}>
+          <Text style={styles.clubTitle}>Club</Text>
+          <Text style={styles.clubBlurb}>
+            Share a leaderboard and your clock with the people you play with.
+            {"\n"}
+            <Text style={styles.clubFree}>
+              Joining a board somebody shares is always free
+            </Text>{" "}
+            — only the person sharing subscribes. Includes everything in Pro.
+          </Text>
+
+          {clubPlans.map((plan) => (
+            <TouchableOpacity
+              key={plan.id}
+              style={[styles.clubButton, purchasing && styles.disabled]}
+              onPress={() => run(() => purchaseClub(plan.id))}
+              disabled={purchasing}
+              activeOpacity={0.85}
+            >
+              <Text style={styles.clubButtonText}>
+                {plan.period === "monthly" ? "Monthly" : "Annual"} ·{" "}
+                {plan.priceString}
+                {plan.period === "monthly" ? " / month" : " / year"}
+              </Text>
+            </TouchableOpacity>
+          ))}
+
+          {/* Required wording: it renews until cancelled, and where to cancel. */}
+          <Text style={styles.clubTerms}>
+            Renews automatically until cancelled. Manage or cancel it in your{" "}
+            {Platform.OS === "ios" ? "App Store" : "Play Store"} account
+            settings.
+          </Text>
+
+          {/* **Functional links, not text.** 3.1.2 asks for links that work. */}
+          <View style={styles.legalRow}>
+            <TouchableOpacity
+              onPress={() => void Linking.openURL(`${SITE_URL}/terms`)}
+              activeOpacity={0.7}
+            >
+              <Text style={styles.legalLink}>Terms of Use</Text>
+            </TouchableOpacity>
+            <Text style={styles.legalDot}>·</Text>
+            <TouchableOpacity
+              onPress={() => void Linking.openURL(`${SITE_URL}/privacy-policy`)}
+              activeOpacity={0.7}
+            >
+              <Text style={styles.legalLink}>Privacy Policy</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      ) : null}
+
+      {/**
        * **Always offered, never hidden behind `isPremium`.**
        *
        * Apple requires a restore path for a non-consumable, and hiding it from
@@ -159,6 +237,39 @@ export function Paywall({
 }
 
 const styles = StyleSheet.create({
+  club: {
+    marginTop: space.lg,
+    paddingTop: space.lg,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: colors.border,
+    gap: space.sm,
+  },
+  clubTitle: { ...text.cardTitle, textAlign: "center" },
+  clubBlurb: { ...text.body, color: colors.textMuted, textAlign: "center" },
+  // The line that decides whether anybody at the table tries it.
+  clubFree: { ...text.body, color: colors.text, fontWeight: "600" },
+  clubButton: {
+    backgroundColor: colors.surfaceSolid,
+    borderRadius: radius.md,
+    borderWidth: 1,
+    borderColor: colors.border,
+    paddingVertical: space.md,
+    alignItems: "center",
+  },
+  clubButtonText: { ...text.body, color: colors.text, fontWeight: "600" },
+  clubTerms: { ...text.meta, color: colors.textMuted, textAlign: "center" },
+  legalRow: {
+    flexDirection: "row",
+    justifyContent: "center",
+    alignItems: "center",
+    gap: space.sm,
+  },
+  legalLink: {
+    ...text.meta,
+    color: colors.accent,
+    textDecorationLine: "underline",
+  },
+  legalDot: { ...text.meta, color: colors.textMuted },
   // No backdrop, corners, padding or safe-area handling here — Sheet owns all of
   // the sheet chrome now.
   title: {
