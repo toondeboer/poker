@@ -666,6 +666,51 @@ export class PokerStack extends Stack {
     });
 
     /**
+     * The shared clock.
+     *
+     * **Authenticated, and its own function.** Its own function because these
+     * routes are *polled*: every viewer asks every few seconds, all evening,
+     * and that traffic must not be able to make recording a game slow.
+     *
+     * **Authenticated because a session is peer-to-peer, not a broadcast.** Any
+     * participant may publish — that is why the protocol breaks ties on
+     * `sender`, "two people can reach for the phone at once" — so the join code
+     * is not a read credential, it is a write one. A guessed code would not
+     * merely watch a countdown; it would pause somebody's game and jump their
+     * blind level. Leaving these open was considered and is the wrong trade: the
+     * app already requires an account to join a shared board, so requiring one
+     * to join a shared clock is the rule it already has rather than a new
+     * imposition.
+     */
+    const sessionsHandler = new NodejsFunction(this, "Sessions", {
+      entry: path.join(__dirname, "lambda", "sessions.ts"),
+      runtime: Runtime.NODEJS_22_X,
+      memorySize: 256,
+      timeout: Duration.seconds(5),
+      logGroup: new LogGroup(this, "SessionsLogs", {
+        retention: settings.logRetention,
+        removalPolicy: RemovalPolicy.DESTROY,
+      }),
+      environment: { ...functionEnvironment, TABLE_NAME: table.tableName },
+      tracing: Tracing.ACTIVE,
+      bundling: handlerBundling,
+    });
+    table.grantReadWriteData(sessionsHandler);
+
+    const sessionsRoute = new HttpLambdaIntegration(
+      "SessionsRoute",
+      sessionsHandler,
+    );
+    for (const [path_, methods] of [
+      ["/sessions", [HttpMethod.POST]],
+      ["/sessions/{code}", [HttpMethod.GET, HttpMethod.POST]],
+    ] as [string, HttpMethod[]][]) {
+      // No `authorizer:` — the API's default is the Cognito one, and taking it
+      // is the whole point of the default being what it is.
+      api.addRoutes({ path: path_, methods, integration: sessionsRoute });
+    }
+
+    /**
      * The shared leaderboard.
      *
      * One function behind every group route, because they share the thing that
@@ -750,6 +795,10 @@ export class PokerStack extends Stack {
       ["/groups/{groupId}/invite", [HttpMethod.POST]],
       // Reporting what is on a board. Members only — see the handler.
       ["/groups/{groupId}/report", [HttpMethod.POST]],
+      // Where to reach this account's devices. On the groups handler because
+      // that is what sends to them, so the registration and the send share one
+      // view of the rows.
+      ["/me/push-token", [HttpMethod.POST, HttpMethod.DELETE]],
       [
         "/groups/{groupId}/members/{accountId}",
         [HttpMethod.PUT, HttpMethod.DELETE],

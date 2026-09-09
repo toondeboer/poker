@@ -70,6 +70,38 @@ export const hostRefusal = (context: ClubContext): string | null => {
 };
 
 /**
+ * Why this person cannot put their clock on other screens, or `null` if they can.
+ *
+ * **The same rule as a board, for the same reason.** Hosting is what costs
+ * something ongoing: a session is a row somebody else polls, kept alive for as
+ * long as the table runs. Joining one is not, so joining is free — an invite
+ * that asks everybody at the table to subscribe to a poker timer is a feature
+ * nobody uses.
+ */
+export const clockHostRefusal = (context: ClubContext): string | null => {
+  if (!context.signedIn) return "Sign in to share your clock.";
+  // Before the refusal, never before the permission — see `entitlementsKnown`.
+  if (!context.entitlementsKnown) {
+    return "Still checking your purchases. Try again in a moment.";
+  }
+  if (!context.hasClub) {
+    return "Sharing your clock is part of Club. Joining one is always free.";
+  }
+  return null;
+};
+
+/**
+ * Why this person cannot join somebody's clock, or `null` if they can.
+ *
+ * **Signed in, and nothing else.** The one requirement that is not about paying
+ * — a session is peer-to-peer, so anybody who can watch a clock can also pause
+ * it, and that is a write the server will not take from a stranger.
+ */
+export const clockJoinRefusal = (
+  context: Pick<ClubContext, "signedIn">,
+): string | null => (context.signedIn ? null : "Sign in to join a clock.");
+
+/**
  * Whether a board should reach the server at all.
  *
  * **A different question from who may look at it**, and conflating the two was

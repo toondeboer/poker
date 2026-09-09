@@ -379,6 +379,57 @@ platform-tagged heading (e.g. `## [1.1.3] - 2026-07-20 — Android`) when you cu
   contain something — Scunthorpe, therapist and raccoon all pass, and there are tests to keep it
   that way. It stops the lazy case rather than a determined one, which is why reporting sits beside
   it rather than instead of it.
+- **Sharing a clock is Club; joining one is free.** The same split as a shared board and for the
+  same economics — a session is a row other people poll for as long as the table runs, and a clock
+  that asked everybody at the table to subscribe is a feature nobody would use. `clockHostRefusal`
+  and `clockJoinRefusal` sit beside the board's rules in `@poker/core`, return a sentence per case
+  rather than one title over three different refusals, and are checked in `SharedSessionContext` as
+  well as where the buttons are drawn — a screen can hide a control, only the context can stop the
+  act.
+
+  **Joining asks for a sign-in and nothing else**, which is the one requirement that is not about
+  paying: a session is peer-to-peer, so anybody who can watch a clock can also pause it, and that is
+  a write the server will not take from a stranger.
+
+  Enforced on the device rather than the server, like board hosting, because entitlements belong to
+  the store account rather than the Cognito one and the backend cannot see them. A known limit, not
+  an oversight — the same one that blocks a web view of a board.
+
+- **Push notifications when somebody records a game on a shared board.** Through **Expo's push
+  service** rather than APNs and FCM: the app is already an Expo app, so a token is one call away
+  and Expo holds the platform credentials — the alternative was an APNs key, an FCM service account,
+  two payload shapes and a per-platform failure mode, for the same result. A token is a row per
+  device (`ACCOUNT#<id>` / `PUSH#<token>`), so signing in on a phone and a tablet buzzes both, and
+  Expo's `DeviceNotRegistered` is used to forget a device that was uninstalled — the only signal
+  there is that one was.
+
+  **The notification names the board, not the player.** "Ann won" is the more interesting sentence
+  and the wrong one: a board name is chosen by the group, a player name is typed by whoever added
+  them, and a push is the one surface that puts text on a locked screen in front of somebody who did
+  not open the app. Keeping user-typed names off it means moderation here is the story the board
+  already has rather than a new one.
+
+  **It cannot fail a recorded game.** Every failure is swallowed and logged, it only fires when the
+  write actually landed — never on the outbox replaying a duplicate — and it never tells the person
+  who pressed the button, who is holding the phone. The app registers on sign-in and rides on the
+  notification permission the timer already asked for, so it never prompts for its own.
+
+- **The shared clock has a transport, and it is HTTP rather than AppSync.** Three routes
+  (`POST /sessions`, `GET|POST /sessions/{code}`), one `SESSION#<code>` row on the table that
+  already had the right TTL, and a polling transport in the app. `ROADMAP.md` assumed this needed
+  the deleted realtime bus stood back up; the protocol disagreed — `HEARTBEAT_MS` is 5s,
+  `STALE_AFTER_MS` is 15s, a message is a whole state snapshot rather than a delta so a missed one
+  is repaired by the next, and `SessionTransport.subscribe` returns its own unsubscribe, which is
+  `clearInterval`. `sessionTransport` is no longer `null` on any build that has a backend.
+
+  **The routes are authenticated, and the first version had them public.** The argument for open —
+  that a session carries a countdown and no cards, so the worst case is a stranger watching one — is
+  about _subscribing_. A session is peer-to-peer: any participant may publish, which is why the
+  protocol breaks version ties on `sender`, so the join code is a write credential and a guessed one
+  would pause a table's clock and jump its blind level. The app already asks for an account to join
+  a shared board; asking for one to join a shared clock adds nothing new and keeps a polled route
+  off the public surface. A test pins it.
+
 - **`.git-blame-ignore-revs`, so the reformat does not eat `git blame`.** Adopting Prettier rewrote
   77 files, which would otherwise make every line in them blame to the formatting commit instead of
   to whoever wrote it. GitHub reads this file automatically; locally it needs

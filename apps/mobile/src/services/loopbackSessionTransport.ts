@@ -1,5 +1,7 @@
 // src/services/loopbackSessionTransport.ts
 import type { SessionTransport, TimerSyncMessage } from "@poker/core";
+import { backendConfig } from "@/src/services/backendConfig";
+import { httpSessionTransport } from "@/src/services/httpSessionTransport";
 import { generateId } from "@/src/utils/id";
 
 /**
@@ -53,11 +55,18 @@ export const loopbackSessionTransport = (): SessionTransport => {
 /**
  * The transport the app actually uses, or `null` when there isn't one.
  *
- * `null` today: the AppSync Events API is defined in `apps/infra` and has never
- * been deployed. Everything downstream reads this to decide whether shared
- * sessions exist at all, so there is exactly one place to change when it is.
+ * **Real as of the HTTP transport.** `httpSessionTransport` polls the
+ * `/sessions` routes on the backend the app is already pointed at, so this is
+ * `null` only when there is no backend at all — a build with
+ * `backendConfig === null` has nothing to poll, and a join code nobody can join
+ * is worse than no join code.
  *
- * To look at the screens during development, put `loopbackSessionTransport()`
- * here — and put it back before committing.
+ * Everything downstream reads this to decide whether shared sessions exist, so
+ * there is still exactly one place to change.
+ *
+ * To develop the screens against one device with no server, put
+ * `loopbackSessionTransport()` here — and put it back before committing.
  */
-export const sessionTransport: SessionTransport | null = null;
+export const sessionTransport: SessionTransport | null = backendConfig
+  ? httpSessionTransport()
+  : null;

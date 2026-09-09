@@ -10,6 +10,8 @@ import {
 } from "react";
 import {
   EMPTY_SHARED_SESSION,
+  clockHostRefusal,
+  clockJoinRefusal,
   createJoinCode,
   isValidJoinCode,
   normaliseJoinCode,
@@ -21,6 +23,8 @@ import {
   type SharedSession,
   type TimerSyncMessage,
 } from "@poker/core";
+import { useAuth } from "@/src/contexts/AuthContext";
+import { usePremium } from "@/src/contexts/PremiumContext";
 import { sessionTransport } from "@/src/services/loopbackSessionTransport";
 import { generateId } from "@/src/utils/id";
 import { logger } from "@/src/utils/logger";
@@ -35,7 +39,12 @@ import { logger } from "@/src/utils/logger";
 const DEVICE_ID = generateId();
 
 /** What went wrong joining, in words a form can show. */
-export type JoinError = "code-malformed" | "no-such-session" | "failed";
+export type JoinError =
+  | "code-malformed"
+  | "no-such-session"
+  | "failed"
+  /** Refused before anything was attempted — `hostRefusal`/`joinRefusal` says why. */
+  | "not-allowed";
 
 export type SharedSessionStatus = "off" | "hosting" | "joined";
 
@@ -58,6 +67,13 @@ type SharedSessionContextValue = {
   latestAt: number | null;
   startHosting: () => Promise<JoinError | null>;
   join: (code: string) => Promise<JoinError | null>;
+  /**
+   * Why hosting is unavailable, or `null`. A sentence, not a code: three
+   * different refusals under one title was the bug the board already fixed.
+   */
+  hostRefusal: string | null;
+  /** Why joining is unavailable, or `null`. */
+  joinRefusal: string | null;
   leave: () => void;
   /**
    * Send local timer state to the table. Does nothing while `off`.
@@ -92,6 +108,27 @@ export function SharedSessionProvider({
   const [status, setStatus] = useState<SharedSessionStatus>("off");
   const [code, setCode] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+
+  /**
+   * **The host pays; whoever joins does not.** The same split as a shared
+   * board, because it is the same economics — a session is a row other people
+   * poll for as long as the table runs, and a clock that asked everybody at the
+   * table to subscribe is a feature nobody would use.
+   *
+   * Enforced here rather than on the server for the same reason board hosting
+   * is: entitlements belong to the store account, not the Cognito one, so the
+   * backend has no way to see them. That is a known limit rather than an
+   * oversight — see the web-board note in `ROADMAP.md`.
+   */
+  const { hasClub, isPremium, entitlementsKnown } = usePremium();
+  const { account } = useAuth();
+  const hostRefusalText = clockHostRefusal({
+    signedIn: account !== null,
+    entitlementsKnown,
+    hasClub,
+    isPremium,
+  });
+  const joinRefusalText = clockJoinRefusal({ signedIn: account !== null });
   // Ordering runs over everything *anybody* sent, this phone included: two
   // people pressing at once produce the same version, and the sender tie-break
   // that settles it can only work if a device's own press is in the ordering.
@@ -149,6 +186,9 @@ export function SharedSessionProvider({
 
   const startHosting = useCallback(async (): Promise<JoinError | null> => {
     if (!sessionTransport) return "failed";
+    // **Checked here, not only where the button is drawn.** A screen can hide a
+    // control; only this can stop the act. Same belt-and-braces the board uses.
+    if (hostRefusalText !== null) return "not-allowed";
     setBusy(true);
     try {
       const joinCode = createJoinCode(Math.random);
@@ -169,6 +209,7 @@ export function SharedSessionProvider({
   const join = useCallback(
     async (typed: string): Promise<JoinError | null> => {
       if (!sessionTransport) return "failed";
+      if (joinRefusalText !== null) return "not-allowed";
       // Checked here as well as in the form: a code arriving from a deep link
       // or a paste has been through neither.
       if (!isValidJoinCode(typed)) return "code-malformed";
@@ -237,10 +278,24 @@ export function SharedSessionProvider({
       latestAt: session.appliedAt,
       startHosting,
       join,
+      hostRefusal: hostRefusalText,
+      joinRefusal: joinRefusalText,
       leave: disconnect,
       publish,
     }),
-    [status, code, session, now, busy, startHosting, join, disconnect, publish],
+    [
+      status,
+      code,
+      session,
+      now,
+      busy,
+      startHosting,
+      join,
+      hostRefusalText,
+      joinRefusalText,
+      disconnect,
+      publish,
+    ],
   );
 
   return (

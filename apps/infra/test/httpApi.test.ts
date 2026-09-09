@@ -26,7 +26,7 @@ describe("something can finally call the backend", () => {
     template().hasOutput("ApiUrl", {});
   });
 
-  it("says who you are, and keeps a board", () => {
+  it("says who you are, keeps a board, and holds a clock", () => {
     expect(
       routes()
         .map((route) => route.RouteKey)
@@ -36,11 +36,13 @@ describe("something can finally call the backend", () => {
       "DELETE /groups/{groupId}/members/{accountId}",
       "DELETE /groups/{groupId}/players/{playerId}",
       "DELETE /me",
+      "DELETE /me/push-token",
       "GET /config",
       "GET /groups",
       "GET /groups/{groupId}",
       "GET /groups/{groupId}/members",
       "GET /me",
+      "GET /sessions/{code}",
       "POST /groups",
       "POST /groups/{groupId}/claims",
       "POST /groups/{groupId}/games",
@@ -48,6 +50,9 @@ describe("something can finally call the backend", () => {
       "POST /groups/{groupId}/players",
       "POST /groups/{groupId}/report",
       "POST /invites/{token}",
+      "POST /me/push-token",
+      "POST /sessions",
+      "POST /sessions/{code}",
       "PUT /groups/{groupId}/members/{accountId}",
     ]);
   });
@@ -68,6 +73,20 @@ describe("every route is authenticated, and that is the default", () => {
       .filter((route) => route.AuthorizationType !== "JWT")
       .map((route) => route.RouteKey);
     expect(open).toEqual(["GET /config"]);
+  });
+
+  it("keeps the shared clock behind the authorizer, publishing being the reason", () => {
+    // These were nearly left open, on ROADMAP's argument that a session carries
+    // a countdown and no cards so "the worst case is a stranger watching a
+    // countdown". That is true of *subscribing*. A session is peer-to-peer —
+    // any participant may publish, which is why the protocol breaks version
+    // ties on `sender` — so the join code is a write credential, and a guessed
+    // one would pause somebody's game rather than merely watch it.
+    const clock = routes()
+      .filter((route) => String(route.RouteKey).includes("/sessions"))
+      .map((route) => route.AuthorizationType);
+    expect(clock).toHaveLength(3);
+    expect(new Set(clock)).toEqual(new Set(["JWT"]));
   });
 
   it("says nothing on that open route that is not the same for everybody", () => {

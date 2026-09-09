@@ -155,6 +155,8 @@ export {
   boardOwnershipUnknown,
   boardIsVisible,
   boardSyncs,
+  clockHostRefusal,
+  clockJoinRefusal,
   entitlementsFrom,
   hostRefusal,
   joinRefusal,

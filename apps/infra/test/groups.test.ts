@@ -1,9 +1,10 @@
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import type { GameResult, GroupState } from "@poker/core";
 import {
   callerOf,
   handler,
   useGroupStore,
+  usePush,
   visibleTo,
   type VerifiedRequest,
 } from "../lib/lambda/groups";
@@ -117,9 +118,43 @@ const request = (
 
 const body = (response: { body: string }) => JSON.parse(response.body);
 
+/**
+ * Recording a game notifies the other members, so every test that records one
+ * reaches the push seam. Swapped for something that remembers rather than
+ * sends — left real, it looks for a table nobody set.
+ */
+const pushed: { groupId: string; actorId: string; memberIds: string[] }[] = [];
+const fakePush = {
+  async resultRecorded(params: {
+    groupId: string;
+    boardName: string;
+    memberIds: string[];
+    actorId: string;
+  }) {
+    pushed.push({
+      groupId: params.groupId,
+      actorId: params.actorId,
+      memberIds: params.memberIds,
+    });
+  },
+};
+const fakeTokens = {
+  async remember() {},
+  async forget() {},
+  async tokensFor() {
+    return [];
+  },
+};
+
+beforeEach(() => {
+  usePush(fakeTokens, fakePush);
+});
+
 afterEach(() => {
   useGroupStore(null);
+  usePush(null, null);
   calls.length = 0;
+  pushed.length = 0;
 });
 
 describe("who is calling", () => {
