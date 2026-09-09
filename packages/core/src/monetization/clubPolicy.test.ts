@@ -3,6 +3,8 @@ import {
   boardBelongsToAnotherAccount,
   boardOwnershipUnknown,
   boardIsVisible,
+  clockHostRefusal,
+  clockJoinRefusal,
   entitlementsFrom,
   boardSyncs,
   hostRefusal,
@@ -306,5 +308,54 @@ describe("a board on the server that nobody has claimed", () => {
     expect(
       boardSyncs({ hasClub: true, isOnServer: false, ownershipUnknown: false }),
     ).toBe(true);
+  });
+});
+
+describe("sharing a clock", () => {
+  const context = {
+    signedIn: true,
+    entitlementsKnown: true,
+    hasClub: true,
+    isPremium: true,
+  };
+
+  it("lets a Club subscriber host one", () => {
+    expect(clockHostRefusal(context)).toBeNull();
+  });
+
+  it("asks somebody signed out to sign in first", () => {
+    expect(clockHostRefusal({ ...context, signedIn: false })).toBe(
+      "Sign in to share your clock.",
+    );
+  });
+
+  it("waits rather than refusing while the store has not answered", () => {
+    // The same order the board rule uses, and for the same reason: refusing
+    // before the entitlement is known tells a subscriber they have not paid.
+    expect(clockHostRefusal({ ...context, entitlementsKnown: false })).toBe(
+      "Still checking your purchases. Try again in a moment.",
+    );
+  });
+
+  it("refuses without Club, and says joining is free", () => {
+    // The half people get wrong: an invite that reads as though everybody at
+    // the table needs a subscription is a feature nobody uses.
+    expect(clockHostRefusal({ ...context, hasClub: false })).toBe(
+      "Sharing your clock is part of Club. Joining one is always free.",
+    );
+  });
+});
+
+describe("joining a clock", () => {
+  it("needs a session and nothing else", () => {
+    expect(clockJoinRefusal({ signedIn: true })).toBeNull();
+  });
+
+  it("refuses somebody signed out, because joining can also pause it", () => {
+    // A session is peer-to-peer: anybody who can watch can also publish, and
+    // that is a write the server will not take from a stranger.
+    expect(clockJoinRefusal({ signedIn: false })).toBe(
+      "Sign in to join a clock.",
+    );
   });
 });

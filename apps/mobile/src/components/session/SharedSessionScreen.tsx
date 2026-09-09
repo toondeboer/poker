@@ -30,6 +30,14 @@ const MESSAGE: Record<JoinError, string> = {
   "code-malformed": `A code is ${JOIN_CODE_LENGTH} characters — check it and try again.`,
   "no-such-session": "No clock is running under that code.",
   failed: "That didn't work. Try again in a moment.",
+  /**
+   * **Never reached in practice, and kept anyway.** The screen shows the
+   * refusal from the context and disables the control, so the act is not
+   * available to attempt. This is what the guard in `startHosting` and `join`
+   * would return if a screen ever forgot to — a fallback, not a message
+   * somebody is expected to read.
+   */
+  "not-allowed": "That isn't available on this account.",
 };
 
 /**
@@ -48,8 +56,17 @@ export function SharedSessionScreen() {
   const insets = useSafeAreaInsets();
   const { width } = useWindowDimensions();
   const isTablet = isTabletWidth(width);
-  const { status, code, health, busy, startHosting, join, leave } =
-    useSharedSession();
+  const {
+    status,
+    code,
+    health,
+    busy,
+    startHosting,
+    join,
+    hostRefusal,
+    joinRefusal,
+    leave,
+  } = useSharedSession();
 
   const [typed, setTyped] = useState("");
   const [error, setError] = useState<JoinError | null>(null);
@@ -123,8 +140,13 @@ export function SharedSessionScreen() {
             label="Start a shared clock"
             icon="share-outline"
             onPress={() => void startHosting().then(setError)}
-            disabled={busy}
+            disabled={busy || hostRefusal !== null}
           />
+          {/* **The reason, in the words it came with.** One title over three
+              different refusals — sign in, still checking, not subscribed — was
+              the bug the board already fixed; the policy returns a sentence per
+              case so this can just show it. */}
+          {hostRefusal ? <Text style={styles.blurb}>{hostRefusal}</Text> : null}
         </CardContent>
       </Card>
       <Card>
@@ -150,12 +172,19 @@ export function SharedSessionScreen() {
             helper={`${JOIN_CODE_LENGTH} characters, from whoever started it.`}
           />
           {error ? <Text style={styles.error}>{MESSAGE[error]}</Text> : null}
+          {/* Joining is free — this only ever says "sign in", never "subscribe".
+              Showing it under the field rather than hiding the whole card: a
+              guest who was read a code should see where to put it and what is
+              stopping them, not an empty screen. */}
+          {joinRefusal ? <Text style={styles.blurb}>{joinRefusal}</Text> : null}
           <Button
             label="Join"
             icon="enter-outline"
             onPress={() => void runJoin()}
             disabled={
-              busy || normaliseJoinCode(typed).length !== JOIN_CODE_LENGTH
+              busy ||
+              joinRefusal !== null ||
+              normaliseJoinCode(typed).length !== JOIN_CODE_LENGTH
             }
           />
         </CardContent>

@@ -379,6 +379,22 @@ platform-tagged heading (e.g. `## [1.1.3] - 2026-07-20 — Android`) when you cu
   contain something — Scunthorpe, therapist and raccoon all pass, and there are tests to keep it
   that way. It stops the lazy case rather than a determined one, which is why reporting sits beside
   it rather than instead of it.
+- **Sharing a clock is Club; joining one is free.** The same split as a shared board and for the
+  same economics — a session is a row other people poll for as long as the table runs, and a clock
+  that asked everybody at the table to subscribe is a feature nobody would use. `clockHostRefusal`
+  and `clockJoinRefusal` sit beside the board's rules in `@poker/core`, return a sentence per case
+  rather than one title over three different refusals, and are checked in `SharedSessionContext` as
+  well as where the buttons are drawn — a screen can hide a control, only the context can stop the
+  act.
+
+  **Joining asks for a sign-in and nothing else**, which is the one requirement that is not about
+  paying: a session is peer-to-peer, so anybody who can watch a clock can also pause it, and that is
+  a write the server will not take from a stranger.
+
+  Enforced on the device rather than the server, like board hosting, because entitlements belong to
+  the store account rather than the Cognito one and the backend cannot see them. A known limit, not
+  an oversight — the same one that blocks a web view of a board.
+
 - **Push notifications when somebody records a game on a shared board.** Through **Expo's push
   service** rather than APNs and FCM: the app is already an Expo app, so a token is one call away
   and Expo holds the platform credentials — the alternative was an APNs key, an FCM service account,
