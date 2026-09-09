@@ -379,6 +379,13 @@ platform-tagged heading (e.g. `## [1.1.3] - 2026-07-20 — Android`) when you cu
   contain something — Scunthorpe, therapist and raccoon all pass, and there are tests to keep it
   that way. It stops the lazy case rather than a determined one, which is why reporting sits beside
   it rather than instead of it.
+- **`RELEASE_TESTING.md` has rows for the shared clock and for notifications.** §18 and §19, 25 rows
+  between them, and both say what they need before anybody sets up two phones: the clock wants the
+  `/sessions` routes deployed and `FORCE_PRO_IN_DEV` until Club can be bought, and push wants a real
+  device with EAS credentials and **two accounts**, because the sender never notifies whoever
+  recorded the game. Each carries the thing most likely to be mistaken for a bug — that a press
+  reaches the other phone in about four seconds rather than instantly, and that a device which never
+  allowed notifications registers for nothing, silently and correctly.
 - **Sharing a clock is Club; joining one is free.** The same split as a shared board and for the
   same economics — a session is a row other people poll for as long as the table runs, and a clock
   that asked everybody at the table to subscribe is a feature nobody would use. `clockHostRefusal`

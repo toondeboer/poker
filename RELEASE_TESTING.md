@@ -786,6 +786,73 @@ from a laptop against dev in both directions; these rows are the app half.
 
 ---
 
+## 18. Shared clock (Club) · **new in 1.2.0, needs two devices**
+
+**Needs the backend deployed with the `/sessions` routes**, and `FORCE_PRO_IN_DEV` until Club can be
+bought — hosting is gated on `hasClub` and joining on being signed in, so without either the Start
+button is disabled with a sentence saying why. That sentence is the feature working, not a failure.
+
+**One device answers less here than in §15.** A session is peer-to-peer: any participant can pause,
+skip a level or resume, and every interesting failure is about two clocks disagreeing. What one
+device can show is the gate, the codes and the refusals.
+
+**The transport is HTTP polling at 4s against a 5s heartbeat**, so "immediately" is the wrong
+expectation throughout: a press reaches the other phone within about four seconds and the section
+reads `stale` only after fifteen without contact. A pause that shows up three seconds later is a
+pass.
+
+|                                                                                                                                              | iOS | Android |
+| -------------------------------------------------------------------------------------------------------------------------------------------- | --- | ------- |
+| **Without Club**, Start is disabled and says sharing is part of Club — and that **joining is free**                                          | ⬜  | ⬜      |
+| **Signed out**, both Start and Join are disabled and each says to sign in — not "subscribe"                                                  | ⬜  | ⬜      |
+| While entitlements are still loading, it says so rather than refusing — a subscriber must never be told they have not paid                   | ⬜  | ⬜      |
+| **Hosting produces a six-character code** from the alphabet that drops what gets misheard — no I, O, S, Z                                    | ⬜  | ⬜      |
+| **A second device joins by typing it**, and sees the same round, level and countdown within ~4s                                              | ⬜  | ⬜      |
+| Lower case and spaces work — the code is normalised on the way in                                                                            | ⬜  | ⬜      |
+| **A wrong code says no clock is running under it**, and leaves the screen usable                                                             | ⬜  | ⬜      |
+| **Pausing on either device pauses both.** This is the row the feature exists for — and either device, not just the host                      | ⬜  | ⬜      |
+| **Two people pause at the same moment** and both phones settle on the same answer rather than splitting                                      | ⬜  | ⬜      |
+| A level jump travels too — `blindIndex` is in the message                                                                                    | ⬜  | ⬜      |
+| **Killing the host app leaves the joiner counting down**, and it reads `stale` after ~15s rather than freezing or lying                      | ⬜  | ⬜      |
+| Reopening the host **rejoins and the two agree again** within a poll                                                                         | ⬜  | ⬜      |
+| **Airplane mode on the joiner** for 30s, then back: it catches up rather than needing a rejoin                                               | ⬜  | ⬜      |
+| Leaving stops the polling — the clock keeps running locally and nothing further is sent                                                      | ⬜  | ⬜      |
+| 🚫 **A session expires six hours after its last message.** Cannot be run in a sitting; the TTL is asserted in the store's unit tests instead | ⬜  | ⬜      |
+
+**Where to look if it does not work.** `sessionTransport` is `null` on any build with no
+`backendConfig`, and then the whole screen is absent rather than broken — check that first. A 401 on
+every poll means the token, not the code.
+
+---
+
+## 19. Push notifications · **new in 1.2.0, needs two accounts and a real build**
+
+🚫 **None of this runs on a simulator.** Push tokens need a real device and real credentials — an
+APNs key for iOS and an FCM v1 service account for Android, both held by EAS. A development build
+against `DEV_BACKEND` is enough; the Simulator is not.
+
+**It also needs two accounts**, because the sender never notifies whoever recorded the game.
+
+|                                                                                                                                        | iOS | Android |
+| -------------------------------------------------------------------------------------------------------------------------------------- | --- | ------- |
+| **A member records a game; the other member's phone shows a notification** within a few seconds                                        | ⬜  | ⬜      |
+| **The person who recorded it is not notified** — they are holding the phone                                                            | ⬜  | ⬜      |
+| **It names the board, not the player.** No player name appears on the lock screen                                                      | ⬜  | ⬜      |
+| Tapping it opens the app — and does not crash from a cold start                                                                        | ⬜  | ⬜      |
+| **Declining the notification permission means no push, and no error.** Somebody who said no should not be asked again by this feature  | ⬜  | ⬜      |
+| **Signed in on two devices, both are notified** — a token is a row per device, and the second sign-in must not unregister the first    | ⬜  | ⬜      |
+| **Recording while the other phone is offline**: it arrives when that phone comes back, or not at all — never as a duplicate            | ⬜  | ⬜      |
+| **The outbox replaying a queued game sends no second notification.** Only a write that actually landed notifies                        | ⬜  | ⬜      |
+| **A failed push never fails the write.** Break it deliberately (sign out on the receiver, delete the app) and recording still succeeds | ⬜  | ⬜      |
+| Uninstalling the receiving app and recording again does not error on the sender — the token is forgotten on `DeviceNotRegistered`      | ⬜  | ⬜      |
+
+**The quiet failure to watch for**: registration rides on the notification permission the timer
+already asked for and never prompts on its own. So a device that never allowed notifications simply
+never registers, silently and correctly. If nothing arrives, check the permission before suspecting
+the token.
+
+---
+
 ## Open defects
 
 One entry per defect found this cycle, numbered in the order they were found (D1, D2, …), with an
