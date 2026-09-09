@@ -16,7 +16,8 @@
       "adaptiveIcon": {
         "foregroundImage": "./src/assets/images/icon-adaptive-foreground.png",
         "backgroundColor": "#0D3827"
-      }
+      },
+      "googleServicesFile": "./google-services.json"
     },
     "experiments": {
       "typedRoutes": true
