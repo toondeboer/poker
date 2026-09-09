@@ -48,8 +48,9 @@ export type ClubContext = {
  * **Only a session is required.** Anything else here would be asking the guest
  * to pay for the host's feature, which is the thing that kills it.
  */
-export const joinRefusal = (context: Pick<ClubContext, "signedIn">): string | null =>
-  context.signedIn ? null : "Sign in to join a board.";
+export const joinRefusal = (
+  context: Pick<ClubContext, "signedIn">,
+): string | null => (context.signedIn ? null : "Sign in to join a board.");
 
 /**
  * Why this person cannot share a board of their own, or `null` if they can.

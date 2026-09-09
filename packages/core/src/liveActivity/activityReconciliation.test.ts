@@ -17,9 +17,11 @@ describe("reconcileActivities", () => {
   });
 
   it("keeps our activity untouched when it is the only one", () => {
-    expect(
-      reconcileActivities({ activeIds: ["a"], currentId: "a" }),
-    ).toEqual({ adoptId: "a", endIds: [], createNew: false });
+    expect(reconcileActivities({ activeIds: ["a"], currentId: "a" })).toEqual({
+      adoptId: "a",
+      endIds: [],
+      createNew: false,
+    });
   });
 
   it("adopts the single survivor after a cold launch", () => {
@@ -47,9 +49,11 @@ describe("reconcileActivities", () => {
   });
 
   it("starts fresh when we hold an id but nothing is live at all", () => {
-    expect(
-      reconcileActivities({ activeIds: [], currentId: "gone" }),
-    ).toEqual({ adoptId: null, endIds: [], createNew: true });
+    expect(reconcileActivities({ activeIds: [], currentId: "gone" })).toEqual({
+      adoptId: null,
+      endIds: [],
+      createNew: true,
+    });
   });
 
   describe("mustKeepOne — for callers that reconcile but cannot create", () => {

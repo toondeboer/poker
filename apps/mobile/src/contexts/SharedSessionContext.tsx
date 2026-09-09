@@ -202,7 +202,10 @@ export function SharedSessionProvider({
       // Above everything seen *and* everything sent, so a phone that joined
       // late does not send a 1 the table has long since passed, and a repeat is
       // the version this device is actually on.
-      const highest = Math.max(nextVersion(session) - 1, sentVersionRef.current);
+      const highest = Math.max(
+        nextVersion(session) - 1,
+        sentVersionRef.current,
+      );
       const version = repeat ? Math.max(1, highest) : highest + 1;
       sentVersionRef.current = Math.max(sentVersionRef.current, version);
       const message = build(version);
@@ -237,17 +240,7 @@ export function SharedSessionProvider({
       leave: disconnect,
       publish,
     }),
-    [
-      status,
-      code,
-      session,
-      now,
-      busy,
-      startHosting,
-      join,
-      disconnect,
-      publish,
-    ],
+    [status, code, session, now, busy, startHosting, join, disconnect, publish],
   );
 
   return (

@@ -18,7 +18,9 @@ describe("building a link to share", () => {
   });
 
   it("does not double the slash on a base that has one", () => {
-    expect(inviteUrlFor(TOKEN, "https://pokerkit.app/")).not.toContain("//join");
+    expect(inviteUrlFor(TOKEN, "https://pokerkit.app/")).not.toContain(
+      "//join",
+    );
   });
 
   it("keeps the two slashes of a scheme", () => {
@@ -35,7 +37,9 @@ describe("building a link to share", () => {
 
 describe("reading a link somebody tapped", () => {
   it("reads the token back out of its own link", () => {
-    expect(tokenFromUrl(inviteUrlFor(TOKEN, "https://pokerkit.app"))).toBe(TOKEN);
+    expect(tokenFromUrl(inviteUrlFor(TOKEN, "https://pokerkit.app"))).toBe(
+      TOKEN,
+    );
   });
 
   it("reads it out of the custom scheme", () => {
@@ -44,9 +48,9 @@ describe("reading a link somebody tapped", () => {
 
   it("ignores what a mail client appended", () => {
     // A link arrives having been through somebody else's software.
-    expect(tokenFromUrl(`https://pokerkit.app/join/${TOKEN}?utm_source=whatsapp`)).toBe(
-      TOKEN,
-    );
+    expect(
+      tokenFromUrl(`https://pokerkit.app/join/${TOKEN}?utm_source=whatsapp`),
+    ).toBe(TOKEN);
     expect(tokenFromUrl(`https://pokerkit.app/join/${TOKEN}#top`)).toBe(TOKEN);
   });
 
@@ -68,7 +72,9 @@ describe("reading a link somebody tapped", () => {
 
   it("refuses something that is not a token", () => {
     expect(tokenFromUrl("https://pokerkit.app/join/short")).toBeNull();
-    expect(tokenFromUrl("https://pokerkit.app/join/has spaces in it here")).toBeNull();
+    expect(
+      tokenFromUrl("https://pokerkit.app/join/has spaces in it here"),
+    ).toBeNull();
     expect(tokenFromUrl("https://pokerkit.app/join/")).toBeNull();
     expect(tokenFromUrl("")).toBeNull();
   });
@@ -80,7 +86,9 @@ describe("reading a link somebody tapped", () => {
   });
 
   it("survives a token that was escaped on the way out", () => {
-    expect(tokenFromUrl(inviteUrlFor(TOKEN, "https://pokerkit.app"))).toBe(TOKEN);
+    expect(tokenFromUrl(inviteUrlFor(TOKEN, "https://pokerkit.app"))).toBe(
+      TOKEN,
+    );
   });
 });
 
@@ -126,9 +134,9 @@ describe("reading a code somebody pasted", () => {
 
   it("still takes a link, for anybody who has one", () => {
     expect(readInviteCode(inviteUrlFor(TOKEN, "pokerkit://"))).toBe(TOKEN);
-    expect(readInviteCode(`  ${inviteUrlFor(TOKEN, "https://pokerkit.app")}  `)).toBe(
-      TOKEN,
-    );
+    expect(
+      readInviteCode(`  ${inviteUrlFor(TOKEN, "https://pokerkit.app")}  `),
+    ).toBe(TOKEN);
   });
 
   it("strips the quotes and full stops a keyboard adds", () => {

@@ -154,7 +154,9 @@ export function SharedSessionScreen() {
             label="Join"
             icon="enter-outline"
             onPress={() => void runJoin()}
-            disabled={busy || normaliseJoinCode(typed).length !== JOIN_CODE_LENGTH}
+            disabled={
+              busy || normaliseJoinCode(typed).length !== JOIN_CODE_LENGTH
+            }
           />
         </CardContent>
       </Card>

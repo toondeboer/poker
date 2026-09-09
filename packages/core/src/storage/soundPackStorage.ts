@@ -1,5 +1,9 @@
 import { StorageAdapter } from "./StorageAdapter";
-import { DEFAULT_SOUND_PACK_ID, isValidSoundPackId, SoundPackId } from "../sounds/soundPack";
+import {
+  DEFAULT_SOUND_PACK_ID,
+  isValidSoundPackId,
+  SoundPackId,
+} from "../sounds/soundPack";
 
 export const SOUND_PACK_KEY = "sound_pack_id";
 

@@ -333,7 +333,6 @@ class LiveActivityService {
     }
   }
 
-
   /**
    * Reads whether POST_NOTIFICATIONS is granted on Android 13+. **This only
    * checks** — it never shows a dialog, despite what the old name

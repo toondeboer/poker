@@ -30,7 +30,9 @@ describe("validateChop", () => {
     [[100, Number.NaN], "negative-chips"],
     [[0, 0], "no-chips"],
   ])("rejects %o as %s", (chips, expected) => {
-    expect(validateChop({ structure, chips: chips as number[] })).toBe(expected);
+    expect(validateChop({ structure, chips: chips as number[] })).toBe(
+      expected,
+    );
     expect(computeChop({ structure, chips: chips as number[] })).toBeNull();
   });
 
@@ -95,7 +97,11 @@ describe("computeChop", () => {
     // the indivisible remainder used to go to index 0, so two identical 1-chip
     // stacks came out 10 apart and a 1-chip stack typed first beat a 1000-chip
     // stack. Rotating the input is what catches it.
-    const fingerprint = (chips: number[], denomination: number, structure: PayoutStructure) => {
+    const fingerprint = (
+      chips: number[],
+      denomination: number,
+      structure: PayoutStructure,
+    ) => {
       const result = computeChop({ structure, chips, denomination });
       if (!result) return "none";
       return result.shares
@@ -140,9 +146,15 @@ describe("computeChop", () => {
           const stacks = Array.from({ length: n }, (_, i) =>
             i < 2 ? 1000 : 1,
           );
-          const result = computeChop({ structure, chips: stacks, denomination });
+          const result = computeChop({
+            structure,
+            chips: stacks,
+            denomination,
+          });
           if (!result) continue;
-          const gap = Math.abs(result.shares[0].amount - result.shares[1].amount);
+          const gap = Math.abs(
+            result.shares[0].amount - result.shares[1].amount,
+          );
           if (gap > denomination) {
             failure ??= `${entrants} entrants, ${n} left, denom ${denomination}: gap ${gap}`;
           }
@@ -166,7 +178,11 @@ describe("computeChop", () => {
     for (let entrants = 2; entrants <= 30; entrants += 1) {
       for (const denomination of [1, 5, 10, 25]) {
         const structure = structureFor(entrants, 20, denomination);
-        for (let players = 2; players <= structure.payouts.length; players += 1) {
+        for (
+          let players = 2;
+          players <= structure.payouts.length;
+          players += 1
+        ) {
           for (const shape of [
             Array.from({ length: players }, () => 100),
             Array.from({ length: players }, (_, i) => (i + 1) * 37),

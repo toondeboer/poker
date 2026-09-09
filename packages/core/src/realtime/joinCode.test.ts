@@ -21,8 +21,9 @@ describe("the alphabet", () => {
       ["B", "8"],
       ["Z", "2"],
     ];
-    const both = lookalikes.filter(([left, right]) =>
-      JOIN_CODE_ALPHABET.includes(left) && JOIN_CODE_ALPHABET.includes(right),
+    const both = lookalikes.filter(
+      ([left, right]) =>
+        JOIN_CODE_ALPHABET.includes(left) && JOIN_CODE_ALPHABET.includes(right),
     );
     expect(both).toEqual([]);
   });
@@ -44,8 +45,12 @@ describe("making a code", () => {
   });
 
   it("is deterministic for a seed, so a test can name one", () => {
-    expect(createJoinCode(createRandom(7))).toBe(createJoinCode(createRandom(7)));
-    expect(createJoinCode(createRandom(7))).not.toBe(createJoinCode(createRandom(8)));
+    expect(createJoinCode(createRandom(7))).toBe(
+      createJoinCode(createRandom(7)),
+    );
+    expect(createJoinCode(createRandom(7))).not.toBe(
+      createJoinCode(createRandom(8)),
+    );
   });
 
   it("survives a random source that returns exactly 1", () => {
@@ -57,14 +62,17 @@ describe("making a code", () => {
   });
 
   it("survives a random source stuck at 0", () => {
-    expect(createJoinCode(() => 0)).toBe(JOIN_CODE_ALPHABET[0].repeat(JOIN_CODE_LENGTH));
+    expect(createJoinCode(() => 0)).toBe(
+      JOIN_CODE_ALPHABET[0].repeat(JOIN_CODE_LENGTH),
+    );
   });
 
   it("uses the whole alphabet rather than a corner of it", () => {
     const seen = new Set<string>();
     const random = createRandom(11);
     for (let round = 0; round < 400; round += 1) {
-      for (const character of createJoinCode(random).split("")) seen.add(character);
+      for (const character of createJoinCode(random).split(""))
+        seen.add(character);
     }
     expect(seen.size).toBe(JOIN_CODE_ALPHABET.length);
   });
@@ -84,7 +92,13 @@ describe("reading one back", () => {
     // Autocapitalisation must not be able to break a join, and people put
     // spaces and dashes in codes they were read out.
     const failures: string[] = [];
-    for (const typed of ["4f7k2p", "4F7K2P", "4f7-k2p", "4F7 K2P", " 4f7k2p "]) {
+    for (const typed of [
+      "4f7k2p",
+      "4F7K2P",
+      "4f7-k2p",
+      "4F7 K2P",
+      " 4f7k2p ",
+    ]) {
       const normalised = normaliseJoinCode(typed);
       if (normalised !== "4F7K2P") failures.push(`${typed} -> ${normalised}`);
     }

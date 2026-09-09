@@ -139,7 +139,9 @@ export const evaluateFive = (cards: readonly Card[]): HandValue => {
       // The length guard's own reasoning applies here: a duplicate would score
       // as a plausible-looking hand — two of the same ace reads as a pair —
       // and a plausible wrong number is what quietly loses somebody a pot.
-      throw new Error(`evaluateFive got the same card twice: ${cardToString(card)}`);
+      throw new Error(
+        `evaluateFive got the same card twice: ${cardToString(card)}`,
+      );
     }
     suitsByRank[card.rank] |= bit;
     if (card.suit !== firstSuit) isFlush = false;

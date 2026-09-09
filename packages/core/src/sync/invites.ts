@@ -56,7 +56,9 @@ export const inviteUrlFor = (token: string, base: string): string => {
   // `pokerkit://` into `pokerkit:` and produced a single-slash link, which is
   // why the app's own base had to be written as the odd `"pokerkit:/"`. Now the
   // natural spelling works and both are handled.
-  const root = /:\/\/$/.test(base) ? base.slice(0, -1) : base.replace(/\/+$/, "");
+  const root = /:\/\/$/.test(base)
+    ? base.slice(0, -1)
+    : base.replace(/\/+$/, "");
   return `${root}/${INVITE_PATH}/${encodeURIComponent(token)}`;
 };
 

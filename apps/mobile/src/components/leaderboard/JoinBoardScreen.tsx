@@ -1,6 +1,12 @@
 // src/components/leaderboard/JoinBoardScreen.tsx
 import { useCallback, useEffect, useRef, useState } from "react";
-import { ActivityIndicator, ScrollView, StyleSheet, Text, View } from "react-native";
+import {
+  ActivityIndicator,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
+} from "react-native";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { tokenFromUrl, isInviteToken } from "@poker/core";
@@ -45,7 +51,9 @@ export function JoinBoardScreen() {
   const token = isInviteToken(raw) ? raw : raw ? tokenFromUrl(raw) : null;
 
   const [state, setState] = useState<State>(
-    token ? { step: "working" } : { step: "failed", reason: "That link is not valid." },
+    token
+      ? { step: "working" }
+      : { step: "failed", reason: "That link is not valid." },
   );
 
   // Guarded rather than keyed on the token: an effect that re-ran would redeem
@@ -121,7 +129,10 @@ export function JoinBoardScreen() {
                   and joining is the first thing in the app that requires an
                   account — so it is worth taking them straight to it. */}
               {!account ? (
-                <Button label="Sign in" onPress={() => router.push("/account")} />
+                <Button
+                  label="Sign in"
+                  onPress={() => router.push("/account")}
+                />
               ) : token ? (
                 <Button label="Try again" onPress={() => attempt(token)} />
               ) : null}

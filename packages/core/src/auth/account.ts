@@ -22,9 +22,7 @@ export type Account = {
 
 /** Why an email or password was refused, before anything is sent anywhere. */
 export type CredentialError =
-  | "email-empty"
-  | "email-malformed"
-  | "password-too-short";
+  "email-empty" | "email-malformed" | "password-too-short";
 
 /**
  * The shortest password worth allowing.

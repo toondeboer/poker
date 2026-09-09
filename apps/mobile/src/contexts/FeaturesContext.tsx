@@ -1,5 +1,11 @@
 // src/contexts/FeaturesContext.tsx
-import { createContext, useCallback, useContext, useEffect, useState } from "react";
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useState,
+} from "react";
 import { AppState } from "react-native";
 import { NO_FEATURES, type Features } from "@poker/core";
 import { createGroupApi } from "@/src/services/groupApi";
@@ -55,7 +61,11 @@ export function FeaturesProvider({ children }: { children: React.ReactNode }) {
     return () => subscription.remove();
   }, [ask]);
 
-  return <FeaturesContext.Provider value={features}>{children}</FeaturesContext.Provider>;
+  return (
+    <FeaturesContext.Provider value={features}>
+      {children}
+    </FeaturesContext.Provider>
+  );
 }
 
 /**

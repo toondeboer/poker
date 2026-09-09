@@ -175,7 +175,8 @@ describe("two phones at one table", () => {
       const now = 5_000 + elapsed;
       for (const device of [host, guest]) {
         device.state = { ...device.state, timeLeft: 600 - elapsed / 1_000 };
-        if (speaksUp(device, now)) failures.push(`${device.id} at ${elapsed}ms`);
+        if (speaksUp(device, now))
+          failures.push(`${device.id} at ${elapsed}ms`);
       }
     }
     expect(failures).toEqual([]);

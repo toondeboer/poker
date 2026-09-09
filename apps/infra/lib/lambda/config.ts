@@ -47,7 +47,9 @@ export type Features = {
  * off there would take the features out of every deployment that had not been
  * explicitly told to keep them.
  */
-export const featuresFrom = (env: Record<string, string | undefined>): Features => ({
+export const featuresFrom = (
+  env: Record<string, string | undefined>,
+): Features => ({
   accounts: env.FEATURE_ACCOUNTS !== "off",
   sharing: env.FEATURE_SHARING !== "off",
 });

@@ -86,7 +86,11 @@ const styles = StyleSheet.create({
     paddingVertical: space.xs,
   },
   cardSmall: { width: 34, height: 48 },
-  back: { backgroundColor: colors.surfaceSolid, borderWidth: 1, borderColor: colors.border },
+  back: {
+    backgroundColor: colors.surfaceSolid,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
   backMark: { color: colors.textMuted, fontSize: 20 },
   rank: { fontSize: 20, fontWeight: "700", lineHeight: 22 },
   rankSmall: { fontSize: 15, fontWeight: "700", lineHeight: 17 },

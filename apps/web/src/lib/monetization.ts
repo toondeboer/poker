@@ -12,7 +12,8 @@
 export const ADSENSE_CLIENT = process.env.NEXT_PUBLIC_ADSENSE_CLIENT;
 
 /** Ad unit slot id for the landing page. */
-export const ADSENSE_SLOT_LANDING = process.env.NEXT_PUBLIC_ADSENSE_SLOT_LANDING;
+export const ADSENSE_SLOT_LANDING =
+  process.env.NEXT_PUBLIC_ADSENSE_SLOT_LANDING;
 
 /** Ad unit slot id for the web timer side panel. */
 export const ADSENSE_SLOT_TIMER = process.env.NEXT_PUBLIC_ADSENSE_SLOT_TIMER;
@@ -25,6 +26,4 @@ export const TIP_JAR_URL = process.env.NEXT_PUBLIC_TIP_JAR_URL;
  * `ko-fi.com/`). Powers the floating Ko-fi overlay widget; undefined when the
  * tip-jar URL is unset or isn't a Ko-fi link.
  */
-export const KOFI_USERNAME = TIP_JAR_URL?.match(
-  /ko-fi\.com\/([^/?#]+)/i,
-)?.[1];
+export const KOFI_USERNAME = TIP_JAR_URL?.match(/ko-fi\.com\/([^/?#]+)/i)?.[1];

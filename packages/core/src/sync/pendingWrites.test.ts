@@ -50,7 +50,11 @@ describe("what the queue holds", () => {
   it("keeps the intent, not the resulting board", () => {
     // A queue of "the board now looks like this" cannot be replayed against a
     // server that has moved on. A queue of "I added Ann" can.
-    const q = queueOf({ kind: "addPlayer", groupId: "g1", player: player("p2") });
+    const q = queueOf({
+      kind: "addPlayer",
+      groupId: "g1",
+      player: player("p2"),
+    });
     expect(q.pending[0].kind).toBe("addPlayer");
   });
 
@@ -166,7 +170,11 @@ describe("what cannot be queued", () => {
 
 describe("settling and refusing", () => {
   it("drops a write that reached the server", () => {
-    const q = queueOf({ kind: "addPlayer", groupId: "g1", player: player("p2") });
+    const q = queueOf({
+      kind: "addPlayer",
+      groupId: "g1",
+      player: player("p2"),
+    });
     expect(settle(q, q.pending[0].id).pending).toEqual([]);
   });
 
@@ -175,7 +183,11 @@ describe("settling and refusing", () => {
     // recorded on Tuesday can be refused on Thursday because an admin removed
     // you on Wednesday. Dropping it loses somebody's evening; applying it is a
     // lie.
-    const q = queueOf({ kind: "recordGame", groupId: "g1", result: game("r2") });
+    const q = queueOf({
+      kind: "recordGame",
+      groupId: "g1",
+      result: game("r2"),
+    });
     const after = refuse(q, q.pending[0].id, "you are not on this board", 5);
     expect(after.pending).toEqual([]);
     expect(after.refused).toHaveLength(1);
@@ -197,7 +209,9 @@ describe("settling and refusing", () => {
     const after = refuse(q, q.pending[0].id, "you are not on this board", 5);
     expect(after.pending).toEqual([]);
     expect(after.refused).toHaveLength(2);
-    expect(after.refused[1].reason).toContain("the player it names was refused");
+    expect(after.refused[1].reason).toContain(
+      "the player it names was refused",
+    );
   });
 
   it("leaves a game that does not name the refused player", () => {
@@ -221,13 +235,21 @@ describe("settling and refusing", () => {
   });
 
   it("ignores a write that is no longer there", () => {
-    const q = queueOf({ kind: "addPlayer", groupId: "g1", player: player("p2") });
+    const q = queueOf({
+      kind: "addPlayer",
+      groupId: "g1",
+      player: player("p2"),
+    });
     expect(refuse(q, "gone", "nope", 5)).toEqual(q);
     expect(settle(q, "gone")).toEqual(q);
   });
 
   it("lets somebody dismiss the bad news once they have read it", () => {
-    const q = queueOf({ kind: "recordGame", groupId: "g1", result: game("r2") });
+    const q = queueOf({
+      kind: "recordGame",
+      groupId: "g1",
+      result: game("r2"),
+    });
     const after = refuse(q, q.pending[0].id, "nope", 5);
     expect(dismiss(after, after.refused[0].write.id).refused).toEqual([]);
   });
@@ -239,10 +261,14 @@ describe("withdrawing a write that was never sent", () => {
     // deleted a moment later would still have been POSTed on the next
     // foreground — and removing a player from a shared board is admin-only, so
     // the typo would be on every member's board permanently.
-    const q = queueOf({ kind: "addPlayer", groupId: "g1", player: player("p2") });
-    expect(cancel(q, { kind: "addPlayer", groupId: "g1", playerId: "p2" }).pending).toEqual(
-      [],
-    );
+    const q = queueOf({
+      kind: "addPlayer",
+      groupId: "g1",
+      player: player("p2"),
+    });
+    expect(
+      cancel(q, { kind: "addPlayer", groupId: "g1", playerId: "p2" }).pending,
+    ).toEqual([]);
   });
 
   it("leaves a game that named the cancelled player", () => {
@@ -251,26 +277,42 @@ describe("withdrawing a write that was never sent", () => {
     // does exactly the same. The two agree, so there is nothing to withhold.
     const q = queueOf(
       { kind: "addPlayer", groupId: "g1", player: player("p2") },
-      { kind: "recordGame", groupId: "g1", result: { ...game("r2"), playerIds: ["p2"] } },
+      {
+        kind: "recordGame",
+        groupId: "g1",
+        result: { ...game("r2"), playerIds: ["p2"] },
+      },
     );
-    const after = cancel(q, { kind: "addPlayer", groupId: "g1", playerId: "p2" });
+    const after = cancel(q, {
+      kind: "addPlayer",
+      groupId: "g1",
+      playerId: "p2",
+    });
     expect(after.pending).toHaveLength(1);
     expect(after.pending[0].kind).toBe("recordGame");
   });
 
   it("leaves the same player on another board alone", () => {
-    const q = queueOf({ kind: "addPlayer", groupId: "g2", player: player("p2") });
-    expect(cancel(q, { kind: "addPlayer", groupId: "g1", playerId: "p2" }).pending).toHaveLength(
-      1,
-    );
+    const q = queueOf({
+      kind: "addPlayer",
+      groupId: "g2",
+      player: player("p2"),
+    });
+    expect(
+      cancel(q, { kind: "addPlayer", groupId: "g1", playerId: "p2" }).pending,
+    ).toHaveLength(1);
   });
 
   it("does nothing when the write has already gone", () => {
     // There is no recalling a sent write, and pretending otherwise would be
     // worse than the divergence.
-    expect(cancel(EMPTY_QUEUE, { kind: "recordGame", groupId: "g1", resultId: "r1" })).toEqual(
-      EMPTY_QUEUE,
-    );
+    expect(
+      cancel(EMPTY_QUEUE, {
+        kind: "recordGame",
+        groupId: "g1",
+        resultId: "r1",
+      }),
+    ).toEqual(EMPTY_QUEUE);
   });
 });
 
@@ -316,12 +358,20 @@ describe("withdrawing a whole board", () => {
   });
 
   it("is the same queue when a join freed nothing", () => {
-    const q = queueOf({ kind: "addPlayer", groupId: "g1", player: player("p2") });
+    const q = queueOf({
+      kind: "addPlayer",
+      groupId: "g1",
+      player: player("p2"),
+    });
     expect(clearBoardRefusals(q, "g1")).toBe(q);
   });
 
   it("leaves refusals alone, because somebody still has not read them", () => {
-    const q = queueOf({ kind: "addPlayer", groupId: "g1", player: player("p2") });
+    const q = queueOf({
+      kind: "addPlayer",
+      groupId: "g1",
+      player: player("p2"),
+    });
     const refused = refuse(q, q.pending[0].id, "nope", 5);
     expect(cancelBoard(refused, "g1").refused).toHaveLength(1);
   });
@@ -332,7 +382,12 @@ describe("queueing something that was already refused", () => {
     // The app announces every board on each launch. Without this, a board the
     // server keeps refusing appends an identical refusal every launch until the
     // cap evicts the one somebody actually needed to read.
-    const q = queueOf({ kind: "createGroup", groupId: "g1", name: "T", createdAt: 1 });
+    const q = queueOf({
+      kind: "createGroup",
+      groupId: "g1",
+      name: "T",
+      createdAt: 1,
+    });
     const refused = refuse(q, q.pending[0].id, "you are not on this board", 5);
     const again = enqueue(
       refused,
@@ -344,7 +399,12 @@ describe("queueing something that was already refused", () => {
 
   it("lets it be queued again once somebody has dismissed it", () => {
     // Dismissing is what says "try this again" — and it takes a person.
-    const q = queueOf({ kind: "createGroup", groupId: "g1", name: "T", createdAt: 1 });
+    const q = queueOf({
+      kind: "createGroup",
+      groupId: "g1",
+      name: "T",
+      createdAt: 1,
+    });
     const refused = refuse(q, q.pending[0].id, "nope", 5);
     const cleared = dismiss(refused, refused.refused[0].write.id);
     const again = enqueue(
@@ -359,14 +419,24 @@ describe("saying what a write was", () => {
   it("names the person, the board, or the game", () => {
     // The only part of showing a refusal that can be wrong, and a screen is the
     // one thing this repo cannot test — so the wording lives here.
-    expect(describeWrite({ kind: "addPlayer", groupId: "g1", player: player("p2", "Ann") }))
-      .toBe("Ann was not added");
     expect(
-      describeWrite({ kind: "createGroup", groupId: "g1", name: "Thursday", createdAt: 1 }),
+      describeWrite({
+        kind: "addPlayer",
+        groupId: "g1",
+        player: player("p2", "Ann"),
+      }),
+    ).toBe("Ann was not added");
+    expect(
+      describeWrite({
+        kind: "createGroup",
+        groupId: "g1",
+        name: "Thursday",
+        createdAt: 1,
+      }),
     ).toBe("The board “Thursday” was not created");
-    expect(describeWrite({ kind: "recordGame", groupId: "g1", result: game("r1") })).toBe(
-      "A game was not recorded",
-    );
+    expect(
+      describeWrite({ kind: "recordGame", groupId: "g1", result: game("r1") }),
+    ).toBe("A game was not recorded");
   });
 });
 
@@ -380,7 +450,9 @@ describe("explaining a cascade", () => {
       { kind: "addPlayer", groupId: "g1", player: player("p2") },
     );
     const after = refuse(q, q.pending[0].id, "that name is taken", 5);
-    expect(after.refused[1].reason).toContain("the board it belongs to was refused");
+    expect(after.refused[1].reason).toContain(
+      "the board it belongs to was refused",
+    );
   });
 });
 
@@ -391,17 +463,26 @@ describe("how many refusals are kept", () => {
     // explaining.
     let q = EMPTY_QUEUE;
     for (let i = 0; i < MAX_REFUSALS + 5; i += 1) {
-      q = enqueue(q, write({ kind: "recordGame", groupId: "g1", result: game(`r${i}`) }));
+      q = enqueue(
+        q,
+        write({ kind: "recordGame", groupId: "g1", result: game(`r${i}`) }),
+      );
       q = refuse(q, q.pending[0].id, `nope ${i}`, i);
     }
     expect(q.refused).toHaveLength(MAX_REFUSALS);
-    expect(q.refused[q.refused.length - 1].reason).toBe(`nope ${MAX_REFUSALS + 4}`);
+    expect(q.refused[q.refused.length - 1].reason).toBe(
+      `nope ${MAX_REFUSALS + 4}`,
+    );
   });
 });
 
 describe("the board as this phone should draw it", () => {
   it("shows a player who has not synced yet", () => {
-    const q = queueOf({ kind: "addPlayer", groupId: "g1", player: player("p2", "Bo") });
+    const q = queueOf({
+      kind: "addPlayer",
+      groupId: "g1",
+      player: player("p2", "Bo"),
+    });
     expect(withPending(board(), q).players.map((p) => p.name)).toEqual([
       "Ann",
       "Bo",
@@ -411,7 +492,11 @@ describe("the board as this phone should draw it", () => {
   it("does not show somebody twice once the server has them", () => {
     // A replayed add would otherwise duplicate the person on screen until the
     // next fetch.
-    const q = queueOf({ kind: "addPlayer", groupId: "g1", player: player("p1", "Ann") });
+    const q = queueOf({
+      kind: "addPlayer",
+      groupId: "g1",
+      player: player("p1", "Ann"),
+    });
     expect(withPending(board(), q).players).toHaveLength(1);
   });
 
@@ -420,7 +505,11 @@ describe("the board as this phone should draw it", () => {
     // "newest-first ordering". Sorting the other way reversed the whole history
     // on screen even with an empty queue.
     const older = { ...board(), results: [game("mid", 200), game("old", 100)] };
-    const q = queueOf({ kind: "recordGame", groupId: "g1", result: game("new", 300) });
+    const q = queueOf({
+      kind: "recordGame",
+      groupId: "g1",
+      result: game("new", 300),
+    });
     expect(withPending(older, q).results.map((r) => r.id)).toEqual([
       "new",
       "mid",
@@ -431,7 +520,11 @@ describe("the board as this phone should draw it", () => {
   it("ignores writes queued for a different board", () => {
     // The queue is one outbox for every board, so this is the ordinary case,
     // not an edge: a player added to Thursday must not appear on Sunday.
-    const q = queueOf({ kind: "addPlayer", groupId: "g2", player: player("p9", "Zoe") });
+    const q = queueOf({
+      kind: "addPlayer",
+      groupId: "g2",
+      player: player("p9", "Zoe"),
+    });
     expect(withPending(board(), q).players.map((p) => p.id)).toEqual(["p1"]);
   });
 
@@ -439,7 +532,11 @@ describe("the board as this phone should draw it", () => {
     // A write is settled by a report, not by the board arriving, so there is a
     // window where the game is in both — and showing it twice double-counts
     // somebody's night in the standings.
-    const q = queueOf({ kind: "recordGame", groupId: "g1", result: game("r1", 100) });
+    const q = queueOf({
+      kind: "recordGame",
+      groupId: "g1",
+      result: game("r1", 100),
+    });
     expect(withPending(board(), q).results.map((r) => r.id)).toEqual(["r1"]);
   });
 
@@ -451,7 +548,9 @@ describe("the board as this phone should draw it", () => {
     expect(drawn).toEqual(["a", "b"]);
     // And the same answer whichever way round they arrive.
     const flipped = { ...board(), results: [game("a", 500), game("b", 500)] };
-    expect(withPending(flipped, EMPTY_QUEUE).results.map((r) => r.id)).toEqual(drawn);
+    expect(withPending(flipped, EMPTY_QUEUE).results.map((r) => r.id)).toEqual(
+      drawn,
+    );
   });
 
   it("does not fall over on a board holding the same game twice", () => {
@@ -471,7 +570,11 @@ describe("the board as this phone should draw it", () => {
     // just a queue entry that stops being applied, rather than something that
     // has to be unpicked from state somebody has since changed.
     const original = board();
-    const q = queueOf({ kind: "addPlayer", groupId: "g1", player: player("p2") });
+    const q = queueOf({
+      kind: "addPlayer",
+      groupId: "g1",
+      player: player("p2"),
+    });
     withPending(original, q);
     expect(original.players).toHaveLength(1);
   });

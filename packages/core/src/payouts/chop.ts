@@ -82,12 +82,17 @@ export const computeChop = (options: ChopOptions): ChopResult | null => {
   const denomination = Math.max(
     1,
     Math.floor(
-      Number.isFinite(options.denomination ?? 1) ? (options.denomination ?? 1) : 1,
+      Number.isFinite(options.denomination ?? 1)
+        ? (options.denomination ?? 1)
+        : 1,
     ),
   );
 
   const live = structure.payouts.slice(0, chips.length);
-  const remainingMoney = live.reduce((total, payout) => total + payout.amount, 0);
+  const remainingMoney = live.reduce(
+    (total, payout) => total + payout.amount,
+    0,
+  );
   // Payouts are non-increasing, so the last live place is the smallest.
   const guaranteedEach = live[live.length - 1].amount;
   const surplus = remainingMoney - guaranteedEach * chips.length;

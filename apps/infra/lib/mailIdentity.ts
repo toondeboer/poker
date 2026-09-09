@@ -120,8 +120,10 @@ export const mailVerifiedFor = (scope: Construct, stage: Stage): boolean => {
 
 export const mailFor = (scope: Construct, stage: Stage): Mail | undefined => {
   const base = scope.node.tryGetContext("mailDomain") as string | undefined;
-  const hostedZoneId = scope.node.tryGetContext("hostedZoneId") as string | undefined;
-  const zoneName = scope.node.tryGetContext("hostedZoneName") as string | undefined;
+  const hostedZoneId = scope.node.tryGetContext("hostedZoneId") as
+    string | undefined;
+  const zoneName = scope.node.tryGetContext("hostedZoneName") as
+    string | undefined;
   /**
    * **A real region, not a token.** `UserPoolEmail.withSES` refuses to
    * synthesise against an environment-agnostic stack — it cannot work out which
@@ -145,10 +147,14 @@ export const mailFor = (scope: Construct, stage: Stage): Mail | undefined => {
   if (!base || !hostedZoneId || !zoneName || !region) return undefined;
 
   const domain = mailDomainFor(stage, base);
-  const zone = PublicHostedZone.fromPublicHostedZoneAttributes(scope, "MailZone", {
-    hostedZoneId,
-    zoneName,
-  });
+  const zone = PublicHostedZone.fromPublicHostedZoneAttributes(
+    scope,
+    "MailZone",
+    {
+      hostedZoneId,
+      zoneName,
+    },
+  );
 
   /**
    * **The subdomain is the identity, not the zone it lives in.**

@@ -62,7 +62,8 @@ const depart = async (
 ): Promise<void> => {
   log("warn", "leaving without a guarantor", { requestId, groupId, reason });
   await store.leave(accountId, groupId, null);
-  if (!report.groupsStranded.includes(groupId)) report.groupsStranded.push(groupId);
+  if (!report.groupsStranded.includes(groupId))
+    report.groupsStranded.push(groupId);
 };
 
 export const deleteAccount = async (
@@ -119,7 +120,8 @@ export const deleteAccount = async (
       // Somebody else is already in charge. Asserted in the same transaction as
       // the departure, so they cannot stop being an admin in between.
       const left = await store.leave(accountId, groupId, other.accountId);
-      if (left.status !== "ok") await depart(store, accountId, groupId, report, requestId, left.reason);
+      if (left.status !== "ok")
+        await depart(store, accountId, groupId, report, requestId, left.reason);
       continue;
     }
 
@@ -134,7 +136,12 @@ export const deleteAccount = async (
     // Promote first, then leave asserting the new admin is one. Either order
     // has a window; this one's window leaves the group with *two* admins rather
     // than none, which is the survivable direction.
-    const promoted = await store.setRole(heir.accountId, groupId, "admin", null);
+    const promoted = await store.setRole(
+      heir.accountId,
+      groupId,
+      "admin",
+      null,
+    );
     if (promoted.status !== "ok") {
       log("warn", "group left without an admin", {
         requestId,
@@ -152,7 +159,8 @@ export const deleteAccount = async (
     // Checked, unlike before. An unreported failure here leaves the group-side
     // `MEMBER#` row behind while everything else about the account goes — a
     // ghost admin that `anotherAdmin` and `heirTo` keep naming forever.
-    if (left.status !== "ok") await depart(store, accountId, groupId, report, requestId, left.reason);
+    if (left.status !== "ok")
+      await depart(store, accountId, groupId, report, requestId, left.reason);
   }
 
   // 3. Then whatever is left under the account. Unconditional, so a second

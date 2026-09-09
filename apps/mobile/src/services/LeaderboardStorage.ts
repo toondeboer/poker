@@ -12,8 +12,11 @@ import { generateId } from "@/src/utils/id";
 export const DEFAULT_GROUP_NAME = "My games";
 
 /** Leaderboard persistence backed by AsyncStorage (logic lives in @poker/core). */
-export const LeaderboardStorage = createLeaderboardStorage(asyncStorageAdapter, {
-  createGroupId: generateId,
-  now: Date.now,
-  defaultGroupName: DEFAULT_GROUP_NAME,
-});
+export const LeaderboardStorage = createLeaderboardStorage(
+  asyncStorageAdapter,
+  {
+    createGroupId: generateId,
+    now: Date.now,
+    defaultGroupName: DEFAULT_GROUP_NAME,
+  },
+);
