@@ -7,6 +7,10 @@ buildscript {
   }
   dependencies {
     classpath('com.android.tools.build:gradle')
+    // Firebase Cloud Messaging, for push notifications. Added by hand rather
+    // than by `expo prebuild`, which would regenerate this whole project and
+    // take MainActivity.kt's lifecycle guards with it — see CLAUDE.md.
+    classpath('com.google.gms:google-services:4.4.2')
     classpath('com.facebook.react:react-native-gradle-plugin')
     classpath('org.jetbrains.kotlin:kotlin-gradle-plugin')
   }

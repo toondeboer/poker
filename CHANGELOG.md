@@ -379,6 +379,18 @@ platform-tagged heading (e.g. `## [1.1.3] - 2026-07-20 — Android`) when you cu
   contain something — Scunthorpe, therapist and raccoon all pass, and there are tests to keep it
   that way. It stops the lazy case rather than a determined one, which is why reporting sits beside
   it rather than instead of it.
+- **Firebase wired for Android push.** `google-services.json` for the `poker-blinds-buzzer` project,
+  the `com.google.gms.google-services` plugin applied in both Gradle files, and
+  `android.googleServicesFile` in `app.json`. Applied **by hand rather than by `expo prebuild`**,
+  which would regenerate the whole native project and take `MainActivity.kt`'s lifecycle guards with
+  it — the crash fix recorded in `CLAUDE.md`. Verified by `processReleaseGoogleServices` appearing
+  in the task list rather than by assuming the plugin took.
+
+  `google-services.json` is committed on purpose: it ships inside the APK and is extractable from
+  it, and the build needs it. The **service account key** is a different thing entirely — a real
+  credential that can send push as this app — and `.gitignore` now catches it by the name Firebase
+  gives it, plus `serviceAccountKey.json`, so the next one cannot be swept up by a `git add -A`.
+
 - **`RELEASE_TESTING.md` has rows for the shared clock and for notifications.** §18 and §19, 25 rows
   between them, and both say what they need before anybody sets up two phones: the clock wants the
   `/sessions` routes deployed and `FORCE_PRO_IN_DEV` until Club can be bought, and push wants a real
