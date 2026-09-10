@@ -379,6 +379,19 @@ platform-tagged heading (e.g. `## [1.1.3] - 2026-07-20 — Android`) when you cu
   contain something — Scunthorpe, therapist and raccoon all pass, and there are tests to keep it
   that way. It stops the lazy case rather than a determined one, which is why reporting sits beside
   it rather than instead of it.
+- **`STORE_LISTING.md` records the Club products that were actually created**, replacing the plan
+  for them. It said "not created yet" and carried the pre-decision price range; they exist, at
+  €2.99/€19.99. It also had Play wrong in two ways that matter: Play holds **one `club` subscription
+  with `monthly` and `yearly` base plans**, not two subscriptions — two would let somebody hold both
+  at once, where base plans make Google enforce one and handle the switch — and **Play prices are
+  entered ex-tax**, unlike Apple's, so €2.99 typed there shows a Dutch buyer €3.59. The numbers that
+  land on the same customer-facing price are recorded (2.47 and 16.52), along with the note that
+  base plans start inactive and are invisible to RevenueCat until activated.
+
+  The four RevenueCat identifiers are written out too, because they deliberately differ across
+  stores — `club_monthly` against `club:monthly` — and the app matches on `packageType` rather than
+  on any of them for exactly that reason.
+
 - **Club can be bought.** The paywall gains a Club section with both plans, each showing its price
   from the store rather than a number written into the app, and its billing period beside it.
   `purchaseClub` mirrors the Pro path, cancelling included — cancelling is not an error.
