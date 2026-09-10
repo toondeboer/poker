@@ -512,29 +512,81 @@ work outwards, rather than editing these fields from memory.
 
 ### App Store Connect — Auto-Renewable Subscription → `club_monthly` **and** `club_yearly`
 
-**Not created yet** — the price is decided (€2–3/month, €12–15/year) and nothing else here is.
-See `ROADMAP.md` for why the figure sits well below the category's subscription medians.
+**Created 2026-09-09.** Two subscriptions in one group, **€2.99/month and €19.99/year** — the
+monthly matching Pro's €2.99 exactly, which is what closes the subscribe-and-cancel arbitrage. See
+the monetization section of `ROADMAP.md`.
 
-- **Reference Name / Display Name:** Club — the working name; "Pro+" is deliberately avoided
-  because it would say the thing people already bought had been demoted, and it has not changed.
-- **Two SKUs in one subscription group**, monthly and annual, because both prices are decided.
-- **Must grant both `club` and `pro` entitlements in RevenueCat.** A shared board is a leaderboard
-  and the leaderboard is Pro, so a subscriber without it hosts a board they cannot open. The app
-  enforces this too (`entitlementsFrom`), so a missed checkbox is survivable rather than shipped —
-  but set it anyway, or restores and receipts disagree with the app.
-- **Description must say joining is free**, or it reads as though every player at the table needs a
-  subscription, which is the misunderstanding most likely to kill the feature.
+**Apple's fields here are short: display name 30 characters, description 45.** These fit:
 
-### Google Play — Monetize → Subscriptions → `club_monthly` **and** `club_yearly`
+| Field                              | `club_monthly`                                  | `club_yearly`   |
+| ---------------------------------- | ----------------------------------------------- | --------------- |
+| Reference Name (internal)          | `Club Monthly`                                  | `Club Yearly`   |
+| Display Name (customer-facing)     | `Club — Monthly`                                | `Club — Annual` |
+| Description (**exactly 45 chars**) | `Share boards and your clock. Joining is free.` | same            |
+| Subscription Group Display Name    | `Club` — set once for the group                 |                 |
 
-Same product, same entitlements, same copy. **Both stores or neither** — one platform able to
-subscribe and the other not is worse than neither.
+If a console rejects the description on length, `Share a board and clock. Joining is free.` is 41.
+
+- **"Joining is free" earns its place in 45 characters.** Without it the listing reads as though
+  every player at the table needs a subscription, which is the misunderstanding most likely to kill
+  the feature.
+- **"Club", never "Pro+".** Pro+ would say the thing people already bought had been demoted, and it
+  has not changed at all.
+- **Each subscription needs a review screenshot** of the purchase UI — the Club section on the
+  paywall, which exists as of the 3.1.2 work. Completing this metadata is what moves them to
+  _Ready to Submit_, and that is when StoreKit starts returning them in sandbox, so the screenshot
+  and the first sight of that section come at the same moment.
+- **The first subscription must be submitted with an app version**, not on its own. It attaches to
+  the 1.2.0 submission.
+
+### Google Play — Monetize → Subscriptions → one `club` subscription, two base plans
+
+**Not two subscriptions, and the difference matters.** Google models one subscription containing
+base plans; two separate subscriptions would let somebody hold both at once, where base plans make
+Google enforce one at a time and handle the monthly↔annual switch properly.
+
+| Piece             | Value                                                                          |
+| ----------------- | ------------------------------------------------------------------------------ |
+| Subscription ID   | `club` — permanent, never changeable                                           |
+| Base plan         | `monthly`, auto-renewing, 1 month                                              |
+| Base plan         | `yearly`, auto-renewing, 1 year                                                |
+| Base plan ID rule | lowercase letters, digits and hyphens — **no underscores**, unlike product ids |
+
+**Prices are entered ex-tax on Play, and that is not how Apple works.** Google adds VAT on top of
+what you type and rounds to a tidy ending, so €2.99 entered shows a Dutch buyer €3.59. To land on
+the same customer-facing price as Apple, enter **2.47** (→ €2.99) and **16.52** (→ €19.99), then
+_read the displayed price back_ and nudge it, because the rounding is not fully predictable. Pro is
+already priced this way — €2.47 entered, €2.99 shown — so this matches what is live rather than
+introducing a second convention.
+
+⚠️ **Base plans start inactive.** An inactive one cannot be bought and RevenueCat will not see it.
+
+**Both stores or neither** — one platform able to subscribe and the other not is worse than neither.
 
 ### RevenueCat
 
+**The four product identifiers, which do not match across stores and are not meant to:**
+
+| Store     | Monthly        | Annual        |
+| --------- | -------------- | ------------- |
+| App Store | `club_monthly` | `club_yearly` |
+| Play      | `club:monthly` | `club:yearly` |
+
+Play's colon form is `subscriptionId:basePlanId`, which is Google's shape rather than a typo. **The
+app never matches on these names** — `getClubPlans` finds the packages by `packageType`, precisely
+because a name would work on one platform and silently return nothing on the other.
+
+- **Attach all four to `club` _and_ to `pro`.** A shared board is a leaderboard and the leaderboard
+  is Pro, so a subscriber without it hosts a board they cannot open. `entitlementsFrom` defends
+  against the missed checkbox, so it is survivable rather than shipped — set it anyway, or restores
+  and receipts disagree with the app.
+- **Both Club packages go in the _current_ offering, beside Pro.** The app reads
+  `offerings.current` and nothing else, and `getProPackage` finds Pro by product id rather than by
+  position specifically so that a second product in the same offering cannot make the Pro button buy
+  a subscription.
 - The `pro_lifetime` product description mirrors the store; if you keep an
   internal description/notes field, match the copy above so the dashboard reads
-  the same. No entitlement/offering changes — just the text.
+  the same.
 
 ## Release notes — v1.2.0
 
