@@ -173,10 +173,13 @@ export function Paywall({
               disabled={purchasing}
               activeOpacity={0.85}
             >
+              {/* **The period once, not twice.** "Monthly · €2,99 / month"
+                  says it at both ends and reads like a stutter. The label
+                  carries the billing period, which is what 3.1.2 asks to be on
+                  screen, and the price then only has to be the price. */}
               <Text style={styles.clubButtonText}>
                 {plan.period === "monthly" ? "Monthly" : "Annual"} ·{" "}
                 {plan.priceString}
-                {plan.period === "monthly" ? " / month" : " / year"}
               </Text>
             </TouchableOpacity>
           ))}

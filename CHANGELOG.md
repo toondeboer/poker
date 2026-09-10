@@ -379,6 +379,9 @@ platform-tagged heading (e.g. `## [1.1.3] - 2026-07-20 — Android`) when you cu
   contain something — Scunthorpe, therapist and raccoon all pass, and there are tests to keep it
   that way. It stops the lazy case rather than a determined one, which is why reporting sits beside
   it rather than instead of it.
+- **The Club plan rows say their billing period once.** "Monthly · €2,99 / month" said it at both
+  ends and read like a stutter. The label carries the period — which is what guideline 3.1.2 asks to
+  be on screen — so the price only has to be the price.
 - **`STORE_LISTING.md` records the Club products that were actually created**, replacing the plan
   for them. It said "not created yet" and carried the pre-decision price range; they exist, at
   €2.99/€19.99. It also had Play wrong in two ways that matter: Play holds **one `club` subscription
