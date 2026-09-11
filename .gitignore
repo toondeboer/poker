@@ -10,8 +10,9 @@ apps/*/package-lock.json
 .turbo
 
 # Coverage reports. `@poker/core`'s vitest config writes an HTML reporter, so
-# running the tests leaves ~22k lines of generated markup in the working tree —
-# which is easy to sweep into a commit with `git add -A`, and was.
+# running the tests leaves ~48k lines of generated markup in the working tree —
+# which is easy to sweep into a commit with `git add -A`, and has been twice.
+# CodeQL then scans it and reports XSS in Istanbul's bundled `sorter.js`.
 coverage/
 
 # Build outputs
