@@ -623,6 +623,11 @@ platform-tagged heading (e.g. `## [1.1.3] - 2026-07-20 — Android`) when you cu
   also says node's `String.length` is the measure and python's `len` is not — the emoji added here
   are one code point and two units each, which is exactly the gap that note is about.
 
+  **The iOS release notes no longer talk about Android.** One bullet read "Android no longer asks
+  twice for notification permission, and stale Live Activities are cleared away" — in the App Store
+  field, naming the other platform first. The halves are different fixes on different operating
+  systems and Live Activities are iOS-only, so only that half survives there.
+
   **The note claiming there is no terms page is gone**, because there is one: `/terms` is live,
   along with `/support` and `/privacy-policy`. What is left of that item is a single App Store
   Connect field to point at it.

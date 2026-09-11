@@ -459,6 +459,12 @@ anything is submitted rather than being discovered by a reviewer.
 **No emoji in this field** — see [the note below](#ios-metadata-emoji). Bullets are the typographic
 `•` (U+2022), which is punctuation rather than emoji and renders everywhere.
 
+**Nothing about Android goes in this field.** It said "Android no longer asks twice for notification
+permission, and stale Live Activities are cleared away" — one bullet naming the other platform, and
+naming it first. The two halves are different fixes on different operating systems; Live Activities
+are iOS-only, so only that half belongs here. The Android notes below are their own field and can
+say the other half if they ever have room.
+
 ```
 • Deal a hand (Pro). When you have chips but no cards — or nobody can find the deck — pass the phone round the table and the app deals: two cards each, then the flop, turn and river when you are ready, and it reads the showdown at the end. Your own two cards stay hidden until you tap. You play with the chips already in front of you.
 
@@ -480,7 +486,7 @@ anything is submitted rather than being discovered by a reviewer.
 
 • A game in progress now survives the app closing. Shut it between hands, or have the phone die mid-evening, and reopening puts you back at the same table with the same stacks.
 
-• Android no longer asks twice for notification permission, and stale Live Activities are cleared away instead of piling up on the lock screen.
+• Stale Live Activities are cleared away instead of piling up on your Lock Screen.
 
 Thanks for playing — feedback always welcome.
 ```
