@@ -615,18 +615,47 @@ can be run on such a build**, not just this one. Rebuild first — see §0.
 | Signing out and back in with the same provider returns to the **same** account, not a new one                                                                                                                                 | ✅  | ⬜      |
 | **The linking case.** Sign up with email+password, sign out, then sign in with a provider on the _same address_ — the boards and season are still there. This is the one that fails silently and looks exactly like data loss | ✅  | ⬜      |
 | 🚫 **Hide My Email** — needs a **second Apple ID**, and cannot be run with one. See below                                                                                                                                     | ⬜  | ⬜      |
-| Closing the provider sheet halfway leaves the screen usable, with **no red error** — cancelling is not a failure                                                                                                              | ✅  | ⬜      |
+| Closing the provider sheet halfway leaves the screen usable, with **no red error** — cancelling is not a failure                                                                                                              | ✅  | ✅      |
 | Declining at the provider does the same                                                                                                                                                                                       | ✅  | ⬜      |
 | **Use email instead** reveals the email form, and email sign-in still works                                                                                                                                                   | ✅  | ⬜      |
-| With no network, tapping a provider opens the sheet and **Safari** reports being offline; dismissing it leaves no app error                                                                                                   | ✅  | ⬜      |
+| With no network, tapping a provider opens the sheet and **Safari** reports being offline; dismissing it leaves no app error                                                                                                   | ✅  | ✅      |
 
 **Declining failed first time round**, on 2026-09-07: Apple sends `user_cancelled_authorize` and only
 `access_denied` was handled, so the screen said _"That didn't work. Try again in a moment."_ about
 something somebody had chosen to do. Fixed in #219 and re-run on the device before being marked ✅ —
 which is the only thing that makes the mark mean anything.
 
-**Everything ✅ above was run on the iOS Simulator on 2026-09-07**, against `DEV_BACKEND`. Android
-is untouched, and its OAuth redirect is a different path.
+**Everything ✅ on the iOS column was run on the iOS Simulator on 2026-09-07**, against
+`DEV_BACKEND`.
+
+**Android was opened on 2026-09-11** on a `Pixel_stable` API 35 emulator, against `DEV_BACKEND`, and
+two rows are ✅ from it. What that run actually established is worth writing down, because it is more
+than two ticks and less than a pass:
+
+- **Both providers reach their real sign-in page.** Google's shows _"to continue to
+  pokerkit-dev.auth.us-east-1.amazoncognito.com"_, and Apple's shows **the app's own icon and the
+  name "Poker Timer"** — which comes from the Services ID record in the developer portal, so the
+  Services ID, Team ID, Key ID and the `.p8` that signs the client secret are all right. A
+  `redirect_mismatch`, a missing identity provider or a bad client id all fail _before_ that page,
+  so none of them is present on dev.
+- **The launch path is `BrowserProxyActivity` → Chrome Custom Tab**, confirmed in logcat. Chrome's
+  own first-run screen sits in front of it on a fresh emulator, which looks exactly like a broken
+  sign-in and is not one.
+- **The four rows that need real credentials cannot be driven from here** and stay ⬜. So does
+  _Declining at the provider_, which needs somebody to get as far as the provider's own decline
+  button — closing the tab is a different code path, and it is the one already covered.
+- **_Use email instead_ reveals the form correctly** and the provider card keeps no error while it
+  is open, which is the #219 fix holding. The row stays ⬜ because its second half needs an account.
+
+**Neither platform has been run against `PROD_BACKEND`, and that is the gap that matters.** The prod
+pool has its own Apple Services ID (`com.toondeboer.pokerkit.signin`, against the `.dev` one used
+above) and its own Google client id, each needing its own redirect URI registered. Dev passing says
+nothing about prod, and prod is what ships. **Sign in with each provider on a build pointed at
+`PROD_BACKEND` before submitting** — the two buttons are the first thing on the sign-in card, so a
+failure there is a Guideline 2.1 rejection rather than a missing feature.
+
+_On Android the offline row's browser is Chrome rather than Safari; the behaviour asked for is the
+same — the browser reports being offline and dismissing it leaves no app error._
 
 **Hide My Email needs a second Apple ID, and the obvious way to test it does not work.**
 Apple offers the Share/Hide choice only on _first_ authorization and remembers the answer

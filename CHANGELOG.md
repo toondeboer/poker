@@ -605,6 +605,25 @@ platform-tagged heading (e.g. `## [1.1.3] - 2026-07-20 — Android`) when you cu
 
 ### Changed
 
+- **§14b has been opened on Android, and the two rows that can be verified without credentials are
+  ✅.** It had read "Android is untouched", which was true and is the sort of line that stays true
+  until somebody looks. Closing the provider sheet leaves the screen usable with no red error, on
+  both providers, and the offline row behaves as specified with Chrome in Safari's place.
+
+  **What the run established is bigger than the two ticks.** Both providers reach their real sign-in
+  page: Google's names `pokerkit-dev.auth.us-east-1.amazoncognito.com`, and Apple's shows the app's
+  own icon and name, which come from the Services ID record — so the Services ID, Team ID, Key ID
+  and the `.p8` signing the client secret are all correct, since `redirect_mismatch`, a missing
+  identity provider and a bad client id each fail before that page renders. The launch path is
+  `BrowserProxyActivity` into a Chrome Custom Tab, and **Chrome's own first-run screen sits in front
+  of it on a fresh emulator**, which looks exactly like a broken sign-in and is not one.
+
+  **The gap that matters is now named in the file: neither platform has been run against
+  `PROD_BACKEND`.** The prod pool has its own Apple Services ID and Google client id, each needing
+  its own redirect URI registered, so dev passing says nothing about prod — and prod is what ships.
+  The four rows needing real credentials stay ⬜, as does _Declining at the provider_, which needs
+  the provider's own decline button rather than the tab close already covered.
+
 - **The store copy describes the shared clock and the notifications, because both are real now.**
   `STORE_LISTING.md` still opened its release-notes section by excluding the shared clock on the
   grounds that it "still has no transport" — true when it was written and false since the day
