@@ -604,6 +604,15 @@ global number.
 
 ### 3. App Privacy (ASC) and Data Safety (Play)
 
+**Both consoles were filled in during the 1.2.0 console pass (2026-09-08 – 09-11)** — App Store
+Connect's App Privacy and Play's Data Safety, which are separate forms asking different questions in
+different places. Sections 1 and 2 carried a stamp like this and section 3 did not, which is how it
+became unclear what had been done; the point of recording it is that the next release is checked
+against these rather than re-derived under time pressure.
+
+⚠️ **One answer in both consoles predates the push notifications and needs revisiting** — see the
+Device ID note below. Everything else in the table stands.
+
 **The app no longer qualifies as "Data Not Collected".** Re-derived from the code: `apps/mobile`
 declares exactly two third-party SDKs that collect anything — `react-native-google-mobile-ads` and
 `react-native-purchases`. **There is no crash reporter and no analytics SDK in the mobile app**, so
