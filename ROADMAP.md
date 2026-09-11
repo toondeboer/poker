@@ -155,146 +155,58 @@ following a link from the app to a poker table is a conversation the release doe
 
 ### Action items
 
-1. ✅ **Dealer mode does not need a ruling from App Review.** The question was going to be asked;
-   precedent answered it instead. "Deck of Cards — Virtual deal" is a virtual dealer rated **4+ with
-   no content descriptors**, and Apple's descriptor requires "betting or wagering", which dealing
-   cards is not. No ticket needed.
-2. ✅ **Betting engine removed; dealer-only mode shipped** — deal, tap-to-peek hole cards,
-   community board, showdown evaluation. No chips, no bets, no pots; players bet with the physical
-   chips they already have. The cut follows an existing seam: `cards.ts` has no imports and
-   `evaluate.ts` imports only `cards`/`handValue`, so the card layer has zero dependency on the
-   wagering layer.
+**The ten items that forced the release's shape are closed and are not repeated here** — the
+betting engine and the money on the leaderboard are gone, the table backend with them, and both
+questionnaires are answered (4+ on Apple, PEGI 3 on Google, with **Brazil 14+** the one region
+above 3). What each one did is in [CHANGELOG.md](./CHANGELOG.md) and the commit that landed it, and
+the questionnaire answers themselves are recorded in [STORE_LISTING.md](./STORE_LISTING.md) so the
+next release is checked against them rather than re-derived. The reasoning above this heading is
+what stays, because it is the evidence base and it is cited from four other files.
 
-   **Tag before deleting:** `git tag archive/betting-engine` on the commit before the removal, the
-   same convention `archive/native-form-sheets` already uses. The engine is a tested no-limit
-   implementation with side pots and hand evaluation, and it is real work — the tag keeps it
-   recoverable at no maintenance cost, without leaving unreachable code in the tree for somebody to
-   work out the status of later.
+**What is left is accepted rather than done:**
 
-3. ✅ **Money is off the leaderboard.** Track games played, wins and finishing positions; store and
-   display no currency. Removes `Placing.winnings`, `GameResult.buyIn`, `GameResult.bounty`,
-   `LeaderboardStanding.totalWon` and `bountiesWon`, the "won 120" rendering, the money line in the
-   shared summary, and the `winnings`/`buyIn`/`bounty` fields from `cleanResult` and DynamoDB.
-   **The payout calculator stays** — a one-shot "what does each place win tonight" tool has 4+
-   precedent; what does not is accumulating those figures across sessions.
+1. 🟡 **Residual surface, accepted.** With the betting engine and the leaderboard money gone the app deals cards without wagering and
+   keeps a board of games and wins without money — both shapes with 4+ precedent. What remains is
+   the **payout calculator**, which computes a prize pool from a real buy-in. Poker Payout Calc does
+   exactly that at 4+, so the precedent is good, but it is the last gambling-adjacent surface and
+   the one a reviewer would ask about. **The rating is answered per app, not per screen**, so the
+   composition argument — a poker app that deals, calculates prize money and keeps a board — is the
+   one to expect to lose if one is lost. Accepted deliberately: removing the calculator too would
+   gut the feature the release is built on, and it is the single best-evidenced 4+ component in the
+   whole product.
+2. 🟡 **Guideline 1.2 (user-generated content) — three of four met, and the gap is not the one it
+   looks like.** Declaring UGC on the age-rating questionnaire brings the app under 1.2, which asks
+   for four things:
 
-   **This is also what makes the honest claim strong.** With money off the board, "no real-money data
-   leaves the device" becomes simply true, where before it needed careful hedging.
-   `RecordResultSheet` stops reading the payout structure, so the calculator and the record-keeping
-   become fully independent.
+   | Requirement                        | State | Where                                                                                                                                 |
+   | ---------------------------------- | ----- | ------------------------------------------------------------------------------------------------------------------------------------- |
+   | Filter objectionable material      | ✅    | `moderation/textFilter.ts`, tested, refuses names and board names                                                                     |
+   | Report mechanism + timely response | ✅    | `ReportBoardSheet` → `POST /groups/{id}/report`, a `ContentReports` alarm so a report is actually noticed, and `/support` explains it |
+   | **Block abusive users**            | 🟡    | Any member may **leave** a board; an admin may **remove** a member. There is no per-user block                                        |
+   | Published contact information      | ✅    | `poker.blinds.buzzer@gmail.com` on `/support`, with a 2-business-day commitment                                                       |
 
-4. ✅ **Contests made infrequent: "seasons" dropped.** Frame the board as a record of what happened —
-   games, wins, positions — rather than an ongoing competition. Apple's Contests descriptor is 4+
-   when infrequent and 13+ when frequent, and a tracker of offline results is the Strava shape, which
-   is 4+. The substance matters more than the vocabulary: what keeps this at 4+ is that the app
-   records a competition held elsewhere rather than hosting one.
-5. ✅ **Table backend deleted.** `tableAction`, `tableStore`, `tablePublisher`, `subscribeAuthorizer`,
-   `sigv4`, the AppSync Events API, both channel namespaces and `POST /tables/{tableId}/actions`.
-   The synth diff removed **21 resources and added none** — 1 AppSync API, 2 channel namespaces, 1
-   data source, 2 Lambdas, 4 alarms, 3 roles, 3 policies, 2 log groups, 1 route and its integration
-   — leaving DynamoDB, Cognito and the HTTP API untouched (Lambdas 6→4, routes 18→17).
+   **The block requirement is defensible as built, and here is the argument.** Nobody can reach you
+   unless you redeemed their invite link — there is no discovery, no feed, no messaging, and no way
+   to be added to a board you did not join. The only content another person can put in front of you
+   is a board name or a player name, and **leaving the board removes all of it**. For a closed,
+   invite-only group, "leave" _is_ the block. Apple's own February 2026 clarification points the
+   other way — it extended 1.2 to apps that "connect strangers even briefly", which this
+   deliberately does not.
 
-   **Still to deploy.** The code is merged; the stack is not. Run the infra deploy separately, and
-   diff the template before approving — this destroys an AppSync Events API and two Lambdas.
+   **The real gap is a EULA, and it is cheaper to close.** There is **no terms page, no EULA link
+   and no zero-tolerance statement anywhere** in the app or on the site — and a EULA with a
+   zero-tolerance clause is the item 1.2 rejection letters cite most often, more than the block.
+   Closing it needs **no binary change**: set the License Agreement field in App Store Connect (the
+   standard Apple EULA is accepted) and publish a short `/terms` page carrying the zero-tolerance
+   clause. Both are console and web only, so neither risks the build.
 
-6. ✅ **Full money separation** — the dealt game reads no `PayoutSettings` and writes no currency.
-   Largely subsumed by item 3: with money off the leaderboard there is no currency for a finished
-   game to write. What remains is removing the `computePayouts` import from `GameScreen` and the
-   auto-record path, so the calculator and the game never touch.
-7. ✅ **`maxAdContentRating` set to `G`.** `ads.ts` called `initialize()` with no request
-   configuration at all, and `MaxAdContentRating.MA` explicitly includes gambling — so the default
-   permitted gambling ads to serve into a poker app asking to be rated 4+. `G` matches the rating
-   the app is asking for. **`tagForChildDirectedTreatment` is deliberately not set**: this is not a
-   child-directed app, and the SDK warns that abusing that flag can terminate the Google account.
-   A 4+ rating is a statement about content, not about the audience.
-8. ✅ **Gambling-adjacent copy softened** across app, website and store listing. A final read of the whole listing before submission is still worth doing, but nothing specific is outstanding.
-9. ✅ **Factual no-real-money statement added** — a "Money, and what the app does with it"
-   section on `/support`, and a paste-ready block in `STORE_LISTING.md` for the App Review notes
-   field, worded identically so a reviewer who checks finds the two agreeing. Apple's exact words,
-   in **guideline 1.1.6**, are _"Stating that the app is 'for entertainment purposes' won't overcome
-   this guideline."_ — written about false information rather than about gambling, so read it as the
-   general posture it implies rather than as a ruling on this. Either way it points one direction:
-   the statement supports the structural changes rather than substituting for them, which is why it
-   took until items 2–7 were done to be worth writing.
-   **Release-cutting step 1 is already done.** `Info.plist`, `build.gradle` and `app.json` all read
-   `1.2.0` — bumped in `91fc66b` (#148), not left for cut time. Checked because the process in
-   `CLAUDE.md` lists it as a step to perform then, and doing it twice is harmless but looking for it at
-   the wrong moment is not.
+   **Do both before submitting**, and say the block argument in the review notes rather than waiting
+   to be asked — see the hand-off section in [STORE_LISTING.md](./STORE_LISTING.md). A per-user
+   block is worth building if a reviewer pushes back, and not before: it would mean deciding what
+   blocking even means on a shared board somebody else administers.
 
-10. ✅ **Both questionnaires answered, 2026-09-11 — 4+ on Apple, PEGI 3 on Google.** The answers
-    given are recorded in [STORE_LISTING.md](./STORE_LISTING.md) so the next release is checked
-    against them rather than re-derived. The one region above 3 is **Brazil at 14+**: ClassInd rates
-    _jogos de azar_ on theme rather than mechanics, so a poker app lands there whatever the betting
-    engine does. It blocks nothing and is not worth appealing.
-
-    **The rating question is closed.** Everything above it in this section is the reasoning that got
-    here; this is the result., so the next
-    release can be checked against them rather than re-derived. Apple's and Play's IARC are
-    independent and need not agree.
-
-    **Apple's questionnaire was overhauled in July 2025 and this section predates it.** The tiers are
-    now 4+ / 9+ / **13+ / 16+ / 18+** (12+ and 17+ are gone), and there is a new mandatory
-    **Capabilities** section that has nothing to do with chance-based activities. 1.2.0 has to answer
-    it, and two of the answers are yes:
-
-    | Capability              | 1.2.0   | Effect on the tier                                                               |
-    | ----------------------- | ------- | -------------------------------------------------------------------------------- |
-    | User-Generated Content  | **Yes** | Disclosure only — player and board names typed by one member and shown to others |
-    | Advertising             | **Yes** | Disclosure only — AdMob on the free tier                                         |
-    | Messaging and Chat      | No      | —                                                                                |
-    | Social Media            | No      | **Would force 13+** — a board is not a feed with likes, comments or shares       |
-    | Unrestricted Web Access | No      | **Would force 16+** — the app embeds no browser                                  |
-
-    **So 4+ survives**, because the two that raise a tier are both no. But declaring UGC also brings
-    the app under **Guideline 1.2**, which requires four things: a filter (`textFilter.ts` ✅), a
-    report mechanism (`ReportBoardSheet` + `POST /groups/{id}/report` ✅), published contact
-    information (`/support` ✅) and **"the ability to block abusive users from the service"**. That
-    last one is served today only by leaving a board and by an admin removing a member. In a
-    closed-invite group that is arguably enough; it is worth a deliberate decision rather than an
-    assumption, because it is a rejection reason rather than a rating one.
-
-11. 🟡 **Residual surface, accepted.** After items 2 and 3 the app deals cards without wagering and
-    keeps a board of games and wins without money — both shapes with 4+ precedent. What remains is
-    the **payout calculator**, which computes a prize pool from a real buy-in. Poker Payout Calc does
-    exactly that at 4+, so the precedent is good, but it is the last gambling-adjacent surface and
-    the one a reviewer would ask about. **The rating is answered per app, not per screen**, so the
-    composition argument — a poker app that deals, calculates prize money and keeps a board — is the
-    one to expect to lose if one is lost. Accepted deliberately: removing the calculator too would
-    gut the feature the release is built on, and it is the single best-evidenced 4+ component in the
-    whole product.
-12. 🟡 **Guideline 1.2 (user-generated content) — three of four met, and the gap is not the one it
-    looks like.** Declaring UGC on the age-rating questionnaire brings the app under 1.2, which asks
-    for four things:
-
-    | Requirement                        | State | Where                                                                                                                                 |
-    | ---------------------------------- | ----- | ------------------------------------------------------------------------------------------------------------------------------------- |
-    | Filter objectionable material      | ✅    | `moderation/textFilter.ts`, tested, refuses names and board names                                                                     |
-    | Report mechanism + timely response | ✅    | `ReportBoardSheet` → `POST /groups/{id}/report`, a `ContentReports` alarm so a report is actually noticed, and `/support` explains it |
-    | **Block abusive users**            | 🟡    | Any member may **leave** a board; an admin may **remove** a member. There is no per-user block                                        |
-    | Published contact information      | ✅    | `poker.blinds.buzzer@gmail.com` on `/support`, with a 2-business-day commitment                                                       |
-
-    **The block requirement is defensible as built, and here is the argument.** Nobody can reach you
-    unless you redeemed their invite link — there is no discovery, no feed, no messaging, and no way
-    to be added to a board you did not join. The only content another person can put in front of you
-    is a board name or a player name, and **leaving the board removes all of it**. For a closed,
-    invite-only group, "leave" _is_ the block. Apple's own February 2026 clarification points the
-    other way — it extended 1.2 to apps that "connect strangers even briefly", which this
-    deliberately does not.
-
-    **The real gap is a EULA, and it is cheaper to close.** There is **no terms page, no EULA link
-    and no zero-tolerance statement anywhere** in the app or on the site — and a EULA with a
-    zero-tolerance clause is the item 1.2 rejection letters cite most often, more than the block.
-    Closing it needs **no binary change**: set the License Agreement field in App Store Connect (the
-    standard Apple EULA is accepted) and publish a short `/terms` page carrying the zero-tolerance
-    clause. Both are console and web only, so neither risks the build.
-
-    **Do both before submitting**, and say the block argument in the review notes rather than waiting
-    to be asked — see the hand-off section in [STORE_LISTING.md](./STORE_LISTING.md). A per-user
-    block is worth building if a reviewer pushes back, and not before: it would mean deciding what
-    blocking even means on a shared board somebody else administers.
-
-13. 🟡 **UMP/ATT consent is still a placeholder** (`useAdsConsent.ts`). Serving AdMob to EEA/UK
-    without a certified CMP is a live gap, pre-existing and separate from this work.
+3. 🟡 **UMP/ATT consent is still a placeholder** (`useAdsConsent.ts`). Serving AdMob to EEA/UK
+   without a certified CMP is a live gap, pre-existing and separate from this work.
 
 ### How the listing copy is judged — moved here from `STORE_LISTING.md`
 
@@ -343,53 +255,32 @@ release.
 The steps below are kept as the record of what had to happen before the build could be cut; the
 ones that are done say so. What is left is Club products and the manual testing pass.
 
-### 1. Ask for SES production access — ✅ granted 2026-09-04
+**Steps 1 to 3 are done and are not repeated here** — SES production access granted 2026-09-04,
+`PokerBackend-prod` deployed, and `backendConfig` pointing at it (PR #204). The runbook for all
+three lives in [`apps/infra/README.md`](./apps/infra/README.md#standing-up-production), which is
+where it belongs: it is needed again the next time a stack is stood up, and never again for this
+release.
 
-**The only step here with a queue and no code path around it.** A new SES account is in the
-_sandbox_, where mail reaches only addresses that have themselves been verified — so every real
-sign-up would send a confirmation code that never arrives. It takes a day or two to be granted, it
-is per account and region (so `us-east-1` covers both stages), and **nothing else you do this week
-shortens it**.
+One line from it is worth keeping in front of whoever works here next: **setting `backendConfig` to
+`DEV_BACKEND` is the documented way to work against the throwaway stack, and that edit must never
+be committed.**
 
-It is also the one gate that cannot be patched after release. Everything else here is recoverable:
-a misbehaving feature is `-c featureSharing=off` and a 90-second stack update; this is not.
+### 4. Club products — done
 
-Wording and where to file it: [`apps/infra/README.md`](./apps/infra/README.md#standing-up-production).
+`club_monthly`/`club_yearly` on Apple, one `club` subscription with `monthly` and `yearly` base
+plans on Play, and both mapped in RevenueCat to **`club` _and_ `pro`**. The paste blocks and the two
+traps — Play prices entered ex-tax, base plans starting inactive — are in
+[STORE_LISTING.md](./STORE_LISTING.md).
 
-### 2. Stand up prod — ✅ deployed
-
-`PokerBackend-prod` is up. The runbook is in the same section, and the two things in it that are easy to get
-wrong are both deliberate:
-
-- **The first deploy leaves the pool on Cognito's own sender**, and must. Cognito validates the SES
-  identity at the moment the pool is updated while SES verifies asynchronously, so doing both at
-  once rolls the whole stack back with _"Email address is not verified"_. It cost two deploys on
-  dev. Add `"prod": true` to `mailVerified` in `cdk.json` once SES says the identity is good, and
-  deploy again — **in the file, not as a `-c` flag**, because CDK context is not sticky and the CI
-  job passes only account and region.
-- **Confirm the SNS subscription email.** Until somebody clicks that link, every alarm in prod fires
-  into nothing.
-
-### 3. Point the app at prod — ✅ done (PR #204)
-
-`backendConfig` is `PROD_BACKEND`, with the ids read off `PokerBackend-prod`'s own stack outputs
-rather than trusted. **This is the line that makes the release mean anything** — with it null,
-every new feature in 1.2.0 was dead code.
-
-Note for anyone working locally: setting it to `DEV_BACKEND` is the documented way to work against
-the throwaway stack, and that edit must never be committed.
-
-### 4. Club products
-
-App Store Connect and Play Console, plus the RevenueCat entitlement mapping. Do this before the
-build reaches a tester: a paywall whose products do not exist cannot be bought, and that is one of
-the rows in the testing pass.
+**Apple has not approved the subscriptions yet**, and until it does §16b's 13 billing rows cannot
+run. They attach to the 1.2.0 submission rather than being approved separately.
 
 ### 5. The testing pass
 
-~340 unchecked cells over ~170 rows and two platforms in
-[RELEASE_TESTING.md](./RELEASE_TESTING.md), heaviest in the _Leaderboard_, the blind editor and
-_Payouts_.
+The bulk of [RELEASE_TESTING.md](./RELEASE_TESTING.md) is still unrun, heaviest in the
+_Leaderboard_, the blind editor and _Payouts_. §14b has been opened on both pools — the provider
+configuration is proven on prod, and a **completed** sign-in is not, which is the highest-value row
+left in the file.
 
 **It got shorter.** §13 was 38 rows and is now 17: the betting engine it tested is gone, so blinds
 posting, fold/check/call, raise validation, side pots, finishing order and every save-to-leaderboard
@@ -414,17 +305,21 @@ delete the branch.
 
 ### Still open, not blocking the release
 
-- ⬜ **The Cognito federated-MAU question**, before wiring Apple or Google — $0 against roughly
-  $14/month at 1,000 users, and the pricing page names neither provider.
 - 🟡 **The dashboard is generated, not designed.** An alarm status row over a graph per alarm. Fine
   as a starting point; it will want a real layout once somebody has watched it during a game night.
 
 ### What is still code, for when you want me building again
 
-- The real `SessionTransport`, replacing the shared clock's loopback. **This got harder, not
-  easier**: it was waiting on a `session` namespace for an AppSync Events bus that existed, and that
-  bus went with the table backend — so it now needs the realtime API stood back up as well.
-- Sign in with Apple and Google, once the credentials exist and the MAU question above is answered.
+**Both things that used to sit here have shipped**, and the reasons given for them being hard were
+wrong in the same way — each assumed a dependency that did not exist.
+
+The shared clock's transport was said to need "the realtime API stood back up"; it needed three HTTP
+routes and a polling loop. Sign in with Apple and Google were said to be waiting on credentials and
+on the federated-MAU question; the credentials are in `cdk.json` and Secrets Manager, and the MAU
+question was answered on 2026-09-05 (below, and it is the cheap answer).
+
+What is left here is genuinely nothing. The next thing to build is whatever the testing pass turns
+up.
 
 **Not on this list, deliberately: the multiplayer table.** "The app side of the table — subscribe,
 apply events, predict optimistically, reconcile" sat here for months and reads like the obvious next
@@ -520,92 +415,12 @@ on its way out. They are kept until the work lands so the removal can be checked
 
 ## Accounts — live as of 1.2.0
 
-- ✅ **`backendConfig` points at `PROD_BACKEND`** (PR #204), so accounts, shared boards and the
-  sign-up mail behind them are reachable from the app rather than dead code behind a flag. The
-  screens are wired to Cognito — sign up, the emailed confirmation code, sign in, refresh, global
-  sign-out and account deletion, with every Cognito error mapped to something a person can act on.
-  `PokerBackend-prod` is deployed and SES granted production access on 2026-09-04.
-  - What remains is the **manual pass on a real build**, which is a `RELEASE_TESTING.md` matter
-    rather than a roadmap one: sign-up → emailed code → sign-in → sign-out → delete, on a device,
-    against prod.
-  - The Account row is also gated on the server's `features.accounts`, so if SES production access
-    is refused or delayed, `-c featureAccounts=off` hides the row rather than shipping a sign-up
-    whose codes never arrive.
-  - **No client library.** Cognito's user-pool API is JSON over HTTPS and the calls an app needs
-    are unauthenticated in the SigV4 sense, so the request shaping lives in `@poker/core` with
-    tests and the app supplies `fetch`. The alternative, `aws-amplify`, brings native modules —
-    invalidating every dev-client binary and growing a release binary — to buy SRP. The trade
-    taken instead is `USER_PASSWORD_AUTH`: the password crosses inside TLS rather than not at all.
-    Switching to SRP later means adding a library and changing one file, because nothing above
-    `AuthProvider` knows which is in use.
-- ✅ Claiming is built, on the leaderboard's player rows rather than the account screen — that is
-  where the names are. Invisible while signed out, so it degrades to nothing rather than to
-  something broken. **Delete this line when 1.2.0 is cut.**
-- ✅ In-app account deletion is built from the start rather than bolted on, because App Store
-  guideline 5.1.1(v) requires it of any app offering account creation. **Delete this line when
-  1.2.0 is cut.**
-
-## Shared clock — built, transport absent
-
-- 🚧 **Nothing links to `/session`, because `sessionTransport` is `null`.** The protocol, the join
-  code, the screen and the whole send/receive loop are written and were looked at on a simulator
-  against an in-process loopback transport. A join code nobody else can join is worse than no join
-  code, so the Settings row goes in with the transport — one constant in
-  `loopbackSessionTransport.ts` decides it.
-
-- ✅ **It does not need AppSync. That was an assumption, and the protocol disproves it.** This
-  section used to say a shared clock needs "the realtime bus stood back up" — the whole AppSync
-  Events API, channel namespace, subscribe authorizer and by-hand SigV4 publishing that #227
-  deleted. Three things in the code say otherwise:
-
-  - **`HEARTBEAT_MS = 5_000` and `STALE_AFTER_MS = 15_000`.** The protocol already assumes a
-    five-second cadence and tolerates fifteen. It was never designed for a low-latency event stream.
-  - **A message is a whole state snapshot** — `{version, sender, remaining, duration, paused,
-blindIndex}` — not a delta. Miss one and the next one repairs you, which is exactly what makes
-    polling safe and what makes a dropped socket frame dangerous.
-  - **`SessionTransport.subscribe` returns its own unsubscribe.** That is `clearInterval`. Nothing
-    in the interface wants a socket.
-
-  **So the transport is HTTP polling on the API that already exists**, and the whole job is:
-
-  | Piece                                                   | Work                                                                 |
-  | ------------------------------------------------------- | -------------------------------------------------------------------- |
-  | `POST /sessions` → host, returns id                     | one handler, one `SESSION#<code>` item                               |
-  | `GET /sessions/{code}` → resolve + read current message | same handler                                                         |
-  | `POST /sessions/{code}` → publish a snapshot            | same handler, last-write-wins on `version`                           |
-  | Expiry                                                  | **the table already has `expiresAt` TTL** — a session is one evening |
-  | The app side                                            | ~40 lines: `setInterval` at 4s, return the clear                     |
-
-  No new AWS service, no authorizer Lambda, no SigV4, no connection handling, and none of the four
-  alarms that went with the bus. **Knowing the six-character code is the authorization**, which is
-  the same threat model the AppSync version was going to have, and a session carries no cards — the
-  worst case is a stranger watching a countdown.
-
-  Cost is negligible: eight devices polling every four seconds for a four-hour game night is ~29,000
-  requests, about **three cents** at API Gateway's million-request pricing.
-
-  **What polling actually costs is latency**: a pause shows up on a second screen up to four seconds
-  late. For a clock whose authority is the host's phone and whose other screens are informational,
-  that is a fair trade for deleting an entire subsystem from the plan. If it ever is not, the
-  interface is unchanged — swap the transport and nothing above it moves.
-
-- ⬜ **If the AppSync route is taken anyway, the `session` namespace has no subscribe rule.** Anyone holding a code may watch a clock,
-  which is the intended rule, but it still has to be written — and the code is six characters, so
-  guessing one is not out of the question. A session carries no cards, so the worst case is a
-  stranger watching a countdown; that is why this is not in the gate list below.
-- ⬜ **Nothing has been verified between two devices.** Latency, a phone reconnecting mid-round,
-  two people pausing at the same moment, and what a locked screen does to a subscription are all
-  unexercised — the loopback transport has one clock and no network, so it can prove the wiring and
-  nothing about the behaviour. Budget the ~10–12 manual rows scoped for this when a transport lands.
-
 ## Backend: groups, players and results — the server half is done
 
-✅ **Shipped to dev in #180.** One DynamoDB table, no index: a group's partition holds the board and
+**Shipped in #180.** One DynamoDB table, no index: a group's partition holds the board and
 its members, an account's holds its boards and its claims. Sixteen routes, all authorized rather
 than merely authenticated. Account deletion releases claims, hands on a group whose last admin is
 leaving, and deletes the Cognito user **last** — after which no token exists to retry with.
-Design and reasoning in [`apps/infra/SYNC.md`](./apps/infra/SYNC.md). **Delete this line when 1.2.0
-is cut.**
 
 - 🟡 **Nothing has ever called it from a phone.** Every route was exercised by hand against dev, but
   no offline queue has replayed against it and no merge has run. Six `/code-review` rounds found
@@ -733,10 +548,6 @@ if you host. A board that does not sync is never announced _and_ never queues wr
   pointed at `DEV_BACKEND` announces no board, queues no write and shows no share button — silently
   and correctly. Set `FORCE_PRO_IN_DEV` in `PremiumContext`, which forces both entitlements, to run
   the sharing rows in `RELEASE_TESTING.md`. Worth knowing before somebody concludes sync is broken.
-- ✅ **Billing rows written** — §1b covers both SKUs, restore bringing back _both_ entitlements,
-  cancellation, and **expiry**, which the one-time product never had. They cannot be run until the
-  products exist, but they are no longer waiting to be remembered. **Delete this line when 1.2.0 is
-  cut.**
 
 ### What a lapsed subscriber keeps — decided
 
@@ -771,56 +582,23 @@ Guests are unaffected either way. They never paid.
 
 The architecture, the observability design, environments and deploys, the cost model and the build
 order are in [`apps/infra/README.md`](./apps/infra/README.md). Decided: an **HTTP API + Lambda** for
-requests with AppSync Events for push, **OpenTelemetry to Grafana Cloud** with CloudWatch scraped
+requests, **OpenTelemetry to Grafana Cloud** with CloudWatch scraped
 for what OTel cannot see from inside a function, **two stacks in one account** deployed by GitHub
 Actions over OIDC, and **accounts end-to-end as the first deployable slice**.
 
 ## Backend: before anything connects to it
 
-- ⬜ **No route creates a table.** A table is created by a game starting and the app side of that is
-  unbuilt, so `POST /tables/{id}/actions` answers `404 no such table` until a row exists. Not a bug
-  — it is the next thing to build in D — but it is why `apps/infra/scripts/smoke.ts` seeds a table
-  into DynamoDB directly, and why nothing can exercise the table from the app yet.
+### Sign in with Apple and Google — built, and reaching both providers
 
-- ✅ **The shared `table` channel is authorized on subscribe.** A Lambda reads the table's
-  membership and refuses anybody not at it; the private `/player/…` channels keep their APPSYNC_JS
-  guard, which needs no I/O. Every other branch refuses too — a malformed channel, a table that
-  does not exist, a read that throws, a caller with no subject — and they all refuse with the same
-  message, so a caller learns whether they are a member and nothing else. **Delete this line when
-  1.2.0 is cut.**
-- ✅ **The action handler stores and publishes.** Reads the table, runs the rules, writes back on a
-  version check, then publishes — in that order, because publishing first announces a hand that
-  might not be stored. **Delete this line when 1.2.0 is cut.**
-- ⬜ **Cognito's built-in email cannot go to production, and confirmation codes land in spam.**
-  Both test sign-ups delivered, and **both went to the spam folder** — `no-reply@verificationemail.com`
-  is AWS's shared sender, so nothing authenticates the mail as coming from this app. A confirmation
-  code in spam is a sign-up that silently fails: the person is told to check their email, the email
-  is not in their inbox, and there is nothing in the app that can tell them why.
-  - The harder limit is separate and absolute: **Cognito's default email is capped at 50 messages a
-    day**, per account, with no way to raise it. That is a cap on _sign-ups per day_ across the
-    whole app, so it blocks launch on its own rather than merely degrading.
-  - The fix for both is the same — `UserPoolEmail.withSES()` against a verified domain with SPF,
-    DKIM and DMARC, which is what makes the mail authenticate and land in an inbox. It needs a
-    domain and DNS records, so it is a credential-bearing step like Apple and Google below.
-  - **Worth doing before any real user signs up, and it costs nothing to defer until then**: dev is
-    fine on the built-in sender now that it is known where the mail goes.
-- ⬜ **Account deletion has to become server-side, and the ordering is the whole problem.** Today
-  the app calls Cognito's `DeleteUser` directly with its own access token, and that is _correct for
-  now_: the only thing this backend writes is one `TABLE#<id>/STATE` item carrying `members: [sub]`,
-  on a 24-hour TTL, so a deleted account leaves behind something that deletes itself by tomorrow.
-  Nothing durable is keyed by an account yet.
-  - **It stops being correct the moment groups, players and results land** (section C below), which
-    is the first durable per-account data. Deletion must land **in the same pull request**, because
-    the alternative is a period where the store requirement is live and unmet.
-  - **The trap: once the Cognito user is gone, the client has no valid token**, so it cannot
-    authenticate a cleanup call afterwards. That makes this a _replacement_ of the current seam
-    rather than an addition — a `DELETE /me` route that removes the data first and the user second,
-    server-side, with `AdminDeleteUser`. Getting it the other way round leaves orphaned rows nobody
-    holds a credential for.
-  - Make the data half idempotent and retryable: if the user delete fails after the data is gone,
-    the account has to be deletable again on a second attempt rather than wedged.
+**Shipped in 1.2.0.** The buttons are the first two on the sign-in card, ahead of email; the
+credentials are in `cdk.json` and Secrets Manager for both stages, and the prod pool carries both
+identity providers. Checked on 2026-09-11 against `PROD_BACKEND`: both open
+`pokerkit.auth.us-east-1.amazoncognito.com` and reach the provider's own page, with Apple's carrying
+the app's icon and name from the Services ID record.
 
-### Sign in with Apple and Google — decided, not started
+**A completed sign-in is still unverified** — that needs real provider credentials, and it is the
+highest-value open row in `RELEASE_TESTING.md`. The reasoning below is kept because it is why the
+providers sit ahead of email, which is a decision somebody will otherwise reverse.
 
 **Social becomes the primary path and email/password the fallback.** Not because it is fashionable,
 but for one measurable reason: the emailed confirmation code is the highest-drop-off step in any
@@ -902,36 +680,6 @@ reopen that.
   platform-code-stays-in-the-app rule in [CLAUDE.md](./CLAUDE.md) — `@poker/core` has no Swift
   interop story.
 
-## Pro feature: Leaderboard
-
-- ✅ **Shipped in 1.2.0** (unreleased). Local-first, single-device, no accounts — the host's phone
-  is the source of truth. Recording is manual but pre-filled from the payout setup; the timer offers
-  to record when a game looks finished. Ranked by wins with a deterministic tie-break; shows prize
-  money won rather than net profit — a bounty settled by hand can't be reconstructed after the fact,
-  though one from a game the app dealt is counted.
-  Standings can be shared to a group chat as plain text.
-  The design questions this entry used to carry are answered in the changelog entry and the commits.
-  **Delete this section when 1.2.0 is cut** (cutting step 3).
-
-## Pro feature: Buy-in & payout structure
-
-- ✅ **Shipped in 1.2.0** (unreleased). Flat bounties carved out of the buy-in rather than added on
-  top; rebuys counted as further buy-ins and add-ons as pool-only money; payouts rounded to a chosen
-  note size with the largest-remainder method, so the table sums to the pool exactly and no paid
-  place ever wins nothing. A chop calculator splits the money left when the table agrees to end
-  early, and the table can be shared to a group chat.
-  Flat bounties are now _paid_ as well as priced, for a game the app dealt: it tracks who knocked
-  whom out, so the leaderboard can count knockouts and put the money in the total.
-  **Progressive bounties are in too**, on top of that tracking: half of each bounty is paid in cash
-  and half moves onto the winner's head, with the last player standing collecting their own. Flat
-  stays the default.
-  **Delete this section when 1.2.0 is cut** (cutting step 3).
-- ⬜ **ICM as a second chop method.** The shipped chop is chip-count based with a guaranteed floor,
-  which is what home games agree to and is explainable in one sentence. ICM is the method serious
-  players ask for by name and nobody can call unfair; it needs recursive finish-order equity, which
-  is cheap at six players or fewer. Offered during 1.2.0 scoping and deliberately not taken, so this
-  is a real option rather than an oversight.
-
 ## Website and store copy — written, waiting on the release
 
 - 🚧 **PR #155 now targets `release/1.2.0`, so it ships when the app does.** The page advertises
@@ -966,14 +714,10 @@ reopen that.
 
 ## Android notification permission: no recovery path once blocked
 
-- ✅ **There is a way back now.** `NotificationsBlockedCard` sits at the top of Settings whenever
-  Android reports the permission denied, explains that the background timer cannot fire, and opens
-  system settings; it re-checks on every foreground so it disappears the moment the permission is
-  granted. Android-only and invisible otherwise. **Delete this line when 1.2.0 is cut.**
-  - `showPermissionAlert` in `useNotificationPermission` **is finally called** — by the card, as the
-    fallback when a request returns without showing anything, which is the permanently-blocked case
-    it was written for. **Do not delete it with the rest of this section**: it is the only route to
-    `Linking.openSettings()` for a user Android will not prompt again.
+- `showPermissionAlert` in `useNotificationPermission` **is finally called** — by the card, as the
+  fallback when a request returns without showing anything, which is the permanently-blocked case
+  it was written for. **Do not delete it with the rest of this section**: it is the only route to
+  `Linking.openSettings()` for a user Android will not prompt again.
 - The state it exists for is reachable: Android permanently blocks `POST_NOTIFICATIONS` after a
   second denial, after which every `PermissionsAndroid.request` returns `never_ask_again`
   immediately with no dialog. `ForegroundServiceModule.startService` then rejects with

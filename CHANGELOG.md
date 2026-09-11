@@ -9,6 +9,38 @@ platform-tagged heading (e.g. `## [1.1.3] - 2026-07-20 — Android`) when you cu
 
 ## [Unreleased]
 
+## [1.2.0] - 2026-09-11 — iOS & Android
+
+### Release
+
+- **Cut for 1.2.0.** The changelog's accumulated `[Unreleased]` entries are rolled into this dated
+  heading, and `ROADMAP.md` goes from 1,038 lines to 772 — every finished item out, including the
+  eight sections and lines that carried their own _"Delete this when 1.2.0 is cut"_ instruction.
+  The native versions needed no bump: `Info.plist`, `build.gradle` and `app.json` were set to 1.2.0
+  deliberately in #148 back in August.
+
+  **Clearing it out found four claims that contradicted shipped reality**, which is the argument for
+  doing this at cut time rather than letting the file accrete:
+
+  - The shared clock had a whole section titled _"transport absent"_ and an entry saying a real
+    transport "got harder, not easier" because it needed the deleted AppSync bus stood back up. It
+    needed three HTTP routes and a polling loop, and shipped.
+  - Sign in with Apple and Google was _"decided, not started"_ and blocked on credentials and on the
+    federated-MAU question. Both were answered — the credentials weeks ago, the pricing on
+    2026-09-05 — and the file said so about the MAU question **forty lines from where it also listed
+    it as open**.
+  - The backend plan still described "AppSync Events for push". Push goes through Expo's service;
+    AppSync was deleted in #227.
+  - Three items under _before anything connects to it_ described work that has since shipped: a
+    table route that no longer exists at all, Cognito's built-in email, and moving account deletion
+    server-side.
+
+  **`RELEASE_TESTING.md` was deliberately not reset**, against the letter of cutting step 3. That
+  step clears the _previous_ release's results; 1.2.0's pass has not been run yet, so the ✅ in it
+  are this release's own — §14b's iOS rows and the Android ones added today. Resetting now would
+  erase evidence and force re-running work, which is the opposite of what the step is for. It gets
+  reset when 1.2.0 ships, alongside the tag.
+
 ### Added
 
 - **The website says plainly what the app does with money.** A new section on the support page:
@@ -1356,7 +1388,8 @@ _Before Android's launch. Reconstructed from build history — approximate._
 - Initial App Store release: a poker tournament timer with configurable blind levels, a
   per-round countdown, background timing, iOS Live Activities, and an Android foreground service.
 
-[Unreleased]: https://github.com/toondeboer/poker/compare/v1.1.4...HEAD
+[Unreleased]: https://github.com/toondeboer/poker/compare/v1.2.0...HEAD
+[1.2.0]: https://github.com/toondeboer/poker/compare/v1.1.4...v1.2.0
 [1.1.4]: https://github.com/toondeboer/poker/compare/v1.1.3...v1.1.4
 [1.1.3]: https://github.com/toondeboer/poker/compare/v1.1.2...v1.1.3
 [1.1.2]: https://github.com/toondeboer/poker/compare/v1.1.1...v1.1.2
