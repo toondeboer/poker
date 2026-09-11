@@ -605,6 +605,40 @@ platform-tagged heading (e.g. `## [1.1.3] - 2026-07-20 — Android`) when you cu
 
 ### Changed
 
+- **The store copy describes the shared clock and the notifications, because both are real now.**
+  `STORE_LISTING.md` still opened its release-notes section by excluding the shared clock on the
+  grounds that it "still has no transport" — true when it was written and false since the day
+  1.2.0 gave it three HTTP routes and a polling transport. Both store descriptions, both sets of
+  release notes and the Guideline 2.3.1 review note now say what the clock and the push
+  notifications actually do; the Android block goes from 286 to 433 of its 500 characters, and the
+  review notes from 2,835 to 3,442 of their 4,000, which is stated where the blocks are so the next
+  person knows how little room is left.
+
+  **Both long descriptions claimed the same count and neither was right.** They said `2775`; the
+  App Store one is 2,848 and Play's is 2,833. The 15 between them is not a typo either — Play's
+  block is indented two spaces to sit inside a list, so counting its lines as written overstates
+  the text that actually gets pasted, which is now said next to the number rather than left for
+  somebody to rediscover. The checker only reads a count that follows its block, and both of these
+  are stated before theirs, which is how they stayed wrong. The Android note explaining UTF-16 now
+  also says node's `String.length` is the measure and python's `len` is not — the emoji added here
+  are one code point and two units each, which is exactly the gap that note is about.
+
+  **The iOS release notes no longer talk about Android.** One bullet read "Android no longer asks
+  twice for notification permission, and stale Live Activities are cleared away" — in the App Store
+  field, naming the other platform first. The halves are different fixes on different operating
+  systems and Live Activities are iOS-only, so only that half survives there.
+
+  **The reason given for leaving Sign in with Apple and Google out of the notes was wrong.** It
+  said they "need credentials nobody has created" — `cdk.json` carries a Google client id, an Apple
+  Services ID, a Team ID and a Key ID for both stages, the two real secrets are in Secrets Manager,
+  and the prod pool is deployed with both providers. They still stay out of the notes, because §14b
+  has not been run on a real build and a bullet promising a sign-in that fails is a rejection rather
+  than a missing feature — but that is now a testing decision, and the buttons ship either way.
+
+  **The note claiming there is no terms page is gone**, because there is one: `/terms` is live,
+  along with `/support` and `/privacy-policy`. What is left of that item is a single App Store
+  Connect field to point at it.
+
 - **The infra docs describe the backend that is actually deployed.** `apps/infra/README.md` still
   advertised the deleted table backend as current: a `Publishing` row describing SigV4 hole-card
   channels, "sixteen routes" including a poker table (there are seventeen, and no table), X-Ray on

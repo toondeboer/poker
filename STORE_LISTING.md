@@ -131,7 +131,7 @@ Lock Screen bullet already promised in the promotional text above.
 
 **Rewritten for 1.2.0.** The previous draft described an app with no dealt game and told people
 there was "no account, no sign-up" — both false by the time this ships, and the second one is the
-kind of false that reads as a bait-and-switch when the app then asks for an email. `2775` chars,
+kind of false that reads as a bait-and-switch when the app then asks for an email. `2848` chars,
 against a 4,000 limit:
 
 ```
@@ -148,6 +148,7 @@ Built for real Texas Hold'em tournament nights at somebody's kitchen table:
 • Chop the last pot (Pro) — ending early? Everyone left keeps the lowest prize still live and the rest splits by chip stack, so nobody drops below the place they'd locked up
 • Keep a leaderboard (Pro) — who's won most, with a separate board for each group you play with. Recording a night is two taps per player and no typing
 • Share a board with your table (Club) — send a code, they paste it in, and the whole board is on their phone too. Joining is free: only the person who shares a board subscribes
+• Run one clock on every phone at the table (Club) — start a shared clock, everybody types in the code, and the whole table watches the same countdown. Anybody can pause it or skip a level. Joining is free: only the person who starts the clock subscribes
 • Save tournament presets (Pro) — store your blind structure & round length, load them in one tap
 • Choose your alarm sound (Pro) — pick from a few bundled alarm packs beyond the default
 
@@ -190,8 +191,9 @@ Go Pro to remove ads, deal a hand, work out the payouts, chop the last pot, keep
   • Deal a hand (Pro) — no cards, or nobody can find the deck? Pass the phone round and the app deals: two cards each, then the flop, turn and river when the table is ready, and it reads the showdown at the end. Your own two cards stay hidden until you tap. You play with the chips already in front of you
   • Work out the payouts (Pro) — enter the buy-in and the app splits the pool across the places that pay, with bounties, rebuys and add-ons counted. Every place below the winner is a round number you can count straight out of the pot
   • Chop the last pot (Pro) — ending early? Everyone left keeps the lowest prize still live and the rest splits by chip stack, so nobody drops below the place they'd locked up
-    • Keep a leaderboard (Pro) — who's won most, with a separate board for each group you play with. Recording a night is two taps per player and no typing
+  • Keep a leaderboard (Pro) — who's won most, with a separate board for each group you play with. Recording a night is two taps per player and no typing
   • Share a board with your table (Club) — send a code, they paste it in, and the whole board is on their phone too. Joining is free: only the person who shares a board subscribes
+  • Run one clock on every phone at the table (Club) — start a shared clock, everybody types in the code, and the whole table watches the same countdown. Anybody can pause it or skip a level. Joining is free: only the person who starts the clock subscribes
   • Save tournament presets (Pro) — store your blind structure & round length, load them in one tap
   • Choose your alarm sound (Pro) — pick from a few bundled alarm packs beyond the default
 
@@ -227,7 +229,9 @@ Go Pro to remove ads, deal a hand, work out the payouts, chop the last pot, keep
   which is the single most useful sentence in it: the misunderstanding likeliest
   to cost installs is somebody assuming a blinds timer now needs a login.
 
-  `2775` chars, against a 4,000 limit. Play mines keywords from the first two
+  `2833` chars, against a 4,000 limit — the block above is indented two spaces to
+  sit inside this list, so counting its lines as written overstates the text that
+  actually gets pasted by two per line. Play mines keywords from the first two
   sentences (the part visible before "Read more"); those keep the same opening
   and gain "it deals".
 
@@ -436,14 +440,41 @@ these features: `GET /config` on the backend turns accounts or sharing off in ab
 without a store release. If something misbehaves after submission, that is the recovery — not a
 patch.
 
-**Two things stay out of the notes either way**: the shared clock, which still has no transport, and
-Sign in with Apple and Google, which need credentials nobody has created. Neither is something a
-person can use.
+**The shared clock is in the notes now, and the reason it used to be out has gone.** This section
+said it "still has no transport", which was true right up until 1.2.0 gave it one — three HTTP
+routes and a polling transport, Club to host and free to join. Push notifications arrived in the
+same stretch. Both are real features a person can use, so both are described below; leaving them out
+would undersell the release for a reason that expired.
+
+**Sign in with Apple and Google are out of the notes, but not for the reason this used to give.**
+It said they "need credentials nobody has created". They exist: `apps/infra/cdk.json` carries a
+Google client id, an Apple Services ID, a Team ID and a Key ID for **both** stages, and the two real
+secrets sit in Secrets Manager, so `socialSignInFor` returns a configuration and the prod pool is
+deployed with both providers on it. The buttons in `AccountScreen` are the first two on the sign-in
+card, ahead of email.
+
+**What is missing is a pass over them on a real build** — §14b of `RELEASE_TESTING.md`, unrun. They
+stay out of the release notes until somebody has signed in with each on a device, because a bullet
+promising a sign-in that fails is a Guideline 2.1 rejection rather than a missing feature. That is a
+testing decision now, not a credentials one, and it is the first thing to settle in the pass: the
+buttons ship whether or not the notes mention them, so if either is broken the fix is not a copy
+edit.
+
+**Notes are editable until the moment of submission** — in App Store Connect right up to _Submit for
+Review_, in Play Console right up to rollout. §18 and §19 of `RELEASE_TESTING.md` have not been run
+on two devices yet; if either feature does not survive that pass, these bullets come back out before
+anything is submitted rather than being discovered by a reviewer.
 
 ### iOS — "What's New in This Version" (App Store Connect)
 
 **No emoji in this field** — see [the note below](#ios-metadata-emoji). Bullets are the typographic
 `•` (U+2022), which is punctuation rather than emoji and renders everywhere.
+
+**Nothing about Android goes in this field.** It said "Android no longer asks twice for notification
+permission, and stale Live Activities are cleared away" — one bullet naming the other platform, and
+naming it first. The two halves are different fixes on different operating systems; Live Activities
+are iOS-only, so only that half belongs here. The Android notes below are their own field and can
+say the other half if they ever have room.
 
 ```
 • Deal a hand (Pro). When you have chips but no cards — or nobody can find the deck — pass the phone round the table and the app deals: two cards each, then the flop, turn and river when you are ready, and it reads the showdown at the end. Your own two cards stay hidden until you tap. You play with the chips already in front of you.
@@ -452,7 +483,11 @@ person can use.
 
 • Share a board with the people you play with (Club). Send them a code, they paste it in, and the board — every player, every night already on it — is on their phone too. Whoever recorded the game does not have to be the one who reads it out. Joining is free: only the person who shares a board subscribes.
 
+• One clock on every phone at the table (Club). Start a shared clock and the app gives you a code; everybody else types it in and watches the same countdown, with the same blinds and the same level. Anybody at the table can pause it or skip a level, because whoever is nearest the phone should not have to be the one who runs the game. Joining is free: only the person who starts the clock subscribes.
+
 • Your boards follow your account, not your phone (Club). Sign in somewhere else, or reinstall, and they come back. Record a night with no signal and it is kept and sent when there is some, so the pub with one bar of reception stops being a problem.
+
+• A buzz when somebody adds a game night to a board you are on. It names the board and nothing else, and it never goes to whoever just recorded the result — they were holding the phone.
 
 • An account, if you want one. Email and a password, a code to confirm it, and you can delete the account and everything on our servers from inside the app.
 
@@ -462,7 +497,7 @@ person can use.
 
 • A game in progress now survives the app closing. Shut it between hands, or have the phone die mid-evening, and reopening puts you back at the same table with the same stacks.
 
-• Android no longer asks twice for notification permission, and stale Live Activities are cleared away instead of piling up on the lock screen.
+• Stale Live Activities are cleared away instead of piling up on your Lock Screen.
 
 Thanks for playing — feedback always welcome.
 ```
@@ -475,24 +510,30 @@ Re-count in App Store Connect before saving; the limit is 4000 characters and th
 🃏 Deal a hand (Pro): no cards? The app deals. Flop, turn, river and the showdown.
 👥 A leaderboard per group — Thursdays and the office game kept apart.
 🔗 Share a board with your table (Club). Joining one is free.
+⏱️ Run one clock on every phone at the table (Club) — same blinds, same countdown.
+🔔 A buzz when somebody adds a game night to a board you're on.
 ♻️ Games survive the app closing, and sync when you have signal again.
 ```
 
-`286` chars — comfortably inside the 500-char Play Console limit.
+`433` chars — inside the 500-char Play Console limit, with 67 to spare.
 
-**286 and not 283, and the difference is the whole reason to state it.** A store counts UTF-16 code
-units; those four emoji are one code point each and two units each, so counting characters the
-obvious way undercounts by three. Every number in this file is the UTF-16 one, because that is the
-number the console is comparing against its limit. A block that is 497 by one measure and 503 by the
-other is rejected.
+**433 and not 429, and the difference is the whole reason to state it.** A store counts UTF-16 code
+units; four of those emoji (🃏 👥 🔗 🔔) are one code point each and two units each, so counting
+characters the obvious way undercounts by four. The other two (⏱️ ♻️) are a BMP character plus a
+variation selector and count the same either way, which is exactly why "count the emoji" is not a
+rule that works. Every number in this file is the UTF-16 one, because that is the number the console
+is comparing against its limit. A block that is 497 by one measure and 503 by the other is rejected.
+`npm run check:listing` does this counting in node, whose `String.length` is UTF-16 — python's `len`
+is code points and will disagree.
 
 **"Joining one is free" earns its place in 500 characters**, because the misunderstanding most
 likely to kill the feature is a table assuming all six of them need a subscription. One line, and it
 is the line that decides whether anybody tries it.
 
-**Deliberately not mentioned:** the shared clock, which has no transport and is unreachable; Sign in
-with Apple and Google, which need credentials nobody has created; and the record-a-game prompt's
-conditions. Those nuances belong in the app, not in 500 characters of store copy.
+**Deliberately not mentioned:** Sign in with Apple and Google, which need credentials nobody has
+created; and the record-a-game prompt's conditions. Those nuances belong in the app, not in 500
+characters of store copy. The shared clock used to be on this list for a reason that has since
+expired — it has a transport now, and a line of its own above.
 
 ---
 
@@ -637,6 +678,13 @@ New in this version:
   amount is stored or shared.
 - Reporting and leaving a board, plus a name filter, because board and player names are
   user-generated and visible to other members.
+- A shared tournament clock. The host starts a session and the app shows a short code; other
+  players type it in and see the same countdown, blind level and structure. The server holds one
+  short-lived row per session containing the clock state and nothing else — no names, no amounts,
+  no cards. It expires by itself after six hours.
+- Push notifications, through Expo's push service, sent only to members of a board somebody else
+  just recorded a game on. The notification contains the board's name and a fixed sentence; no
+  player name and no amount ever appears on a lock screen.
 - A card dealer. The phone shuffles and deals two cards per player, turns the flop, turn and river
   when the host taps, and reads the showdown. Each player's own cards stay hidden until they tap,
   and hide again when the phone moves on. It holds no chips and has no betting controls.
@@ -647,9 +695,13 @@ Removed in this version: an earlier build of 1.2.0 contained a betting engine fo
 (fold/check/call/raise, pots, side pots). It was removed before submission, along with all monetary
 amounts on the leaderboard. There is no wagering anywhere in this app.
 
-To review the dealer and the shared board, Pro and Club are required. Please use the demo account
-below, which has both entitlements granted.
+To review the dealer, the shared board and the shared clock, Pro and Club are required. Please use
+the demo account below, which has both entitlements granted.
 ```
+
+**The three blocks together are 3,442 characters against a 4,000-character field**, so they fit —
+but only just. Anything added here from now on has to come out of something else; check the total in
+the console rather than assuming there is room.
 
 **Add this too, because Guideline 1.2 will otherwise be asked about.** The app declares
 user-generated content, and 1.2 wants a way to block abusive users. Say the argument rather than
@@ -664,11 +716,11 @@ their device; a board admin can remove a member outright. Offensive content can 
 inside the app, and reports are monitored and answered — see the Support page.
 ```
 
-**Before submitting, close the EULA gap.** There is currently no terms page and no zero-tolerance
-statement anywhere, and that is the item 1.2 rejection letters cite most often. Set the **License
-Agreement** field in App Store Connect (Apple's standard EULA is accepted) and publish a short
-`/terms` page with a zero-tolerance clause. Both are console and web only — **neither needs a new
-binary**, so neither can delay the build.
+**The EULA gap is closed, bar one console field.**
+[`/terms`](https://poker-timer.toondeboer.com/terms) is published and live, with the zero-tolerance
+clause that 1.2 rejection letters cite most often. What is left is to point App Store Connect's
+**License Agreement** field at it (Apple's standard EULA is also accepted). That is console only —
+**it needs no new binary**, so it cannot delay the build.
 
 **Leave a demo account and password in the review notes**, with Pro and Club granted in RevenueCat —
 a reviewer who cannot get past the paywall cannot review the feature the release is built on, and
