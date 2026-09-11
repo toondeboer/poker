@@ -609,13 +609,27 @@ declares exactly two third-party SDKs that collect anything — `react-native-go
 `react-native-purchases`. **There is no crash reporter and no analytics SDK in the mobile app**, so
 nothing to declare under Diagnostics.
 
-| Data                           | Collected           | Linked to the user | Purpose                 | Where it comes from                                      |
-| ------------------------------ | ------------------- | ------------------ | ----------------------- | -------------------------------------------------------- |
-| **Email address**              | Yes, if you sign up | Yes                | App Functionality       | Cognito username _and_ attribute — see `auth/cognito.ts` |
-| **User ID** (Cognito `sub`)    | Yes, if you sign up | Yes                | App Functionality       | `ACCOUNT#<accountId>` in DynamoDB                        |
-| **Other User Content**         | Yes, if you share   | Yes                | App Functionality       | Board names, player names, report free-text              |
-| **Purchase history**           | Yes                 | Yes                | App Functionality       | RevenueCat entitlement state                             |
-| **Device ID / advertising ID** | Yes, free tier only | No                 | Third-Party Advertising | AdMob                                                    |
+| Data                            | Collected           | Linked to the user | Purpose                 | Where it comes from                                      |
+| ------------------------------- | ------------------- | ------------------ | ----------------------- | -------------------------------------------------------- |
+| **Email address**               | Yes, if you sign up | Yes                | App Functionality       | Cognito username _and_ attribute — see `auth/cognito.ts` |
+| **User ID** (Cognito `sub`)     | Yes, if you sign up | Yes                | App Functionality       | `ACCOUNT#<accountId>` in DynamoDB                        |
+| **Other User Content**          | Yes, if you share   | Yes                | App Functionality       | Board names, player names, report free-text              |
+| **Purchase history**            | Yes                 | Yes                | App Functionality       | RevenueCat entitlement state                             |
+| **Device ID / advertising ID**  | Yes, free tier only | No                 | Third-Party Advertising | AdMob                                                    |
+| **Device ID** (Expo push token) | Yes, if you sign in | **Yes**            | App Functionality       | `ACCOUNT#<id>`/`PUSH#<token>` — `pushStore.ts`           |
+
+**Device ID is declared twice, on purpose, and both consoles allow it.** AdMob's advertising id is
+**not** linked to the user and exists for advertising; the **Expo push token** is stored against the
+account (`ACCOUNT#<id>`/`PUSH#<token>`) and so _is_ linked, for App Functionality. Declaring only the
+first — which is what this table did until push shipped — understates it. In App Store Connect that
+is one Device ID entry with both purposes and both linked/unlinked ticked; in Play's Data Safety it
+is _Device or other IDs_, collected, with the same two purposes.
+
+**The shared clock adds nothing to declare, and it is worth writing down why** so nobody re-derives
+it. A `SESSION#<code>` row holds seconds remaining, round length, paused, blind index, a `sender`
+that is a **random id generated per app launch** (`DEVICE_ID = generateId()` in
+`SharedSessionContext.tsx` — not a device identifier and not persisted), and a six-hour TTL. No
+names, no account id, no cards, no amounts.
 
 **Not collected, and worth stating because a poker app invites the question:** no location of any
 precision, no contacts, no photos, no health data, no browsing history, no financial information —
