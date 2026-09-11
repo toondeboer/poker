@@ -1,14 +1,52 @@
-# Store listing copy (ASO)
+# Store listing copy
 
-Source of truth for App Store / Play Store listing text. Optimized for the
-keyword phrases people actually search: **poker timer, blinds timer, tournament
-clock, poker clock, blinds buzzer**.
+**Everything that gets typed into a store console, and nothing else.** Optimised for the phrases
+people search: **poker timer, blinds timer, tournament clock, poker clock, blinds buzzer**.
 
-> On-device name (home screen) stays short — keep `app.json` `name: "Poker
-Timer"`. The fields below are the **store-listing** name/subtitle, set in App
-> Store Connect / Play Console, which are separate from the installed app name.
+**Copy the blocks verbatim.** Every character count here has been measured rather than estimated,
+and the ones that sit exactly on a limit say so.
 
-## iOS — App Store Connect
+> The on-device name stays short — `app.json` `name: "Poker Timer"`. The name and subtitle below are
+> the **store-listing** ones, which are separate fields.
+
+## Contents
+
+**What to paste**
+
+- [App Store Connect](#app-store-connect--every-field)
+- [Google Play](#google-play--every-field)
+- [In-app purchases and subscriptions](#in-app-purchases-and-subscriptions)
+- [Release notes — v1.2.0](#release-notes--v120)
+- [Notes for Review](#notes-for-review-app-store-connect)
+
+**What to answer**
+
+- [Submission checklist — every console step](#submission-checklist--every-console-step)
+
+**Why the copy is what it is** — read once, not every release
+
+- [Age rating, and the gambling question](#age-rating-and-the-gambling-question)
+- [Field rules: what each store accepts](#field-rules-what-each-store-actually-accepts)
+- [Housekeeping](#housekeeping)
+
+---
+
+## At a glance — the short fields
+
+The long ones have their own blocks below; these are the ones that are a line each.
+
+| Console  | Field              | Value                                                       |
+| -------- | ------------------ | ----------------------------------------------------------- |
+| **ASC**  | App Name (≤30)     | `Poker Blinds Timer & Buzzer` — 27                          |
+| **ASC**  | Subtitle (≤30)     | `Tournament clock & blind timer` — 30, exactly on the limit |
+| **ASC**  | Keywords (≤100)    | see [App Store Connect](#app-store-connect--every-field)    |
+| **ASC**  | Privacy Policy URL | `https://poker-timer.toondeboer.com/privacy-policy`         |
+| **ASC**  | Support URL        | `https://poker-timer.toondeboer.com/support`                |
+| **ASC**  | License Agreement  | `https://poker-timer.toondeboer.com/terms`                  |
+| **Play** | Delete account URL | `https://poker-timer.toondeboer.com/support#delete-account` |
+| **Play** | Feature graphic    | `store-assets/android/feature-graphic.png`                  |
+
+## App Store Connect — every field
 
 ### App Name (≤30 chars) — `27`
 
@@ -120,7 +158,7 @@ Whether it's a casual poker night with friends or a bigger home tournament, Poke
 Go Pro to remove ads, deal a hand, work out the payouts, chop the last pot, keep a leaderboard, save presets and pick your alarm sound — or just support an indie developer. The timer itself stays free.
 ```
 
-## Android — Google Play (reuse at launch — P1 item 4)
+## Google Play — every field
 
 - **Feature graphic (1024×500, required for the store listing):**
   [`store-assets/android/feature-graphic.png`](./store-assets/android/feature-graphic.png) —
@@ -195,113 +233,267 @@ Go Pro to remove ads, deal a hand, work out the payouts, chop the last pot, keep
 
 <a id="age-rating"></a>
 
-## Age rating — the answer is "no simulated gambling", and here is why
+## In-app purchases and subscriptions
 
-**The app stays 4+ on Apple and PEGI 3 on Google, and the honest answer to the simulated-gambling
-question is no** — both confirmed by answering the questionnaires on 2026-09-11, with Brazil the one
-region above 3 (see the IARC section) — because two things are being removed before 1.2.0 ships: the betting engine, and
-money from the leaderboard. See
-[ROADMAP.md](./ROADMAP.md#gambling-classification--blocking-120) for the full decision record and
-the comparable-app evidence.
+The paywall (`PRO_FEATURES` in `apps/mobile/src/components/paywall/Paywall.tsx`)
+promises **seven** things as of 1.2.0 — **remove ads · deal the cards · buy-ins,
+payouts and bounties · a leaderboard for every group · save & load tournament
+presets · choose your alarm sound · support the dev**. Update the store IAP copy
+in all three consoles to match.
 
-**An earlier draft of this section said 18+, and that was right for the app as built.** Apple defines
-Simulated Gambling as _"Betting or wagering without using real money or in-game currency that can be
-exchanged for real money."_ The dealt game's fold/check/call/raise and Min/Pot/All-in controls are
-betting, and as a headline Pro feature they are frequent, not infrequent — which is 18+. What
-changed is the app, not the reading.
+**This drifted again while 1.2.0 was being built**, exactly as the note below
+warns: the list here said six and omitted dealing a hand, which is the headline
+of the whole release. Read `PRO_FEATURES` before touching any of the fields
+below, every time — it is one grep and it is the only thing that is definitely
+right.
 
-**13+ was never available**, for three separate reasons worth recording so nobody re-litigates it:
-Apple's 13+ requires _infrequent_ simulated gambling; **PEGI put gambling content at 18 in 2020** and
-reaches Google Play through IARC, so Europe had no 13+ tier for a betting engine; and Apple's
-restriction on gambling apps from **Individual developer accounts** — which this is — would not care
-about the tier either way.
+This has now drifted twice: the paywall was found still selling the 1.1.4
+feature set during the 1.2.0 cycle, and the store copy one level out had the
+same problem. **The paywall is the source of truth** — read `PRO_FEATURES` and
+work outwards, rather than editing these fields from memory.
 
-**That last one is an unresolved risk, not a settled fact**, and this file used to state it as
-though it were. It traces to an October 2018 announcement; the current guideline 5.1.1(ix) says apps
-that _"provide services in"_ highly regulated fields — gambling among them — _"should be submitted
-by a legal entity … and not by an individual developer"_, which arguably excludes a play-money game.
-Against enforcement-as-written: **Cash Out Poker carries Apple's `Gambling` descriptor today and
-ships under a seller name with no entity suffix.** It is moot for 1.2.0 regardless — with betting
-gone there is no gambling descriptor for the rule to attach to — and matters only if betting ever
-comes back. See [ROADMAP.md](./ROADMAP.md#gambling-classification--blocking-120).
+### App Store Connect — In-App Purchase → `pro_lifetime`
 
-**The second trigger was nearly missed.** Comparable apps show the line is not dealing and not
-calculating, but **accumulating real money across sessions**: a virtual card dealer is 4+ and a
-one-shot payout calculator is 4+, while a home-game buy-in/cash-out scorekeeper and a poker bankroll
-tracker are both **18+**. The leaderboard as built kept a running "won 120" per player, which is the
-bankroll-tracker shape. Money comes off the board for that reason.
+**Display Name (≤30):** `Pro — Deal, Payouts & Board` — 27
 
-### What to say if a reviewer asks
-
-There is no real money in the app: no wagering, no purchase of chips, no cash-out, and no currency
-symbol rendered anywhere. The payout screen is a calculator for money that changes hands at a
-kitchen table and never touches the app, and nothing it produces is stored or synced. That is the
-difference between simulated gambling (a rating) and real-money gambling (a different rulebook,
-which this app is not in).
-
-The app deals cards and evaluates a showdown; it holds no chips, no stakes and no pots. The
-leaderboard records games played, wins and finishing positions — no amounts.
-
-**Say it plainly and do not embroider it.** An earlier draft of this file had to hedge, because the
-leaderboard was still syncing `buyIn`, `bounty` and `winnings` to a shared board. With money off the
-board that hedge is gone and the simple claim is true. If a future change puts money back on the
-board, this paragraph stops being accurate — check it before repeating it.
-
-### Paste-ready review note
-
-Everything above, in the form the App Review notes field wants. The same wording is published at
-[/support](https://poker-timer.toondeboer.com/support) under "Money, and what the app does with it", so a
-reviewer who checks finds the two agreeing.
+**Description** — short field, **verify the limit in the console**, it is tight:
 
 ```
-Nothing is wagered, staked or paid through this app. There is no way to bet in it, buy chips in it,
-or cash anything out of it — no wallet, no balance, and no payment of any kind between players. The
-only money the app handles is its own one-time Pro purchase, taken by Apple.
-
-The card table deals: it shuffles, deals two cards to each player, turns the flop, turn and river
-when the host taps, and reads the showdown. It holds no chips and has no betting controls — players
-use the physical chips already in front of them.
-
-The payout screen is a calculator. Enter a buy-in and it works out what each place wins, the way a
-spreadsheet would. It settles nothing and stores nothing.
-
-The leaderboard records who played, who won and where people finished. No monetary amount is stored
-or shared anywhere in the app.
+No ads, deal a hand, payouts, leaderboard.
 ```
 
-**Check it against the binary before pasting it.** It is accurate as of the 1.2.0 build; it is a
-statement Apple can hold the app to, and a wrong one is far more expensive than no statement.
+`42` chars.
 
-### Honest declaration is the whole strategy
+### Google Play — Monetize → Products → `pro_lifetime`
 
-Apple removes developers for _"trying to trick the review process"_ and _"manipulate ratings"_, and
-says plainly: _"if you're dishonest, we don't want to do business with you."_ **The route to a ban is
-under-declaring a poker game, not having one.** Answer both questionnaires from the built binary
-rather than from this file, and record the answers given so the next release can be checked against
-them. Apple's and Play's IARC are independent and need not agree.
+**Name (≤55):** `Pro — Deal, Payouts, Leaderboard & No Ads` — 41
 
-### Copy that reads badly next to a gambling question
+**Description (≤200):**
 
-Not errors — the listing is honest — but each of these is a sentence a reviewer weighing a gambling
-question will read, so each is worth a deliberate decision rather than inheriting it:
+```
+Unlock Pro: deal a hand when nobody brought cards, work out payouts and bounties, chop the last pot, keep a leaderboard per group, save presets, and remove all ads. One-time purchase.
+```
 
-| Where                  | Text                                                   | Why it is worth changing                                                                                                                                                                                |
-| ---------------------- | ------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| iOS keywords           | `casino`, `bet`                                        | **Changed.** See the keywords section — removed and replaced at the same character count.                                                                                                               |
-| Both long descriptions | "not a casino app full of settings you'll never touch" | **Changed** to "at somebody's kitchen table". It was a line about simplicity, but it put `casino` in the copy of an app that now deals cards.                                                           |
-| Both long descriptions | "settles the money before it turns into an argument"   | **Kept, softened** to "settles who won what". The original is a good line and true of a payout calculator; "the money" beside a dealt game invites the real-money question the app does not need asked. |
-| Play release notes     | "half in cash, half onto your own head"                | **Moot** — progressive bounties are removed with the betting engine, so the sentence goes with the feature. It was the most gambling-flavoured line in the listing.                                     |
-| iOS release notes      | "Knockouts are tracked, and bounties finally add up"   | **Moot** — knockout attribution needs pots, which are gone.                                                                                                                                             |
-| Both                   | "buy-in", "prize", "pot", "payout", "winnings"         | Fine, and correct — this is what a tournament calculator is for. Do not sanitise these into vagueness; a listing that will not say what the app does is worse than one that does.                       |
-| Both long descriptions | "blinds, **betting**, side pots, the showdown"         | **Changed.** It described a betting game the binary no longer contains — the same metadata-accuracy failure as under-declaring, pointed the other way.                                                  |
+`183` chars.
 
-**What not to do, in both directions.** Do not describe the dealt game as less than it is to duck a
-rating — that is the failure mode that costs a rejection _and_ the resubmission. And now that the
-betting is going, do not leave copy describing betting that the binary no longer has: an app that
-under-delivers against its own listing is the same accuracy problem wearing the other hat. **Write
-the listing from the built binary, every time.**
+### Club — paste blocks
 
-## Submission hand-off — every console step, with the answers
+**Apple's limits are the binding constraint: 30 characters for a display name, 45 for a
+description.** These fit, measured:
+
+**`club_monthly`**
+
+| Field                     | Value            | Count |
+| ------------------------- | ---------------- | ----- |
+| Reference Name (internal) | `Club Monthly`   | —     |
+| Display Name (≤30)        | `Club — Monthly` | 14    |
+
+```
+Share boards and your clock. Joining is free.
+```
+
+`45` chars — **exactly on Apple's limit**. If a console rejects it, use
+`Share a board and clock. Joining is free.` (41).
+
+**`club_yearly`** — same description, and:
+
+| Field                     | Value           | Count |
+| ------------------------- | --------------- | ----- |
+| Reference Name (internal) | `Club Yearly`   | —     |
+| Display Name (≤30)        | `Club — Annual` | 13    |
+
+**Subscription Group Display Name**, set once for the group:
+
+```
+Club
+```
+
+**Play's store listing for the subscription** (its own name and description field, separate from
+the base plans):
+
+```
+Club
+```
+
+```
+Share a leaderboard and a clock with the people you play with. Joining a board somebody shares is always free — only the person who shares it subscribes. Includes everything in Pro.
+```
+
+`181` chars. Play's limit is more generous than Apple's, so this is the version that can afford to
+say the whole thing.
+
+### Why "joining is free" is in a 45-character field
+
+It is the misunderstanding most likely to kill the feature: without it the listing reads as though
+every player at the table needs a subscription. In 45 characters there is room for the offer or for
+that sentence, and that sentence wins.
+
+### App Store Connect — Auto-Renewable Subscription → `club_monthly` **and** `club_yearly`
+
+**Created 2026-09-09.** Two subscriptions in one group, **€2.99/month and €19.99/year** — the
+monthly matching Pro's €2.99 exactly, which is what closes the subscribe-and-cancel arbitrage. See
+the monetization section of `ROADMAP.md`.
+
+**Apple's fields here are short: display name 30 characters, description 45.** These fit:
+
+| Field                              | `club_monthly`                                  | `club_yearly`   |
+| ---------------------------------- | ----------------------------------------------- | --------------- |
+| Reference Name (internal)          | `Club Monthly`                                  | `Club Yearly`   |
+| Display Name (customer-facing)     | `Club — Monthly`                                | `Club — Annual` |
+| Description (**exactly 45 chars**) | `Share boards and your clock. Joining is free.` | same            |
+| Subscription Group Display Name    | `Club` — set once for the group                 |                 |
+
+If a console rejects the description on length, `Share a board and clock. Joining is free.` is 41.
+
+- **"Joining is free" earns its place in 45 characters.** Without it the listing reads as though
+  every player at the table needs a subscription, which is the misunderstanding most likely to kill
+  the feature.
+- **"Club", never "Pro+".** Pro+ would say the thing people already bought had been demoted, and it
+  has not changed at all.
+- **Each subscription needs a review screenshot** of the purchase UI — the Club section on the
+  paywall, which exists as of the 3.1.2 work. Completing this metadata is what moves them to
+  _Ready to Submit_, and that is when StoreKit starts returning them in sandbox, so the screenshot
+  and the first sight of that section come at the same moment.
+- **The first subscription must be submitted with an app version**, not on its own. It attaches to
+  the 1.2.0 submission.
+
+### Google Play — Monetize → Subscriptions → one `club` subscription, two base plans
+
+**Not two subscriptions, and the difference matters.** Google models one subscription containing
+base plans; two separate subscriptions would let somebody hold both at once, where base plans make
+Google enforce one at a time and handle the monthly↔annual switch properly.
+
+| Piece             | Value                                                                          |
+| ----------------- | ------------------------------------------------------------------------------ |
+| Subscription ID   | `club` — permanent, never changeable                                           |
+| Base plan         | `monthly`, auto-renewing, 1 month                                              |
+| Base plan         | `yearly`, auto-renewing, 1 year                                                |
+| Base plan ID rule | lowercase letters, digits and hyphens — **no underscores**, unlike product ids |
+
+**Prices are entered ex-tax on Play, and that is not how Apple works.** Google adds VAT on top of
+what you type and rounds to a tidy ending, so €2.99 entered shows a Dutch buyer €3.59. To land on
+the same customer-facing price as Apple, enter **2.47** (→ €2.99) and **16.52** (→ €19.99), then
+_read the displayed price back_ and nudge it, because the rounding is not fully predictable. Pro is
+already priced this way — €2.47 entered, €2.99 shown — so this matches what is live rather than
+introducing a second convention.
+
+⚠️ **Base plans start inactive.** An inactive one cannot be bought and RevenueCat will not see it.
+
+**Both stores or neither** — one platform able to subscribe and the other not is worse than neither.
+
+### RevenueCat
+
+**The four product identifiers, which do not match across stores and are not meant to:**
+
+| Store     | Monthly        | Annual        |
+| --------- | -------------- | ------------- |
+| App Store | `club_monthly` | `club_yearly` |
+| Play      | `club:monthly` | `club:yearly` |
+
+Play's colon form is `subscriptionId:basePlanId`, which is Google's shape rather than a typo. **The
+app never matches on these names** — `getClubPlans` finds the packages by `packageType`, precisely
+because a name would work on one platform and silently return nothing on the other.
+
+- **Attach all four to `club` _and_ to `pro`.** A shared board is a leaderboard and the leaderboard
+  is Pro, so a subscriber without it hosts a board they cannot open. `entitlementsFrom` defends
+  against the missed checkbox, so it is survivable rather than shipped — set it anyway, or restores
+  and receipts disagree with the app.
+- **Both Club packages go in the _current_ offering, beside Pro.** The app reads
+  `offerings.current` and nothing else, and `getProPackage` finds Pro by product id rather than by
+  position specifically so that a second product in the same offering cannot make the Pro button buy
+  a subscription.
+- The `pro_lifetime` product description mirrors the store; if you keep an
+  internal description/notes field, match the copy above so the dashboard reads
+  the same.
+
+## Release notes — v1.2.0
+
+**Both platforms together**, as in 1.1.4.
+
+This is a much bigger release than 1.1.4, and **most of it is behind the paywall**: dealing a hand,
+payouts, the chop calculator, leaderboards, groups and sharing are all Pro. The long description and
+the Pro feature lists in both stores need updating too, not just these notes — the in-app paywall
+was found still selling the 1.1.4 feature set during this cycle, and the store copy has exactly the
+same failure mode one level out. See `ROADMAP.md`'s Play listing item.
+
+**Accounts and shared boards are now in scope**, which they were not when the notes below were
+drafted — so the bullets need a pass before they go in. What changed is a decision, not a
+capability: the code shipped switched off because there was no production backend to point it at,
+and now there is going to be. Three things gate it, and **none of them is code**:
+
+- **SES production access.** Cognito's own sender is capped and lands in spam, so real sign-up
+  depends on it. It is a support request with a queue, and until it is granted SES delivers only to
+  addresses that have themselves been verified. **This is the one that cannot be patched afterwards**
+  — shipping before it is granted means account creation is broken and a store update does not fix
+  it, because the wait is on AWS either way.
+- **`PokerBackend-prod` deployed**, and `backendConfig` pointed at it. A 1.2.0 build must never put
+  real accounts in the development pool, which exists to be thrown away.
+- **The Club subscription created in both stores.** Sharing is unreachable without it, so the
+  bullets must not promise it until the products exist.
+
+**There is a kill switch**, and it is worth knowing about before writing anything that promises
+these features: `GET /config` on the backend turns accounts or sharing off in about ninety seconds,
+without a store release. If something misbehaves after submission, that is the recovery — not a
+patch.
+
+**Two things stay out of the notes either way**: the shared clock, which still has no transport, and
+Sign in with Apple and Google, which need credentials nobody has created. Neither is something a
+person can use.
+
+### iOS — "What's New in This Version" (App Store Connect)
+
+**No emoji in this field** — see [the note below](#ios-metadata-emoji). Bullets are the typographic
+`•` (U+2022), which is punctuation rather than emoji and renders everywhere.
+
+```
+• Deal a hand (Pro). When you have chips but no cards — or nobody can find the deck — pass the phone round the table and the app deals: two cards each, then the flop, turn and river when you are ready, and it reads the showdown at the end. Your own two cards stay hidden until you tap. You play with the chips already in front of you.
+
+• A leaderboard for every group you play with (Pro). Thursdays and the office game are kept apart, each with their own players and history.
+
+• Share a board with the people you play with (Club). Send them a code, they paste it in, and the board — every player, every night already on it — is on their phone too. Whoever recorded the game does not have to be the one who reads it out. Joining is free: only the person who shares a board subscribes.
+
+• Your boards follow your account, not your phone (Club). Sign in somewhere else, or reinstall, and they come back. Record a night with no signal and it is kept and sent when there is some, so the pub with one bar of reception stops being a problem.
+
+• An account, if you want one. Email and a password, a code to confirm it, and you can delete the account and everything on our servers from inside the app.
+
+• Payouts and the chop (Pro). Set a buy-in and see exactly what each place wins, bounties, rebuys and add-ons included. When the table agrees to end it early, the chop splits what is left by chip stack without anybody dropping below the place they had already locked up.
+
+• Share the payouts or the standings straight to your group chat.
+
+• A game in progress now survives the app closing. Shut it between hands, or have the phone die mid-evening, and reopening puts you back at the same table with the same stacks.
+
+• Android no longer asks twice for notification permission, and stale Live Activities are cleared away instead of piling up on the lock screen.
+
+Thanks for playing — feedback always welcome.
+```
+
+Re-count in App Store Connect before saving; the limit is 4000 characters and this is well inside it.
+
+### Android — "Release notes" (Play Console, ≤500 chars per language)
+
+```
+🃏 Deal a hand (Pro): no cards? The app deals. Flop, turn, river and the showdown.
+👥 A leaderboard per group — Thursdays and the office game kept apart.
+🔗 Share a board with your table (Club). Joining one is free.
+♻️ Games survive the app closing, and sync when you have signal again.
+```
+
+`283` chars — comfortably inside the 500-char Play Console limit. Re-count in
+the console before saving, since emoji and locale can shift it: those four emoji
+cost three more units in UTF-16 than they do as code points, which is what a
+console counts.
+
+**"Joining one is free" earns its place in 500 characters**, because the misunderstanding most
+likely to kill the feature is a table assuming all six of them need a subscription. One line, and it
+is the line that decides whether anybody tries it.
+
+**Deliberately not mentioned:** the shared clock, which has no transport and is unreachable; Sign in
+with Apple and Google, which need credentials nobody has created; and the record-a-game prompt's
+conditions. Those nuances belong in the app, not in 500 characters of store copy.
+
+---
+
+## Submission checklist — every console step
 
 **Nothing in this section has been entered anywhere yet.** It exists so the answers are decided
 once, from the built binary and the code, and **recorded** — ROADMAP item 10 asks for exactly that,
@@ -479,265 +671,113 @@ binary**, so neither can delay the build.
 a reviewer who cannot get past the paywall cannot review the feature the release is built on, and
 that is a rejection for reasons that have nothing to do with the app.
 
-## In-app purchase — `pro_lifetime` description (keep in sync with the paywall)
+## Age rating, and the gambling question
 
-The paywall (`PRO_FEATURES` in `apps/mobile/src/components/paywall/Paywall.tsx`)
-promises **seven** things as of 1.2.0 — **remove ads · deal the cards · buy-ins,
-payouts and bounties · a leaderboard for every group · save & load tournament
-presets · choose your alarm sound · support the dev**. Update the store IAP copy
-in all three consoles to match.
+**The app stays 4+ on Apple and PEGI 3 on Google, and the honest answer to the simulated-gambling
+question is no** — both confirmed by answering the questionnaires on 2026-09-11, with Brazil the one
+region above 3 (see the IARC section) — because two things are being removed before 1.2.0 ships: the betting engine, and
+money from the leaderboard. See
+[ROADMAP.md](./ROADMAP.md#gambling-classification--blocking-120) for the full decision record and
+the comparable-app evidence.
 
-**This drifted again while 1.2.0 was being built**, exactly as the note below
-warns: the list here said six and omitted dealing a hand, which is the headline
-of the whole release. Read `PRO_FEATURES` before touching any of the fields
-below, every time — it is one grep and it is the only thing that is definitely
-right.
+**An earlier draft of this section said 18+, and that was right for the app as built.** Apple defines
+Simulated Gambling as _"Betting or wagering without using real money or in-game currency that can be
+exchanged for real money."_ The dealt game's fold/check/call/raise and Min/Pot/All-in controls are
+betting, and as a headline Pro feature they are frequent, not infrequent — which is 18+. What
+changed is the app, not the reading.
 
-This has now drifted twice: the paywall was found still selling the 1.1.4
-feature set during the 1.2.0 cycle, and the store copy one level out had the
-same problem. **The paywall is the source of truth** — read `PRO_FEATURES` and
-work outwards, rather than editing these fields from memory.
+**13+ was never available**, for three separate reasons worth recording so nobody re-litigates it:
+Apple's 13+ requires _infrequent_ simulated gambling; **PEGI put gambling content at 18 in 2020** and
+reaches Google Play through IARC, so Europe had no 13+ tier for a betting engine; and Apple's
+restriction on gambling apps from **Individual developer accounts** — which this is — would not care
+about the tier either way.
 
-### App Store Connect — In-App Purchase → `pro_lifetime`
+**That last one is an unresolved risk, not a settled fact**, and this file used to state it as
+though it were. It traces to an October 2018 announcement; the current guideline 5.1.1(ix) says apps
+that _"provide services in"_ highly regulated fields — gambling among them — _"should be submitted
+by a legal entity … and not by an individual developer"_, which arguably excludes a play-money game.
+Against enforcement-as-written: **Cash Out Poker carries Apple's `Gambling` descriptor today and
+ships under a seller name with no entity suffix.** It is moot for 1.2.0 regardless — with betting
+gone there is no gambling descriptor for the rule to attach to — and matters only if betting ever
+comes back. See [ROADMAP.md](./ROADMAP.md#gambling-classification--blocking-120).
 
-- **Display Name (≤30 chars):** `Pro — Deal, Payouts & Board` (`27`)
-- **Description** (short field — **verify the limit in the console**, it's tight):
-  ```
-  No ads, deal a hand, payouts, leaderboard.
-  ```
-  `42` chars.
+**The second trigger was nearly missed.** Comparable apps show the line is not dealing and not
+calculating, but **accumulating real money across sessions**: a virtual card dealer is 4+ and a
+one-shot payout calculator is 4+, while a home-game buy-in/cash-out scorekeeper and a poker bankroll
+tracker are both **18+**. The leaderboard as built kept a running "won 120" per player, which is the
+bankroll-tracker shape. Money comes off the board for that reason.
 
-### Google Play — Monetize → Products → `pro_lifetime`
+### What to say if a reviewer asks
 
-- **Name (≤55 chars):** `Pro — Deal, Payouts, Leaderboard & No Ads` (`41`)
-- **Description (≤200 chars):**
-  ```
-  Unlock Pro: deal a hand when nobody brought cards, work out payouts and bounties, chop the last pot, keep a leaderboard per group, save presets, and remove all ads. One-time purchase.
-  ```
-  `183` chars.
+There is no real money in the app: no wagering, no purchase of chips, no cash-out, and no currency
+symbol rendered anywhere. The payout screen is a calculator for money that changes hands at a
+kitchen table and never touches the app, and nothing it produces is stored or synced. That is the
+difference between simulated gambling (a rating) and real-money gambling (a different rulebook,
+which this app is not in).
 
-### App Store Connect — Auto-Renewable Subscription → `club_monthly` **and** `club_yearly`
+The app deals cards and evaluates a showdown; it holds no chips, no stakes and no pots. The
+leaderboard records games played, wins and finishing positions — no amounts.
 
-**Created 2026-09-09.** Two subscriptions in one group, **€2.99/month and €19.99/year** — the
-monthly matching Pro's €2.99 exactly, which is what closes the subscribe-and-cancel arbitrage. See
-the monetization section of `ROADMAP.md`.
+**Say it plainly and do not embroider it.** An earlier draft of this file had to hedge, because the
+leaderboard was still syncing `buyIn`, `bounty` and `winnings` to a shared board. With money off the
+board that hedge is gone and the simple claim is true. If a future change puts money back on the
+board, this paragraph stops being accurate — check it before repeating it.
 
-**Apple's fields here are short: display name 30 characters, description 45.** These fit:
+### Paste-ready review note
 
-| Field                              | `club_monthly`                                  | `club_yearly`   |
-| ---------------------------------- | ----------------------------------------------- | --------------- |
-| Reference Name (internal)          | `Club Monthly`                                  | `Club Yearly`   |
-| Display Name (customer-facing)     | `Club — Monthly`                                | `Club — Annual` |
-| Description (**exactly 45 chars**) | `Share boards and your clock. Joining is free.` | same            |
-| Subscription Group Display Name    | `Club` — set once for the group                 |                 |
-
-If a console rejects the description on length, `Share a board and clock. Joining is free.` is 41.
-
-- **"Joining is free" earns its place in 45 characters.** Without it the listing reads as though
-  every player at the table needs a subscription, which is the misunderstanding most likely to kill
-  the feature.
-- **"Club", never "Pro+".** Pro+ would say the thing people already bought had been demoted, and it
-  has not changed at all.
-- **Each subscription needs a review screenshot** of the purchase UI — the Club section on the
-  paywall, which exists as of the 3.1.2 work. Completing this metadata is what moves them to
-  _Ready to Submit_, and that is when StoreKit starts returning them in sandbox, so the screenshot
-  and the first sight of that section come at the same moment.
-- **The first subscription must be submitted with an app version**, not on its own. It attaches to
-  the 1.2.0 submission.
-
-### Google Play — Monetize → Subscriptions → one `club` subscription, two base plans
-
-**Not two subscriptions, and the difference matters.** Google models one subscription containing
-base plans; two separate subscriptions would let somebody hold both at once, where base plans make
-Google enforce one at a time and handle the monthly↔annual switch properly.
-
-| Piece             | Value                                                                          |
-| ----------------- | ------------------------------------------------------------------------------ |
-| Subscription ID   | `club` — permanent, never changeable                                           |
-| Base plan         | `monthly`, auto-renewing, 1 month                                              |
-| Base plan         | `yearly`, auto-renewing, 1 year                                                |
-| Base plan ID rule | lowercase letters, digits and hyphens — **no underscores**, unlike product ids |
-
-**Prices are entered ex-tax on Play, and that is not how Apple works.** Google adds VAT on top of
-what you type and rounds to a tidy ending, so €2.99 entered shows a Dutch buyer €3.59. To land on
-the same customer-facing price as Apple, enter **2.47** (→ €2.99) and **16.52** (→ €19.99), then
-_read the displayed price back_ and nudge it, because the rounding is not fully predictable. Pro is
-already priced this way — €2.47 entered, €2.99 shown — so this matches what is live rather than
-introducing a second convention.
-
-⚠️ **Base plans start inactive.** An inactive one cannot be bought and RevenueCat will not see it.
-
-**Both stores or neither** — one platform able to subscribe and the other not is worse than neither.
-
-### RevenueCat
-
-**The four product identifiers, which do not match across stores and are not meant to:**
-
-| Store     | Monthly        | Annual        |
-| --------- | -------------- | ------------- |
-| App Store | `club_monthly` | `club_yearly` |
-| Play      | `club:monthly` | `club:yearly` |
-
-Play's colon form is `subscriptionId:basePlanId`, which is Google's shape rather than a typo. **The
-app never matches on these names** — `getClubPlans` finds the packages by `packageType`, precisely
-because a name would work on one platform and silently return nothing on the other.
-
-- **Attach all four to `club` _and_ to `pro`.** A shared board is a leaderboard and the leaderboard
-  is Pro, so a subscriber without it hosts a board they cannot open. `entitlementsFrom` defends
-  against the missed checkbox, so it is survivable rather than shipped — set it anyway, or restores
-  and receipts disagree with the app.
-- **Both Club packages go in the _current_ offering, beside Pro.** The app reads
-  `offerings.current` and nothing else, and `getProPackage` finds Pro by product id rather than by
-  position specifically so that a second product in the same offering cannot make the Pro button buy
-  a subscription.
-- The `pro_lifetime` product description mirrors the store; if you keep an
-  internal description/notes field, match the copy above so the dashboard reads
-  the same.
-
-## Release notes — v1.2.0
-
-**Both platforms together**, as in 1.1.4.
-
-This is a much bigger release than 1.1.4, and **most of it is behind the paywall**: dealing a hand,
-payouts, the chop calculator, leaderboards, groups and sharing are all Pro. The long description and
-the Pro feature lists in both stores need updating too, not just these notes — the in-app paywall
-was found still selling the 1.1.4 feature set during this cycle, and the store copy has exactly the
-same failure mode one level out. See `ROADMAP.md`'s Play listing item.
-
-**Accounts and shared boards are now in scope**, which they were not when the notes below were
-drafted — so the bullets need a pass before they go in. What changed is a decision, not a
-capability: the code shipped switched off because there was no production backend to point it at,
-and now there is going to be. Three things gate it, and **none of them is code**:
-
-- **SES production access.** Cognito's own sender is capped and lands in spam, so real sign-up
-  depends on it. It is a support request with a queue, and until it is granted SES delivers only to
-  addresses that have themselves been verified. **This is the one that cannot be patched afterwards**
-  — shipping before it is granted means account creation is broken and a store update does not fix
-  it, because the wait is on AWS either way.
-- **`PokerBackend-prod` deployed**, and `backendConfig` pointed at it. A 1.2.0 build must never put
-  real accounts in the development pool, which exists to be thrown away.
-- **The Club subscription created in both stores.** Sharing is unreachable without it, so the
-  bullets must not promise it until the products exist.
-
-**There is a kill switch**, and it is worth knowing about before writing anything that promises
-these features: `GET /config` on the backend turns accounts or sharing off in about ninety seconds,
-without a store release. If something misbehaves after submission, that is the recovery — not a
-patch.
-
-**Two things stay out of the notes either way**: the shared clock, which still has no transport, and
-Sign in with Apple and Google, which need credentials nobody has created. Neither is something a
-person can use.
-
-### iOS — "What's New in This Version" (App Store Connect)
-
-**No emoji in this field** — see [the note below](#ios-metadata-emoji). Bullets are the typographic
-`•` (U+2022), which is punctuation rather than emoji and renders everywhere.
+Everything above, in the form the App Review notes field wants. The same wording is published at
+[/support](https://poker-timer.toondeboer.com/support) under "Money, and what the app does with it", so a
+reviewer who checks finds the two agreeing.
 
 ```
-• Deal a hand (Pro). When you have chips but no cards — or nobody can find the deck — pass the phone round the table and the app deals: two cards each, then the flop, turn and river when you are ready, and it reads the showdown at the end. Your own two cards stay hidden until you tap. You play with the chips already in front of you.
+Nothing is wagered, staked or paid through this app. There is no way to bet in it, buy chips in it,
+or cash anything out of it — no wallet, no balance, and no payment of any kind between players. The
+only money the app handles is its own one-time Pro purchase, taken by Apple.
 
-• A leaderboard for every group you play with (Pro). Thursdays and the office game are kept apart, each with their own players and history.
+The card table deals: it shuffles, deals two cards to each player, turns the flop, turn and river
+when the host taps, and reads the showdown. It holds no chips and has no betting controls — players
+use the physical chips already in front of them.
 
-• Share a board with the people you play with (Club). Send them a code, they paste it in, and the board — every player, every night already on it — is on their phone too. Whoever recorded the game does not have to be the one who reads it out. Joining is free: only the person who shares a board subscribes.
+The payout screen is a calculator. Enter a buy-in and it works out what each place wins, the way a
+spreadsheet would. It settles nothing and stores nothing.
 
-• Your boards follow your account, not your phone (Club). Sign in somewhere else, or reinstall, and they come back. Record a night with no signal and it is kept and sent when there is some, so the pub with one bar of reception stops being a problem.
-
-• An account, if you want one. Email and a password, a code to confirm it, and you can delete the account and everything on our servers from inside the app.
-
-• Payouts and the chop (Pro). Set a buy-in and see exactly what each place wins, bounties, rebuys and add-ons included. When the table agrees to end it early, the chop splits what is left by chip stack without anybody dropping below the place they had already locked up.
-
-• Share the payouts or the standings straight to your group chat.
-
-• A game in progress now survives the app closing. Shut it between hands, or have the phone die mid-evening, and reopening puts you back at the same table with the same stacks.
-
-• Android no longer asks twice for notification permission, and stale Live Activities are cleared away instead of piling up on the lock screen.
-
-Thanks for playing — feedback always welcome.
+The leaderboard records who played, who won and where people finished. No monetary amount is stored
+or shared anywhere in the app.
 ```
 
-Re-count in App Store Connect before saving; the limit is 4000 characters and this is well inside it.
+**Check it against the binary before pasting it.** It is accurate as of the 1.2.0 build; it is a
+statement Apple can hold the app to, and a wrong one is far more expensive than no statement.
 
-### Android — "Release notes" (Play Console, ≤500 chars per language)
+### Honest declaration is the whole strategy
 
-```
-🃏 Deal a hand (Pro): no cards? The app deals. Flop, turn, river and the showdown.
-👥 A leaderboard per group — Thursdays and the office game kept apart.
-🔗 Share a board with your table (Club). Joining one is free.
-♻️ Games survive the app closing, and sync when you have signal again.
-```
+Apple removes developers for _"trying to trick the review process"_ and _"manipulate ratings"_, and
+says plainly: _"if you're dishonest, we don't want to do business with you."_ **The route to a ban is
+under-declaring a poker game, not having one.** Answer both questionnaires from the built binary
+rather than from this file, and record the answers given so the next release can be checked against
+them. Apple's and Play's IARC are independent and need not agree.
 
-`283` chars — comfortably inside the 500-char Play Console limit. Re-count in
-the console before saving, since emoji and locale can shift it: those four emoji
-cost three more units in UTF-16 than they do as code points, which is what a
-console counts.
+### Copy that reads badly next to a gambling question
 
-**"Joining one is free" earns its place in 500 characters**, because the misunderstanding most
-likely to kill the feature is a table assuming all six of them need a subscription. One line, and it
-is the line that decides whether anybody tries it.
+Not errors — the listing is honest — but each of these is a sentence a reviewer weighing a gambling
+question will read, so each is worth a deliberate decision rather than inheriting it:
 
-**Deliberately not mentioned:** the shared clock, which has no transport and is unreachable; Sign in
-with Apple and Google, which need credentials nobody has created; and the record-a-game prompt's
-conditions. Those nuances belong in the app, not in 500 characters of store copy.
+| Where                  | Text                                                   | Why it is worth changing                                                                                                                                                                                |
+| ---------------------- | ------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| iOS keywords           | `casino`, `bet`                                        | **Changed.** See the keywords section — removed and replaced at the same character count.                                                                                                               |
+| Both long descriptions | "not a casino app full of settings you'll never touch" | **Changed** to "at somebody's kitchen table". It was a line about simplicity, but it put `casino` in the copy of an app that now deals cards.                                                           |
+| Both long descriptions | "settles the money before it turns into an argument"   | **Kept, softened** to "settles who won what". The original is a good line and true of a payout calculator; "the money" beside a dealt game invites the real-money question the app does not need asked. |
+| Play release notes     | "half in cash, half onto your own head"                | **Moot** — progressive bounties are removed with the betting engine, so the sentence goes with the feature. It was the most gambling-flavoured line in the listing.                                     |
+| iOS release notes      | "Knockouts are tracked, and bounties finally add up"   | **Moot** — knockout attribution needs pots, which are gone.                                                                                                                                             |
+| Both                   | "buy-in", "prize", "pot", "payout", "winnings"         | Fine, and correct — this is what a tournament calculator is for. Do not sanitise these into vagueness; a listing that will not say what the app does is worse than one that does.                       |
+| Both long descriptions | "blinds, **betting**, side pots, the showdown"         | **Changed.** It described a betting game the binary no longer contains — the same metadata-accuracy failure as under-declaring, pointed the other way.                                                  |
 
----
+**What not to do, in both directions.** Do not describe the dealt game as less than it is to duck a
+rating — that is the failure mode that costs a rejection _and_ the resubmission. And now that the
+betting is going, do not leave copy describing betting that the binary no longer has: an app that
+under-delivers against its own listing is the same accuracy problem wearing the other hat. **Write
+the listing from the built binary, every time.**
 
-## Release notes — v1.1.4
-
-**Symmetric this time.** Both platforms shipped v1.1.3 together, so both sets of notes cover the
-same one version's worth of changes — unlike v1.1.3 below, where the two stores were a version
-apart.
-
-Everything headlined here is **free**, not Pro: the blind-structure screen, the generator and the
-keep-awake behaviour are all available to every user. Nothing new was added behind the paywall in
-this release, so the long description needs no change.
-
-The **website** was updated for these features alongside the release (`apps/web`): the landing
-page's feature grid gained a Structure Generator card and its Tournament Structures card now
-describes the editor, and a claim that the app "works seamlessly in the background" was corrected —
-it overstated what the app does now that a backgrounded round deliberately advances only one level.
-Keep the two in step: store copy and landing-page copy describe the same app.
-
-### iOS — "What's New in This Version" (App Store Connect)
-
-**No emoji in this field** — see [the note below](#ios-metadata-emoji). Bullets are the typographic
-`•` (U+2022), which is punctuation rather than emoji and renders everywhere.
-
-```
-• Blind structure now has its own screen. Edit every level in one place, insert or duplicate a level anywhere in the schedule, and tap a level number to jump the tournament straight to it.
-
-• New structure generator. Pick a starting blind, how many levels, and a speed — Slow, Standard or Turbo — and get a schedule built the way real casino sheets are, with every blind a multiple of your smallest chip.
-
-• The screen now stays on while a round is counting down, so the timer stays put on the table.
-
-• Blinds are bigger and easier to read on the Lock Screen timer.
-
-• Applying an edited structure keeps your place in the tournament instead of restarting at Level 1.
-
-Thanks for playing — feedback always welcome.
-```
-
-`714` chars.
-
-### Android — "Release notes" (Play Console, ≤500 chars per language)
-
-```
-♠️ Blind structure gets its own screen — edit every level in one place, insert or duplicate anywhere, and tap a level to jump straight to it.
-✨ New structure generator: pick a starting blind, a level count and a speed, and get a casino-style schedule where every blind fits your smallest chip.
-📱 The screen stays on while a round runs.
-⏱️ Bigger, clearer blinds on the Lock Screen timer.
-✅ Editing your structure now keeps your place in the tournament.
-```
-
-`452` chars — fits the 500-char Play Console limit, but with little room to spare: re-count in the
-console before saving, since emoji and locale can shift it.
-
-**Deliberately not mentioned:** the Pause/Resume/Stop buttons on the Live Activity and notification.
-They were built during this cycle and descoped before shipping (see `ROADMAP.md`), so no user has
-ever seen them and announcing their absence would only confuse.
-
-<a id="ios-metadata-emoji"></a>
-
-### Field rules: what each store actually accepts
+## Field rules: what each store actually accepts
 
 **iOS "What's New" — plain text, and keep emoji out of it.**
 
@@ -758,53 +798,23 @@ once and the reasoning matters more than the rule:
   using Apple's emoji**, applied inconsistently enough that
   [TechCrunch covered developers assuming a crackdown](https://techcrunch.com/2018/02/08/theres-no-app-store-emoji-apocalypse-just-inconsistent-policy-enforcement/)
   and concluded the policy hadn't changed, only its enforcement.
-- **Our own v1.1.3 notes below still contain emoji**, and v1.1.3 shipped. Whatever happened on
-  1.1.4, that's evidence the field doesn't reject them outright — which is the point: the risk is
-  inconsistent review, not a validation error you'd find out about in seconds.
+- **Our own v1.1.3 notes contained emoji, and v1.1.3 shipped.** Whatever happened on 1.1.4, that
+  is evidence the field does not reject them outright — which is the point: the risk is
+  inconsistent review, not a validation error you would find out about in seconds. (Those notes
+  are no longer in this file; `git log -- STORE_LISTING.md` has them.)
 - So the decision here isn't "emoji are banned", it's **an asymmetric bet**: emoji buy a little
   scannability, and a metadata rejection costs a review cycle measured in days on a release that's
-  already built and submitted. Write the iOS notes without them. The v1.1.3 block is left as it
-  shipped rather than rewritten — this file is a record of what was submitted, not a style guide.
+  already built and submitted. **Write the iOS notes without them.**
 
 **Android "Release notes" — plain text too, but emoji are fine.** Play has no equivalent history of
-emoji rejections, and the existing v1.1.3 notes shipped with them. Limit is 500 characters per
+emoji rejections, and v1.1.3 shipped with them. Limit is 500 characters per
 language, which is tight enough that emoji and locale shifts genuinely matter — re-count in the
 console before saving. Play strips HTML in this field as well.
 
 **Both stores:** typographic punctuation is safe on either side — `•`, `—`, `→`, curly quotes. It's
 pictographic emoji that carry the risk, not Unicode in general.
 
-## Release notes — v1.1.3
-
-**Asymmetric on purpose:** iOS is live at v1.1.2 (already has tournament
-presets + the in-app review prompt), so its notes only cover what's new since
-then. Android is live at v1.1.1 (skipped 1.1.2 entirely — see `CHANGELOG.md`),
-so its notes cover **two versions' worth** of changes: presets are new to
-Android users here, not just Sound Packs.
-
-### iOS — "What's New in This Version" (App Store Connect)
-
-```
-🔊 Sound Packs (Pro): choose the alarm that plays when a round ends — Classic Alarm, Classic Beep, Bell Chime, or Double Buzz — with a 3-second preview before you pick.
-📣 Share Poker Blinds Buzzer with your table in one tap.
-Thanks for playing — feedback always welcome!
-```
-
-`269` chars (App Store Connect's limit is generous, ~4000 — kept short on purpose).
-
-### Android — "Release notes" (Play Console, ≤500 chars per language)
-
-```
-Big update!
-📌 Tournament Presets (Pro): save your blind structure & round length, load them in one tap.
-🔊 Sound Packs (Pro): pick your round-end alarm — Classic Alarm, Beep, Bell Chime, or Double Buzz — with a quick preview.
-📣 Share the app with your table in one tap.
-✨ Smoother, more polished experience throughout.
-```
-
-`317` chars — fits the 500-char Play Console limit.
-
-## Notes
+## Housekeeping
 
 - Re-validate char counts in the console before saving (emoji/locale can shift).
 - Keep title/subtitle stable once ranked; iterate keywords + screenshots first.
