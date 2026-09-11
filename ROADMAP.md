@@ -296,6 +296,43 @@ following a link from the app to a poker table is a conversation the release doe
 13. 🟡 **UMP/ATT consent is still a placeholder** (`useAdsConsent.ts`). Serving AdMob to EEA/UK
     without a certified CMP is a live gap, pre-existing and separate from this work.
 
+### How the listing copy is judged — moved here from `STORE_LISTING.md`
+
+Both of these were in the listing file, where they sat between blocks of copy somebody was trying to
+paste. They are decisions about the copy rather than copy, so they belong with the rest of the
+record — and keeping the reasoning in one place is what stops two files disagreeing, which is
+exactly what happened when both described the Individual-developer-account rule and only one of them
+called it unresolved.
+
+### Honest declaration is the whole strategy
+
+Apple removes developers for _"trying to trick the review process"_ and _"manipulate ratings"_, and
+says plainly: _"if you're dishonest, we don't want to do business with you."_ **The route to a ban is
+under-declaring a poker game, not having one.** Answer both questionnaires from the built binary
+rather than from the listing copy, and record the answers given so the next release can be checked against
+them. Apple's and Play's IARC are independent and need not agree.
+
+### Copy that reads badly next to a gambling question
+
+Not errors — the listing is honest — but each of these is a sentence a reviewer weighing a gambling
+question will read, so each is worth a deliberate decision rather than inheriting it:
+
+| Where                  | Text                                                   | Why it is worth changing                                                                                                                                                                                |
+| ---------------------- | ------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| iOS keywords           | `casino`, `bet`                                        | **Changed.** See the keywords section — removed and replaced at the same character count.                                                                                                               |
+| Both long descriptions | "not a casino app full of settings you'll never touch" | **Changed** to "at somebody's kitchen table". It was a line about simplicity, but it put `casino` in the copy of an app that now deals cards.                                                           |
+| Both long descriptions | "settles the money before it turns into an argument"   | **Kept, softened** to "settles who won what". The original is a good line and true of a payout calculator; "the money" beside a dealt game invites the real-money question the app does not need asked. |
+| Play release notes     | "half in cash, half onto your own head"                | **Moot** — progressive bounties are removed with the betting engine, so the sentence goes with the feature. It was the most gambling-flavoured line in the listing.                                     |
+| iOS release notes      | "Knockouts are tracked, and bounties finally add up"   | **Moot** — knockout attribution needs pots, which are gone.                                                                                                                                             |
+| Both                   | "buy-in", "prize", "pot", "payout", "winnings"         | Fine, and correct — this is what a tournament calculator is for. Do not sanitise these into vagueness; a listing that will not say what the app does is worse than one that does.                       |
+| Both long descriptions | "blinds, **betting**, side pots, the showdown"         | **Changed.** It described a betting game the binary no longer contains — the same metadata-accuracy failure as under-declaring, pointed the other way.                                                  |
+
+**What not to do, in both directions.** Do not describe the dealt game as less than it is to duck a
+rating — that is the failure mode that costs a rejection _and_ the resubmission. And now that the
+betting is going, do not leave copy describing betting that the binary no longer has: an app that
+under-delivers against its own listing is the same accuracy problem wearing the other hat. **Write
+the listing from the built binary, every time.**
+
 ## The week, in order
 
 **1.2.0 ships _with_ the backend, and the backend is now up.** This section used to say the

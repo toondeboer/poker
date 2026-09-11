@@ -478,10 +478,13 @@ Re-count in App Store Connect before saving; the limit is 4000 characters and th
 ♻️ Games survive the app closing, and sync when you have signal again.
 ```
 
-`283` chars — comfortably inside the 500-char Play Console limit. Re-count in
-the console before saving, since emoji and locale can shift it: those four emoji
-cost three more units in UTF-16 than they do as code points, which is what a
-console counts.
+`286` chars — comfortably inside the 500-char Play Console limit.
+
+**286 and not 283, and the difference is the whole reason to state it.** A store counts UTF-16 code
+units; those four emoji are one code point each and two units each, so counting characters the
+obvious way undercounts by three. Every number in this file is the UTF-16 one, because that is the
+number the console is comparing against its limit. A block that is 497 by one measure and 503 by the
+other is rejected.
 
 **"Joining one is free" earns its place in 500 characters**, because the misunderstanding most
 likely to kill the feature is a table assuming all six of them need a subscription. One line, and it
@@ -671,41 +674,19 @@ binary**, so neither can delay the build.
 a reviewer who cannot get past the paywall cannot review the feature the release is built on, and
 that is a rejection for reasons that have nothing to do with the app.
 
-## Age rating, and the gambling question
+## Age rating, and the review note
 
-**The app stays 4+ on Apple and PEGI 3 on Google, and the honest answer to the simulated-gambling
-question is no** — both confirmed by answering the questionnaires on 2026-09-11, with Brazil the one
-region above 3 (see the IARC section) — because two things are being removed before 1.2.0 ships: the betting engine, and
-money from the leaderboard. See
-[ROADMAP.md](./ROADMAP.md#gambling-classification--blocking-120) for the full decision record and
-the comparable-app evidence.
+**4+ on Apple, PEGI 3 on Google**, answered 2026-09-11. The reasoning — the two triggers, the
+comparable-app evidence, PEGI's actual wording, the Individual-developer-account question — lives in
+[the gambling section of ROADMAP.md](./ROADMAP.md#gambling-classification--blocking-120) and is not
+repeated here. It used to be, and the two copies drifted apart: this file stated the
+Individual-account rule as settled fact while ROADMAP correctly called it unresolved.
 
-**An earlier draft of this section said 18+, and that was right for the app as built.** Apple defines
-Simulated Gambling as _"Betting or wagering without using real money or in-game currency that can be
-exchanged for real money."_ The dealt game's fold/check/call/raise and Min/Pot/All-in controls are
-betting, and as a headline Pro feature they are frequent, not infrequent — which is 18+. What
-changed is the app, not the reading.
+**The questionnaire answers themselves** are in
+[the submission checklist](#submission-checklist--every-console-step) above, because those get typed
+into a console.
 
-**13+ was never available**, for three separate reasons worth recording so nobody re-litigates it:
-Apple's 13+ requires _infrequent_ simulated gambling; **PEGI put gambling content at 18 in 2020** and
-reaches Google Play through IARC, so Europe had no 13+ tier for a betting engine; and Apple's
-restriction on gambling apps from **Individual developer accounts** — which this is — would not care
-about the tier either way.
-
-**That last one is an unresolved risk, not a settled fact**, and this file used to state it as
-though it were. It traces to an October 2018 announcement; the current guideline 5.1.1(ix) says apps
-that _"provide services in"_ highly regulated fields — gambling among them — _"should be submitted
-by a legal entity … and not by an individual developer"_, which arguably excludes a play-money game.
-Against enforcement-as-written: **Cash Out Poker carries Apple's `Gambling` descriptor today and
-ships under a seller name with no entity suffix.** It is moot for 1.2.0 regardless — with betting
-gone there is no gambling descriptor for the rule to attach to — and matters only if betting ever
-comes back. See [ROADMAP.md](./ROADMAP.md#gambling-classification--blocking-120).
-
-**The second trigger was nearly missed.** Comparable apps show the line is not dealing and not
-calculating, but **accumulating real money across sessions**: a virtual card dealer is 4+ and a
-one-shot payout calculator is 4+, while a home-game buy-in/cash-out scorekeeper and a poker bankroll
-tracker are both **18+**. The leaderboard as built kept a running "won 120" per player, which is the
-bankroll-tracker shape. Money comes off the board for that reason.
+What stays here is what gets **said to a reviewer**:
 
 ### What to say if a reviewer asks
 
@@ -747,35 +728,6 @@ or shared anywhere in the app.
 
 **Check it against the binary before pasting it.** It is accurate as of the 1.2.0 build; it is a
 statement Apple can hold the app to, and a wrong one is far more expensive than no statement.
-
-### Honest declaration is the whole strategy
-
-Apple removes developers for _"trying to trick the review process"_ and _"manipulate ratings"_, and
-says plainly: _"if you're dishonest, we don't want to do business with you."_ **The route to a ban is
-under-declaring a poker game, not having one.** Answer both questionnaires from the built binary
-rather than from this file, and record the answers given so the next release can be checked against
-them. Apple's and Play's IARC are independent and need not agree.
-
-### Copy that reads badly next to a gambling question
-
-Not errors — the listing is honest — but each of these is a sentence a reviewer weighing a gambling
-question will read, so each is worth a deliberate decision rather than inheriting it:
-
-| Where                  | Text                                                   | Why it is worth changing                                                                                                                                                                                |
-| ---------------------- | ------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| iOS keywords           | `casino`, `bet`                                        | **Changed.** See the keywords section — removed and replaced at the same character count.                                                                                                               |
-| Both long descriptions | "not a casino app full of settings you'll never touch" | **Changed** to "at somebody's kitchen table". It was a line about simplicity, but it put `casino` in the copy of an app that now deals cards.                                                           |
-| Both long descriptions | "settles the money before it turns into an argument"   | **Kept, softened** to "settles who won what". The original is a good line and true of a payout calculator; "the money" beside a dealt game invites the real-money question the app does not need asked. |
-| Play release notes     | "half in cash, half onto your own head"                | **Moot** — progressive bounties are removed with the betting engine, so the sentence goes with the feature. It was the most gambling-flavoured line in the listing.                                     |
-| iOS release notes      | "Knockouts are tracked, and bounties finally add up"   | **Moot** — knockout attribution needs pots, which are gone.                                                                                                                                             |
-| Both                   | "buy-in", "prize", "pot", "payout", "winnings"         | Fine, and correct — this is what a tournament calculator is for. Do not sanitise these into vagueness; a listing that will not say what the app does is worse than one that does.                       |
-| Both long descriptions | "blinds, **betting**, side pots, the showdown"         | **Changed.** It described a betting game the binary no longer contains — the same metadata-accuracy failure as under-declaring, pointed the other way.                                                  |
-
-**What not to do, in both directions.** Do not describe the dealt game as less than it is to duck a
-rating — that is the failure mode that costs a rejection _and_ the resubmission. And now that the
-betting is going, do not leave copy describing betting that the binary no longer has: an app that
-under-delivers against its own listing is the same accuracy problem wearing the other hat. **Write
-the listing from the built binary, every time.**
 
 ## Field rules: what each store actually accepts
 

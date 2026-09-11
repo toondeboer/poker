@@ -379,6 +379,25 @@ platform-tagged heading (e.g. `## [1.1.3] - 2026-07-20 — Android`) when you cu
   contain something — Scunthorpe, therapist and raccoon all pass, and there are tests to keep it
   that way. It stops the lazy case rather than a determined one, which is why reporting sits beside
   it rather than instead of it.
+- **`STORE_LISTING.md` holds copy, and `ROADMAP.md` holds the reasoning about it.** The listing file
+  carried a full restatement of the gambling argument that `ROADMAP.md` already made — and the two
+  copies had drifted, with the listing calling the Individual-developer-account rule settled fact
+  while the roadmap correctly called it unresolved. The duplicate is gone and replaced by a pointer;
+  what stays is what gets said to a reviewer. "Honest declaration is the whole strategy" and the
+  table of copy that reads badly beside a gambling question moved to `ROADMAP.md`, because they are
+  decisions about copy rather than copy.
+- **`npm run check:listing`, and CI runs it.** Nothing verified the character counts in
+  `STORE_LISTING.md`, and every one of them is pasted into a field with a hard limit — two were
+  wrong when somebody finally measured. It also compares the paywall's `PRO_FEATURES` against the
+  listing's summary of it, by count: the file already carried a note saying that list had drifted
+  twice and to go and read it first, and a note is not a check.
+
+  **It found a third on its first run.** The Play release notes said 283 characters, counted as code
+  points; a store counts **UTF-16 code units**, and those four emoji are one code point but two
+  units each — so the real number is 286. Harmless at 286 against a 500 limit, and the difference
+  between 497 and 503 is a rejection. Every count in the file is now the UTF-16 one, and the file
+  says so.
+
 - **`STORE_LISTING.md` is navigable, and holds only what gets pasted somewhere.** It had grown into
   three things at once — copy to paste, reasoning about that copy, and a log of release notes back
   to v1.1.3 — with no way in but scrolling. Now: a contents list, an **at-a-glance table** of every
