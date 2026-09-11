@@ -12,6 +12,7 @@
     "lint": "turbo run lint",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
+    "check:listing": "node scripts/check-store-listing.mjs",
     "typecheck": "turbo run typecheck",
     "test": "turbo run test",
     "web": "npm run dev --workspace @poker/web",
