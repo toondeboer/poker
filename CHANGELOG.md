@@ -379,6 +379,24 @@ platform-tagged heading (e.g. `## [1.1.3] - 2026-07-20 — Android`) when you cu
   contain something — Scunthorpe, therapist and raccoon all pass, and there are tests to keep it
   that way. It stops the lazy case rather than a determined one, which is why reporting sits beside
   it rather than instead of it.
+- **`STORE_LISTING.md` is navigable, and holds only what gets pasted somewhere.** It had grown into
+  three things at once — copy to paste, reasoning about that copy, and a log of release notes back
+  to v1.1.3 — with no way in but scrolling. Now: a contents list, an **at-a-glance table** of every
+  one-line field and which console it goes in, then the paste blocks, then the reasoning below where
+  it can be read once rather than every release.
+
+  **The v1.1.3 and v1.1.4 release notes are deleted rather than archived**, on the same principle
+  `CLAUDE.md` already applies to `ROADMAP.md` at release time: neither file is a record, because
+  `CHANGELOG.md` and git history are. What was rescued from them is the durable half — the field
+  rules for what each store accepts, including why the iOS notes carry no emoji — rewritten to stand
+  on its own rather than pointing at a block that no longer exists.
+
+  **Club now has paste blocks**, which it never did: display names, both descriptions, the group
+  name, and the longer Play version that can afford the whole sentence. And every counted block was
+  de-indented out of its list item so the counts can be checked mechanically — six blocks, all
+  verifying, where two previously _looked_ wrong to a script and were only ever a measurement
+  artefact of the indentation.
+
 - **Both age ratings are answered and recorded: 4+ on Apple, PEGI 3 on Google.** The questionnaires
   were the last open item in the gambling section, and the answers given are written down so the
   next release is checked against them rather than re-derived. **Brazil returns 14+**, the only
