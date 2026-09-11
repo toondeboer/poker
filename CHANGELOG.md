@@ -628,6 +628,13 @@ platform-tagged heading (e.g. `## [1.1.3] - 2026-07-20 — Android`) when you cu
   field, naming the other platform first. The halves are different fixes on different operating
   systems and Live Activities are iOS-only, so only that half survives there.
 
+  **The reason given for leaving Sign in with Apple and Google out of the notes was wrong.** It
+  said they "need credentials nobody has created" — `cdk.json` carries a Google client id, an Apple
+  Services ID, a Team ID and a Key ID for both stages, the two real secrets are in Secrets Manager,
+  and the prod pool is deployed with both providers. They still stay out of the notes, because §14b
+  has not been run on a real build and a bullet promising a sign-in that fails is a rejection rather
+  than a missing feature — but that is now a testing decision, and the buttons ship either way.
+
   **The note claiming there is no terms page is gone**, because there is one: `/terms` is live,
   along with `/support` and `/privacy-policy`. What is left of that item is a single App Store
   Connect field to point at it.

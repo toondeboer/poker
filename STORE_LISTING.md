@@ -446,8 +446,19 @@ routes and a polling transport, Club to host and free to join. Push notification
 same stretch. Both are real features a person can use, so both are described below; leaving them out
 would undersell the release for a reason that expired.
 
-**One thing stays out either way**: Sign in with Apple and Google, which need credentials nobody has
-created. That is not something a person can use.
+**Sign in with Apple and Google are out of the notes, but not for the reason this used to give.**
+It said they "need credentials nobody has created". They exist: `apps/infra/cdk.json` carries a
+Google client id, an Apple Services ID, a Team ID and a Key ID for **both** stages, and the two real
+secrets sit in Secrets Manager, so `socialSignInFor` returns a configuration and the prod pool is
+deployed with both providers on it. The buttons in `AccountScreen` are the first two on the sign-in
+card, ahead of email.
+
+**What is missing is a pass over them on a real build** — §14b of `RELEASE_TESTING.md`, unrun. They
+stay out of the release notes until somebody has signed in with each on a device, because a bullet
+promising a sign-in that fails is a Guideline 2.1 rejection rather than a missing feature. That is a
+testing decision now, not a credentials one, and it is the first thing to settle in the pass: the
+buttons ship whether or not the notes mention them, so if either is broken the fix is not a copy
+edit.
 
 **Notes are editable until the moment of submission** — in App Store Connect right up to _Submit for
 Review_, in Play Console right up to rollout. §18 and §19 of `RELEASE_TESTING.md` have not been run
