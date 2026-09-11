@@ -379,6 +379,12 @@ platform-tagged heading (e.g. `## [1.1.3] - 2026-07-20 — Android`) when you cu
   contain something — Scunthorpe, therapist and raccoon all pass, and there are tests to keep it
   that way. It stops the lazy case rather than a determined one, which is why reporting sits beside
   it rather than instead of it.
+- **Both age ratings are answered and recorded: 4+ on Apple, PEGI 3 on Google.** The questionnaires
+  were the last open item in the gambling section, and the answers given are written down so the
+  next release is checked against them rather than re-derived. **Brazil returns 14+**, the only
+  region above 3 — ClassInd rates _jogos de azar_ on theme rather than mechanics, so a poker app
+  lands there whatever the betting engine does. It blocks nothing. Recorded because both files said
+  "3+ on Google" flatly, which reads as a single global number and is not one.
 - **The Club plan rows say their billing period once.** "Monthly · €2,99 / month" said it at both
   ends and read like a stutter. The label carries the period — which is what guideline 3.1.2 asks to
   be on screen — so the price only has to be the price.
