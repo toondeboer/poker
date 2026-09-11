@@ -605,6 +605,20 @@ platform-tagged heading (e.g. `## [1.1.3] - 2026-07-20 — Android`) when you cu
 
 ### Changed
 
+- **The privacy declarations now account for push tokens, which they did not.** The App
+  Privacy/Data Safety table in `STORE_LISTING.md` was derived before push shipped, and declared
+  Device ID once: AdMob's advertising id, **not** linked to the user, for advertising. An Expo push
+  token is also a Device ID, it is stored against the account (`ACCOUNT#<id>`/`PUSH#<token>`), and
+  so it **is** linked — for App Functionality. Both consoles allow one data type with two purposes
+  and both linked and unlinked, so this is one entry answered fully rather than a second one; the
+  version that shipped in the table would have understated it, which is the kind of wrong answer
+  that is found later and expensively.
+
+  **The shared clock adds nothing, and the file now says why** so nobody re-derives it next release.
+  A `SESSION#<code>` row holds seconds remaining, round length, paused, blind index, a six-hour TTL
+  and a `sender` that is a random id generated per app launch — not a device identifier and not
+  persisted. No names, no account id, no cards, no amounts.
+
 - **§14b has been opened on Android, and the two rows that can be verified without credentials are
   ✅.** It had read "Android is untouched", which was true and is the sort of line that stays true
   until somebody looks. Closing the provider sheet leaves the screen usable with no red error, on
