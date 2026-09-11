@@ -197,8 +197,9 @@ Go Pro to remove ads, deal a hand, work out the payouts, chop the last pot, keep
 
 ## Age rating — the answer is "no simulated gambling", and here is why
 
-**The app stays 4+ on Apple and 3+ on Google, and the honest answer to the simulated-gambling
-question is no** — because two things are being removed before 1.2.0 ships: the betting engine, and
+**The app stays 4+ on Apple and PEGI 3 on Google, and the honest answer to the simulated-gambling
+question is no** — both confirmed by answering the questionnaires on 2026-09-11, with Brazil the one
+region above 3 (see the IARC section) — because two things are being removed before 1.2.0 ships: the betting engine, and
 money from the leaderboard. See
 [ROADMAP.md](./ROADMAP.md#gambling-classification--blocking-120) for the full decision record and
 the comparable-app evidence.
@@ -358,7 +359,12 @@ Answered **independently** of Apple's; the two need not agree, and IARC asks dif
 - **Ads:** yes, and the app requests non-personalized only.
 - **Purchases:** yes — one non-consumable and two subscriptions.
 
-**Expected result: 3+ (PEGI 3).**
+**Result, answered 2026-09-11: PEGI 3.** North America all ages, most other regions 3+ or all
+ages — and **Brazil 14+**, which is the only region above 3 and is expected rather than a warning.
+ClassInd rates _jogos de azar_ on the theme rather than on mechanics, so a poker app lands there
+whatever the betting engine does; it sets a minimum age in one market and blocks nothing. Worth
+knowing so that "3+ on Google" is read as PEGI 3 with one regional variation rather than as a single
+global number.
 
 ### 3. App Privacy (ASC) and Data Safety (Play)
 

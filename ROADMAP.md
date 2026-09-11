@@ -221,7 +221,14 @@ following a link from the app to a poker table is a conversation the release doe
    `CLAUDE.md` lists it as a step to perform then, and doing it twice is harmless but looking for it at
    the wrong moment is not.
 
-10. ⬜ **Answer both age-rating questionnaires honestly and record the answers given**, so the next
+10. ✅ **Both questionnaires answered, 2026-09-11 — 4+ on Apple, PEGI 3 on Google.** The answers
+    given are recorded in [STORE_LISTING.md](./STORE_LISTING.md) so the next release is checked
+    against them rather than re-derived. The one region above 3 is **Brazil at 14+**: ClassInd rates
+    _jogos de azar_ on theme rather than mechanics, so a poker app lands there whatever the betting
+    engine does. It blocks nothing and is not worth appealing.
+
+    **The rating question is closed.** Everything above it in this section is the reasoning that got
+    here; this is the result., so the next
     release can be checked against them rather than re-derived. Apple's and Play's IARC are
     independent and need not agree.
 
