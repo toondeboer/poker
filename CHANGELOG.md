@@ -618,11 +618,15 @@ platform-tagged heading (e.g. `## [1.1.3] - 2026-07-20 — Android`) when you cu
   `BrowserProxyActivity` into a Chrome Custom Tab, and **Chrome's own first-run screen sits in front
   of it on a fresh emulator**, which looks exactly like a broken sign-in and is not one.
 
-  **The gap that matters is now named in the file: neither platform has been run against
-  `PROD_BACKEND`.** The prod pool has its own Apple Services ID and Google client id, each needing
-  its own redirect URI registered, so dev passing says nothing about prod — and prod is what ships.
-  The four rows needing real credentials stay ⬜, as does _Declining at the provider_, which needs
-  the provider's own decline button rather than the tab close already covered.
+  **The prod pool was then checked, and it is configured correctly too.** That is the part dev
+  passing says nothing about: prod has its own Apple Services ID and Google client id, each with
+  their own redirect URI, and prod is what ships. Pointed at `PROD_BACKEND`, both buttons open
+  `pokerkit.auth.us-east-1.amazoncognito.com` — **verified in logcat, not read off the file** —
+  with Apple's page carrying the app's icon and name.
+
+  **What no automated run can prove is a completed sign-in**, which needs real provider credentials.
+  Those four rows stay ⬜, as does _Declining at the provider_, which needs the provider's own
+  decline button rather than the tab close already covered.
 
 - **The store copy describes the shared clock and the notifications, because both are real now.**
   `STORE_LISTING.md` still opened its release-notes section by excluding the shared clock on the

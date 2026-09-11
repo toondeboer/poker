@@ -647,12 +647,22 @@ than two ticks and less than a pass:
 - **_Use email instead_ reveals the form correctly** and the provider card keeps no error while it
   is open, which is the #219 fix holding. The row stays ⬜ because its second half needs an account.
 
-**Neither platform has been run against `PROD_BACKEND`, and that is the gap that matters.** The prod
-pool has its own Apple Services ID (`com.toondeboer.pokerkit.signin`, against the `.dev` one used
-above) and its own Google client id, each needing its own redirect URI registered. Dev passing says
-nothing about prod, and prod is what ships. **Sign in with each provider on a build pointed at
-`PROD_BACKEND` before submitting** — the two buttons are the first thing on the sign-in card, so a
-failure there is a Guideline 2.1 rejection rather than a missing feature.
+**The prod pool was then checked too, on 2026-09-11, and both providers are configured correctly
+there.** This is the part that dev passing says nothing about: the prod pool has its own Apple
+Services ID (`com.toondeboer.pokerkit.signin`, against the `.dev` one) and its own Google client id,
+each needing its own redirect URI registered, and prod is what ships.
+
+Run by pointing `backendConfig` at `PROD_BACKEND`, reloading, and tapping each button. Verified by
+logcat that the browser opened `pokerkit.auth.us-east-1.amazoncognito.com` — **the prod domain, no
+`-dev`** — rather than trusting the file. Apple's page rendered with the app's icon and name;
+Google's said _"to continue to pokerkit.auth.us-east-1.amazoncognito.com"_. So the prod Services ID,
+its redirect URI, the prod Google client and the `.p8` all check out.
+
+**What is still not proven is a completed sign-in**, on either pool or either platform's prod
+config: that needs real provider credentials, which cannot be driven from here. The four rows above
+stay ⬜ and want a human with an Apple ID and a Google account. They are the highest-value rows left
+in this file — those two buttons are the first thing on the sign-in card, so a failure there is a
+Guideline 2.1 rejection rather than a missing feature.
 
 _On Android the offline row's browser is Chrome rather than Safari; the behaviour asked for is the
 same — the browser reports being offline and dismissing it leaves no app error._
