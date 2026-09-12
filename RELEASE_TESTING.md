@@ -869,6 +869,7 @@ pass.
 
 |                                                                                                                                              | iOS | Android |
 | -------------------------------------------------------------------------------------------------------------------------------------------- | --- | ------- |
+| **Settings → Tournament shows "Shared clock"**, and it opens this screen. Absent with `featureSharing=off`, and on a build with no backend   | ⬜  | ⬜      |
 | **Without Club**, Start is disabled and says sharing is part of Club — and that **joining is free**                                          | ⬜  | ⬜      |
 | **Signed out**, both Start and Join are disabled and each says to sign in — not "subscribe"                                                  | ⬜  | ⬜      |
 | While entitlements are still loading, it says so rather than refusing — a subscriber must never be told they have not paid                   | ⬜  | ⬜      |
@@ -886,7 +887,8 @@ pass.
 | 🚫 **A session expires six hours after its last message.** Cannot be run in a sitting; the TTL is asserted in the store's unit tests instead | ⬜  | ⬜      |
 
 **Where to look if it does not work.** `sessionTransport` is `null` on any build with no
-`backendConfig`, and then the whole screen is absent rather than broken — check that first. A 401 on
+`backendConfig`, and the Settings row is then absent rather than leading somewhere broken — check
+that first, and check `GET /config` says `sharing` is on, because the row reads it too. A 401 on
 every poll means the token, not the code.
 
 ---

@@ -43,9 +43,12 @@ const MESSAGE: Record<JoinError, string> = {
 /**
  * Run one tournament clock across several phones.
  *
- * **Not linked from anywhere yet**, deliberately — `sessionTransport` is `null`
- * until the backend is deployed, and a join code nobody else can join is worse
- * than no join code at all. The Settings row goes in with the transport.
+ * **Reached from Settings → Tournament.** It was linked from nowhere for most of
+ * 1.2.0, deliberately: `sessionTransport` was `null` until the backend was
+ * deployed, and a join code nobody else can join is worse than no join code at
+ * all. The transport landed with the `/sessions` routes, and the Settings row
+ * with it — gated on the same `sharing` flag the boards are, so the screen is
+ * absent rather than broken when there is nothing to poll.
  *
  * Anybody in the session can pause, resume or change level; there is no host
  * privilege, because at a real table whoever is nearest the phone is the one
