@@ -4,7 +4,7 @@ import {
   ReviewPromptState,
 } from "../reviews/reviewPolicy";
 
-const STORAGE_KEYS = {
+export const REVIEW_KEYS = {
   ROUNDS_PLAYED: "review_rounds_played",
   LAST_PROMPTED_AT: "review_last_prompted_at",
 } as const;
@@ -24,8 +24,8 @@ export function createReviewStorage(storage: StorageAdapter): ReviewStorage {
     async loadReviewState(): Promise<ReviewPromptState> {
       try {
         const values = await storage.multiGet([
-          STORAGE_KEYS.ROUNDS_PLAYED,
-          STORAGE_KEYS.LAST_PROMPTED_AT,
+          REVIEW_KEYS.ROUNDS_PLAYED,
+          REVIEW_KEYS.LAST_PROMPTED_AT,
         ]);
 
         const roundsPlayedStr = values[0][1];
@@ -44,16 +44,16 @@ export function createReviewStorage(storage: StorageAdapter): ReviewStorage {
 
     async saveReviewState(state: ReviewPromptState): Promise<void> {
       await storage.multiSet([
-        [STORAGE_KEYS.ROUNDS_PLAYED, state.roundsPlayed.toString()],
+        [REVIEW_KEYS.ROUNDS_PLAYED, state.roundsPlayed.toString()],
         [
-          STORAGE_KEYS.LAST_PROMPTED_AT,
+          REVIEW_KEYS.LAST_PROMPTED_AT,
           state.lastPromptedAt === null ? "" : state.lastPromptedAt.toString(),
         ],
       ]);
     },
 
     async clearReviewState(): Promise<void> {
-      await storage.multiRemove(Object.values(STORAGE_KEYS));
+      await storage.multiRemove(Object.values(REVIEW_KEYS));
     },
   };
 }

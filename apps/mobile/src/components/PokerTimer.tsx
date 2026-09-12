@@ -21,6 +21,7 @@ import { useRouter } from "expo-router";
 import { TimerExpirationAlert } from "./TimerExpirationAlert";
 import { BannerAdSlot } from "./ads/BannerAdSlot";
 import { useAppReady } from "./AppReadyGate";
+import { useEndOfGamePrompt } from "@/src/hooks/useEndOfGamePrompt";
 
 // The card is designed to fit one screen with no scrolling. Rather than guessing
 // at a baseline/ad height, we measure the actual rendered height of the card +
@@ -71,6 +72,16 @@ export default function PokerTimer() {
   } = useTimer();
 
   const { revealed, reportContentSettled } = useAppReady();
+  const promptToRecordGame = useEndOfGamePrompt();
+
+  // Read the level *before* resetting. Reset only clears the round timer, so
+  // this happens to survive it — but relying on that would make the prompt
+  // depend on a detail of the timer that has nothing to do with it.
+  const handleReset = () => {
+    const blindsProgressed = currentBlindIndex > 0;
+    resetTimer();
+    promptToRecordGame(blindsProgressed);
+  };
   const convergedRef = useRef(false);
   const [scale, setScale] = useState(() => lastConvergedScale ?? 1);
   const availableHeight = windowHeight - insets.top - insets.bottom;
@@ -329,7 +340,7 @@ export default function PokerTimer() {
 
                 <TouchableOpacity
                   style={[styles.resetButton, { paddingVertical: s(12) }]}
-                  onPress={resetTimer}
+                  onPress={handleReset}
                 >
                   <Ionicons name="refresh" size={s(20)} color="white" />
                 </TouchableOpacity>

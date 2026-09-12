@@ -37,6 +37,13 @@ export const colors = {
   dangerSurface: "rgba(239, 68, 68, 0.1)",
 
   /** Badges + overlays. */
+  // Playing cards. A real deck is white with red and black pips, and it has to
+  // stay that way in a dark theme — a card tinted to match the app stops
+  // reading as a card.
+  cardFace: "#f8fafc",
+  cardRed: "#dc2626",
+  cardBlack: "#0f172a",
+
   badge: "rgba(71, 85, 105, 0.5)",
   iconTint: "rgba(59, 130, 246, 0.2)",
   overlay: "rgba(0, 0, 0, 0.6)",

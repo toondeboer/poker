@@ -1,17 +1,22 @@
 # Poker Blinds Buzzer
 
 A poker tournament timer for the table — manage blind levels, time each round, and get
-audible/visual alerts when the blinds go up.
+audible/visual alerts when the blinds go up. Plus the rest of what a home game argues about:
+what each place pays, how to end it early, and who is actually winning.
 
 This monorepo holds the whole product:
 
 - **Website** — a marketing landing page plus a full-screen **web timer**, live at
   [poker-timer.toondeboer.com](https://poker-timer.toondeboer.com).
 - **Mobile app** — the iOS & Android app (Poker Blinds Buzzer), with background timing,
-  iOS Live Activities, and an Android foreground service.
+  iOS Live Activities, and an Android foreground service. Pro adds buy-in and payout maths
+  (bounties, rebuys, add-ons), a chop calculator, a leaderboard with a separate board per
+  group of friends, and a dealer for when nobody brought cards.
+- **Backend** — an AWS CDK stack for accounts and shared leaderboards. **Deployed**, and the app
+  talks to it: sign-in, boards, invites and reporting all go through it.
 
-Both are driven by the same shared logic in `@poker/core`, so the blind schedules and timer
-behaviour stay identical across platforms. See [ARCHITECTURE.md](./ARCHITECTURE.md) for the
+All of it is driven by the same shared logic in `@poker/core`, so blind schedules, payout maths and
+the board's rules stay identical wherever they run — on the phone, on the web, and in a Lambda. See [ARCHITECTURE.md](./ARCHITECTURE.md) for the
 design and [CLAUDE.md](./CLAUDE.md) for conventions when working in this repo.
 
 ## Repository structure
@@ -20,8 +25,9 @@ design and [CLAUDE.md](./CLAUDE.md) for conventions when working in this repo.
 apps/
   web/      @poker/web      Next.js site + web timer  (Vercel)
   mobile/   @poker/mobile   Expo iOS/Android app      (EAS)
+  infra/    @poker/infra    AWS CDK backend           (deployed)
 packages/
-  core/     @poker/core     shared, framework-agnostic timer logic
+  core/     @poker/core     shared, framework-agnostic poker logic
 ```
 
 ## Prerequisites
@@ -95,9 +101,25 @@ it back to `false` to test the free/paywall experience again.
 ```bash
 npm run typecheck  # tsc across all workspaces (via Turborepo)
 npm run lint       # eslint across all workspaces
-npm run test       # unit tests (@poker/core, via Vitest)
+npm run test       # unit tests (@poker/core and @poker/infra, via Vitest)
 npm run build      # production build of every buildable workspace
 ```
+
+## Backend
+
+`apps/infra` holds the CDK stack: Cognito for accounts, one DynamoDB table for shared boards, and
+the Lambdas behind them. It is **environment-agnostic on purpose** — no account or region lookups —
+so it synthesises and tests with no AWS credentials at all:
+
+```bash
+npm run test -w @poker/infra   # synthesises the stack and asserts on the template
+npm run synth -w @poker/infra  # writes CloudFormation to apps/infra/cdk.out
+```
+
+**Deploys go through the `Infra` workflow, not from a laptop.** GitHub mints a short-lived OIDC
+token and AWS exchanges it, so there is no key to leak; prod additionally waits on the
+`backend-production` environment's approval. `npm run deploy -w @poker/infra` works with real
+credentials, but the workflow is the path that is actually used.
 
 ## Regenerating native projects (mobile)
 
@@ -120,15 +142,28 @@ important.
 - **Mobile → EAS**, from the repo root. `eas build` compiles a native binary in EAS's cloud (an
   `.ipa` for iOS / `.aab` for Android); `eas submit` uploads the most recently finished build to
   App Store Connect / Google Play Console. Build first, then submit once it finishes:
+
   ```bash
   npm run eas:build
   npm run eas:build:ios
   npm run eas:build:android
   ```
+
   ```bash
   npm run eas:submit
   npm run eas:submit:ios
   npm run eas:submit:android
   ```
+
+  **Those three go to a testing track, not to production**, and that is deliberate: they pass
+  `--profile internal`, which puts Android on Play's `internal` track. (iOS is the same upload
+  either way — every build reaching App Store Connect lands in TestFlight, and submitting for
+  review is a separate, deliberate act there.) The `eas:submit:*:production` variants name
+  production in full so it cannot be reached by accident.
+
+  **Never run a bare `eas submit`.** With no `--profile` the CLI silently uses the profile _named_
+  `production`, which is how 1.1.4 reached Play's production track with its billing rows never once
+  run.
+
   (config in `eas.json`, project id in `app.json`). See [CLAUDE.md](./CLAUDE.md) for the release
   checklist (version bump, changelog, tag).

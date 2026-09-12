@@ -10,6 +10,9 @@
   "scripts": {
     "build": "turbo run build",
     "lint": "turbo run lint",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "check:listing": "node scripts/check-store-listing.mjs",
     "typecheck": "turbo run typecheck",
     "test": "turbo run test",
     "web": "npm run dev --workspace @poker/web",
@@ -31,6 +34,7 @@
     "eas:submit:android:production": "npm run eas:submit:android:production --workspace @poker/mobile"
   },
   "devDependencies": {
+    "prettier": "3.9.6",
     "turbo": "^2",
     "typescript": "~5.8.3"
   },

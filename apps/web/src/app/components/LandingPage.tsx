@@ -10,11 +10,17 @@ import {
   Smartphone,
   Monitor,
   Sparkles,
+  Coins,
+  Handshake,
+  ListOrdered,
+  Share2,
+  Spade,
   LucideIcon,
 } from "lucide-react";
 import Image, { StaticImageData } from "next/image";
 import AdSlot from "@/components/ads/AdSlot";
 import { ADSENSE_SLOT_LANDING } from "@/lib/monetization";
+import { CONTACT_EMAIL } from "@/lib/contact";
 import icon from "../../assets/icon.png";
 import screenshot_1 from "../../assets/screenshots/screenshot_1.jpeg";
 import screenshot_2 from "../../assets/screenshots/screenshot_2.jpeg";
@@ -41,8 +47,7 @@ const STORE_CONFIG: Record<
   ios: {
     href: APP_STORE_LINK,
     label: "Download for iOS",
-    gradient:
-      "from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800",
+    gradient: "from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800",
     path: "M18.71 19.5c-.83 1.24-1.71 2.45-3.05 2.47-1.34.03-1.77-.79-3.29-.79-1.53 0-2 .77-3.27.82-1.31.05-2.3-1.32-3.14-2.53C4.25 17 2.94 12.45 4.7 9.39c.87-1.52 2.43-2.48 4.12-2.51 1.28-.02 2.5.87 3.29.87.78 0 2.26-1.07 3.81-.91.65.03 2.47.26 3.64 1.98-.09.06-2.17 1.28-2.15 3.81.03 3.02 2.65 4.03 2.68 4.04-.03.07-.42 1.44-1.38 2.83M13 3.5c.73-.83 1.94-1.46 2.94-1.5.13 1.17-.34 2.35-1.04 3.19-.69.85-1.83 1.51-2.95 1.42-.15-1.15.41-2.35 1.05-3.11z",
   },
   android: {
@@ -272,6 +277,12 @@ const LandingPage: React.FC = () => {
                 Open Web Timer
               </a>
               <a
+                href="/support"
+                className="text-gray-400 hover:text-white transition-colors"
+              >
+                Support
+              </a>
+              <a
                 href="/privacy-policy"
                 className="text-gray-400 hover:text-white transition-colors"
               >
@@ -303,8 +314,10 @@ const LandingPage: React.FC = () => {
               Everything You Need for Perfect Poker Tournaments
             </h2>
             <p className="text-xl text-gray-300 max-w-3xl mx-auto">
-              Professional-grade features designed for poker enthusiasts,
-              tournament organizers, and casual players alike.
+              A clock that keeps the blinds honest, and the rest of the
+              arguments a home game has — what each place pays, how to end it
+              early, and who&apos;s actually winning — settled before they
+              start.
             </p>
           </div>
 
@@ -327,13 +340,43 @@ const LandingPage: React.FC = () => {
                   icon: Sparkles,
                   title: "Structure Generator",
                   description:
-                    "Pick a starting blind, a number of levels and a speed, and get a schedule built the way real casino sheets are — every blind a multiple of your smallest chip, so each one can actually be posted at the table.",
+                    "Pick a starting blind, a number of levels and a speed, and get a schedule built the way a proper blind schedule is — every blind a multiple of your smallest chip, so each one can actually be posted at the table.",
                 },
                 {
                   icon: Trophy,
                   title: "Tournament Structures",
                   description:
-                    "Edit every level on its own screen, insert or duplicate levels anywhere, and jump straight to any level mid-game. Save what you build as a preset and reuse it. From cash games to deep stack tournaments.",
+                    "Edit every level on its own screen, insert or duplicate levels anywhere, and jump straight to any level mid-game. Save what you build as a preset and reuse it. From a quick evening to a deep stack tournament.",
+                },
+                {
+                  icon: Spade,
+                  title: "No Cards? The App Deals",
+                  description:
+                    "Somebody forgot the deck, or there isn't one. Pass the phone round and the app deals — two cards each, then the flop, turn and river when the table is ready, and it reads the showdown at the end. Your own two cards stay hidden until you tap, and hide again the moment the phone moves on. You play with the chips already in front of you.",
+                },
+                {
+                  icon: Coins,
+                  title: "Payouts, Worked Out",
+                  description:
+                    "Set a buy-in and see what every place wins, so the split is agreed before the first hand instead of argued about heads-up. Bounties, rebuys and add-ons all count. Pick the smallest note you want to hand over and every place below the winner comes out a round number you can count straight out of the pot — the winner takes what's left, so the table still adds up to exactly the prize pool.",
+                },
+                {
+                  icon: Handshake,
+                  title: "Chop the Last Pot",
+                  description:
+                    "When everyone left agrees to end it there, the app works out the deal: each player keeps the lowest prize still live, and what's above that is split by chip stack. Nobody ends up with less than the place they'd already locked up.",
+                },
+                {
+                  icon: ListOrdered,
+                  title: "Keep Score Across Nights",
+                  description:
+                    "A leaderboard for your group — who's won most and who turns up. Keep a separate board for each set of people you play with. Recording a night is two taps per player and no typing: tap who played, then tap them in the order they finished.",
+                },
+                {
+                  icon: Share2,
+                  title: "Straight to the Group Chat",
+                  description:
+                    "Send the table the payouts before you start, or the standings after. Plain text that reads properly wherever you paste it, with no app link tacked on the end.",
                 },
                 {
                   icon: Shield,
@@ -512,6 +555,12 @@ const LandingPage: React.FC = () => {
                 className="hover:text-white transition-colors"
               >
                 Web Timer
+              </a>
+              <a
+                href={`mailto:${CONTACT_EMAIL}`}
+                className="hover:text-white transition-colors"
+              >
+                Contact
               </a>
               <span className="text-sm">
                 © 2025 Poker Blinds Buzzer. All rights reserved.

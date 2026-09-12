@@ -9,11 +9,1106 @@ platform-tagged heading (e.g. `## [1.1.3] - 2026-07-20 — Android`) when you cu
 
 ## [Unreleased]
 
+## [1.2.0] - 2026-09-11 — iOS & Android
+
+### Release
+
+- **Cut for 1.2.0.** The changelog's accumulated `[Unreleased]` entries are rolled into this dated
+  heading, and `ROADMAP.md` goes from 1,038 lines to 772 — every finished item out, including the
+  eight sections and lines that carried their own _"Delete this when 1.2.0 is cut"_ instruction.
+  The native versions needed no bump: `Info.plist`, `build.gradle` and `app.json` were set to 1.2.0
+  deliberately in #148 back in August.
+
+  **Clearing it out found four claims that contradicted shipped reality**, which is the argument for
+  doing this at cut time rather than letting the file accrete:
+
+  - The shared clock had a whole section titled _"transport absent"_ and an entry saying a real
+    transport "got harder, not easier" because it needed the deleted AppSync bus stood back up. It
+    needed three HTTP routes and a polling loop, and shipped.
+  - Sign in with Apple and Google was _"decided, not started"_ and blocked on credentials and on the
+    federated-MAU question. Both were answered — the credentials weeks ago, the pricing on
+    2026-09-05 — and the file said so about the MAU question **forty lines from where it also listed
+    it as open**.
+  - The backend plan still described "AppSync Events for push". Push goes through Expo's service;
+    AppSync was deleted in #227.
+  - Three items under _before anything connects to it_ described work that has since shipped: a
+    table route that no longer exists at all, Cognito's built-in email, and moving account deletion
+    server-side.
+
+  **`RELEASE_TESTING.md` was deliberately not reset**, against the letter of cutting step 3. That
+  step clears the _previous_ release's results; 1.2.0's pass has not been run yet, so the ✅ in it
+  are this release's own — §14b's iOS rows and the Android ones added today. Resetting now would
+  erase evidence and force re-running work, which is the opposite of what the step is for. It gets
+  reset when 1.2.0 ships, alongside the tag.
+
+### Added
+
+- **A board's admin can remove somebody from it.** The board that somebody else's name appears on
+  is the one place the app lets a person put text in front of another, and until now the only
+  answers to that were leaving your own board or asking the person to stop. The server has been able
+  to do this all along — `DELETE /groups/{id}/members/{accountId}` has wanted `manageAdmins` since
+  the routes were written, and refuses to leave a board with no admin — but nothing in the app ever
+  called it. Groups → the members button on a board you administer lists everyone on it, and
+  removing somebody **also replaces the invite code**, because removal without that is not
+  revocation: the code they were sent would still let them back in.
+
+  **The list has no names in it, and that is deliberate.** A board strips other people's account ids
+  before it leaves the server, so the app cannot say which account holds which player; people are
+  listed by when they joined. Doing better would mean undoing that, which is a worse trade than a
+  list you have to read a date off.
+
+  Not gated on Club: hosting is what the subscription buys, and moderating a board you already host
+  is not something to lose when one lapses.
+
+- **The website says plainly what the app does with money.** A new section on the support page:
+  nothing is wagered, staked or paid through the app; the card table deals and holds no chips; the
+  payout screen is a calculator that settles nothing; the leaderboard records results and not
+  amounts. It is there because it is the question a poker app invites, and because the honest answer
+  is short.
+
+- **A finished game asks before it is thrown away.** Start a new game with an unsaved one on screen
+  and the app offers to put it on the leaderboard first — it dealt every hand, so it already knows
+  who finished where. Nothing is lost either way: a finished game survives the app closing, and its
+  Save button is still there next time.
+- **Android tells you when notifications are blocked, and how to fix it.** Turn the permission down
+  and the timer cannot alert you when the blinds go up in the background — previously with no
+  explanation and no way back. Settings now says so and opens the right page, and the message goes
+  as soon as it is fixed.
+- **A leaderboard now survives having no signal.** Adding a player or recording a game writes the
+  board on the phone first and tells the server second, keeping what could not be sent in an outbox
+  that is retried when the app comes back to the foreground, when somebody signs in, and on the
+  next cold launch. The night at a table with one bar of reception is the case the whole thing is
+  built for: nothing waits on a network, and nothing is silently lost when the network never comes.
+  A write the server _refuses_ — a board somebody removed you from between Tuesday and Thursday —
+  is kept aside to be shown rather than dropped or silently applied, and anything that depended on
+  it is held back with it, so a game can never be recorded naming a player who was never added.
+  The leaderboard says so plainly when that happens — what was not saved, why, and the part that
+  matters: it is on your phone and the other players will not see it.
+- **Boards can be shared.** A board's row in the groups sheet has a share button that makes an
+  invite code and hands it to the usual share sheet; whoever gets it pastes it into _Join a board_
+  in the same list, and the board arrives with its whole roster and season. Paste the code on its
+  own or the entire message it came in — either works. The code never expires, so sharing again
+  replaces the last one, which is the only way to take one back from somebody you did not mean to
+  send it to. Boards follow the account rather than the phone: sign in on a second device, or
+  reinstall, and every board you are on comes back. The share button only appears on boards you can
+  actually invite people to. **The host pays and guests do not**: sharing a board of your own is a
+  subscription, and joining one somebody sent you costs nothing at all — no account purchase, not
+  even Pro, because a board you were invited to is visible without it. Everything Pro unlocks stays
+  exactly as it is and nobody who has bought it loses anything — and the subscription includes Pro,
+  so hosting is one purchase rather than two — and once a subscription has unlocked Pro it stays
+  unlocked, so stopping it costs you the sharing and nothing else.
+- **A board now reads back what other people did to it.** When the app comes to the foreground, and
+  again once anything queued has been sent, each board is fetched and merged with what is already
+  on the phone. Merged rather than replaced, which is the whole of the design: a board that
+  existed before any of this has a history the server has never been told about, so trusting the
+  server's copy would delete a season of game nights. Somebody else's additions arrive, removals
+  they made are applied, and a game recorded thirty seconds ago does not flicker off the screen
+  while the request is in flight. A game or player you delete stays deleted, and a board you rename
+  keeps the name you gave it.
+- **Deleting your account now deletes what is on the server too.** Every board membership, claim
+  and shared result goes first and the login goes last — the other order leaves rows nobody can
+  ever reach again, because once the login is gone there is no way to prove they were yours. If it
+  is interrupted, asking again finishes the job.
+- **Confirmation codes now come from an address that belongs to this app**, signed so mail
+  providers can prove it. They were arriving in spam, which for a code that expires is the same as
+  not arriving.
+- **Anything that needs the server can be switched off without a store release.** If sharing or
+  sign-in misbehaves after a release, they can be turned off from a laptop in a minute rather than
+  through a review that takes days — and turned back on the same way. The app asks at every launch,
+  and treats an unreachable server as off rather than queueing work at a server that is not there.
+- **Claim yourself on a leaderboard.** Signed in, a player on the board can be linked to your
+  account — and because every game ever recorded refers to the person rather than to an account,
+  the whole season becomes yours with nothing rewritten. It can be undone, so a mis-tap costs
+  nothing. Two things are refused rather than guessed at: a person somebody else has already
+  claimed, and holding a second seat on the same board, since one person is one seat and holding
+  two would double-count their nights. **Only visible while signed in**, which nobody can be yet.
+  Signing out or deleting an account lets go of the players it had claimed, so nobody is left linked
+  to an account that no longer exists — and if one ever is, it can still be unlinked rather than
+  being stuck for good.
+- The Pro sheet lists what Pro actually buys now. It was still selling the previous version's
+  feature set — the screen where somebody decides to pay was describing an app with fewer things in
+  it than the one they had just been using, and dealing a hand, the headline of this release, was
+  missing from it entirely.
+- The website describes the app that exists: dealing a hand when nobody brought cards, progressive
+  bounties, and a dealt game putting itself on the leaderboard with knockouts included.
+- Accounts can now talk to a real server. The sign-in screens are wired to Amazon Cognito, including
+  the step nobody thinks about until they meet it: creating an account sends a code to your email
+  and does **not** sign you in until it comes back, so the screen asks for it rather than saying
+  "welcome" to somebody who is not logged in. Every refusal says what to do about it — that address
+  is already taken, that code has expired, wait a minute and try again — rather than "that didn't
+  work". Settings has an Account row that leads to them, and they run against a real
+  user pool rather than the development stub they were written against.
+- **Progressive bounties (Pro).** Knock somebody out and half their bounty is yours in cash — the
+  other half goes onto your own head, so whoever is winning becomes the one worth beating. It is the
+  format nobody can run on paper: the bounty on every head changes a dozen times an evening, and
+  nobody is keeping that straight between hands. The app deals the game, so it keeps the ledger —
+  who is worth what, who collected it, and the last player standing takes the bounty on their own
+  head, which is theirs and came out of their own buy-in. The odd unit of an odd split goes into the
+  pocket rather than onto the head, so somebody is handed real money tonight. If a pot goes unclaimed
+  the bounty on that head has nowhere to go, and the app says so at the end rather than leaving
+  somebody to count the cash and find it short. Flat bounties are unchanged and stay the default:
+  one number, understood by everyone, settled at the table.
+- **A game the app dealt now knows who knocked whom out (Pro).** A bounty is money that changes
+  hands the moment somebody busts, a dozen times over an evening, usually while the host isn't
+  watching — which is why a game written down afterwards has never tracked it, and why the
+  leaderboard's money column was prize money only. A game the app deals watched every hand, so it
+  knows exactly whose chips took whom out, and the board now counts knockouts and pays the bounty
+  into the total. The credit goes to whoever won the pot the busted player's last chips were in,
+  which with side pots is frequently _not_ whoever won the most money that hand. A split pot splits
+  the bounty — one bounty between the two of them, since only one was ever collected, divided the
+  same way the pot itself was. A pot nobody could claim pays no bounty to anybody, rather than
+  picking a winner.
+  Games recorded by hand show nothing here rather than zeros — nobody can say, and a guess rendered
+  as a total is worse than no total.
+- **A way back when the app breaks.** Instead of a blank screen or the app closing on itself, there
+  is now a page saying what went wrong, with the message on it — the only place that message exists,
+  and what makes a bug report useful. Trying again is the first offer. The second is for the case
+  that trying again cannot fix: something the app saved that it can no longer read, which is loaded
+  again on every launch and so fails the same way forever. Starting fresh clears the round in
+  progress, the blind structure, the payout setup, presets and the sound choice — and **keeps the
+  leaderboard**, because deleting the app is what somebody stuck does otherwise, and that takes
+  seasons of game nights with it. It says exactly what it will take before it takes it.
+- Groundwork for one clock on several phones: a screen that starts a shared clock or joins one with
+  a code, and the whole loop behind it — a local pause, resume, reset or level change goes out to
+  the table, and anybody else's comes back and moves this phone. There is no host: whoever is
+  nearest the phone presses it, and two people pressing at once settle on the same answer rather
+  than the table quietly splitting in two. It says plainly when it has lost touch, and keeps
+  counting down while it has, because the phone still knows how much of the round is left — it just
+  no longer knows whether somebody paused it. **Nothing links to it yet**: there is no server behind
+  it, and a join code nobody else can join is worse than no join code.
+- Groundwork for one clock on several phones: the protocol a shared session runs on, and the join
+  code that gets read out across the table. The code leaves out every character that can be misread
+  — no `O`/`0`, no `I`/`1`, no `S`/`5` — and refuses a typo rather than guessing, because guessing
+  can drop somebody into a stranger's game night with a plausible countdown on it. What travels
+  between phones is **how much of the round is left**, never when it ends: two phones whose clocks
+  disagree by half a minute would otherwise show different countdowns on the same table, so each
+  one anchors what it receives to its own clock as it arrives. **Nothing in the app uses this yet**
+  — there is no server behind it, and the wiring into the timer comes next.
+- Groundwork for accounts: the sign-in, sign-out and delete-account screens exist and work, and the
+  seam an identity provider plugs into is defined in `@poker/core`. **Nothing links to them and no
+  account is real yet** — they run against a development stub with no server behind it, so the way
+  in stays closed until there is. Account deletion is built in from the start rather than added
+  later, since an app that lets people create an account has to let them delete it from inside the
+  app.
+- **A game the app dealt puts itself on the leaderboard (Pro).** When the last chip changes hands,
+  one button saves the night: everybody's finishing position is already known, because the app dealt
+  every hand and watched them go out. Winnings come from the payout structure you set, priced for
+  the field that actually sat down. It records the top three even when fewer places pay, so a
+  friendly game still has a winner and the board's tie-breaks still work — the same rule the
+  record-a-game sheet follows by hand.
+- A game in progress now survives the app being closed. Shut the app between hands — or have the
+  phone die mid-evening — and reopening it puts you back at the same table, same stacks, same cards
+  in the middle. A stored game is checked whole before it is trusted, and dropped entirely if
+  anything about it no longer adds up: unlike the leaderboard, where one bad row is dropped and a
+  season of history kept, a half-restored game is a table paying the wrong person from stacks that
+  do not balance. Losing an evening you can deal again is the better of the two.
+- Raising in a dealt hand now takes any amount, not just the minimum or everything. Type it, or tap
+  Min, Pot or All in to fill it in — and then confirm, because a raise is the one thing on that
+  screen that can end somebody's night by mis-tap. "Pot" is the size players actually name at a
+  table: call first, then raise by what is in the middle after that. It only appears when it lands
+  somewhere between the two ends, since a Pot button that quietly means "all in" is worse than no
+  Pot button.
+- **Play a hand from the phone (Pro).** For a table that has chips but no cards — on holiday, or
+  when the deck is somewhere nobody can remember. The phone deals a real hand of hold'em: everyone
+  can see the board, the pot and every stack, and only the player to act can see their own two
+  cards, after tapping to reveal them. That last part is why the reveal is a tap rather than
+  automatic: one phone goes round the table, and cards that appear by themselves are cards the
+  previous player has already seen. Blinds, betting, side pots when somebody is all-in for less,
+  and who wins at the showdown are all decided by the same rules the rest of the app is built on.
+- Repo docs and store copy brought up to what 1.2.0 actually contains — the `README`, the
+  architecture notes, and both stores' long descriptions and Pro feature lists, which all still
+  described a timer whose only paid extras were presets and alarm sounds.
+- Groundwork for accounts and online play: the backend is now defined as code in a new `apps/infra`
+  workspace — accounts, one small database, and a realtime channel for a shared poker table.
+  **Nothing in the app talks to it.** Two decisions are worth recording
+  because they are hard to change later: hole cards are kept private by _where they are published_
+  rather than by the app choosing not to draw them, so a card you should not see never reaches your
+  phone at all; and only the server may publish, so every change to a table goes through the poker
+  rules once — the same rules the phone runs, which is what stops the two disagreeing. The channel
+  names both sides use are defined once and shared, because the app and the server disagreeing
+  about them is the kind of mistake that is silent rather than obvious.
+- Groundwork for leaderboards that several people share. A group can now live on the server rather
+  than only on the host's phone: more than one person can be an admin, anybody at the table can add
+  a player or record a game, and only an admin can remove one — because writing down a name should
+  be easy and making a season disappear should not. People join by a link that does not expire, so
+  it can be pinned in the group chat, and an admin can rotate it if it ever goes somewhere it should
+  not. It is deliberately built so the app keeps
+  working with no signal at a table: the things that only need your own phone — the timer, dealing,
+  writing down who won — carry on offline and catch up later, and only the things that genuinely
+  need everybody else wait for a connection. When an account is deleted, the players you
+  claimed are let go but the games stay on the board, because a night of poker belongs to the table
+  rather than to whoever wrote it down — and if you were the last person who could manage a group,
+  somebody else is put in charge of it rather than it being left with nobody.
+- That backend now actually runs. A development environment is deployed and has been exercised end
+  to end: an account created from a real emailed code, signed in, a hand dealt and acted on, and the
+  cards arriving on the right screens — including the part that matters, which is that a player's
+  hole cards never travel to anybody else's phone and somebody not at the table cannot watch it at
+  all. **Nothing in the app points at it**, deliberately: this release still ships with accounts
+  switched off, because a development server is a thing that gets deleted and rebuilt, and nobody's
+  account should live there. Two faults were found by deploying that no amount of testing beforehand
+  could have: one that would only ever appear on the very first deploy of a fresh environment, and
+  one that would have put an approval step in front of every website update.
+- The server watches itself, and can say so: traces of every request, the numbers behind them, and
+  seven alarms that email when something is actually wrong — one of which has been deliberately set
+  off to check the email arrives. This was first built on an outside monitoring service and then
+  moved onto Amazon's own, because measuring it showed the outside route was adding nearly two
+  seconds to the first request after an idle period — on an app whose whole traffic pattern is one
+  evening a week, so almost every request is that first one. Nobody would have seen a bug; they
+  would have seen the app feeling slow to wake up.
+
+- Groundwork for the multiplayer game mode: a card model, a **seeded** shuffle and a hand
+  evaluator in `@poker/core`. Nothing user-facing yet. Randomness is injected rather than
+  generated, so a deal is reproducible from its seed — which is what lets the same hand be replayed
+  exactly in a test, and lets a server prove after the fact that a shuffle wasn't rigged. The
+  evaluator finds the best five cards out of seven by checking all 21 combinations rather than
+  consulting a lookup table: there is no generated data to get wrong, and the correctness argument
+  fits in a sentence. Hand strength is packed into a single integer so that comparing two hands and
+  asking whether they _tie_ are the same operation — split pots turn on exact equality, and a
+  multi-field comparison is one wrong branch away from paying the wrong player. It is checked
+  against the published five-card frequencies across all 2,598,960 hands in the deck, and against
+  the number of genuinely different hands in each category, so every hand is verified rather than
+  the handful someone thought to write down.
+  The seeded shuffle is for **tests and replay only, never for dealing a real hand.** It carries
+  32 bits of state, which is about four billion possible shuffles — a space one processor core can
+  sweep in a quarter of an hour. Someone holding two cards and looking at the flop could narrow
+  that to a few candidates and the turn would settle it, handing them the river and everybody
+  else's cards. Choosing the seed carefully doesn't help, because the weakness is how few seeds
+  there are. A real deal has to come from the platform's cryptographic random source, which the
+  game will pass in; `@poker/core` deliberately doesn't ship one, since it has no platform to take
+  it from and a guess would put a fake in the one place that can't have one.
+- **Multiple leaderboards (Pro).** Keep a separate board for each set of people you play with —
+  the regular Thursday game and the friends you only play with on holiday don't have to share one
+  list of names and one set of standings any more. The leaderboard screen shows which board you're
+  looking at and switches between them in two taps; groups can be renamed, and deleting one asks
+  first and says how many games go with it. Players and games belong to the group they were added
+  to, so nothing bleeds between them.
+- The leaderboard is now stored as **groups** — a board per set of friends rather than one list for
+  everybody. A leaderboard that already exists is turned into a group the first time the app opens
+  after updating, keeping every player and every game, and it stays the one you are looking at, so
+  nothing changes on screen. The migration is written back straight away rather than being redone
+  every launch, and the board is also saved in the old format alongside the new one — so if this
+  version ever had to be rolled back, the previous one would still find everybody's history rather
+  than an empty board it would then overwrite. There is still only one board visible for now: a host who plays with one crowd
+  never meets the concept, and the picker for switching between groups comes next.
+- Groundwork for **poker groups** in `@poker/core` — a separate board for each set of friends you
+  play with, instead of one list for everybody. Nothing user-facing yet. The important decision is
+  that a group's roster is _people_, not accounts: someone who turns up to one game night on holiday
+  and will never install anything still belongs on the board, so a name is all that is needed and
+  signing in is an optional extra on top. Modelling it the other way round would mean nobody can be
+  scored until they have downloaded the app, which is backwards for a game played in someone's
+  kitchen. Because every recorded game refers to the person rather than to an account, **signing up
+  later never rewrites anything**: you claim the name you have been playing under and every night
+  you were ever part of is already yours. Two things are refused rather than guessed at — a person
+  somebody else has already claimed, and holding two seats in the same group, since one person is
+  one seat and holding two would double-count their nights. Claiming can also be undone, so a
+  mistake doesn't mean rebuilding the group. An existing single board becomes a group when the time
+  comes, keeping every player and every game, and someone who never used the leaderboard gets no
+  group at all rather than an empty one to delete. The stored leaderboard already carries the
+  account a player has been claimed by, so the first claim to be saved survives the next launch
+  instead of quietly vanishing.
+- A whole **game** in `@poker/core`, hand after hand until somebody has all the chips. Nothing
+  user-facing yet. The button moves round, players who run out are left out of the next deal, and
+  the order people went out in is kept as it happens — which is the part that cannot be worked out
+  afterwards, since once everyone is on zero the final chip counts say nothing about who went out
+  first. Two players busting in the same hand are separated by the stack they started it with, the
+  bigger one finishing higher, which is what a table does. The point of all this is the last step:
+  a finished game turns straight into a leaderboard entry, with everyone's finishing position and
+  winnings already known, instead of the host tapping them in afterwards from memory. It records the
+  top three finishers even when the game paid fewer places or no money at all, so a friendly game
+  still has a winner and the board's tie-breaks still have something to work from — the same rule
+  the record-a-game sheet already follows by hand.
+- A whole hand of Texas hold'em in `@poker/core` — the piece that joins the others up. Nothing
+  user-facing yet, but this is the first time the cards, the betting and the pots play a hand from
+  the shuffle to the chips being pushed. It deals, posts the blinds, runs each street, deals the
+  flop, turn and river, and settles: the last player standing takes it without showing, or the
+  hands are compared and the pots — including side pots — go to whoever can win them. When everyone
+  is all-in the rest of the board runs out with no more betting, the way a table does it. The
+  heads-up exception is handled, because it is the one everybody forgets: with two players the
+  button posts the small blind and acts first before the flop, then acts last on every street after
+  it. There are no burn cards: a dealer burns one so a marked or glimpsed top card can't be read,
+  and with a shuffle nobody can see it would remove a card for no gain. Asserted over two thousand
+  randomly played hands — every hand finishes, no chip is created or destroyed, no card is ever
+  dealt twice, every showdown is judged on a full five-card board, and what is paid out is exactly
+  what went in. A player too short to cover the big blind is all-in for less and everybody behind
+  still has to call the full amount, which is the rule rather than the easier thing to write.
+- The betting round for the multiplayer game mode, in `@poker/core`. Nothing user-facing yet. It
+  decides whose turn it is, what they may legally do, and when the round is over — including the
+  three rules people actually get wrong at the table: a raise must be at least as big again as the
+  last one; a player can always put their last chip in even when that falls short of a legal raise;
+  and **going all-in for less than a full raise does not reopen the betting** — everyone still has
+  to match it, but players who have already acted may only call or fold rather than raise again.
+  A betting round that could never end would be the worst possible failure here, so termination is
+  asserted over thousands of randomly played-out rounds, along with chip conservation and the
+  guarantee that everyone still in has either matched the bet or is all-in.
+- Side pots for the multiplayer game mode, in `@poker/core`. Nothing user-facing yet. When someone
+  is all-in for less than the bet, the money splits into a main pot they can win and side pots they
+  can't, so the biggest stack can't win chips nobody had to match — and a player who folds leaves
+  their chips behind without being able to win them back. A pot that won't divide evenly hands its
+  odd chips out one at a time starting to the left of the button, the way a dealer does it, rather
+  than to whoever happens to be first in a list: the result is identical however the players are
+  ordered, which is asserted by shuffling every input and comparing. What is paid out always adds
+  up to exactly what went in.
+- **Payouts (Pro).** Set a buy-in and the app works out what each place wins, so the split is agreed
+  before the first hand instead of argued about heads-up. Bounties come **out of** the buy-in rather
+  than sitting on top of it — a 20 buy-in with a 5 bounty is still 20 out of each pocket, 15 to the
+  prize pool and 5 to knockouts — because the alternative means collecting more than the buy-in you
+  advertised. Every payout is rounded to a note you can actually hand over (1, 5, 10 or 25) while
+  the table still sums to _exactly_ the prize pool: the split uses the largest-remainder method, so
+  nothing is quietly lost to rounding and nothing is quietly handed to the winner. If the pool can't
+  stretch to the usual number of places at your chosen note size, it pays fewer places rather than
+  announcing one that wins nothing. Paid places
+  follow the field size by default — roughly the top fifth, the home-game convention rather than a
+  casino's tenth — and can be pinned instead. Bounties are flat by default: the app states the
+  per-knockout figure and players settle it between themselves at the table. A game the app deals
+  can do better than that — see the knockout and progressive-bounty entries above. The maths is in
+  `@poker/core`, with the
+  sums-to-the-pool invariant asserted across the whole realistic range of buy-ins, field sizes,
+  bounties and denominations rather than at a handful of points.
+  - **Rebuys and add-ons** are counted too. A rebuy is another buy-in — it grows the prize pool and
+    re-arms that player's bounty, exactly as buying in did. An add-on is different: it buys chips,
+    not a bounty, so all of it goes to the prize pool and it can carry its own price. How many
+    places get paid still follows the number of _players_ rather than the number of entries —
+    thirteen players with five rebuys is thirteen people to pay, not eighteen — though the extra
+    money can fund a place a thinner pool couldn't have paid at your chosen note size.
+- **The timer offers to record a game when one ends (Pro).** Reset the timer after the blinds have
+  climbed and the app asks whether to add the result to the leaderboard, opening the record sheet
+  straight from the prompt. There is no true "tournament over" signal in a blinds timer — reset
+  deliberately clears the round and leaves the blind level alone — so this is a deliberate
+  heuristic: resetting _after progressing_ is someone starting fresh, which almost always means the
+  last game just finished. Resetting on level one is a mis-tap and is left alone, and the prompt
+  stays quiet unless Pro is unlocked and there is someone on the roster to record against.
+- **Chop the remaining money (Pro).** When the players still in agree to end it there, the payouts
+  screen works out the deal: everyone left keeps the lowest prize still live, and whatever is above
+  that is split by chip stack. A purely chip-proportional split is the obvious version and it's
+  wrong — a short stack can come out below the place they'd already locked up, which no table would
+  accept. The shares always add up to exactly the money still on the table.
+- **Share the payouts or the standings to your group chat (Pro).** A button on each screen hands the
+  table a plain-text message — buy-in, field, what each place wins and the bounty; or who's winning
+  after however many nights. Plain text on purpose, since chat apps render no formatting, and with
+  no app link appended: you're telling your table what the payouts are, not advertising.
+- **Leaderboard (Pro).** Keep score across game nights: who has won most, who turns up, and what
+  everyone has taken home. **Local-first and single-device** — no accounts, no sign-in, and nothing
+  leaves the phone; the host's device is the source of truth for their group. Recording a game is
+  two taps per player and no typing: tap who bought in, then tap them in the order they finished.
+  Winnings are never entered by hand — they come from the payout structure above, recomputed for the
+  field that actually turned up rather than the one you planned for. Games played counts everyone
+  who bought in, not just who cashed, so a player on a bad run still appears on the board. The board
+  ranks by wins and breaks ties predictably (podiums, then money, then fewer games). It shows money
+  **won**, deliberately not net profit: a bounty settled by hand changes hands in cash during play
+  and can't be reconstructed at the end of the night, so a profit figure would be confidently wrong
+  for anyone in a bounty game. Bounties from a game the app dealt _are_ counted, because it watched
+  them happen.
+- `@poker/core` coverage is now measured across **every** source file and enforced by a threshold in
+  CI, so a module with no test at all fails the build instead of being invisible. Coverage read 97%
+  before this and was really 86% — v8 only reports files a test imports. It is now 99% statements /
+  100% functions, with 38 new tests covering preset, review and sound-pack persistence, the
+  corrupt-value and storage-unavailable fallbacks in every loader, the shared store/entitlement ids,
+  and blind-maths edges at the top and bottom of the chip ladder.
+
+- **Sign in with Apple or Google.** Two taps instead of typing an address, waiting for a code and
+  typing that too — the providers have already checked the address, so there is nothing to confirm.
+  Email and password is still there behind _Use email instead_, and signing in either way lands on
+  the same account: somebody who created one with a password and later taps Continue with Google
+  finds their boards and their season where they left them.
+
+- **You can report a shared board, and leave one.** A board somebody sent you carries names they
+  typed, and until now there was nothing to do about an offensive one: the boards list has a flag
+  button on any board you joined, which asks what is wrong and sends it to us, and a leave button
+  beside it. A report reaches a person by email within minutes rather than sitting in a table
+  nobody opens. **Leaving is not the same as deleting, which is why it is a different button** —
+  deleting a board only ever removed it from the phone, so the membership stayed on the server and
+  the board came back on the next device and on the next reinstall. Leaving ends the membership
+  first and removes the local copy only if that worked, so a board can never quietly return, and it
+  says so plainly when the server could not be reached. Both buttons appear only on boards somebody
+  else shared: reporting your own board is reporting yourself, and leaving one is deleting it.
+- **Names are checked before other people have to read them.** A player name or a board name is
+  written onto everybody's phone once a board is shared, so both are now refused if they are
+  offensive or longer than 40 characters, and the field says which rule was broken instead of only
+  greying out the button. The check deliberately does not refuse ordinary words that happen to
+  contain something — Scunthorpe, therapist and raccoon all pass, and there are tests to keep it
+  that way. It stops the lazy case rather than a determined one, which is why reporting sits beside
+  it rather than instead of it.
+- **`STORE_LISTING.md` holds copy, and `ROADMAP.md` holds the reasoning about it.** The listing file
+  carried a full restatement of the gambling argument that `ROADMAP.md` already made — and the two
+  copies had drifted, with the listing calling the Individual-developer-account rule settled fact
+  while the roadmap correctly called it unresolved. The duplicate is gone and replaced by a pointer;
+  what stays is what gets said to a reviewer. "Honest declaration is the whole strategy" and the
+  table of copy that reads badly beside a gambling question moved to `ROADMAP.md`, because they are
+  decisions about copy rather than copy.
+- **`npm run check:listing`, and CI runs it.** Nothing verified the character counts in
+  `STORE_LISTING.md`, and every one of them is pasted into a field with a hard limit — two were
+  wrong when somebody finally measured. It also compares the paywall's `PRO_FEATURES` against the
+  listing's summary of it, by count: the file already carried a note saying that list had drifted
+  twice and to go and read it first, and a note is not a check.
+
+  **It found a third on its first run.** The Play release notes said 283 characters, counted as code
+  points; a store counts **UTF-16 code units**, and those four emoji are one code point but two
+  units each — so the real number is 286. Harmless at 286 against a 500 limit, and the difference
+  between 497 and 503 is a rejection. Every count in the file is now the UTF-16 one, and the file
+  says so.
+
+- **`STORE_LISTING.md` is navigable, and holds only what gets pasted somewhere.** It had grown into
+  three things at once — copy to paste, reasoning about that copy, and a log of release notes back
+  to v1.1.3 — with no way in but scrolling. Now: a contents list, an **at-a-glance table** of every
+  one-line field and which console it goes in, then the paste blocks, then the reasoning below where
+  it can be read once rather than every release.
+
+  **The v1.1.3 and v1.1.4 release notes are deleted rather than archived**, on the same principle
+  `CLAUDE.md` already applies to `ROADMAP.md` at release time: neither file is a record, because
+  `CHANGELOG.md` and git history are. What was rescued from them is the durable half — the field
+  rules for what each store accepts, including why the iOS notes carry no emoji — rewritten to stand
+  on its own rather than pointing at a block that no longer exists.
+
+  **Club now has paste blocks**, which it never did: display names, both descriptions, the group
+  name, and the longer Play version that can afford the whole sentence. And every counted block was
+  de-indented out of its list item so the counts can be checked mechanically — six blocks, all
+  verifying, where two previously _looked_ wrong to a script and were only ever a measurement
+  artefact of the indentation.
+
+- **Both age ratings are answered and recorded: 4+ on Apple, PEGI 3 on Google.** The questionnaires
+  were the last open item in the gambling section, and the answers given are written down so the
+  next release is checked against them rather than re-derived. **Brazil returns 14+**, the only
+  region above 3 — ClassInd rates _jogos de azar_ on theme rather than mechanics, so a poker app
+  lands there whatever the betting engine does. It blocks nothing. Recorded because both files said
+  "3+ on Google" flatly, which reads as a single global number and is not one.
+- **The Club plan rows say their billing period once.** "Monthly · €2,99 / month" said it at both
+  ends and read like a stutter. The label carries the period — which is what guideline 3.1.2 asks to
+  be on screen — so the price only has to be the price.
+- **`STORE_LISTING.md` records the Club products that were actually created**, replacing the plan
+  for them. It said "not created yet" and carried the pre-decision price range; they exist, at
+  €2.99/€19.99. It also had Play wrong in two ways that matter: Play holds **one `club` subscription
+  with `monthly` and `yearly` base plans**, not two subscriptions — two would let somebody hold both
+  at once, where base plans make Google enforce one and handle the switch — and **Play prices are
+  entered ex-tax**, unlike Apple's, so €2.99 typed there shows a Dutch buyer €3.59. The numbers that
+  land on the same customer-facing price are recorded (2.47 and 16.52), along with the note that
+  base plans start inactive and are invisible to RevenueCat until activated.
+
+  The four RevenueCat identifiers are written out too, because they deliberately differ across
+  stores — `club_monthly` against `club:monthly` — and the app matches on `packageType` rather than
+  on any of them for exactly that reason.
+
+- **Club can be bought.** The paywall gains a Club section with both plans, each showing its price
+  from the store rather than a number written into the app, and its billing period beside it.
+  `purchaseClub` mirrors the Pro path, cancelling included — cancelling is not an error.
+
+  **Built to what guideline 3.1.2 actually asks for**, because the app had none of it: a
+  subscription has to show its title, the length of its period and its price **in the app**, and
+  carry working links to the Terms of Use and the Privacy Policy. The app had no Terms or Privacy
+  link anywhere — fine for a one-time purchase, a rejection for a subscription. Both now link out,
+  which is what `/terms` was built for.
+
+  **The plans are found by billing period, not by product id.** The stores disagree about what a
+  Club product is called — `club_monthly` on Apple, `club:monthly` on Play, because Google models
+  one subscription with base plans — so matching a name would work on one platform and silently
+  return nothing on the other. `packageType` is RevenueCat's normalisation of exactly that.
+
+  The section is **absent** until the products are live rather than empty, and disappears once
+  somebody subscribes: nobody is sold what they already hold. §16b carries the rows, all blocked
+  until the subscriptions are approved.
+
+- **Firebase wired for Android push.** `google-services.json` for the `poker-blinds-buzzer` project,
+  the `com.google.gms.google-services` plugin applied in both Gradle files, and
+  `android.googleServicesFile` in `app.json`. Applied **by hand rather than by `expo prebuild`**,
+  which would regenerate the whole native project and take `MainActivity.kt`'s lifecycle guards with
+  it — the crash fix recorded in `CLAUDE.md`. Verified by `processReleaseGoogleServices` appearing
+  in the task list rather than by assuming the plugin took.
+
+  `google-services.json` is committed on purpose: it ships inside the APK and is extractable from
+  it, and the build needs it. The **service account key** is a different thing entirely — a real
+  credential that can send push as this app — and `.gitignore` now catches it by the name Firebase
+  gives it, plus `serviceAccountKey.json`, so the next one cannot be swept up by a `git add -A`.
+
+- **`RELEASE_TESTING.md` has rows for the shared clock and for notifications.** §18 and §19, 25 rows
+  between them, and both say what they need before anybody sets up two phones: the clock wants the
+  `/sessions` routes deployed and `FORCE_PRO_IN_DEV` until Club can be bought, and push wants a real
+  device with EAS credentials and **two accounts**, because the sender never notifies whoever
+  recorded the game. Each carries the thing most likely to be mistaken for a bug — that a press
+  reaches the other phone in about four seconds rather than instantly, and that a device which never
+  allowed notifications registers for nothing, silently and correctly.
+- **Sharing a clock is Club; joining one is free.** The same split as a shared board and for the
+  same economics — a session is a row other people poll for as long as the table runs, and a clock
+  that asked everybody at the table to subscribe is a feature nobody would use. `clockHostRefusal`
+  and `clockJoinRefusal` sit beside the board's rules in `@poker/core`, return a sentence per case
+  rather than one title over three different refusals, and are checked in `SharedSessionContext` as
+  well as where the buttons are drawn — a screen can hide a control, only the context can stop the
+  act.
+
+  **Joining asks for a sign-in and nothing else**, which is the one requirement that is not about
+  paying: a session is peer-to-peer, so anybody who can watch a clock can also pause it, and that is
+  a write the server will not take from a stranger.
+
+  Enforced on the device rather than the server, like board hosting, because entitlements belong to
+  the store account rather than the Cognito one and the backend cannot see them. A known limit, not
+  an oversight — the same one that blocks a web view of a board.
+
+- **Push notifications when somebody records a game on a shared board.** Through **Expo's push
+  service** rather than APNs and FCM: the app is already an Expo app, so a token is one call away
+  and Expo holds the platform credentials — the alternative was an APNs key, an FCM service account,
+  two payload shapes and a per-platform failure mode, for the same result. A token is a row per
+  device (`ACCOUNT#<id>` / `PUSH#<token>`), so signing in on a phone and a tablet buzzes both, and
+  Expo's `DeviceNotRegistered` is used to forget a device that was uninstalled — the only signal
+  there is that one was.
+
+  **The notification names the board, not the player.** "Ann won" is the more interesting sentence
+  and the wrong one: a board name is chosen by the group, a player name is typed by whoever added
+  them, and a push is the one surface that puts text on a locked screen in front of somebody who did
+  not open the app. Keeping user-typed names off it means moderation here is the story the board
+  already has rather than a new one.
+
+  **It cannot fail a recorded game.** Every failure is swallowed and logged, it only fires when the
+  write actually landed — never on the outbox replaying a duplicate — and it never tells the person
+  who pressed the button, who is holding the phone. The app registers on sign-in and rides on the
+  notification permission the timer already asked for, so it never prompts for its own.
+
+- **The shared clock has a transport, and it is HTTP rather than AppSync.** Three routes
+  (`POST /sessions`, `GET|POST /sessions/{code}`), one `SESSION#<code>` row on the table that
+  already had the right TTL, and a polling transport in the app. `ROADMAP.md` assumed this needed
+  the deleted realtime bus stood back up; the protocol disagreed — `HEARTBEAT_MS` is 5s,
+  `STALE_AFTER_MS` is 15s, a message is a whole state snapshot rather than a delta so a missed one
+  is repaired by the next, and `SessionTransport.subscribe` returns its own unsubscribe, which is
+  `clearInterval`. `sessionTransport` is no longer `null` on any build that has a backend.
+
+  **The routes are authenticated, and the first version had them public.** The argument for open —
+  that a session carries a countdown and no cards, so the worst case is a stranger watching one — is
+  about _subscribing_. A session is peer-to-peer: any participant may publish, which is why the
+  protocol breaks version ties on `sender`, so the join code is a write credential and a guessed one
+  would pause a table's clock and jump its blind level. The app already asks for an account to join
+  a shared board; asking for one to join a shared clock adds nothing new and keeps a polled route
+  off the public surface. A test pins it.
+
+- **The monetization section is revisited, and its pricing rested on a wrong number.** It said Pro
+  was "around €5–6" and concluded that one month of Club being a permanent Pro was an unresolved
+  leak. **Pro is €2.99.** Setting the Club monthly to €2.99 makes subscribing-and-cancelling cost
+  exactly what Pro costs, so the arbitrage disappears by construction — no receipt logic, no
+  minimum-months rule. A problem that only existed because of a figure nobody had checked against
+  the store.
+
+  The section now also records what the rating work cost **Club** rather than Pro: both features
+  `products.ts` names as Club's future are gone — playing a hand together permanently, the shared
+  clock temporarily — which left hosting as its only feature. Club launches with three (hosting,
+  shared clock, push notifications) or not at all, with the cheap path for each written down, why a
+  web view of a board is blocked on cross-platform entitlements rather than on the rating, and the
+  sales figure that should temper the whole plan.
+
+- **The shared clock does not need AppSync, and the protocol proves it.** The section said it needs
+  "the realtime bus stood back up" — the entire Events API, channel namespace, subscribe authorizer
+  and SigV4 publishing that #227 deleted. But `HEARTBEAT_MS` is 5s and `STALE_AFTER_MS` is 15s, a
+  message is a whole state snapshot rather than a delta, and `SessionTransport.subscribe` returns
+  its own unsubscribe — which is `clearInterval`. **HTTP polling on the existing API satisfies the
+  interface**: three routes, one item type on a table that already has the right TTL, and ~40 lines
+  in the app. The cost is up to four seconds of latency on a second screen, and the transport is
+  swappable if that ever stops being acceptable.
+- **`.git-blame-ignore-revs`, so the reformat does not eat `git blame`.** Adopting Prettier rewrote
+  77 files, which would otherwise make every line in them blame to the formatting commit instead of
+  to whoever wrote it. GitHub reads this file automatically; locally it needs
+  `git config blame.ignoreRevsFile .git-blame-ignore-revs` once. Only provably formatting-only
+  commits belong in it — for the one listed, every reformatted file was checked to equal
+  `prettier(previous version)`.
+- **Prettier, and a CI step that enforces it.** The repo had no formatter at all — not a dependency
+  in any workspace, no `.prettierrc`, no `.prettierignore`, and nothing in CI — so `npx prettier`
+  was silently downloading a version and checking against its defaults. **71 of 315 source files had
+  drifted from those defaults**, across all four workspaces. Now pinned exactly (`prettier` `3.9.6`
+  in the root devDependencies, alongside `turbo` and `typescript` as cross-cutting tooling), with
+  the defaults written out in `.prettierrc.json` so a future version cannot change the style
+  underneath us, and `npm run format` / `format:check` at the root. CI runs the check between lint
+  and test.
+
+  The whole tree is reformatted in the same commit. That is unavoidable and is the cost of the
+  change: whitespace only. Verified after — 893 core tests, 260 infra tests, typecheck and lint all
+  pass, and the app still launches and renders on a device, which matters because this rewrote
+  source that Metro bundles.
+
+- **`STORE_LISTING.md` carries a submission hand-off: every console step, with the answers.** Both
+  age-rating questionnaires written out — including Apple's July 2025 **Capabilities** section,
+  which this repo had not accounted for anywhere — plus App Privacy and Data Safety derived from the
+  code rather than from a PR description, the Club product setup, and a Guideline 2.3.1 "Notes for
+  Review" that names what was **removed** as well as what was added. Recorded rather than worked out
+  at submission time, which is what ROADMAP item 10 asks for: the next release gets checked against
+  these instead of re-deriving them under pressure.
+
+  Two things it pins down that were previously vague. **"Used for Tracking" is No**, and that answer
+  is load-bearing: `BannerAdSlot` sets `requestNonPersonalizedAdsOnly: true`, which is the only
+  reason the missing ATT prompt and UMP flow are currently defensible — so nobody should switch
+  personalized ads on without doing that work first. And **the review notes need a demo account with
+  Pro and Club granted**, because a reviewer who cannot get past the paywall cannot see the dealer or
+  the shared board, which is the release.
+
+- **A Terms of Use page, with the zero-tolerance clause Guideline 1.2 wants** — `/terms` on the
+  website, linked from `/support` and in the sitemap. It states plainly that objectionable content
+  and abusive behaviour on a shared board are not tolerated, lists what that covers, says what
+  happens to an account that posts it, and explains that boards are invite-only and that leaving one
+  removes its names from your device. It also repeats the no-wagering statement, so a reviewer who
+  follows the link from the listing finds it agreeing with the review note and with `/support`.
+  Set the **License Agreement** field in App Store Connect to point at it — that is the console step
+  this page exists for, and it needs no new binary.
+- **Guideline 1.2 is ruled on rather than left as a worry.** Declaring user-generated content brings
+  the app under 1.2, which wants four things; three are already there — the name filter, the report
+  flow with an alarm behind it, and a published contact with a response commitment. The fourth,
+  "block abusive users", is met in substance for a closed invite-only board: nobody reaches you
+  unless you redeemed their link, and leaving removes every name on it. **The gap that actually
+  matters is a EULA** — there is no terms page and no zero-tolerance statement anywhere, which is
+  the item 1.2 rejections cite most often. Closing it needs no binary: the App Store Connect License
+  Agreement field plus a short `/terms` page. Recorded in `ROADMAP.md`, with the block argument
+  written out in `STORE_LISTING.md` so it goes in the review notes instead of being argued after a
+  rejection.
+
 ### Changed
+
+- **The notes for review stopped claiming things the binary does not do.** Four of them, found by
+  reading the draft against the code rather than against the previous draft. A demo account "with
+  both entitlements granted", which cannot be produced: `revenueCatProvider.ts` configures
+  RevenueCat with no app user id and never calls `logIn`, so an entitlement belongs to the App Store
+  account on the device rather than to a Cognito login — and a reviewer told they are past the
+  paywall, who then meets it, files the rejection the note existed to prevent. An invite "by link",
+  when what the app shares is a code. "A board admin can remove a member outright", true of the
+  server and with no client at all until this release. And money described as "its own one-time Pro
+  purchase", which stops being true the day Club ships. The notes now also say **where each feature
+  is**, because guideline 2.1 asks for them to be reachable and a reviewer has no way to guess that
+  the shared clock lives in Settings → Tournament.
+- **The privacy declarations now account for push tokens, which they did not.** The App
+  Privacy/Data Safety table in `STORE_LISTING.md` was derived before push shipped, and declared
+  Device ID once: AdMob's advertising id, **not** linked to the user, for advertising. An Expo push
+  token is also a Device ID, it is stored against the account (`ACCOUNT#<id>`/`PUSH#<token>`), and
+  so it **is** linked — for App Functionality. Both consoles allow one data type with two purposes
+  and both linked and unlinked, so this is one entry answered fully rather than a second one; the
+  version that shipped in the table would have understated it, which is the kind of wrong answer
+  that is found later and expensively.
+
+  **The shared clock adds nothing, and the file now says why** so nobody re-derives it next release.
+  A `SESSION#<code>` row holds seconds remaining, round length, paused, blind index, a six-hour TTL
+  and a `sender` that is a random id generated per app launch — not a device identifier and not
+  persisted. No names, no account id, no cards, no amounts.
+
+- **§14b has been opened on Android, and the two rows that can be verified without credentials are
+  ✅.** It had read "Android is untouched", which was true and is the sort of line that stays true
+  until somebody looks. Closing the provider sheet leaves the screen usable with no red error, on
+  both providers, and the offline row behaves as specified with Chrome in Safari's place.
+
+  **What the run established is bigger than the two ticks.** Both providers reach their real sign-in
+  page: Google's names `pokerkit-dev.auth.us-east-1.amazoncognito.com`, and Apple's shows the app's
+  own icon and name, which come from the Services ID record — so the Services ID, Team ID, Key ID
+  and the `.p8` signing the client secret are all correct, since `redirect_mismatch`, a missing
+  identity provider and a bad client id each fail before that page renders. The launch path is
+  `BrowserProxyActivity` into a Chrome Custom Tab, and **Chrome's own first-run screen sits in front
+  of it on a fresh emulator**, which looks exactly like a broken sign-in and is not one.
+
+  **The prod pool was then checked, and it is configured correctly too.** That is the part dev
+  passing says nothing about: prod has its own Apple Services ID and Google client id, each with
+  their own redirect URI, and prod is what ships. Pointed at `PROD_BACKEND`, both buttons open
+  `pokerkit.auth.us-east-1.amazoncognito.com` — **verified in logcat, not read off the file** —
+  with Apple's page carrying the app's icon and name.
+
+  **What no automated run can prove is a completed sign-in**, which needs real provider credentials.
+  Those four rows stay ⬜, as does _Declining at the provider_, which needs the provider's own
+  decline button rather than the tab close already covered.
+
+- **The store copy describes the shared clock and the notifications, because both are real now.**
+  `STORE_LISTING.md` still opened its release-notes section by excluding the shared clock on the
+  grounds that it "still has no transport" — true when it was written and false since the day
+  1.2.0 gave it three HTTP routes and a polling transport. Both store descriptions, both sets of
+  release notes and the Guideline 2.3.1 review note now say what the clock and the push
+  notifications actually do; the Android block goes from 286 to 433 of its 500 characters, and the
+  review notes from 2,835 to 3,442 of their 4,000, which is stated where the blocks are so the next
+  person knows how little room is left.
+
+  **Both long descriptions claimed the same count and neither was right.** They said `2775`; the
+  App Store one is 2,848 and Play's is 2,833. The 15 between them is not a typo either — Play's
+  block is indented two spaces to sit inside a list, so counting its lines as written overstates
+  the text that actually gets pasted, which is now said next to the number rather than left for
+  somebody to rediscover. The checker only reads a count that follows its block, and both of these
+  are stated before theirs, which is how they stayed wrong. The Android note explaining UTF-16 now
+  also says node's `String.length` is the measure and python's `len` is not — the emoji added here
+  are one code point and two units each, which is exactly the gap that note is about.
+
+  **The iOS release notes no longer talk about Android.** One bullet read "Android no longer asks
+  twice for notification permission, and stale Live Activities are cleared away" — in the App Store
+  field, naming the other platform first. The halves are different fixes on different operating
+  systems and Live Activities are iOS-only, so only that half survives there.
+
+  **The reason given for leaving Sign in with Apple and Google out of the notes was wrong.** It
+  said they "need credentials nobody has created" — `cdk.json` carries a Google client id, an Apple
+  Services ID, a Team ID and a Key ID for both stages, the two real secrets are in Secrets Manager,
+  and the prod pool is deployed with both providers. They still stay out of the notes, because §14b
+  has not been run on a real build and a bullet promising a sign-in that fails is a rejection rather
+  than a missing feature — but that is now a testing decision, and the buttons ship either way.
+
+  **The note claiming there is no terms page is gone**, because there is one: `/terms` is live,
+  along with `/support` and `/privacy-policy`. What is left of that item is a single App Store
+  Connect field to point at it.
+
+- **The infra docs describe the backend that is actually deployed.** `apps/infra/README.md` still
+  advertised the deleted table backend as current: a `Publishing` row describing SigV4 hole-card
+  channels, "sixteen routes" including a poker table (there are seventeen, and no table), X-Ray on
+  "all three functions" (there are four), a TTL "for live hands" (tombstones), 277 tests (260), and
+  an alarm table listing four alarms that no longer exist while missing the three that do. The same
+  sweep reached the stale prose in `pokerStack.ts`, `observability.ts` and `scripts/smoke.ts` —
+  whose header still described seeding a hand and asserting on two AppSync channels, though its
+  code has driven boards since the table backend went — plus a dead
+  `import {} from "aws-cdk-lib/aws-appsync"` and an orphaned doc comment for alarms that were
+  deleted with it. One deliberate exception: the API's deployed `description` string is still wrong
+  and is left that way with a comment saying so, because correcting it would put the branch out of
+  sync with the live stack for something cosmetic.
+- **`apps/infra/SYNC.md`'s key table was missing two of the eight item types.** It is the schema
+  reference — `ARCHITECTURE.md` points at it before changing any of this — and it listed neither the
+  **report** row (`GROUP#<groupId>` / `REPORT#<accountId>`, new in #222) nor the **invite**
+  (`INVITE#<token>` / `META`, which the prose below it describes but the table never showed). Its
+  "two partitions answer everything" was wrong for the same reason: the invite needs a third,
+  because whoever redeems a token does not know the group id yet. Both rows added, with why the
+  report is keyed by its reporter.
+- **`CLAUDE.md` pointed at the wrong path for `buildReactNativeFromSource`.** It reads
+  `ios.buildReactNativeFromSource`, and the key actually lives under `expo.plugins` →
+  `expo-build-properties` → `ios`. Anybody following the note would look under `expo.ios`, find
+  nothing, and conclude the guard had been removed — which is the one thing that note exists to stop.
+- **`ARCHITECTURE.md` said the app never calls `/members`; it has since 1.2.0.** `leaveBoard` sends
+  `DELETE /groups/{groupId}/members/{accountId}` for the caller's own account — leaving is not an
+  admin action, so it is the one member route a phone reaches, and it does not go through the
+  outbox. Removing somebody else still has no client, and `/claims`, the deletions and the role
+  changes are still unreached, so the paragraph's point survives; it was just one route out of date.
+- **`README.md` did not say that `npm run eas:submit` goes to a testing track.** It described the
+  scripts as uploading to App Store Connect and Play, with nothing about `--profile internal` or the
+  `:production` variants — and this is the exact distinction that put 1.1.4 on Play's production
+  track with its billing rows never run. The warning `CLAUDE.md` carries now appears where somebody
+  reading the deploy instructions will actually meet it.
+- **Two character counts in `STORE_LISTING.md` were wrong, and every other one was measured.** The
+  promotional text is 151 characters, not 154; the 1.2.0 Play release notes are 283, not 421. Both
+  were under their limits, so neither would have bitten — but the whole value of a file that
+  pre-counts store fields is that the counts can be trusted. Every remaining block was measured:
+  name 27, subtitle 30, keywords 99, all four IAP strings, and the 1.1.3/1.1.4 release notes all
+  match what they claim. The Play notes now also record that their four emoji cost three more units
+  in UTF-16 than as code points, which is what a console counts.
+- **The last two unsourced claims in the gambling section are now sourced or marked.** Apple's
+  "for entertainment purposes" line is real and now carries its number — **guideline 1.1.6** — with
+  the note that it was written about false information rather than gambling, so it is read as a
+  posture rather than a ruling. The claim that "AdSense restricts only real-money gambling" was
+  **never checked against Google's publisher policy**; it sits in an option that was rejected on
+  other grounds, so it is marked unverified rather than quietly relied on. Also confirmed against
+  primary sources while there: `MaxAdContentRating.MA` does name gambling (the library's own type
+  docs), and Belgium's loot-box exposure is criminal fines to €800,000 plus imprisonment.
+- **The PEGI claim was stated more broadly than PEGI states it.** Both files said PEGI "auto-rates
+  _any_ simulated gambling 18". PEGI's own wording is narrower — content that "encourages or teaches
+  gambling", meaning "games of chance normally carried out in casinos or gambling halls". A betting
+  engine is squarely inside that; a dealer holding no chips is not obviously inside it at all.
+  Corrected, and the _Balatro_ precedent added, which the section did not have and which cuts both
+  ways: it drew a **PEGI 18 for explaining poker hands**, then had it **reduced to 12 on appeal**.
+  The answer given to the questionnaire does not change — there is no betting, so "does it contain
+  simulated gambling" is still honestly No — but the **Google 3+ carries a risk the section did not
+  acknowledge**, because PEGI had only ever been invoked to close off 13+ for the engine. If Play
+  returns higher than 3+, that is the reason and Balatro is the appeal precedent.
+- **The rating record says how its evidence was obtained.** Every comparable-app rating in
+  `ROADMAP.md` was read back from the App Store rather than from memory — the previous pass asserted
+  one was safe precedent without checking, and it is an 18+ app. The table now carries the
+  descriptors the store actually returns, a note that the lookup API still serves the pre-2025 `17+`
+  label for both 18+ rows, and a bankroll tracker rated 12+ that disagrees with the one rated 18+.
+- **`STORE_LISTING.md` no longer states the Individual-developer-account rule as settled fact.** It
+  is an unresolved risk, which is what `ROADMAP.md` has always said; the two now agree, and the
+  listing records the counter-evidence and that the rule is moot for 1.2.0 either way.
+- **The age-rating item covers Apple's 2025 questionnaire, which it predated.** The tiers are now
+  4+/9+/13+/16+/18+, and there is a mandatory Capabilities section unrelated to chance-based
+  activities. 1.2.0 answers yes to User-Generated Content and Advertising — both disclosure-only —
+  and no to Social Media and Unrestricted Web Access, which are the two that would force 13+ and
+  16+. So 4+ survives, but declaring UGC brings the app under Guideline 1.2, whose "block abusive
+  users" requirement is the one thing served today only by leaving a board. Recorded as a decision
+  to make rather than an assumption.
+- **The architecture diagram shows the `LinkAccounts` Lambda.** It has been a pre-sign-up trigger
+  since #209 and the diagram has been edited four times since without it.
+- **§14b says the stale-dev-client crash is not scoped to sign-in.** It read as though an
+  un-rebuilt dev client only blocked the Apple/Google rows. `socialSignIn.ts` imports `expo-crypto`
+  at module scope and is reached through `cognitoAuthProvider` → `AuthContext` → `_layout`, so such
+  a build red-screens with `Cannot find native module 'ExpoCrypto'` before anything renders and
+  **no** section of the checklist can be run on it. Found by hitting it.
+
+- **Ads are capped at general-audience content.** The Google Mobile Ads SDK was started with no
+  request configuration at all, and its default admits the `MA` tier — which Google's own
+  documentation describes as including alcohol, **gambling**, sexual content and weapons. Gambling
+  ads served into a poker app is the one combination worth ruling out by hand, so the cap is now
+  set explicitly to match the rating the app asks for. The app is _not_ flagged as child-directed,
+  because it is not: a 4+ rating is a statement about what is in the app, not about who uses it.
+- **Copy across the app, website and store listing now describes what the app does.** Several lines
+  promised a game that no longer exists — "blinds, betting, side pots", a night that puts itself on
+  the leaderboard, progressive bounties, knockout tracking. Those are gone rather than reworded.
+  The board is described as a record of who won rather than a "season", and phrasing that read as
+  gambling promotion rather than home poker — "half their bounty in your pocket", "real casino
+  sheets", "from cash games to deep stack tournaments" — is softened without losing the meaning.
+
+- **The app deals the cards; it does not run the game.** "Play a hand" used to be a full no-limit
+  hold'em engine — stacks, blinds posted into a pot, fold/check/call/raise, side pots, all-in for
+  less. It is now a dealer: it shuffles, deals everybody two cards, turns the flop, turn and river
+  when the table is ready, keeps each player's cards hidden until they tap, and reads the showdown.
+  The chips are on the table in front of everybody, where they always were.
+
+  **Why:** betting chips is _simulated gambling_ under Apple's definition even when the chips are
+  worth nothing, which forces an 18+ rating, PEGI 18 across Europe, and — on an Individual developer
+  account — may prevent submission at all. Dealing cards is none of those things. Full reasoning and
+  the comparable-app evidence are in `ROADMAP.md`.
+
+  What goes with it: the starting stack and blind fields (there is nothing to post), the finishing
+  order (busting is a chip event, and the app cannot see one), and saving a dealt game straight to
+  the leaderboard. **A night still goes on the board** — through the record-a-game sheet, by hand,
+  exactly as a game the app did not deal always did. The control that takes somebody out of a hand
+  is now **Muck**, not Fold: folding is a betting action, and there is no betting.
+
+  A hand still survives the app closing, and that matters more than it did: the app is now the only
+  thing that knows the cards.
+
+- **The leaderboard keeps score, not money.** It tracked what every player had won across game
+  nights — "8 games · 3 wins · won 120 · 5 KOs" — and now tracks games, wins and where people
+  finished. The payout calculator is untouched: set a buy-in and it still works out what each place
+  wins tonight, and the chop still splits what is left. What is gone is the running total, and with
+  it the buy-in and prize money that used to be stored against every game and sent to a shared
+  board. Nothing that names an amount of money leaves the phone any more.
+
+  This is a rating decision, and the reasoning is written down in `ROADMAP.md` rather than left to
+  be rediscovered. Comparable apps on the App Store put a virtual card dealer and a one-shot payout
+  calculator at 4+, and a home-game buy-in/cash-out scorekeeper and a poker bankroll tracker at 18+
+  — so the line is not dealing and not calculating, it is accumulating real money across sessions,
+  which is what the board was doing.
+
+  **Nobody loses a game night.** Boards, players and every result already recorded still load, and
+  finishing positions come back exactly as they were; the amounts attached to them fall away the
+  first time the board is written back. Anything sitting unsent in the outbox still sends. Progressive
+  bounties go with the money — they needed the app to watch every hand to know whose chips took whom
+  out — while flat bounties stay in the calculator, settled between players at the table as they
+  always were.
+
+- **Signing in a different way finds the same account.** Somebody who created an account with an
+  email and password and later signs in with Apple or Google lands on the account they already
+  have, with their boards and their season, rather than on an empty one. This is groundwork for
+  social sign-in and does nothing visible on its own.
+
+- **The app now talks to a real server.** Accounts, board sharing and leaderboard sync were built
+  and tested throughout this release against a development backend, but every shipped build had
+  them switched off at the source — so none of it did anything. This release points at production,
+  which is what turns those features from code into something you can use.
+
 - Mobile: brought every Expo package up to the version SDK 56 actually expects — the project had
   drifted 12 packages behind, including `expo` itself, the router, notifications, the splash screen
   and `react-native-screens`. No new features; it's the accumulated bug-fix releases Expo has
   published for this SDK.
+
+### Removed
+
+- **The server-side poker table is gone**, and with it the AppSync Events realtime bus. It was a
+  server-authoritative betting engine — `POST /tables/{tableId}/actions`, two channel namespaces
+  and a subscribe authorizer that kept hole cards private — deployed, correct, and **called by
+  nothing**: the app half was never built. It went for two reasons at once. It is the other
+  consumer of the betting engine being removed from the app, so the engine could not go without
+  it; and a wagering authority sitting in a deployed stack undercuts the point of taking wagering
+  out of the app. Nobody loses anything, because nobody could reach it.
+
+  Nothing a person can see changes. Accounts, shared boards, the leaderboard, invites and the kill
+  switch are untouched — the deploy removes 21 resources and adds none, leaving DynamoDB, Cognito
+  and the HTTP API exactly as they were.
+
+  The code is kept at the `archive/betting-engine` tag: a tested no-limit implementation with side
+  pots and hand evaluation, the publisher, and the subscribe guard. **The shared clock now needs
+  more work than it did** — it was waiting on a `session` namespace for a bus that existed, and now
+  the bus has to be stood back up too. Recorded in `ROADMAP.md` so that is not a surprise.
+
+- The Maestro end-to-end suite (26 flows) is gone. It had rotted while nothing referenced it: a
+  hardcoded LAN address and stale selectors, no npm script, and no CI job — running it would have
+  meant a ~20-minute cold Gradle build per PR, which is why it never got wired up. Verification now splits along a clearer line: logic is unit-tested in `@poker/core`,
+  and everything a unit test structurally cannot see (layout, real platform behaviour, purchases) is
+  a human pass driven by [RELEASE_TESTING.md](./RELEASE_TESTING.md), which now spells those rows out
+  instead of deferring them to a flow.
+
+### Fixed
+
+- **The shared clock can be reached.** The screen, the `/sessions` routes and the polling transport
+  all shipped in 1.2.0. The row that opens it did not: the route was registered while there was
+  still no transport behind it — a join code nobody else can join being worse than none — and when
+  the transport landed, the link did not follow. The only way in was typing `pokerkit://session`,
+  while both store descriptions, both sets of release notes and the notes for review all describe
+  the feature. Settings → Tournament now carries a **Shared clock** row, shown only when there is a
+  backend to poll _and_ the server's `sharing` flag is on, which also puts the clock behind the kill
+  switch for the first time.
+- **The dealer is called "Deal a hand" everywhere.** The Settings row, the screen title and the
+  locked card said "Play a hand", while the store copy, the paywall and the notes for review all say
+  the app deals. It does exactly that — shuffles, deals, turns the streets, reads the showdown — and
+  holds no chips to bet with, so _play_ was both the wrong word and the one most likely to be read
+  as something else in the release that has to answer a gambling question.
+- **An ordinary failure no longer red-screens a dev build.** Every failed auth call logged at
+  `error`, so being offline — or mistyping a password — put a full-screen LogBox over a message the
+  screen had already handled in words. In a dev build an offline sign-in looked like a crash, which
+  is the wrong signal to send somebody working through the manual pass, and it is the same shape as
+  the bug #219 fixed: treating an ordinary condition as an error. `AuthContext` now classifies
+  before it logs — a recognised `CognitoFailure` (offline, wrong password, address already taken)
+  logs at `warn`, and only an unrecognised one is an `error`, because only that means something here
+  is wrong rather than something out there. No user-visible change on a release build, which has no
+  LogBox and no logging at all.
+- **The account screen printed the same error twice.** `AccountScreen` keeps one `error` state and
+  rendered it in four places; the "Sign in" card and the "Email and password" card are on screen
+  together once _Use email instead_ is tapped, so a failed email sign-in also printed a red line
+  under the Apple and Google buttons — about a provider nobody had touched. It now shows once, in
+  the card the action came from. Found running §14 on Android.
+- **§15 says it needs two accounts, not just two devices.** The section warned about needing two
+  phones and about `club` not being granted until the subscription exists; it did not say that
+  sharing is gated on `accountsAreReal && account && mayShare && group.canInvite` and joining on
+  being signed in, so **every row is blocked behind §14's sign-up rows** — which are blocked on
+  somebody with an inbox. Worth knowing before setting two phones up, because `FORCE_PRO_IN_DEV`
+  does not help with that half. Two things were confirmed without an account: signed out, the sheet
+  explains itself rather than failing, and the share control is absent rather than broken.
+- **§14 of `RELEASE_TESTING.md` carries what could be run and why the rest could not.** Every row
+  that turns on receiving a confirmation code is marked blocked — not on a store build, but on
+  somebody with an inbox, which is the one step no script can do honestly. They remain the largest
+  untested surface in the release, and saying so is more useful than a blank column.
+- **§13 of `RELEASE_TESTING.md` has been run on Android and carries its results.** Thirteen rows
+  pass, verified in screenshots rather than by assertion; one failed and is the fix above. Three are
+  marked with why they are not ✅ rather than left blank — the locked state needs a store build,
+  "readable across a table" needs a real table, and the button moving between hands is not drawn on
+  screen so there is nothing to check it against. The sitting-out row is **deleted**: `GameContext`
+  exposes `toggleSittingOut` and `@poker/core` tests `sitOut`, but no component calls it, so the row
+  could never have passed.
+- **An uncontested hand is no longer shown at the showdown.** When everybody else mucked, the table
+  printed "Everyone else mucked — no hand had to be shown" and displayed the remaining player's
+  hole cards immediately above it. `showdownFor` in `@poker/core` was right — it returns `null` when
+  fewer than two players are contesting, and that is tested — but `TableView` keyed the reveal on
+  reaching the showdown rather than on anybody having to show, so the copy and the cards disagreed.
+  This is the one thing the screen exists to prevent: the phone goes round the table at the
+  showdown, so a hand exposed there is exposed to everybody, and the winner of an uncontested pot
+  gives away how they play for nothing. Tapping a seat still peeks, and now warns while it does —
+  previously the "make sure nobody else can see" line was suppressed at the showdown, which was
+  exactly where it was most needed. Found by driving §13 on a device; no unit test could see it.
+- Docs: swept the remaining files for claims that stopped being true when the table backend and the
+  betting engine went. `README.md` was the worst — it described the backend as "for accounts and
+  **online play**", "**not deployed**", and "nothing in the app talks to it yet", all three of which
+  had been wrong since PR #204 or became wrong today. `apps/infra/README.md` listed an `EventApiDns`
+  stack output that no longer exists and a "no custom domain" gap that was closed months ago, and
+  `ROADMAP.md`'s future-work list still offered "the app side of the multiplayer table" as the
+  obvious next thing to build — which is the one thing that cannot be built without re-opening the
+  rating question. Where a document recorded something that actually happened — an alarm that fired,
+  a deploy that did not undo a hand-edit — the record is kept and annotated rather than rewritten.
+
+- Docs: recorded the decision to keep the app at 4+/3+ by removing two things before 1.2.0 ships —
+  the dealt game's betting engine, and money from the leaderboard — and the evidence behind it.
+  `STORE_LISTING.md` asserted the app would rate **18+** for frequent simulated gambling, which was
+  correct for the app as built: betting chips is simulated gambling under Apple's definition, and a
+  headline feature makes it frequent rather than infrequent. 13+ was never available either — Apple's
+  13+ needs infrequent simulated gambling, PEGI has auto-rated any simulated gambling 18 since 2020
+  and reaches Play through IARC, and Apple's restriction on gambling apps from Individual developer
+  accounts keys on whether the app contains simulated gambling at all rather than how much.
+  Comparable apps then showed a second trigger that had been missed: a virtual card dealer and a
+  one-shot payout calculator are both 4+, while a home-game buy-in/cash-out scorekeeper and a poker
+  bankroll tracker are both 18+ — so the line is not dealing or calculating but **accumulating real
+  money across sessions**, which is what the leaderboard's running "won 120" did. `ROADMAP.md` now
+  carries the full reasoning and the action items, so neither change is mistaken for an unfinished
+  feature and completed by whoever finds it next.
+- **The privacy policy now describes the app that actually ships.** It claimed the app "does not
+  collect, transmit, or store any personal data on external servers", offered "Device-Only Storage"
+  and stated there were "No advertising networks or ad tracking" — three claims the binary
+  contradicted. The advertising one had been wrong for several releases, not just this one: AdMob
+  has been live with real ad units since well before 1.2.0. The page now sets out what an account
+  involves (an email address, held in Cognito, confirmed by a code sent through SES), what a shared
+  board stores and who can see it, how long a deletion is remembered, that ads are requested
+  non-personalized and what Google receives to serve one, every third party involved and what each
+  is for, and how to delete the account and its server-side data from inside the app. What stays on
+  the device is still called out as such, because most of the app genuinely never leaves it.
+- Docs: `STORE_LISTING.md` described an app with no dealt game, no accounts and no shared boards,
+  and both long descriptions promised "no account, no sign-up" — which 1.2.0 makes false in the way
+  that reads as a bait-and-switch when the app then asks for an email. Both are rewritten for the
+  real feature set, and the file now records what the dealt game does to the age rating: 1.2.0 is
+  the release that makes the simulated-gambling answer yes. `casino` and `bet` are out of the iOS
+  keyword line, replaced at the same character count by `payout` and `pot`. The Pro feature list
+  had drifted again — it said six things and omitted dealing a hand, the headline of the release.
+- Docs: `ARCHITECTURE.md` and `ROADMAP.md` said the backend was deployed but that "nothing in the
+  app calls any of it" and that `backendConfig` is `null`. Both stopped being true at PR #204, which
+  is the change that makes 1.2.0 mean anything. They now say which half of the backend the app
+  actually reaches — accounts, the kill switch and the shared leaderboard — and which half is
+  deployed with no client at all: the poker table, whose `sessionTransport` is still `null` and
+  whose channels nothing under `apps/mobile` imports. The dealt game 1.2.0 ships is local and
+  single-device, and the architecture diagram now says so rather than implying online play.
+- The Add-a-player field no longer promises that names "stay on this device". They have not since
+  boards could be shared, and the field is exactly where somebody decides what to type.
+- Accounts: declining at the Apple or Google prompt no longer shows an error. Changing your mind is
+  not a failure, and the screen now says nothing at all — as it already did when you closed the
+  sheet without signing in.
+- Accounts: signing in as a different person on the same phone no longer tries to move the previous
+  account's boards over to them — including boards that were already on the phone before this
+  release, which were the ones actually affected. It used to produce two red errors that contradicted each other —
+  "the board was not created: group exists" beside "a player was not added: no such group" — and the
+  board then quietly stopped syncing. Boards now stay with the account that put them on the server,
+  and a board made before you ever signed in still belongs to whoever signs in first.
+- Accounts: the sign-up screen no longer shows the email and password fields underneath the "check
+  your email" step, where a second Create-an-account button invited starting the whole thing again.
+- Leaderboard: a board you delete stays deleted. Creating another board, joining one by link, or
+  simply letting a pull discover a board you are on wiped the record of what had been deleted — so
+  the next time the app came to the foreground, every board you had ever removed came back, and
+  wiped the record again on its way in. It could not be got rid of.
+- Leaderboard: a bounty game keeps its knockouts. Games the app dealt recorded who knocked whom
+  out, and every one of them was dropped the next time the leaderboard was read back off the phone
+  — so knockout counts and bounty money read as zero for everybody after a restart, and the next
+  save wrote the emptied game back permanently.
+- Leaderboard: recording a game that cannot be saved now says so instead of closing. A refused
+  result cleared the whole evening's entry and put nothing on the board, with nothing to
+  distinguish it from a save that worked.
+- Leaderboard: a refusal notice now only appears on the board it is about. On any other board it
+  named a player who was not there, under a heading promising it was about the board on screen.
+- Leaderboard: joining a board by link works again after that board had a change refused and was
+  deleted. The stale refusal blocked the board from ever announcing itself, and everything queued
+  behind it came back as "no such group".
+- Leaderboard: renaming a board to an empty or duplicate name no longer tells the server to create
+  it under the name the app just rejected.
+- Payouts: two players with identical chip stacks now come out within one note of each other when a
+  chop leaves money that will not divide. The leftover went to whoever was typed in first, and when
+  the rounding had already favoured that same player it widened the gap instead of closing it.
+- Payouts: clearing every chip stack in the chop sheet now says what is missing, instead of the
+  deal silently vanishing.
+- Accounts: a half-written sign-in no longer leaves the app permanently unable to talk to the
+  server. A stored token blob missing some of its fields was accepted and then failed on every
+  launch — either signing you out with no explanation, or never refreshing and quietly stopping the
+  leaderboard from syncing at all.
+- Tables: only players actually seated at a table can act on it. Any signed-in account holding a
+  table id could learn that the table existed, follow its version as the game went, and be told the
+  account id of whoever was to act next.
+- Tables: an action that lands but cannot be broadcast is no longer reported as having failed. A
+  network blip reaching the broadcast service rejected the whole request for a move that had
+  already been applied, and the retry was then told it was out of date.
+- Mobile: Android no longer asks twice for notification permission. The request passed a
+  `rationale` object, and React Native responds to that by showing **its own** explanatory alert
+  before the system permission sheet whenever `shouldShowRequestPermissionRationale` returns true —
+  which it does on every launch after the first denial. So a fresh install saw one dialog and
+  everyone who had ever tapped "Don't allow" saw two, for the rest of the app's life. The rationale
+  is dropped: this is a timer whose entire job is to notify you, and the sheet says as much on its
+  own. The service method behind the status check is also renamed
+  `requestNotificationPermission` → `hasNotificationPermission`, because it only ever read the
+  status and never prompted.
+- Mobile: iOS no longer collects a stack of stale Live Activities. The app can only hold one, but
+  its record of _which_ one lived in memory alone — so force-quitting mid-round left iOS running a
+  card the next launch knew nothing about, and the app started a second one beside it rather than
+  taking the first one over. Do that across a few game nights and Notification Centre fills up with
+  rounds that ended days ago. Every path that touches a Live Activity now reduces however many
+  exist to exactly one first: it keeps the app's own card if it is still live, adopts the single
+  survivor of a force-quit rather than replacing a perfectly good card, and otherwise ends
+  everything and starts fresh. Stopping the timer now clears every card rather than only the
+  remembered one. The decision itself moved into `@poker/core` with tests, because it has four
+  cases and the previous version got one of them wrong — with no stored id it adopted whichever
+  activity the platform happened to list first, and ActivityKit documents no ordering for that
+  array, so it could keep a stale card and end the live one.
+  - Three further faults in the same area, found reviewing the fix. **iOS reported activities that
+    were no longer on screen**: the app read `Activity.activities` unfiltered, which keeps listing
+    cards that have ended, been dismissed, or been closed by iOS itself at the eight-hour limit — so
+    the app could adopt a dead card, update it to no effect, and leave the user staring at a frozen
+    round while believing all was well. **Updating an activity always reported success**, even when
+    the id named nothing, so the app's own fallback for that case could never run. And **ending an
+    activity raced the timer reset**: resetting both ends the card and redraws it, and the two ran
+    concurrently, so the redraw could land after the end had already looked for cards to close and
+    found none — leaving a card on screen for a tournament that had finished. Every Live Activity
+    operation now runs one at a time, the same way the screen-wake lock already did.
+- Mobile: sheets no longer stretch the full width of a tablet. The generator and Pro sheets are
+  capped at 640pt and centred, like every other tablet surface in the app — previously `Sheet.tsx`
+  had no tablet handling at all, so a form's fields ran the entire width of an iPad. This was
+  accepted as a known gap for 1.1.4 partly on the expectation that moving to native form sheets
+  would fix it for free; that move is still blocked, so it's fixed here instead.
+- Mobile: on iOS, the generator sheet's title and its Done button no longer sit underneath the status
+  bar and Dynamic Island when the keypad is up. The sheet sized its scroll region from the full
+  window height, so with the keyboard's share subtracted it grew to exactly the window height and
+  its top edge landed at y=0 — putting the first row of the sheet behind the clock. It stayed
+  scrollable and its footer still cleared the keypad, which is why 1.1.4's keyboard pass didn't
+  catch it.
+- Mobile: `npm start` / `npm run ios` / `npm run android` work again. Since the SDK 56 alignment,
+  npm has installed `expo-router` under `apps/mobile/node_modules` instead of hoisting it, and the
+  expo CLI resolves that package from its own nested location — so every one of those commands died
+  with `Cannot find module 'expo-router/_ctx-shared'` before Metro served anything. The scripts now
+  set `NODE_PATH`, which appends the workspace's own `node_modules` to the CLI's lookup path.
 
 ## [1.1.4] - 2026-08-19 — iOS & Android
 
@@ -23,6 +1118,7 @@ the rest of the store copy rather than duplicated here. Both platforms shipped
 v1.1.3 together, so both sets of notes cover the same changes.
 
 ### Added
+
 - Mobile: blind levels now have their own **Blind structure** screen, reached from Settings,
   replacing the fixed-height scrollable list that was nested inside the scrolling Settings page
   (a scroll-inside-a-scroll that made a 30-level schedule awkward to edit). The new screen is a
@@ -54,7 +1150,7 @@ v1.1.3 together, so both sets of notes cover the same changes.
 - Mobile: the screen now stays on while a round is counting down, and is released once the timer is
   paused or stopped. A phone left on the table used to lock itself within a minute, which backgrounds
   the app and stops the round advancing on its own — so most tournaments dropped out of the
-  foreground during their *first* level.
+  foreground during their _first_ level.
 - Mobile: the timer notification (Android) and Live Activity (iOS) both carry a standing line —
   "Open the app at the buzzer to start the next level" — replacing the force-quit notes. Nothing
   of the app's runs while it's backgrounded, so the app is what advances the blinds; saying so
@@ -65,6 +1161,7 @@ v1.1.3 together, so both sets of notes cover the same changes.
   button.
 
 ### Changed
+
 - Round duration can now be as short as **1 second**, down from a 10-second floor that rewrote
   anything shorter without saying so — typing 5 and coming back to 10 reads as a broken field rather
   than a rule.
@@ -91,7 +1188,7 @@ v1.1.3 together, so both sets of notes cover the same changes.
   card collapsing to a single line once unlocked.
 - Mobile: numeric fields no longer turn into a literal `0` when you clear them — an empty field
   stays empty while you retype, and reverts to its previous value if you leave it blank.
-- Mobile: saving a preset now captures the *active* blind structure rather than the editor's
+- Mobile: saving a preset now captures the _active_ blind structure rather than the editor's
   working copy, so a preset can't silently record edits you never applied.
 - Mobile: recolored the Android foreground-service notification and iOS Live Activity/Dynamic
   Island to match the app's own timer palette (`#10B981` green / `#F59E0B` amber / `#DC2626` red)
@@ -112,6 +1209,7 @@ v1.1.3 together, so both sets of notes cover the same changes.
   instead of wrapping.
 
 ### Fixed
+
 - Mobile: on Android, focusing the preset-name field on Settings only scrolled "Save Preset"
   about 40% clear of the keyboard instead of fully clear — `useKeyboardNudge.ts` mixed two
   coordinate frames that don't share an origin on Android (`measureInWindow`, excluding the
@@ -192,7 +1290,7 @@ v1.1.3 together, so both sets of notes cover the same changes.
   non-monotonically (measured on a small Android screen: 1.00 → 0.78 → 0.92 → 0.81), so every one
   of those intermediate sizes was being painted. The card now stays hidden behind the native
   splash screen (a dependency that was installed but never actually invoked before now) until that
-  fit has genuinely settled *and* the persisted timer state has loaded, then the splash lifts and
+  fit has genuinely settled _and_ the persisted timer state has loaded, then the splash lifts and
   the card appears in the same frame — so the first thing you see is the final layout. Capped at
   4s so a slow or stuck load can't hold the splash indefinitely.
 - Mobile: the card no longer resizes when the ad banner appears, which on iOS happened around half
@@ -242,6 +1340,7 @@ worth since it's live at v1.1.1 (presets are new to Android users here, not
 just Sound Packs).
 
 ### Added
+
 - Sound Pack (Pro) — choose the alarm that plays when a round ends. Three bundled alternatives
   (Classic Beep, Bell Chime, Double Buzz) alongside the original Classic Alarm, picked from a new
   "Sound Pack" card in Settings, with a 3-second preview per option.
@@ -252,10 +1351,12 @@ just Sound Packs).
   already owns `pro_lifetime`. Always `false` in release builds; no user-facing effect.
 
 ### Changed
+
 - Android: release builds now enable R8 code shrinking/obfuscation and resource shrinking
   (previously shipped unminified) — smaller, faster app for a smoother experience.
 
 ### Fixed
+
 - Sound preview in Settings no longer plays the alarm's full length (up to ~11s) — capped at 3
   seconds and stoppable early.
 - Selecting a new sound pack now applies immediately instead of only after restarting the app.
@@ -287,11 +1388,13 @@ _Live on the App Store. Not shipped to Android (this version has Android-only bu
 fixes land in 1.1.3._
 
 ### Added
+
 - Saved tournament presets (Pro) — save the current blind structure and round length, then
   load any of them in one tap.
 - In-app review prompt, shown after 5 rounds played.
 
 ### Fixed
+
 - The "Save current setup" preset field no longer lets the on-screen keyboard cover the Save
   Preset button or the preset list.
 
@@ -300,6 +1403,7 @@ fixes land in 1.1.3._
 _Also the version Android first launched with. Reconstructed from build history — approximate._
 
 ### Fixed
+
 - Post-launch stability and App Store compliance fixes following the monetization release.
 
 ## [1.1.0] - 2026-06-17 — iOS only
@@ -307,11 +1411,13 @@ _Also the version Android first launched with. Reconstructed from build history 
 _Before Android's launch. Reconstructed from build history — approximate._
 
 ### Added
+
 - Monetization: an AdMob banner and a one-time **Pro / Remove Ads** purchase (RevenueCat), plus
   a Ko-fi tip jar on the web timer.
 - iPad support — the app now ships universal (iPhone + iPad).
 
 ### Changed
+
 - Upgraded to Expo SDK 56 / React Native 0.85.
 
 ## [1.0.0] - 2025-07 — iOS only
@@ -319,10 +1425,12 @@ _Before Android's launch. Reconstructed from build history — approximate._
 _Before Android's launch. Reconstructed from build history — approximate._
 
 ### Added
+
 - Initial App Store release: a poker tournament timer with configurable blind levels, a
   per-round countdown, background timing, iOS Live Activities, and an Android foreground service.
 
-[Unreleased]: https://github.com/toondeboer/poker/compare/v1.1.4...HEAD
+[Unreleased]: https://github.com/toondeboer/poker/compare/v1.2.0...HEAD
+[1.2.0]: https://github.com/toondeboer/poker/compare/v1.1.4...v1.2.0
 [1.1.4]: https://github.com/toondeboer/poker/compare/v1.1.3...v1.1.4
 [1.1.3]: https://github.com/toondeboer/poker/compare/v1.1.2...v1.1.3
 [1.1.2]: https://github.com/toondeboer/poker/compare/v1.1.1...v1.1.2
