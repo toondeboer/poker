@@ -161,6 +161,11 @@ important.
   review is a separate, deliberate act there.) The `eas:submit:*:production` variants name
   production in full so it cannot be reached by accident.
 
+  **They do not promote, though.** `eas submit` only uploads, so running a `:production` variant
+  after the internal submission re-sends a versionCode Play already has and Play rejects it.
+  Promoting the build you have just tested is Play Console → Internal testing → **Promote release →
+  Production**; the `:production` scripts are for a build that has never been on a track.
+
   **Never run a bare `eas submit`.** With no `--profile` the CLI silently uses the profile _named_
   `production`, which is how 1.1.4 reached Play's production track with its billing rows never once
   run.

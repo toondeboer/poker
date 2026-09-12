@@ -198,6 +198,12 @@ Mobile releases are batched on a short-lived branch per version, not shipped str
   something merges into `release/<version>`, update this PR's description so it still reflects
   what's in the release — easiest way is to mirror the current `[Unreleased]` section of
   `CHANGELOG.md` into it (`gh pr edit <number> --body "..."`).
+- **CI never runs on the release branch itself.** `.github/workflows/ci.yml` triggers on
+  `pull_request` and on `push` to `main`, so every run you see against `release/<version>` is a PR
+  run against a _proposed_ merge. The merged combination that actually becomes the binary is tested
+  by nobody — four PRs that each passed alone can still be broken together, and the first thing to
+  find out would be an EAS build failing twenty minutes in. Run the suite on the release branch
+  before building: `npm run typecheck && npm run lint && npm run test && npm run format:check`.
 - **Cutting the release**, once everything intended for it is merged into `release/<version>`:
   1. Bump native version files for whichever platform(s) are shipping. The marketing version
      lives in **`apps/mobile/ios/PokerTimer/Info.plist`** (`CFBundleShortVersionString`,
@@ -223,8 +229,28 @@ Mobile releases are batched on a short-lived branch per version, not shipped str
      moves to a "Carried over from `<version>`" section at the top of `ROADMAP.md`, so it can't be
      lost between cycles.
   4. Commit those release-prep changes on the release branch.
-  5. `eas build` **from the release branch** — EAS builds whatever's checked out locally, so make
-     sure `release/<version>` is checked out when you run it.
+  5. `eas build` **from the release branch, and from a clean tree** — which is a stronger
+     requirement than having the right branch checked out. `eas.json` sets no `cli.requireCommit`,
+     and eas-cli then clones the repo and copies the working directory over the clone
+     (`vcs/clients/git.js`), so **uncommitted _and untracked_ files are uploaded** — with no warning
+     and no prompt — while the build still records `HEAD` as its commit. A build from a dirty tree
+     is not the commit it says it is, and nothing downstream shows it: `eas build:view` reports the
+     hash and no dirty flag. The local testing toggles are exactly what gets shipped this way, and
+     only one of the two is `__DEV__`-gated — `backendConfig = DEV_BACKEND` is not, so a release
+     build would talk to the throwaway pool. The gate, every time:
+
+     ```bash
+     git stash push -m "toggles" -- apps/mobile/src/contexts/PremiumContext.tsx \
+       apps/mobile/src/services/backendConfig.ts
+     git status --porcelain --untracked-files=all   # must print nothing at all
+     git show HEAD:apps/mobile/src/services/backendConfig.ts | grep "backendConfig:"  # PROD_BACKEND
+     git show HEAD:apps/mobile/src/contexts/PremiumContext.tsx | grep "IN_DEV: boolean"  # both false
+     ```
+
+     Then build, and `git stash pop` once EAS says the upload has finished. Afterwards confirm the
+     build names the commit you gated — `eas build:view <id>` **run from `apps/mobile`**, since from
+     the repo root it fails with "EAS project not configured" rather than telling you where to go.
+
   6. **Submit to the testing track first, never straight to production:**
      `npm run eas:submit -w @poker/mobile` (or `:ios` / `:android`). Those scripts pass
      `--profile internal`, which puts Android on Play's `internal` track; iOS is the same upload
@@ -249,8 +275,18 @@ Mobile releases are batched on a short-lived branch per version, not shipped str
        precisely because they need this build — plus anything a dev client couldn't show honestly
        (deep-link cold launch, since the dev launcher owns the URL scheme).
   7. Promote to production once those pass: Play Console's release dashboard, and "Submit for
-     review" in App Store Connect. `eas submit --profile production` also works for Android if you
-     prefer the CLI.
+     review" in App Store Connect.
+     - **Android is promoted in the console, not by submitting again.** This used to say
+       `eas submit --profile production` "also works for Android if you prefer the CLI". It does
+       not, once step 6 has run: `eas submit` only ever _uploads_ — it has no notion of promoting —
+       so `--latest --profile production` re-sends a versionCode Play already has, and Play refuses
+       it ("Version code N has already been used"). The path is Play Console → the internal testing
+       track → **Promote release → Production**. The `eas:submit:*:production` scripts are for a
+       build that has never been on a track at all.
+     - **iOS has no tracks**: step 6 already put the build in App Store Connect, and "Submit for
+       Review" there is the whole of it. Add the Club subscription group and both subscriptions to
+       that same submission — Apple approves a first auto-renewable subscription only alongside an
+       app version, so waiting for them to be approved first waits for something that cannot happen.
   8. Once the release is actually live: merge the standing `release/<version>` → `main` PR (update
      its description one last time first), then tag the built commit — not just wherever
      the version string changed, since one version number can span several commits before the one
