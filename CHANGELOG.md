@@ -732,6 +732,23 @@ platform-tagged heading (e.g. `## [1.1.3] - 2026-07-20 — Android`) when you cu
   while the entitlements are still the default, which is the cold-launch window in which telling
   somebody who has paid to go and pay is exactly the mistake `clubPolicy` exists to prevent.
 
+- **"Share standings" was two features wearing one word, and the free one was winning.** The
+  leaderboard's share button hands a _text summary_ to the system share sheet — offline, one-way, and
+  free. Putting the board itself live on everyone's phones is Club, and it lived two taps away behind
+  the group row with nothing naming it. So somebody looking for the second would tap the first, get a
+  text blob in a chat app, and reasonably conclude that was all sharing meant here. Nobody designed
+  that; the two features grew into the same word.
+
+  It is now **"Send a text summary"**, with **"Share this board"** beside it in Club's violet. For a
+  subscriber that button is an ordinary grey navigation action opening Groups, where the per-board
+  share control already lives — deliberately **not** a second implementation of minting an invite,
+  because minting is also revoking, and two code paths doing it is how one silently kills the link
+  the other just sent somebody.
+
+  Absent, not disabled, wherever it would be a lie: on a board somebody else hosts (inviting to one
+  you are only a member of is refused on role), with the kill switch off, in a build with no backend,
+  signed out, and during the cold-launch window before the store has answered.
+
 - **A subscriber keeps the Club card instead of watching it vanish.** It used to disappear entirely
   once `hasClub` was true — which also took the renewal terms, the cancellation instructions and the
   Terms and Privacy links away from the only person who has any use for them. The plans are replaced

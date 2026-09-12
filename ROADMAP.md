@@ -519,6 +519,31 @@ needs _your_ APNs key and _your_ FCM v1 service-account key uploaded to EAS, and
 is delivered. What it saves is the two payload shapes and the per-platform failure modes, not the
 credentials themselves.
 
+### Dealing across phones — the strongest Club feature not yet built
+
+**This is not the "playing a hand together" row above, and the difference is the whole point.** That
+one is permanently dead because _multiplayer betting_ is the 18+ trigger and it needed the deleted
+table backend. This is **dealing only**: each player sees their own two cards on their own phone
+instead of one handset going round the table. No chips, no betting round, nothing settled — so it
+stays on the 4+ side of the line the rest of this file draws, beside the virtual-dealer precedent
+that made dealer mode safe in the first place. Anyone reviving it must keep that distinction; the
+moment a bet goes in, the rating argument above applies in full.
+
+**It is Club by the same test everything else here passes.** A hand in progress is a row other
+phones poll for as long as the table is playing it — a cost that keeps arriving, which is the only
+thing this file lets Club charge for.
+
+**The local dealer stays Pro, and must.** It runs entirely on one phone, it is listed in the
+paywall's Pro features, and the people who have already bought Pro bought it partly for that.
+Retracting a one-time purchase into a subscription is the one move that earns refund requests and
+one-star reviews; a networked version is a _new_ capability sold alongside it, not a repossession.
+
+**The machinery already exists**, which is what makes this worth writing down rather than filing
+under someday. The shared clock shipped a polling transport and a `SESSION#`-shaped row on a TTL; a
+hand is the same shape with a different payload and a shorter life. That is markedly cheaper than it
+looked when this file wrote Club's future off, and it is a far better reason to subscribe than a
+synced countdown.
+
 **A web view of your board is no longer blocked by identity — 1.2.0 did that half.** This said
 entitlements belonged to the store account, so a website could not tell whether a visitor
 subscribes, and that `logIn(cognitoSub)` was "worth doing one day, not before Club launches". It was

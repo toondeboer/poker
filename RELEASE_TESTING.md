@@ -865,6 +865,12 @@ is about whether a person can tell, before they tap, which of the two they are b
 | The annual carries **"Save N% vs monthly"**, and N is right for the two prices **actually on screen** — work it out by hand and compare          | ⬜  | ⬜      |
 | **The claim is absent rather than wrong** when it cannot be made: only one plan returned by the store, or an annual that is not cheaper          | ⬜  | ⬜      |
 | In a **non-euro storefront** the saving is still correct — the whole reason it is computed from numbers instead of the formatted price strings   | ⬜  | ⬜      |
+| The leaderboard's free text share now reads **"Send a text summary"** and still produces exactly that — a text blob in the system share sheet    | ⬜  | ⬜      |
+| **"Share this board" sits beside it**, violet, for a signed-in non-subscriber, and opens the sheet on Club                                       | ⬜  | ⬜      |
+| For a **Club subscriber** the same button is grey and opens Groups — not the paywall, and not a second invite-minting path                       | ⬜  | ⬜      |
+| It is **absent on a board somebody else hosts.** Inviting to one you are only a member of is refused on role, so selling Club for it is a lie    | ⬜  | ⬜      |
+| It is **absent** with `featureSharing=off`, in a no-backend build, and while signed out                                                          | ⬜  | ⬜      |
+| It is **absent on a cold launch until the store answers** — same rule as the Groups offer                                                        | ⬜  | ⬜      |
 
 ### 16b. Buying Club · **the rows a subscription is rejected over**
 
