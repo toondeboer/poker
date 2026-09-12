@@ -85,6 +85,30 @@ export const onSignedIn = (listener: () => void): (() => void) => {
   return () => signInListeners.delete(listener);
 };
 
+const accountChangedListeners = new Set<(accountId: string | null) => void>();
+
+/**
+ * Told whenever the signed-in account **changes identity** — signed in, signed
+ * out, deleted, or swapped for a different one.
+ *
+ * **A different signal from {@link onSignedIn}, which is why both exist.** That
+ * one fires on the signed-out→in edge and carries nothing; billing needs the id
+ * itself, needs to hear about signing *out*, and needs to hear about account A
+ * being replaced by account B on the same phone — which is not an edge that one
+ * reports at all, and is exactly the case where entitlements must not be
+ * inherited by the wrong person.
+ *
+ * Module-level for the same reason `apiToken` and `signedInAccountId` are:
+ * `PremiumProvider` is mounted **outside** this provider, so it cannot call
+ * `useAuth()` — the context does not exist where it sits.
+ */
+export const onAccountChanged = (
+  listener: (accountId: string | null) => void,
+): (() => void) => {
+  accountChangedListeners.add(listener);
+  return () => accountChangedListeners.delete(listener);
+};
+
 /** What went wrong, in words a form can show. */
 export type AuthError =
   | CredentialError
@@ -224,12 +248,28 @@ export function AuthProviderContext({
   // Fired from an effect rather than from each `setAccount` call site, so no
   // future way of becoming signed in can forget to announce itself.
   const wasSignedIn = useRef(false);
+  /**
+   * The id last announced, so a *change* can be told from a re-render.
+   *
+   * Starts `null`, which is also what signed-out announces — so a launch with
+   * nobody signed in fires nothing, and billing is never asked to log out of a
+   * session that never existed.
+   */
+  const lastAnnouncedId = useRef<string | null>(null);
   useEffect(() => {
     const signedIn = account !== null;
     if (signedIn && !wasSignedIn.current) {
       for (const listener of signInListeners) listener();
     }
     wasSignedIn.current = signedIn;
+
+    // Keyed on the id rather than on signed-in-ness: one account replacing
+    // another is a change that the boolean above cannot see.
+    const id = account?.id ?? null;
+    if (id !== lastAnnouncedId.current) {
+      lastAnnouncedId.current = id;
+      for (const listener of accountChangedListeners) listener(id);
+    }
   }, [account]);
 
   const attempt = useCallback(

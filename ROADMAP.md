@@ -135,10 +135,12 @@ Google's publisher policy, and is not relied on here**: the option was rejected 
 and anyone reviving it has to verify that first. **On the store rules, this was clean.** It failed on
 everything else:
 
-- **Entitlements cannot cross platforms today.** `revenueCatProvider.ts` calls
-  `Purchases.configure({ apiKey })` with no `appUserID` and never calls `logIn()`, so entitlements
-  belong to the App Store / Play account rather than the Cognito account. A Pro purchase on iOS has
-  no mechanism to unlock anything on the web.
+- **Entitlements now follow the account, as of 1.2.0.** This used to read "cannot cross platforms
+  today": `revenueCatProvider.ts` configured RevenueCat with no `appUserID` and never called
+  `logIn()`, so an entitlement belonged to the App Store / Play account. It is now told the Cognito
+  `sub` whenever the signed-in account changes, so a purchase follows the person across iOS and
+  Android. **The web is still not among them** — see the next bullet; what was missing is no longer
+  the linking, it is that there is nothing on the web to link _to_.
 - **The web app has no billing at all** — no Stripe, no RevenueCat Web. The `pro`/`premium` strings
   in `apps/web` are marketing copy about the mobile purchase. Charging for it means a second payment
   integration plus account linking; not charging for it undercuts the mobile paywall, where dealing
@@ -517,12 +519,16 @@ needs _your_ APNs key and _your_ FCM v1 service-account key uploaded to EAS, and
 is delivered. What it saves is the two payload shapes and the per-platform failure modes, not the
 credentials themselves.
 
-**A web view of your board is blocked, and not by the rating.** `revenueCatProvider.ts` calls
-`Purchases.configure({ apiKey })` with **no `appUserID` and never calls `logIn()`**, so entitlements
-belong to the store account rather than the Cognito account and a website cannot tell whether a
-visitor subscribes. Same blocker that killed web-only poker further up this file. It needs
-`logIn(cognitoSub)`, which touches every purchase and restore path — worth doing one day, not before
-Club launches.
+**A web view of your board is no longer blocked by identity — 1.2.0 did that half.** This said
+entitlements belonged to the store account, so a website could not tell whether a visitor
+subscribes, and that `logIn(cognitoSub)` was "worth doing one day, not before Club launches". It was
+done _before_ Club launched instead, on the argument that migrating real subscribers later is harder
+than not creating unattached ones: the SDK is handed the Cognito `sub` on every account change, so
+RevenueCat can now answer "does this account subscribe" for an account rather than for a phone.
+
+**What is still missing is a way to charge on the web at all** — no Stripe, no RevenueCat Web — plus
+the read side actually being wired to a page. That is real work, but it is ordinary work now rather
+than a thing the architecture forbade.
 
 **None of the three touches the rating.** It turns on betting, wagering and accumulating money
 across sessions. A synced countdown, a reminder and a standings page are none of those.

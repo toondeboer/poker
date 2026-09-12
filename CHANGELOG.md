@@ -654,6 +654,34 @@ platform-tagged heading (e.g. `## [1.1.3] - 2026-07-20 — Android`) when you cu
 
 ### Changed
 
+- **A purchase now belongs to your account, not to the phone's store account.** RevenueCat was
+  configured with no `appUserID` and never told who was using the app, so an entitlement belonged to
+  the **App Store or Play account** on the device. Everything that follows was true and none of it
+  was intended: signing out kept Club, deleting your account kept Club, the same person paid twice to
+  have it on an iPhone and an Android, and a new phone signed into the same app account under a
+  different Apple ID had nothing to restore.
+
+  The SDK is now handed the **Cognito `sub`** whenever the signed-in account changes — stable,
+  opaque, never reused, and not an email, which RevenueCat's own guidance rules out. **Nobody who
+  already bought anything loses it:** RevenueCat transfers an anonymous user's purchases to the
+  identified one the first time it is told who they are, so an existing Pro owner is migrated by
+  signing in.
+
+  Two details worth writing down, because both are the kind that look like a bug later:
+
+  - **Signing out re-reads the store receipt**, deliberately. `logOut` mints a _fresh anonymous
+    user_, which owns nothing — so without that step, signing out of the app would make Pro vanish
+    from a phone that plainly still has it, recoverable only through a Restore button nobody would
+    think to press. Restoring re-attaches the receipt held by the store account, which never signed
+    out of anything.
+  - **A failed link never wipes what is on screen.** A network failure is not an answer about what
+    somebody owns, and treating it as one would take Pro off a paying customer's screen for the rest
+    of the session. It warns and leaves the entitlements alone.
+
+  Done before Club has subscribers on purpose: migrating real ones later is considerably harder than
+  not creating unattached ones now. `ROADMAP.md` had it as "worth doing one day, not before Club
+  launches" — that ordering was the wrong way round.
+
 - **Pro and Club are now two purchases on screen, because they are two purchases.** They were sold
   in one amber sheet headed _"Poker Blinds Buzzer Pro"_, reached from buttons that every one of them
   said "Unlock Pro", with the subscription bolted on underneath. Nothing distinguished them — same

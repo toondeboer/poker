@@ -898,6 +898,30 @@ reaches TestFlight or Play internal testing — before submission, not after it.
 
 ---
 
+## 16d. Purchases follow the account · **new in 1.2.0, and the riskiest rows here**
+
+**This is the section where a defect takes a paying customer's purchase away**, so treat a failure
+here as blocking regardless of how small it looks. Until 1.2.0 an entitlement belonged to the App
+Store or Play account on the phone; it now follows the Cognito `sub`, and the failure modes are
+somebody losing what they bought and somebody inheriting what they did not.
+
+Needs **two app accounts** and, for the cross-platform row, both phones. Sandbox on iOS, a licence
+tester on Play.
+
+|                                                                                                                                                         | iOS | Android |
+| ------------------------------------------------------------------------------------------------------------------------------------------------------- | --- | ------- |
+| **Buy Pro signed out, then sign in — Pro survives.** The anonymous→identified transfer, and the migration every existing owner will run                 | ⬜  | ⬜      |
+| **Sign out — Pro is still there**, with no Restore tapped. `logOut` mints a fresh anonymous user, and the re-read of the store receipt is what saves it | ⬜  | ⬜      |
+| **Delete the account — Pro is still on the phone.** It was paid for at the store, and deletion is not a refund                                          | ⬜  | ⬜      |
+| **Sign in as a second account on the same phone — it does _not_ inherit the first one's Club.** The row that matters most                               | ⬜  | ⬜      |
+| Signing back in as the first account **brings Club back**                                                                                               | ⬜  | ⬜      |
+| **Buy Club signed in, then sign in on the other platform with the same account — Club is there**, with nothing bought twice                             | ⬜  | ⬜      |
+| **Sign in with no network — nothing is wiped.** Entitlements stay as they were and a warning is logged; Pro must not leave the screen                   | ⬜  | ⬜      |
+| RevenueCat's dashboard shows the **Cognito `sub`** as the app user id — never an email                                                                  | ⬜  | ⬜      |
+| A build with **no backend** (`backendConfig` null) still buys and restores Pro exactly as before — nothing here is reachable, and nothing breaks        | ⬜  | ⬜      |
+
+---
+
 ## 17. The kill switch
 
 **An untested switch is worse than none**, because it gets reached for in an emergency. Verified
