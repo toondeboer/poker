@@ -906,6 +906,27 @@ platform-tagged heading (e.g. `## [1.1.3] - 2026-07-20 — Android`) when you cu
   only Ready to Submit. And §0 said to run the kill switch against prod, which means a production
   deploy the workflow cannot perform and a reviewer meeting a feature switched off.
 
+- **The release process says what the tools actually do.** Three corrections, each found by doing
+  the step rather than reading it:
+
+  **Step 5 said EAS "builds whatever's checked out locally".** It is stronger than that, and worse:
+  `eas.json` sets no `cli.requireCommit`, so eas-cli clones the repo and then copies the working
+  directory over the clone — **uncommitted and untracked files are uploaded**, with no warning and
+  no prompt, while the build still records `HEAD` as its commit. A build from a dirty tree is not
+  the commit it claims to be and nothing downstream shows it. `backendConfig = DEV_BACKEND` is not
+  `__DEV__`-gated, so the accident this invites is a release build talking to the throwaway pool.
+  The step now carries the gate that prevents it.
+
+  **Step 7 said `eas submit --profile production` "also works for Android if you prefer the CLI".**
+  Not after step 6 has run: `eas submit` only uploads and has no notion of promoting, so it re-sends
+  a versionCode Play already has and is refused. Promotion is Play Console → Internal testing →
+  Promote release → Production. The README carried the same claim and now says the same thing.
+
+  **And CI never runs on the release branch at all.** `ci.yml` triggers on `pull_request` and on
+  `push` to `main`, so the merged combination that becomes the binary is tested by nobody — four
+  PRs that each pass alone can still be broken together. The process now says to run the suite
+  locally on the branch before building.
+
 ### Removed
 
 - **The server-side poker table is gone**, and with it the AppSync Events realtime bus. It was a
