@@ -100,6 +100,10 @@ export type GroupSync = {
   reportBoard: GroupApi["reportBoard"];
   /** End this account's membership of a board, server-side. */
   leaveBoard: GroupApi["leaveBoard"];
+  /** Who is on a board. `null` when it could not be asked. */
+  members: GroupApi["members"];
+  /** Take somebody else off a board. Admin only, server-side. */
+  removeMember: GroupApi["removeMember"];
   /**
    * Somebody should pull, because something changed on the server side of this
    * phone's world: it came to the foreground, or the outbox just drained.
@@ -344,6 +348,20 @@ export const useGroupSync = (): GroupSync => {
     (groupId) => (enabled ? api.leaveBoard(groupId) : Promise.resolve(false)),
     [enabled],
   );
+  const members = useCallback<GroupApi["members"]>(
+    (groupId) => (enabled ? api.members(groupId) : Promise.resolve(null)),
+    [enabled],
+  );
+  const removeMember = useCallback<GroupApi["removeMember"]>(
+    (groupId, accountId) =>
+      enabled
+        ? api.removeMember(groupId, accountId)
+        : Promise.resolve({
+            ok: false,
+            reason: "Sharing is unavailable right now.",
+          }),
+    [enabled],
+  );
   const redeemInvite = useCallback(
     (token: string): ReturnType<GroupApi["redeemInvite"]> =>
       enabled
@@ -485,6 +503,8 @@ export const useGroupSync = (): GroupSync => {
       redeemInvite,
       reportBoard,
       leaveBoard,
+      members,
+      removeMember,
       pullsWanted,
     }),
     [
@@ -503,6 +523,8 @@ export const useGroupSync = (): GroupSync => {
       redeemInvite,
       reportBoard,
       leaveBoard,
+      members,
+      removeMember,
       pullsWanted,
     ],
   );

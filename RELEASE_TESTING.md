@@ -791,6 +791,11 @@ than broken**, which is the shape the guest rows below are about.
 | **Sign in on a third device → the boards are there**, without anybody sharing anything                                                             | ⬜  | ⬜      |
 | A write the server refuses shows the "Not saved for others" card, and dismissing it works                                                          | ⬜  | ⬜      |
 | Renaming a board on one device does **not** revert on the next sync                                                                                | ⬜  | ⬜      |
+| **An admin sees the members button on their own board**, and a member sees none on a board they joined                                             | ⬜  | ⬜      |
+| **Removing a member stops that phone syncing the board.** They keep the local copy, and their next write comes back refused rather than vanishing  | ⬜  | ⬜      |
+| **The code they were sent stops working afterwards** — rejoining needs a fresh one, and the sheet says the code was replaced                       | ⬜  | ⬜      |
+| Your own row says **"you"** and offers no remove; leaving is still on the boards list                                                              | ⬜  | ⬜      |
+| The **only admin cannot be removed**, and the sheet says why rather than failing                                                                   | ⬜  | ⬜      |
 
 ---
 
