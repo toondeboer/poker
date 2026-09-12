@@ -114,9 +114,17 @@ A fix landing never upgrades a row on its own: ❌ becomes 🔧, and only a re-t
       working tree only catches the uncommitted case; the committed case needs the table above read
       against the branch.
 
-- [⬜] **Run §17, the kill switch, against prod rather than dev**, since that is the one section
-  whose whole point is the production stack answering. `curl https://poker-api.toondeboer.com/config`
-  should say `{"accounts":true,"sharing":true}` — it did on 2026-09-04.
+- [⬜] **Run §17, the kill switch, against dev** — and read prod with `curl` rather than deploying to
+  it. The app half of those rows does not depend on which backend answers, and the prod half is one
+  command: `curl https://poker-api.toondeboer.com/config` should say
+  `{"accounts":true,"sharing":true}` (it did on 2026-09-04, and again on 2026-09-12). This said
+  "against prod" until somebody worked out what that means. The flags are CDK context —
+  `featureAccounts` / `featureSharing`, defaulting to `on` and absent from `cdk.json` — so flipping
+  one is **a deploy to production**, and the Infra workflow cannot do it at all: its only input is
+  the stage. Against dev it is
+  `npm run deploy:dev -w @poker/infra -- -c featureSharing=off`, from a laptop with credentials,
+  and re-running it without the flag puts it back. Doing that to prod during a review is how a
+  reviewer meets a feature that has been switched off.
 - [⬜] **And §15–§16 need the Club entitlement**, which nothing grants until the subscription exists
   in both stores. Until then set `FORCE_PRO_IN_DEV` in `PremiumContext.tsx`, which forces Pro
   **and** Club. Without it the share button and join field are simply not there, which reads
@@ -128,72 +136,51 @@ A fix landing never upgrades a row on its own: ❌ becomes 🔧, and only a re-t
 
 ## Running the pass: what needs what
 
-~170 rows, each wanting both platforms. Almost none of it is hard; the cost is **setup churn** —
-flipping entitlements, switching backends, finding a second phone. Grouped so each setup is paid
-for once.
+**236 rows, most wanting both platforms** — 472 cells, of which 29 are ✅ today. The cost is **setup churn**: flipping
+entitlements, switching backends, signing two accounts in on two devices. Grouped so each setup is
+paid for once.
 
-Two switches decide what a build can see, and they are the axis everything below is sorted on:
+**Where a session runs is not "any device".** A dev client and a store build share a bundle id, and
+on Android they are signed with different keys — so swapping between them means uninstalling, which
+takes the local data you were about to test with it. Keep them apart:
+
+- **This Mac** — the iOS Simulator plus an Android emulator on a **Google Play** system image (FCM
+  and the Google sign-in tab both want Play services). Dev clients, `DEV_BACKEND`.
+- **The phones** — store builds only, which means `PROD_BACKEND` and the rows in §20.
+
+Three switches decide what a build can see:
 
 - **`FORCE_PRO_IN_DEV`** in `PremiumContext.tsx` — forces Pro **and** Club together, from one
   literal. It is the only way to exercise either without a real purchase.
-- **`backendConfig`** in `backendConfig.ts` — `DEV_BACKEND` for the pass, per §0.
+- **`FORCE_FREE_IN_DEV`** beside it — forces the free/ad experience. **Only one of the two may be
+  true at a time.**
+- **`backendConfig`** in `backendConfig.ts` — `DEV_BACKEND` for everything on the Mac, per §0.
 
-**Session A — one device, both switches off.** Nothing here is entitlement-gated, so it is the
-block to start with while the build is as checked out.
+**Two accounts cost one inbox.** Sign-up wants an address with one `@`, no whitespace and something
+either side (`validateCredentials` in `@poker/core`), so `you+a@…` and `you+b@…` are two accounts
+that both arrive in one place. Every two-account session below uses the same pair.
 
-| §                 | Rows |
-| ----------------- | ---- |
-| 2. Blind editor   | 15   |
-| 5. Keyboard       | 13   |
-| 3. Generator      | 7    |
-| 4. Round duration | 5    |
-| 8. Small phones   | 4    |
+| Session | Where                                          | Switches                 | Sections                                                                             | Rows                |
+| ------- | ---------------------------------------------- | ------------------------ | ------------------------------------------------------------------------------------ | ------------------- |
+| **S1**  | Mac + a real inbox                             | both off                 | §14 accounts, including delete · §14b on Android, re-run on iOS                      | 13 + 9              |
+| **S2**  | Mac                                            | PRO=true, then FREE=true | §16, run twice                                                                       | 7 × 2               |
+| **S3**  | Simulator **and** emulator, signed in as A / B | PRO=true on both         | §15 boards · §15b the 1.2 rows · §18 clock · §19 push                                | 16 + 4 + 15 + 10    |
+| **S4**  | Mac                                            | PRO=true                 | §11 payouts · §12 leaderboard · §13 dealer **on iOS**                                | 12 + 25 + 17        |
+| **S5**  | Mac                                            | both off                 | §5 keyboard first, then §2 · §3 · §4 · §8                                            | 13 + 15 + 7 + 5 + 4 |
+| **S6**  | iPad Simulator                                 | PRO=true                 | §7 tablets                                                                           | 7                   |
+| **S7**  | Mac, against **dev**                           | both off                 | §17 kill switch                                                                      | 4                   |
+| **P**   | The phones, once a candidate is on a track     | none — a release build   | §20 first, then §1 · §1b · §16b · §9 · §13 locked · §6 · §10 iOS · §14b against prod | see §20             |
 
-Do §5 first. Its failure mode — a field under the keypad, a header behind the status bar — recurs
-in §12 and elsewhere, and you will recognise it faster having just looked for it.
+**S1 comes first for what it unblocks**, not for itself: every two-account session is stuck behind
+it, and its rows need a person with an inbox rather than a script.
 
-**Session B — a real device, both switches still off.** A simulator cannot answer these: iOS has no
-auto-lock in the Simulator, and notifications do not work there.
+**Do §5 before §11–§13.** Its failure mode — a field under the keypad, a header behind the status
+bar — recurs in every sheet those sections open, and you will spot it faster having just looked for
+it.
 
-| §                                | Rows |
-| -------------------------------- | ---- |
-| 6. Notifications & Live Activity | 15   |
-| 10. Screen stays awake           | 4    |
-| 9. Cold launch                   | 3    |
-
-**Session C — one device, `FORCE_PRO_IN_DEV = true`.** The biggest block in the pass, and the
-newest code in the release.
-
-| §               | Rows |
-| --------------- | ---- |
-| 13. Deal a hand | 17   |
-| 12. Leaderboard | 25   |
-| 11. Payouts     | 12   |
-
-**Session D — one device, `FORCE_PRO_IN_DEV = true`, `backendConfig = DEV_BACKEND`.**
-
-| §               | Rows | Note                                                                  |
-| --------------- | ---- | --------------------------------------------------------------------- |
-| 14. Accounts    | 13   | **Never once run from the app.** Read the `email_verified` note first |
-| 17. Kill switch | 4    | Run against **prod**, not dev — see §0                                |
-
-**Session E — two devices, same switches as D.** The most expensive setup, so do it in one sitting.
-A third device is wanted for the "boards follow the account" row.
-
-| §                                    | Rows |
-| ------------------------------------ | ---- |
-| 15. Shared boards                    | 16   |
-| 16. Club, Pro, and what each unlocks | 7    |
-
-**Session F — blocked until the build is on a store track.** Play Billing cannot be exercised from
-a local build at all, so this cannot be brought forward. It is why submission goes to the testing
-track first.
-
-| §          | Rows                    |
-| ---------- | ----------------------- |
-| 1. Billing | 13 (16 cells marked 🚫) |
-
-**Session G — a tablet.** §7, 7 rows.
+**§19 runs on the Mac.** Expo supports push on the iOS Simulator (Xcode 14+, macOS 13+, iOS 16+,
+Apple silicon) and on an Android emulator with Play services. Only the production-credential
+round-trip needs a phone, and that one is in §20.
 
 ### The switch trap
 
@@ -207,13 +194,17 @@ because everything was unlocked.
 
 ### Where the risk actually is
 
-- **§11–§13 are 54 of the ~170 rows** and cover what this release invented. If time runs short,
-  short-change something else.
-- **§14 and §15 have never been run at all**, from any build, on any platform.
+- **209 of the 236 rows have no result on either platform**, and only 2 are passed everywhere they
+  apply. Read any plan that says otherwise against this number, and re-measure rather than
+  estimating: the number quoted before this pass was 35 ✅, which matched neither the rows nor the
+  cells.
+- **§11–§13 are 54 rows** and cover what this release invented. If time runs short, short-change
+  something else.
+- **§14, §15, §18 and §19 have never been run at all**, from any build, on any platform.
 - **Android has seen almost none of this.** Several features were checked on an iOS Simulator only,
   and synthetic taps do not exist here — assume the first real Android tap finds something.
-- **§1 blocks submission** and cannot start until the build is uploaded. It is the long pole, not
-  the big one.
+- **§1 blocks submission** and cannot start until the build is on a track: 11 cells are 🚫 for that
+  reason. It is the long pole, not the big one.
 
 ### Rows that cover a fix made on 2026-09-04
 
@@ -794,6 +785,28 @@ than broken**, which is the shape the guest rows below are about.
 
 ---
 
+## 15b. Reporting, leaving, and the filter · **what guideline 1.2 asks for**
+
+Apple's 1.2 wants four things of an app carrying user-generated content: a filter on what goes in, a
+way to report, a way to block, and published contact details. **Three of them had no rows at all**,
+and the notes for review claim all four — so these are what make the claim checkable by somebody
+other than the person who wrote it. The fourth, removing a member, is new in 1.2.0 and has its rows
+in §15.
+
+|                                                                                                                                                                   | iOS | Android |
+| ----------------------------------------------------------------------------------------------------------------------------------------------------------------- | --- | ------- |
+| **The filter refuses a name as it is typed** — try an obvious slur as a board name and as a player name: the reason appears under the field, and nothing is saved | ⬜  | ⬜      |
+| **Reporting a board you joined** — the flag icon, a reason, optional detail, and a confirmation that says a person will read it                                   | ⬜  | ⬜      |
+| A report that **cannot be sent says so** (airplane mode), rather than thanking somebody for a report that never left the phone                                    | ⬜  | ⬜      |
+| **Leaving takes every name on that board off the phone**, and it does not come back on the next foreground or the next sign-in                                    | ⬜  | ⬜      |
+
+> **The other half of a report is on the server**, and it is checked once against prod in §20: a
+> report raises the `ContentReports` alarm, which emails `alertEmail`. An SNS email subscription
+> delivers nothing until somebody has confirmed it, so "reports are monitored and answered" is a
+> promise with a confirmation link behind it.
+
+---
+
 ## 16. Club, Pro, and what each unlocks
 
 The rules are unit-tested in `clubPolicy`. **What a human has to check is that nobody is told to buy
@@ -816,9 +829,15 @@ has to show its title, the length of its period and its price **in the app**, an
 links to the Terms of Use and the Privacy Policy. A missing link is a rejection, and it is the kind
 that costs a whole review cycle.
 
-🚫 **None of it can be run until the subscriptions are approved in both stores** — RevenueCat
-returns no plans before that, and the section is deliberately absent rather than empty, because
-advertising something nobody can buy is worse than saying nothing.
+**What actually blocks these, because "approved" is the wrong word.** Apple approves a first
+auto-renewable subscription **with an app version, in the same submission** — so waiting for
+approval before testing is waiting for something that cannot come first. What StoreKit wants is the
+products at **Ready to Submit**; at _Missing Metadata_ it returns nothing, which is the state that
+makes the Club section correctly absent rather than empty. Play approves no products at all: its
+base plans start **inactive**, and an inactive one is invisible to RevenueCat.
+
+So get both stores to Ready to Submit / active, and these rows then run on the first candidate that
+reaches TestFlight or Play internal testing — before submission, not after it.
 
 |                                                                                                                                         | iOS | Android |
 | --------------------------------------------------------------------------------------------------------------------------------------- | --- | ------- |
@@ -891,11 +910,18 @@ every poll means the token, not the code.
 
 ---
 
-## 19. Push notifications · **new in 1.2.0, needs two accounts and a real build**
+## 19. Push notifications · **new in 1.2.0, needs two accounts**
 
-🚫 **None of this runs on a simulator.** Push tokens need a real device and real credentials — an
-APNs key for iOS and an FCM v1 service account for Android, both held by EAS. A development build
-against `DEV_BACKEND` is enough; the Simulator is not.
+**It needs credentials, not necessarily a phone.** An APNs key for iOS and an FCM v1 service account
+for Android, both held by EAS — without them nothing is sent at all, and that is a console check
+rather than a row. What it does **not** need is a real device: Expo supports push on the iOS
+Simulator (Xcode 14+, macOS 13+, iOS 16+, Apple silicon) and on an Android emulator with Google Play
+services, so the rows below run on the Mac against `DEV_BACKEND`. This section used to say the
+opposite, which made the most expensive-looking part of the pass look like it needed hardware it
+does not.
+
+The **production** APNs/FCM path is a different set of credentials, and is worth one round-trip on a
+store build — see §20.
 
 **It also needs two accounts**, because the sender never notifies whoever recorded the game.
 
@@ -916,6 +942,27 @@ against `DEV_BACKEND` is enough; the Simulator is not.
 already asked for and never prompts on its own. So a device that never allowed notifications simply
 never registers, silently and correctly. If nothing arrives, check the permission before suspecting
 the token.
+
+---
+
+## 20. The store build itself · **only answerable once it is on a track**
+
+Three things nothing else in this file covers, each of which can only be asked of a build that came
+out of EAS and went to TestFlight or Play internal testing.
+
+|                                                                                                                                                                                                                  | iOS | Android |
+| ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --- | ------- |
+| **It talks to prod.** Account → Continue with Google: the page must name `pokerkit.auth.us-east-1.amazoncognito.com`, with no `-dev`. This is what proves the local testing toggles did not ship                 | ⬜  | ⬜      |
+| **Updating from the live version keeps everything.** Install 1.1.4 from the store, set a round length, edit a structure, save a preset — then update to the candidate and check all of it survived, Pro included | ⬜  | ⬜      |
+| **A report reaches a person.** File one against prod and confirm the alarm email arrives at `alertEmail` — `/support` promises an answer within two business days                                                | ⬜  | ⬜      |
+
+**Run the update row before anything else touches that phone.** It needs the live version installed
+with data on it, and installing the candidate is the step being tested — there is no way back except
+reinstalling 1.1.4 from the store and starting again.
+
+**And do the prod check before signing in anywhere**, because the answer changes what every row
+after it means: a candidate pointed at dev writes test accounts into the pool that exists to be
+thrown away, and passes everything while proving nothing about what ships.
 
 ---
 

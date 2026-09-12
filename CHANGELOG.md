@@ -857,6 +857,27 @@ platform-tagged heading (e.g. `## [1.1.3] - 2026-07-20 — Android`) when you cu
   and `react-native-screens`. No new features; it's the accumulated bug-fix releases Expo has
   published for this SDK.
 
+- **The testing checklist covers the things this release is judged on.** Three of guideline 1.2's
+  four requirements had no rows at all — the name filter, reporting a board, leaving one — while the
+  notes for review claim all four. They are now §15b. §20 adds the three questions only a store build
+  can answer: that it talks to production rather than the pool that exists to be thrown away (which
+  is what proves the local testing toggles did not ship), that updating from the live 1.1.4 keeps
+  settings, structures, presets and Pro, and that a report actually raises the alarm email somebody
+  has to have confirmed a subscription to receive.
+
+  **The session plan was rewritten around the sections that now exist.** It described "~170 rows" in
+  seven sessions and left out §14b, §16b, §18 and §19 — 47 rows, including everything new in this
+  release. It now names where each session runs and why that is not "any device": a dev client and a
+  store build share a bundle id, and on Android are signed differently, so swapping between them
+  means uninstalling and losing the data you were about to test with.
+
+  **Two of its claims were wrong in ways that cost time rather than accuracy.** §19 said push needs a
+  real device; Expo supports it on the iOS Simulator and on a Play-services emulator, so the
+  two-device session runs on one Mac. §16b said its rows wait for Apple to approve the subscriptions,
+  which cannot happen first — a first subscription is approved _with_ a version, and sandbox needs
+  only Ready to Submit. And §0 said to run the kill switch against prod, which means a production
+  deploy the workflow cannot perform and a reviewer meeting a feature switched off.
+
 ### Removed
 
 - **The server-side poker table is gone**, and with it the AppSync Events realtime bus. It was a
