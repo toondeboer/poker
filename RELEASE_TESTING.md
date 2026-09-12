@@ -840,6 +840,28 @@ something they already own**, which is the failure that reaches a store review.
 | Nobody is ever told to buy something they hold — check the messages for a Pro-only, a Club-only, and a signed-out account                                         | ⬜  | ⬜      |
 | A **signed-out** person tapping "Join a board" is offered a sign-in, not a paywall and not an empty sheet                                                         | ⬜  | ⬜      |
 
+### 16c. Telling the two purchases apart · **new in 1.2.0**
+
+**The failure these exist for is somebody starting a subscription while meaning to pay once.** Until
+this release both were sold in one amber sheet headed "Pro", behind buttons that all said "Unlock
+Pro", so nothing on screen distinguished a one-time purchase from a recurring one. Everything below
+is about whether a person can tell, before they tap, which of the two they are buying.
+
+|                                                                                                                                                    | iOS | Android |
+| -------------------------------------------------------------------------------------------------------------------------------------------------- | --- | ------- |
+| Settings shows **two separate cards**, Pro badged **One-time** and Club badged **Subscription**                                                     | ⬜  | ⬜      |
+| The two are **visibly different colours** — Pro amber, Club violet — on the cards, the pills and the buttons                                        | ⬜  | ⬜      |
+| Opening the sheet from a **locked Pro feature** puts Pro first, filled; Club is below it and outlined                                               | ⬜  | ⬜      |
+| Opening it from **"See Club"** puts Club first, filled; Pro is below it and outlined                                                                | ⬜  | ⬜      |
+| **Both stay buyable either way** — the unfocused card is outlined, never hidden, and its button still works                                         | ⬜  | ⬜      |
+| Each card says its shape in words: Pro _"paid once … nothing to renew"_, Club _"renews automatically until cancelled"_                              | ⬜  | ⬜      |
+| The **shared clock** row in Settings carries a **CLUB** pill, and the Pro rows carry **PRO** pills — a subscriber sees neither on what they hold     | ⬜  | ⬜      |
+| **Groups → the Club offer** appears for a signed-in non-subscriber and opens the sheet on Club                                                      | ⬜  | ⬜      |
+| That offer is **absent on a cold launch until the store answers** — never shown while entitlements are still the default                            | ⬜  | ⬜      |
+| **Start a clock → "See Club"** opens the sheet on Club, and the refusal sentence above it still reads the same                                      | ⬜  | ⬜      |
+| Club is **absent everywhere** with `featureSharing=off` — the Settings card, the groups offer and the clock's button all go                          | ⬜  | ⬜      |
+| Club is **absent everywhere** in a build whose subscriptions are not live — no empty card, no dead button                                           | ⬜  | ⬜      |
+
 ### 16b. Buying Club · **the rows a subscription is rejected over**
 
 **Guideline 3.1.2 is the reason for most of these.** An app selling an auto-renewable subscription
@@ -869,7 +891,8 @@ reaches TestFlight or Play internal testing — before submission, not after it.
 | Buying **monthly** grants `club` **and** `pro` — the board opens straight away, with no second purchase                                 | ⬜  | ⬜      |
 | Buying **annual** does the same                                                                                                         | ⬜  | ⬜      |
 | **Cancelling at the store** removes hosting but **leaves Pro** — the boards stay visible. This is the promise `clubEver` exists to keep | ⬜  | ⬜      |
-| **The Club section disappears once subscribed** — nobody is sold what they hold                                                         | ⬜  | ⬜      |
+| **A subscriber is never offered the plans again** — the two plan buttons are replaced by "Club active"                                  | ⬜  | ⬜      |
+| **…but the card itself stays**, carrying the renewal terms and both legal links. Changed in 1.2.0: the whole section used to vanish, which took the cancellation terms with it — away from the one person who needs them | ⬜  | ⬜      |
 | Cancelling a purchase halfway leaves the sheet usable, with no error — cancelling is not a failure                                      | ⬜  | ⬜      |
 | **Restore brings back both entitlements** on a fresh install                                                                            | ⬜  | ⬜      |
 

@@ -27,12 +27,15 @@ export function ProCard({ onRequestPro }: { onRequestPro: () => void }) {
 
   return (
     <Card>
-      <CardHeader icon="star" title="Pro" />
+      {/* **"One-time" said beside the name, not only in the body.** It is the
+          one thing that must not be confused with the Club card below, and the
+          two badges are the fastest way to read the difference. */}
+      <CardHeader icon="star" title="Pro" right={<Badge label="One-time" />} />
       <CardContent>
         <Text style={styles.description}>
           Remove ads, work out payouts, keep a leaderboard, save tournament
-          presets, choose your alarm sound, and support the app — a one-time
-          purchase.
+          presets, choose your alarm sound, and support the app. Paid once, and
+          it all runs on this phone — nothing to renew.
         </Text>
         <Button
           label="Unlock Pro / Remove Ads"

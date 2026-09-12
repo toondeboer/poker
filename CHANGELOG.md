@@ -654,6 +654,49 @@ platform-tagged heading (e.g. `## [1.1.3] - 2026-07-20 — Android`) when you cu
 
 ### Changed
 
+- **Pro and Club are now two purchases on screen, because they are two purchases.** They were sold
+  in one amber sheet headed _"Poker Blinds Buzzer Pro"_, reached from buttons that every one of them
+  said "Unlock Pro", with the subscription bolted on underneath. Nothing distinguished them — same
+  colour, same heading, adjacent buttons — so the only way to discover Club existed was to open a
+  sheet about something else and scroll, and somebody meaning to pay once could start a subscription
+  without reading a word that told them so.
+
+  The split the app now shows is the one `clubPolicy.ts` has documented all along and no screen ever
+  drew: **Pro is paid once and everything it unlocks runs on the phone; Club renews, because hosting
+  is the only thing that costs something every month.** Joining stays free, and that sentence is on
+  screen where the decision is made.
+
+  - **Two cards in Settings**, badged _One-time_ and _Subscription_, so the shape of the payment is
+    legible before anything is tapped.
+  - **A colour each** — Pro amber, Club violet — carried through the cards, the buttons and a new
+    `CLUB` pill beside the existing `PRO` one. Violet because the other four colours in the theme
+    already mean something: blue is an action, green is live, red is destructive, amber is Pro.
+  - **The sheet opens on what was asked for.** A locked Pro feature puts Pro first and filled; "See
+    Club" puts Club first and filled. The other card stays visible and buyable, outlined rather than
+    hidden — hiding it would strand somebody who tapped the wrong way in.
+  - **Every hardcoded colour in the paywall is gone**, about twenty of them. That file predated the
+    theme and is why the two tiers were the same colour in the first place.
+
+- **Club could not be bought from anywhere it was needed, and now can.** The share control is hidden
+  without the subscription — correctly, since it could only ever refuse — but that left the groups
+  sheet saying nothing at all: no button, no explanation, and no way to buy the thing that would
+  bring the button back. The clock screen was worse; it stated _"Sharing your clock is part of
+  Club"_ with no Club anywhere on the screen. Both now carry an offer that opens the sheet on Club,
+  worded from the policy itself so the offer and the refusal cannot drift apart. Neither appears
+  while the entitlements are still the default, which is the cold-launch window in which telling
+  somebody who has paid to go and pay is exactly the mistake `clubPolicy` exists to prevent.
+
+- **A subscriber keeps the Club card instead of watching it vanish.** It used to disappear entirely
+  once `hasClub` was true — which also took the renewal terms, the cancellation instructions and the
+  Terms and Privacy links away from the only person who has any use for them. The plans are replaced
+  by "Club active"; everything guideline 3.1.2 asks to be in the app stays in it.
+
+- **The Club plans are fetched at launch rather than when the paywall opens.** They were fetched by
+  the sheet alone, which was fine while the sheet was the only place Club was named. It no longer
+  is: Settings, the groups sheet and the clock screen each decide whether to offer Club from whether
+  any plans exist, and a list nothing had asked for yet is empty — so all three would have stayed
+  silent until somebody opened the sheet they were meant to lead to.
+
 - **The notes for review stopped claiming things the binary does not do.** Four of them, found by
   reading the draft against the code rather than against the previous draft. A demo account "with
   both entitlements granted", which cannot be produced: `revenueCatProvider.ts` configures

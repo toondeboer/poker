@@ -21,9 +21,13 @@ import {
   text,
   TABLET_MAX_WIDTH_SETTINGS,
 } from "@/src/theme";
+import { usePremium } from "@/src/contexts/PremiumContext";
+import { useAuth } from "@/src/contexts/AuthContext";
 import { Button } from "@/src/components/ui/Button";
 import { Card, CardContent, CardHeader } from "@/src/components/ui/Card";
+import { ClubPill } from "@/src/components/ui/ClubPill";
 import { TextField } from "@/src/components/ui/TextField";
+import { Paywall } from "@/src/components/paywall/Paywall";
 
 /** What to say when a join is refused. */
 const MESSAGE: Record<JoinError, string> = {
@@ -73,6 +77,28 @@ export function SharedSessionScreen() {
 
   const [typed, setTyped] = useState("");
   const [error, setError] = useState<JoinError | null>(null);
+
+  /**
+   * **Whether the refusal above is one Club would actually fix.**
+   *
+   * Three different things can stop somebody hosting — not signed in, purchases
+   * still being checked, and no subscription — and only the last is something to
+   * sell. Asked of the entitlements directly rather than by matching the
+   * refusal's wording, which would break the moment a sentence is reworded.
+   *
+   * Until this, the screen stated the refusal and stopped: "Sharing your clock
+   * is part of Club" with no Club anywhere on the screen, and the subscription
+   * reachable only from a sheet titled Pro in Settings.
+   */
+  const { hasClub, entitlementsKnown, clubPlans } = usePremium();
+  const { account } = useAuth();
+  const [showClub, setShowClub] = useState(false);
+  const clubWouldFix =
+    hostRefusal !== null &&
+    account !== null &&
+    entitlementsKnown &&
+    !hasClub &&
+    clubPlans.length > 0;
 
   const scrollViewRef = useRef<ScrollView>(null);
   const scrollOffsetRef = useRef(0);
@@ -133,7 +159,15 @@ export function SharedSessionScreen() {
   ) : (
     <>
       <Card>
-        <CardHeader icon="play-outline" title="Start a clock" />
+        {/* Marked the way the Settings row that leads here is: hosting is the
+            half of this screen that costs something, and joining below it is
+            free. Without the pill the two cards look like one feature that
+            sometimes refuses. */}
+        <CardHeader
+          icon="play-outline"
+          title="Start a clock"
+          right={hasClub ? undefined : <ClubPill />}
+        />
         <CardContent>
           <Text style={styles.blurb}>
             Everyone who joins sees the same round, the same level, and the same
@@ -150,6 +184,14 @@ export function SharedSessionScreen() {
               the bug the board already fixed; the policy returns a sentence per
               case so this can just show it. */}
           {hostRefusal ? <Text style={styles.blurb}>{hostRefusal}</Text> : null}
+          {clubWouldFix ? (
+            <Button
+              label="See Club"
+              icon="people"
+              variant="club"
+              onPress={() => setShowClub(true)}
+            />
+          ) : null}
         </CardContent>
       </Card>
       <Card>
@@ -214,6 +256,13 @@ export function SharedSessionScreen() {
       >
         {content}
       </ScrollView>
+      {/* Opened onto Club, which is the only thing this screen ever sells —
+          joining a clock is free and always has been. */}
+      <Paywall
+        visible={showClub}
+        focus="club"
+        onClose={() => setShowClub(false)}
+      />
     </View>
   );
 }

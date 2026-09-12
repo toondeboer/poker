@@ -13,6 +13,7 @@ import { Badge } from "@/src/components/ui/Badge";
 import { Card, CardContent, CardHeader } from "@/src/components/ui/Card";
 import { DurationField } from "@/src/components/ui/DurationField";
 import { NavRow } from "@/src/components/ui/NavRow";
+import { ClubPill } from "@/src/components/ui/ClubPill";
 import { ProPill } from "@/src/components/ui/ProPill";
 
 /** Round length + the entry points into the blind-structure editor and payouts. */
@@ -20,7 +21,7 @@ export function TournamentCard({ style }: { style?: StyleProp<ViewStyle> }) {
   const router = useRouter();
   const { timerDuration, setTimerDuration } = useTimer();
   const { blindLevels, isDraftDirty } = useBlinds();
-  const { isPremium } = usePremium();
+  const { isPremium, hasClub } = usePremium();
   const { settings } = usePayouts();
   const { players, results } = useLeaderboard();
   const features = useFeatures();
@@ -59,6 +60,13 @@ export function TournamentCard({ style }: { style?: StyleProp<ViewStyle> }) {
           <NavRow
             title="Shared clock"
             summary="One clock on every phone at the table"
+            // **The only row here that wants Club rather than Pro**, and it
+            // said so nowhere — the screen simply refused to start a clock once
+            // you got there. Marked like every locked Pro row is, because the
+            // point of a pill is to answer "what does this cost me" before the
+            // tap rather than after it.
+            badge={hasClub ? undefined : <ClubPill />}
+            badgeLabel={hasClub ? undefined : "Club"}
             onPress={() => router.navigate("/session")}
           />
         ) : null}
