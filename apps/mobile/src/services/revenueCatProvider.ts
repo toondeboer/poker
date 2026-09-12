@@ -36,6 +36,16 @@ export type ClubPlan = {
   period: "monthly" | "annual";
   /** Localised and store-correct — never built by hand from a number. */
   priceString: string;
+  /**
+   * The same price as a **number**, in the storefront's currency.
+   *
+   * **Never rendered** — `priceString` is the only thing that goes on screen,
+   * because only the store knows where the currency sign belongs. This exists
+   * solely so the two plans can be compared arithmetically for the saving the
+   * annual advertises; see `annualSavingPercent`, which is why it is a number
+   * rather than something parsed back out of the string above.
+   */
+  price: number;
 };
 
 export interface BillingProvider extends EntitlementProvider {
@@ -55,7 +65,29 @@ export interface BillingProvider extends EntitlementProvider {
   getClubPlans(): Promise<ClubPlan[]>;
   /** Buy one of them, by the id from `getClubPlans`. */
   purchaseClub(planId: string): Promise<Entitlements>;
+  /**
+   * Tie purchases to an app account rather than to the store account.
+   *
+   * **Takes the Cognito `sub`, and nothing else.** It is stable for the life of
+   * the account, opaque, and never reused — an email is none of those things,
+   * and RevenueCat's own guidance is not to use one.
+   *
+   * Safe to call repeatedly with the same id, and safe to call for somebody who
+   * bought anonymously: RevenueCat transfers an anonymous user's purchases to
+   * the identified one on first log-in, which is the migration for everybody who
+   * already owns Pro.
+   */
+  identify(accountId: string): Promise<Entitlements>;
+  /** Undo {@link identify} on sign-out. */
+  forget(): Promise<Entitlements>;
 }
+
+/** Nothing owned — the safe answer in both directions, with no billing wired. */
+const NOTHING: Entitlements = {
+  isPremium: false,
+  hasClub: false,
+  ownsProOutright: false,
+};
 
 // Public RevenueCat SDK keys are safe to ship in the client (set in app.json
 // `extra`). Android key is added when the Play app is published.
@@ -145,9 +177,21 @@ async function getClubPackages(): Promise<
       found.push({ pkg, period: "annual" });
     }
   }
-  // Monthly first: it is the cheaper number, and a list that opens with the
-  // larger one reads as the price of the thing.
-  return found.sort((a, b) => (a.period === "monthly" ? -1 : 1));
+  /**
+   * **Annual first — and this reverses what this line used to do.**
+   *
+   * It sorted monthly first, on the reasoning that the cheaper number should
+   * lead because "a list that opens with the larger one reads as the price of
+   * the thing". That was right while the two were offered as equals. They are
+   * not any more: the annual is the plan worth selling, it now carries the
+   * saving against twelve monthlies, and the badge beside it explains the
+   * bigger number that used to need explaining away.
+   *
+   * The monthly is the trial, which is what `ROADMAP.md` concluded from the
+   * prices — €2.99 a month is €35.88 against a €2.99 app, and one month of Club
+   * already grants Pro permanently.
+   */
+  return found.sort((a, b) => (a.period === "annual" ? -1 : 1));
 }
 
 export const revenueCatProvider: BillingProvider = {
@@ -155,11 +199,45 @@ export const revenueCatProvider: BillingProvider = {
     // No billing configured at all: nothing is owned, which is the safe answer
     // in both directions — no paid feature is unlocked, and no purchase is
     // claimed to exist that could be "restored".
-    if (!API_KEY) {
-      return { isPremium: false, hasClub: false, ownsProOutright: false };
-    }
+    if (!API_KEY) return NOTHING;
     configurePurchases();
     return toEntitlements(await Purchases.getCustomerInfo());
+  },
+
+  identify: async (accountId: string) => {
+    if (!API_KEY) return NOTHING;
+    configurePurchases();
+    const { customerInfo } = await Purchases.logIn(accountId);
+    return toEntitlements(customerInfo);
+  },
+
+  forget: async () => {
+    if (!API_KEY) return NOTHING;
+    configurePurchases();
+    /**
+     * **Already anonymous is not an error to cause.** The native SDKs reject a
+     * `logOut` from an anonymous user, and this runs on every sign-out —
+     * including one by somebody who was never identified, because the account
+     * screens work in a build where billing does not.
+     */
+    if (await Purchases.isAnonymous()) {
+      return toEntitlements(await Purchases.getCustomerInfo());
+    }
+    await Purchases.logOut();
+    /**
+     * **Then take the store's receipt back, and this is not optional.**
+     *
+     * `logOut` mints a *fresh anonymous user*, which owns nothing — so without
+     * this, signing out of the app makes a Pro purchase disappear from a phone
+     * that still plainly has it, and the only way back is a Restore button the
+     * person has no reason to think they need. Restoring re-reads the receipt
+     * held by the App Store or Play account, which never signed out of
+     * anything, and re-attaches it to the new anonymous id.
+     *
+     * Safe and silent: it is the same store account, so it can only return
+     * purchases this device has already paid for.
+     */
+    return toEntitlements(await Purchases.restorePurchases());
   },
 
   onChange: (callback) => {
@@ -226,6 +304,7 @@ export const revenueCatProvider: BillingProvider = {
         id: pkg.identifier,
         period,
         priceString: pkg.product.priceString,
+        price: pkg.product.price,
       }));
     } catch (error) {
       // Same posture as the Pro price: a paywall that cannot price Club still

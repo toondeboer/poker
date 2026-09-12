@@ -24,6 +24,7 @@ import {
 import { usePremium } from "@/src/contexts/PremiumContext";
 import { useLeaderboard } from "@/src/contexts/LeaderboardContext";
 import { accountsAreReal, useAuth } from "@/src/contexts/AuthContext";
+import { useFeatures } from "@/src/contexts/FeaturesContext";
 import { useKeyboardFocusScroll } from "@/src/hooks/useKeyboardFocusScroll";
 import {
   colors,
@@ -32,7 +33,7 @@ import {
   text,
   TABLET_MAX_WIDTH_SETTINGS,
 } from "@/src/theme";
-import { Paywall } from "@/src/components/paywall/Paywall";
+import { Paywall, type PaywallFocus } from "@/src/components/paywall/Paywall";
 import { Badge } from "@/src/components/ui/Badge";
 import { Button } from "@/src/components/ui/Button";
 import { Card, CardContent, CardHeader } from "@/src/components/ui/Card";
@@ -55,7 +56,8 @@ export function LeaderboardScreen() {
   const insets = useSafeAreaInsets();
   const { width } = useWindowDimensions();
   const isTablet = isTabletWidth(width);
-  const { isPremium } = usePremium();
+  const { isPremium, hasClub, entitlementsKnown, clubPlans } = usePremium();
+  const features = useFeatures();
   const {
     players,
     results,
@@ -84,6 +86,9 @@ export function LeaderboardScreen() {
   const { record } = useLocalSearchParams<{ record?: string }>();
 
   const [showPaywall, setShowPaywall] = useState(false);
+  /** Which purchase the sheet opens on — Pro from the locked card, Club from
+   *  the board-sharing button. See `PaywallFocus`. */
+  const [paywallFocus, setPaywallFocus] = useState<PaywallFocus>("pro");
   const [showRecord, setShowRecord] = useState(record === "1");
   const [showGroups, setShowGroups] = useState(false);
   const [claimError, setClaimError] = useState<string | null>(null);
@@ -136,6 +141,31 @@ export function LeaderboardScreen() {
   const hasStandingsToShare = standings.some(
     (standing) => standing.gamesPlayed > 0,
   );
+
+  /**
+   * Whether sharing *this board* is a thing this person could do at all.
+   *
+   * **Not a guest board**, which is the check the other conditions cannot make:
+   * a board somebody else hosts is theirs to invite to, and offering its member
+   * a share button would be selling a subscription for something the server
+   * would refuse on role alone.
+   */
+  const canShareThisBoard =
+    accountsAreReal &&
+    account !== null &&
+    features.sharing &&
+    !activeBoardIsGuest;
+
+  /**
+   * Shown to a subscriber as a shortcut, and to everybody else as the offer.
+   *
+   * Never while the entitlement is still the default — that window is where
+   * telling somebody who has paid to go and pay happens — and never when there
+   * is nothing on sale to point them at.
+   */
+  const showBoardShare =
+    canShareThisBoard &&
+    (hasClub || (entitlementsKnown && clubPlans.length > 0));
 
   const handleShare = () => {
     Share.share({
@@ -297,12 +327,45 @@ export function LeaderboardScreen() {
             onPress={() => setShowRecord(true)}
             disabled={players.length === 0}
           />
+          {/* **"Share standings" was two features wearing one word.** This one
+              is free, offline and one-way: it hands a *text summary* to the
+              system share sheet. The other — putting this board live on the
+              table's phones — is Club, and lived two taps away behind the group
+              row with nothing naming it. Somebody looking for the second would
+              tap this, get a text blob in a chat app, and reasonably conclude
+              that was all sharing meant here. Renamed so the two can be told
+              apart, with the real one beside it. */}
           <Button
-            label="Share standings"
+            label="Send a text summary"
             icon="share-social-outline"
+            variant="secondary"
             onPress={handleShare}
             disabled={!hasStandingsToShare}
           />
+          {showBoardShare ? (
+            <Button
+              label="Share this board"
+              icon="people"
+              /* Violet marks it as Club the way every other Club control is
+                 marked — `Button` has no slot for a pill. Once subscribed it is
+                 an ordinary navigation action, so it stops shouting. */
+              variant={hasClub ? "secondary" : "club"}
+              onPress={() => {
+                if (hasClub) {
+                  // Straight to where the per-board share control already
+                  // lives. Deliberately not a second copy of `GroupsSheet`'s
+                  // `share()` — that carries a double-tap guard, a refusal
+                  // alert and a fallback for when the share sheet fails, and
+                  // two implementations of minting an invite is how one of them
+                  // silently revokes the other's link.
+                  setShowGroups(true);
+                  return;
+                }
+                setPaywallFocus("club");
+                setShowPaywall(true);
+              }}
+            />
+          ) : null}
         </CardContent>
       </Card>
 
@@ -515,7 +578,11 @@ export function LeaderboardScreen() {
           onClose={() => setShowGroups(false)}
         />
       )}
-      <Paywall visible={showPaywall} onClose={() => setShowPaywall(false)} />
+      <Paywall
+        visible={showPaywall}
+        focus={paywallFocus}
+        onClose={() => setShowPaywall(false)}
+      />
     </View>
   );
 }

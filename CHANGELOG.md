@@ -654,6 +654,112 @@ platform-tagged heading (e.g. `## [1.1.3] - 2026-07-20 — Android`) when you cu
 
 ### Changed
 
+- **A purchase now belongs to your account, not to the phone's store account.** RevenueCat was
+  configured with no `appUserID` and never told who was using the app, so an entitlement belonged to
+  the **App Store or Play account** on the device. Everything that follows was true and none of it
+  was intended: signing out kept Club, deleting your account kept Club, the same person paid twice to
+  have it on an iPhone and an Android, and a new phone signed into the same app account under a
+  different Apple ID had nothing to restore.
+
+  The SDK is now handed the **Cognito `sub`** whenever the signed-in account changes — stable,
+  opaque, never reused, and not an email, which RevenueCat's own guidance rules out. **Nobody who
+  already bought anything loses it:** RevenueCat transfers an anonymous user's purchases to the
+  identified one the first time it is told who they are, so an existing Pro owner is migrated by
+  signing in.
+
+  Two details worth writing down, because both are the kind that look like a bug later:
+
+  - **Signing out re-reads the store receipt**, deliberately. `logOut` mints a _fresh anonymous
+    user_, which owns nothing — so without that step, signing out of the app would make Pro vanish
+    from a phone that plainly still has it, recoverable only through a Restore button nobody would
+    think to press. Restoring re-attaches the receipt held by the store account, which never signed
+    out of anything.
+  - **A failed link never wipes what is on screen.** A network failure is not an answer about what
+    somebody owns, and treating it as one would take Pro off a paying customer's screen for the rest
+    of the session. It warns and leaves the entitlements alone.
+
+  Done before Club has subscribers on purpose: migrating real ones later is considerably harder than
+  not creating unattached ones now. `ROADMAP.md` had it as "worth doing one day, not before Club
+  launches" — that ordering was the wrong way round.
+
+- **Pro and Club are now two purchases on screen, because they are two purchases.** They were sold
+  in one amber sheet headed _"Poker Blinds Buzzer Pro"_, reached from buttons that every one of them
+  said "Unlock Pro", with the subscription bolted on underneath. Nothing distinguished them — same
+  colour, same heading, adjacent buttons — so the only way to discover Club existed was to open a
+  sheet about something else and scroll, and somebody meaning to pay once could start a subscription
+  without reading a word that told them so.
+
+  The split the app now shows is the one `clubPolicy.ts` has documented all along and no screen ever
+  drew: **Pro is paid once and everything it unlocks runs on the phone; Club renews, because hosting
+  is the only thing that costs something every month.** Joining stays free, and that sentence is on
+  screen where the decision is made.
+
+  - **Two cards in Settings**, badged _One-time_ and _Subscription_, so the shape of the payment is
+    legible before anything is tapped.
+  - **A colour each** — Pro amber, Club violet — carried through the cards, the buttons and a new
+    `CLUB` pill beside the existing `PRO` one. Violet because the other four colours in the theme
+    already mean something: blue is an action, green is live, red is destructive, amber is Pro.
+  - **The sheet opens on what was asked for.** A locked Pro feature puts Pro first and filled; "See
+    Club" puts Club first and filled. The other card stays visible and buyable, outlined rather than
+    hidden — hiding it would strand somebody who tapped the wrong way in.
+  - **Every hardcoded colour in the paywall is gone**, about twenty of them. That file predated the
+    theme and is why the two tiers were the same colour in the first place.
+
+- **The annual Club plan leads, and says what it saves.** The two plans were offered as equals —
+  both filled or both outlined, monthly first — which is not what the prices say. €2.99 a month is
+  €35.88 a year against a €19.99 annual, and because one month of Club already grants Pro
+  permanently, a subscriber who does not stay is worth roughly what Pro is worth. The annual is
+  where the difference actually lives, so it now comes first, is the filled button, and carries
+  **"Save 44% vs monthly"**; the monthly stays one tap away, outlined, as the trial it is.
+
+  **The percentage is worked out from what the store charges and is never hardcoded.** It is a price
+  claim, so it is computed in `@poker/core` from both plans' _numeric_ prices — not by parsing
+  "€19,99" back into a number, which is the same class of mistake as matching Club products by name:
+  it works in the currency it was written in and produces nonsense everywhere else. It is absent
+  entirely whenever there is nothing true to claim, including a storefront where the rounding lands
+  badly, a promotional monthly, a missing price, or only one plan coming back from the store.
+
+  This reverses the previous sort order, which put monthly first so that a list would not open with
+  the larger number. That reasoning held while the two were presented as equals; the badge is now
+  what explains the bigger number.
+
+- **Club could not be bought from anywhere it was needed, and now can.** The share control is hidden
+  without the subscription — correctly, since it could only ever refuse — but that left the groups
+  sheet saying nothing at all: no button, no explanation, and no way to buy the thing that would
+  bring the button back. The clock screen was worse; it stated _"Sharing your clock is part of
+  Club"_ with no Club anywhere on the screen. Both now carry an offer that opens the sheet on Club,
+  worded from the policy itself so the offer and the refusal cannot drift apart. Neither appears
+  while the entitlements are still the default, which is the cold-launch window in which telling
+  somebody who has paid to go and pay is exactly the mistake `clubPolicy` exists to prevent.
+
+- **"Share standings" was two features wearing one word, and the free one was winning.** The
+  leaderboard's share button hands a _text summary_ to the system share sheet — offline, one-way, and
+  free. Putting the board itself live on everyone's phones is Club, and it lived two taps away behind
+  the group row with nothing naming it. So somebody looking for the second would tap the first, get a
+  text blob in a chat app, and reasonably conclude that was all sharing meant here. Nobody designed
+  that; the two features grew into the same word.
+
+  It is now **"Send a text summary"**, with **"Share this board"** beside it in Club's violet. For a
+  subscriber that button is an ordinary grey navigation action opening Groups, where the per-board
+  share control already lives — deliberately **not** a second implementation of minting an invite,
+  because minting is also revoking, and two code paths doing it is how one silently kills the link
+  the other just sent somebody.
+
+  Absent, not disabled, wherever it would be a lie: on a board somebody else hosts (inviting to one
+  you are only a member of is refused on role), with the kill switch off, in a build with no backend,
+  signed out, and during the cold-launch window before the store has answered.
+
+- **A subscriber keeps the Club card instead of watching it vanish.** It used to disappear entirely
+  once `hasClub` was true — which also took the renewal terms, the cancellation instructions and the
+  Terms and Privacy links away from the only person who has any use for them. The plans are replaced
+  by "Club active"; everything guideline 3.1.2 asks to be in the app stays in it.
+
+- **The Club plans are fetched at launch rather than when the paywall opens.** They were fetched by
+  the sheet alone, which was fine while the sheet was the only place Club was named. It no longer
+  is: Settings, the groups sheet and the clock screen each decide whether to offer Club from whether
+  any plans exist, and a list nothing had asked for yet is empty — so all three would have stayed
+  silent until somebody opened the sheet they were meant to lead to.
+
 - **The notes for review stopped claiming things the binary does not do.** Four of them, found by
   reading the draft against the code rather than against the previous draft. A demo account "with
   both entitlements granted", which cannot be produced: `revenueCatProvider.ts` configures

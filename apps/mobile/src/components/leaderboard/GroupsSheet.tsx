@@ -13,14 +13,16 @@ import { useLeaderboard } from "@/src/contexts/LeaderboardContext";
 import { accountsAreReal, useAuth } from "@/src/contexts/AuthContext";
 import { useFeatures } from "@/src/contexts/FeaturesContext";
 import { usePremium } from "@/src/contexts/PremiumContext";
-import { colors, space, text } from "@/src/theme";
+import { colors, radius, space, text } from "@/src/theme";
 import { Button } from "@/src/components/ui/Button";
+import { ClubPill } from "@/src/components/ui/ClubPill";
 import { IconButton } from "@/src/components/ui/IconButton";
 import { ListRow } from "@/src/components/ui/ListRow";
 import { Sheet } from "@/src/components/ui/Sheet";
 import { TextField } from "@/src/components/ui/TextField";
 import { ReportBoardSheet } from "@/src/components/leaderboard/ReportBoardSheet";
 import { BoardMembersSheet } from "@/src/components/leaderboard/BoardMembersSheet";
+import { Paywall } from "@/src/components/paywall/Paywall";
 
 /** "4 players · 12 games", skipping the halves that are still zero. */
 const describeGroup = (playerCount: number, gameCount: number) => {
@@ -71,7 +73,7 @@ export function GroupsSheet({
   } = useLeaderboard();
   const { account } = useAuth();
   const router = useRouter();
-  const { isPremium, hasClub, entitlementsKnown } = usePremium();
+  const { isPremium, hasClub, entitlementsKnown, clubPlans } = usePremium();
   /**
    * **Shown while the store has not answered yet**, the same call `hostRefusal`
    * makes and for the same reason: the entitlement starts `false`, and a
@@ -92,6 +94,29 @@ export function GroupsSheet({
    */
   const features = useFeatures();
   const mayShare = features.sharing && (hasClub || !entitlementsKnown);
+  /**
+   * **Whether Club is worth offering here, and it never was before.**
+   *
+   * The share control is hidden without the subscription — correctly, since it
+   * could only ever refuse — but that left the sheet saying nothing at all: no
+   * button, no explanation, and no way to buy the thing that would bring the
+   * button back. Sharing was unbuyable from the one screen where somebody wants
+   * it. This is the offer that was missing, and it is deliberately the *only*
+   * new thing on screen rather than a pill on every row, since every row would
+   * be selling the same single subscription.
+   *
+   * Never shown while the entitlement is still the default — telling somebody
+   * who has paid to go and pay is the exact mistake `clubPolicy` exists to
+   * prevent — and never when nothing is on sale.
+   */
+  const clubWouldUnlockSharing =
+    accountsAreReal &&
+    account !== null &&
+    features.sharing &&
+    entitlementsKnown &&
+    !hasClub &&
+    clubPlans.length > 0;
+  const [showClub, setShowClub] = useState(false);
   const [sharingId, setSharingId] = useState<string | null>(null);
   const sharing = useRef(false);
   const [joinCode, setJoinCode] = useState("");
@@ -561,6 +586,40 @@ export function GroupsSheet({
         </>
       ) : null}
 
+      {clubWouldUnlockSharing ? (
+        <View style={styles.clubPrompt}>
+          <View style={styles.clubPromptHead}>
+            <Text style={styles.clubPromptTitle}>Share a board</Text>
+            <ClubPill />
+          </View>
+          {/* **The policy's own sentence, not a second copy of it.** The same
+              words the share button shows when it refuses, so the offer and the
+              refusal can never drift apart. */}
+          <Text style={styles.blurb}>
+            {hostRefusal({
+              signedIn: true,
+              entitlementsKnown,
+              hasClub,
+              isPremium,
+            })}
+          </Text>
+          <Button
+            label="See Club"
+            icon="people"
+            variant="club"
+            onPress={() => setShowClub(true)}
+          />
+        </View>
+      ) : null}
+
+      {/* Opened straight onto Club, since that is what was just asked for.
+          Mounted here for the same reason the two sheets below are. */}
+      <Paywall
+        visible={showClub}
+        focus="club"
+        onClose={() => setShowClub(false)}
+      />
+
       {/* **Mounted inside this sheet, on top of it.** A second `Modal` over the
           first is what `Sheet` already does everywhere else in the app, and
           keeping the report next to the board it is about is the whole point —
@@ -603,4 +662,18 @@ const styles = StyleSheet.create({
   blurb: { ...text.body, color: colors.textMuted },
   list: { gap: space.sm },
   rowActions: { flexDirection: "row", gap: space.xs },
+  clubPrompt: {
+    gap: space.md,
+    padding: space.lg,
+    borderRadius: radius.lg,
+    borderWidth: 1,
+    borderColor: colors.club,
+    backgroundColor: colors.clubSurfaceSoft,
+  },
+  clubPromptHead: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: space.sm,
+  },
+  clubPromptTitle: { ...text.rowTitle, flex: 1 },
 });

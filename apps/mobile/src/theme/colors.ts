@@ -25,14 +25,37 @@ export const colors = {
   textMuted: "#94a3b8",
   textOnAccent: "#ffffff",
   textOnPro: "#1f2937",
+  textOnClub: "#1f2937",
 
   /** Actions. */
   accent: "#3b82f6",
   success: "#10b981",
+  /** Tinted success, for a "you already have this" panel rather than a control. */
+  successSurface: "rgba(16, 185, 129, 0.15)",
+  successText: "#34d399",
   neutral: "#4b5563",
   pro: "#f59e0b",
   proSurface: "rgba(245, 158, 11, 0.15)",
   proSurfaceSoft: "rgba(245, 158, 11, 0.1)",
+  /**
+   * Club — **a different colour from Pro, deliberately.**
+   *
+   * The two are different purchases with different shapes: Pro is paid once and
+   * everything it unlocks runs on this phone; Club renews, and pays for a row on
+   * a server other people poll. They were sold in one amber sheet under one
+   * "Unlock Pro" heading, which is how somebody ends up subscribing when they
+   * meant to buy the one-time unlock. Colour is the cheapest way to say "this is
+   * the other one" on every screen at once.
+   *
+   * Violet because the four colours already spoken for here mean something:
+   * `accent` blue is an ordinary action, `success` green is a live state,
+   * `danger` red is destructive, and `pro` amber is the one-time unlock. Violet
+   * collides with none of them, and `textOnClub` mirrors `textOnPro` so a filled
+   * Club control reads the same way a filled Pro one does.
+   */
+  club: "#a78bfa",
+  clubSurface: "rgba(167, 139, 250, 0.15)",
+  clubSurfaceSoft: "rgba(167, 139, 250, 0.1)",
   danger: "#ef4444",
   dangerSurface: "rgba(239, 68, 68, 0.1)",
 

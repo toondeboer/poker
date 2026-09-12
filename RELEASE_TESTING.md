@@ -840,6 +840,38 @@ something they already own**, which is the failure that reaches a store review.
 | Nobody is ever told to buy something they hold — check the messages for a Pro-only, a Club-only, and a signed-out account                                         | ⬜  | ⬜      |
 | A **signed-out** person tapping "Join a board" is offered a sign-in, not a paywall and not an empty sheet                                                         | ⬜  | ⬜      |
 
+### 16c. Telling the two purchases apart · **new in 1.2.0**
+
+**The failure these exist for is somebody starting a subscription while meaning to pay once.** Until
+this release both were sold in one amber sheet headed "Pro", behind buttons that all said "Unlock
+Pro", so nothing on screen distinguished a one-time purchase from a recurring one. Everything below
+is about whether a person can tell, before they tap, which of the two they are buying.
+
+|                                                                                                                                                  | iOS | Android |
+| ------------------------------------------------------------------------------------------------------------------------------------------------ | --- | ------- |
+| Settings shows **two separate cards**, Pro badged **One-time** and Club badged **Subscription**                                                  | ⬜  | ⬜      |
+| The two are **visibly different colours** — Pro amber, Club violet — on the cards, the pills and the buttons                                     | ⬜  | ⬜      |
+| Opening the sheet from a **locked Pro feature** puts Pro first, filled; Club is below it and outlined                                            | ⬜  | ⬜      |
+| Opening it from **"See Club"** puts Club first, filled; Pro is below it and outlined                                                             | ⬜  | ⬜      |
+| **Both stay buyable either way** — the unfocused card is outlined, never hidden, and its button still works                                      | ⬜  | ⬜      |
+| Each card says its shape in words: Pro _"paid once … nothing to renew"_, Club _"renews automatically until cancelled"_                           | ⬜  | ⬜      |
+| The **shared clock** row in Settings carries a **CLUB** pill, and the Pro rows carry **PRO** pills — a subscriber sees neither on what they hold | ⬜  | ⬜      |
+| **Groups → the Club offer** appears for a signed-in non-subscriber and opens the sheet on Club                                                   | ⬜  | ⬜      |
+| That offer is **absent on a cold launch until the store answers** — never shown while entitlements are still the default                         | ⬜  | ⬜      |
+| **Start a clock → "See Club"** opens the sheet on Club, and the refusal sentence above it still reads the same                                   | ⬜  | ⬜      |
+| Club is **absent everywhere** with `featureSharing=off` — the Settings card, the groups offer and the clock's button all go                      | ⬜  | ⬜      |
+| Club is **absent everywhere** in a build whose subscriptions are not live — no empty card, no dead button                                        | ⬜  | ⬜      |
+| **The annual plan comes first and is the filled button**; the monthly sits below it, outlined                                                    | ⬜  | ⬜      |
+| The annual carries **"Save N% vs monthly"**, and N is right for the two prices **actually on screen** — work it out by hand and compare          | ⬜  | ⬜      |
+| **The claim is absent rather than wrong** when it cannot be made: only one plan returned by the store, or an annual that is not cheaper          | ⬜  | ⬜      |
+| In a **non-euro storefront** the saving is still correct — the whole reason it is computed from numbers instead of the formatted price strings   | ⬜  | ⬜      |
+| The leaderboard's free text share now reads **"Send a text summary"** and still produces exactly that — a text blob in the system share sheet    | ⬜  | ⬜      |
+| **"Share this board" sits beside it**, violet, for a signed-in non-subscriber, and opens the sheet on Club                                       | ⬜  | ⬜      |
+| For a **Club subscriber** the same button is grey and opens Groups — not the paywall, and not a second invite-minting path                       | ⬜  | ⬜      |
+| It is **absent on a board somebody else hosts.** Inviting to one you are only a member of is refused on role, so selling Club for it is a lie    | ⬜  | ⬜      |
+| It is **absent** with `featureSharing=off`, in a no-backend build, and while signed out                                                          | ⬜  | ⬜      |
+| It is **absent on a cold launch until the store answers** — same rule as the Groups offer                                                        | ⬜  | ⬜      |
+
 ### 16b. Buying Club · **the rows a subscription is rejected over**
 
 **Guideline 3.1.2 is the reason for most of these.** An app selling an auto-renewable subscription
@@ -857,21 +889,46 @@ base plans start **inactive**, and an inactive one is invisible to RevenueCat.
 So get both stores to Ready to Submit / active, and these rows then run on the first candidate that
 reaches TestFlight or Play internal testing — before submission, not after it.
 
-|                                                                                                                                         | iOS | Android |
-| --------------------------------------------------------------------------------------------------------------------------------------- | --- | ------- |
-| **The Club section appears at all** once the products are live — and is absent before, rather than showing an empty box                 | ⬜  | ⬜      |
-| **Both plans show a price**, taken from the store rather than written into the app — so it is right in every currency                   | ⬜  | ⬜      |
-| **Each says its billing period** — "Monthly" and "Annual". Price without period is the 3.1.2 rejection                                  | ⬜  | ⬜      |
-| It says **renews until cancelled**, and where to cancel — App Store on iOS, Play Store on Android                                       | ⬜  | ⬜      |
-| **"Joining a board is always free" is on screen.** The misunderstanding most likely to kill the feature                                 | ⬜  | ⬜      |
-| **Terms of Use opens `/terms`** in a browser, and the page loads                                                                        | ⬜  | ⬜      |
-| **Privacy Policy opens `/privacy-policy`**, and the page loads                                                                          | ⬜  | ⬜      |
-| Buying **monthly** grants `club` **and** `pro` — the board opens straight away, with no second purchase                                 | ⬜  | ⬜      |
-| Buying **annual** does the same                                                                                                         | ⬜  | ⬜      |
-| **Cancelling at the store** removes hosting but **leaves Pro** — the boards stay visible. This is the promise `clubEver` exists to keep | ⬜  | ⬜      |
-| **The Club section disappears once subscribed** — nobody is sold what they hold                                                         | ⬜  | ⬜      |
-| Cancelling a purchase halfway leaves the sheet usable, with no error — cancelling is not a failure                                      | ⬜  | ⬜      |
-| **Restore brings back both entitlements** on a fresh install                                                                            | ⬜  | ⬜      |
+|                                                                                                                                                                                                                          | iOS | Android |
+| ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | --- | ------- |
+| **The Club section appears at all** once the products are live — and is absent before, rather than showing an empty box                                                                                                  | ⬜  | ⬜      |
+| **Both plans show a price**, taken from the store rather than written into the app — so it is right in every currency                                                                                                    | ⬜  | ⬜      |
+| **Each says its billing period** — "Monthly" and "Annual". Price without period is the 3.1.2 rejection                                                                                                                   | ⬜  | ⬜      |
+| It says **renews until cancelled**, and where to cancel — App Store on iOS, Play Store on Android                                                                                                                        | ⬜  | ⬜      |
+| **"Joining a board is always free" is on screen.** The misunderstanding most likely to kill the feature                                                                                                                  | ⬜  | ⬜      |
+| **Terms of Use opens `/terms`** in a browser, and the page loads                                                                                                                                                         | ⬜  | ⬜      |
+| **Privacy Policy opens `/privacy-policy`**, and the page loads                                                                                                                                                           | ⬜  | ⬜      |
+| Buying **monthly** grants `club` **and** `pro` — the board opens straight away, with no second purchase                                                                                                                  | ⬜  | ⬜      |
+| Buying **annual** does the same                                                                                                                                                                                          | ⬜  | ⬜      |
+| **Cancelling at the store** removes hosting but **leaves Pro** — the boards stay visible. This is the promise `clubEver` exists to keep                                                                                  | ⬜  | ⬜      |
+| **A subscriber is never offered the plans again** — the two plan buttons are replaced by "Club active"                                                                                                                   | ⬜  | ⬜      |
+| **…but the card itself stays**, carrying the renewal terms and both legal links. Changed in 1.2.0: the whole section used to vanish, which took the cancellation terms with it — away from the one person who needs them | ⬜  | ⬜      |
+| Cancelling a purchase halfway leaves the sheet usable, with no error — cancelling is not a failure                                                                                                                       | ⬜  | ⬜      |
+| **Restore brings back both entitlements** on a fresh install                                                                                                                                                             | ⬜  | ⬜      |
+
+---
+
+## 16d. Purchases follow the account · **new in 1.2.0, and the riskiest rows here**
+
+**This is the section where a defect takes a paying customer's purchase away**, so treat a failure
+here as blocking regardless of how small it looks. Until 1.2.0 an entitlement belonged to the App
+Store or Play account on the phone; it now follows the Cognito `sub`, and the failure modes are
+somebody losing what they bought and somebody inheriting what they did not.
+
+Needs **two app accounts** and, for the cross-platform row, both phones. Sandbox on iOS, a licence
+tester on Play.
+
+|                                                                                                                                                         | iOS | Android |
+| ------------------------------------------------------------------------------------------------------------------------------------------------------- | --- | ------- |
+| **Buy Pro signed out, then sign in — Pro survives.** The anonymous→identified transfer, and the migration every existing owner will run                 | ⬜  | ⬜      |
+| **Sign out — Pro is still there**, with no Restore tapped. `logOut` mints a fresh anonymous user, and the re-read of the store receipt is what saves it | ⬜  | ⬜      |
+| **Delete the account — Pro is still on the phone.** It was paid for at the store, and deletion is not a refund                                          | ⬜  | ⬜      |
+| **Sign in as a second account on the same phone — it does _not_ inherit the first one's Club.** The row that matters most                               | ⬜  | ⬜      |
+| Signing back in as the first account **brings Club back**                                                                                               | ⬜  | ⬜      |
+| **Buy Club signed in, then sign in on the other platform with the same account — Club is there**, with nothing bought twice                             | ⬜  | ⬜      |
+| **Sign in with no network — nothing is wiped.** Entitlements stay as they were and a warning is logged; Pro must not leave the screen                   | ⬜  | ⬜      |
+| RevenueCat's dashboard shows the **Cognito `sub`** as the app user id — never an email                                                                  | ⬜  | ⬜      |
+| A build with **no backend** (`backendConfig` null) still buys and restores Pro exactly as before — nothing here is reachable, and nothing breaks        | ⬜  | ⬜      |
 
 ---
 

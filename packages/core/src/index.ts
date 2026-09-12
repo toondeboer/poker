@@ -162,6 +162,7 @@ export {
   joinRefusal,
 } from "./monetization/clubPolicy";
 export type { ClubContext } from "./monetization/clubPolicy";
+export { annualSavingPercent } from "./monetization/clubSaving";
 export {
   ENTITLEMENT_PRO,
   ENTITLEMENT_CLUB,
