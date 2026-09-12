@@ -4,15 +4,13 @@ import type { CognitoConfig } from "@poker/core";
 /**
  * Where the backend is, or nothing.
  *
- * **`null` today, and that is the switch for the whole feature.** The account
- * screens stay unreachable while this is null, for the same reason the shared
- * clock does: a sign-up form that signs nobody up is worse than no sign-up
- * form.
- *
- * What changed is *why* it is null. `PokerBackend-dev` is deployed and the
- * values below are real — sign-up, the emailed code, sign-in and `GET /me` have
- * all been run against it. Null is now a choice about which stack a shipped
- * build should reach, not an absence of one to reach. See `backendConfig`.
+ * **`PROD_BACKEND` as of 1.2.0**, which is what makes accounts, shared boards
+ * and the shared clock real rather than dead code behind a flag. `null` is
+ * still meaningful and still supported — the account screens and the clock go
+ * absent rather than broken, because a sign-up form that signs nobody up is
+ * worse than no sign-up form — but it is no longer what ships. This comment
+ * described the `null` era for a while after it ended; see `backendConfig` at
+ * the bottom of the file for the value that actually ships.
  *
  * Filled in from the CDK outputs after a deploy:
  *
@@ -79,14 +77,16 @@ export const DEV_BACKEND: BackendConfig = {
 };
 
 /**
- * Not deployed yet, and deliberately left unfillable-looking.
+ * Deployed, and what every shipped 1.2.0 build talks to.
  *
- * `PokerBackend-prod` exists as code and has never been deployed — prod holds
- * leaderboards and there is nothing to put in it until the app is actually
- * talking to a backend. Pointing a build at this would fail at the first
- * request rather than silently reaching dev, which is the right failure: the
- * two are separate stacks with separate user pools, and an account made against
- * one does not exist in the other.
+ * This said "not deployed yet … has never been deployed" long after it was.
+ * `PokerBackend-prod` has been up since 2026-09-04 — SES has production access,
+ * `/config` answers, and the ids below were read off the stack's own outputs
+ * rather than copied from anywhere they had been written down.
+ *
+ * The two stacks have separate user pools, so an account made against one does
+ * not exist in the other. That is the reason the choice between them is a named
+ * constant and a visible line in a diff.
  */
 export const PROD_BACKEND: BackendConfig = {
   region: "us-east-1",

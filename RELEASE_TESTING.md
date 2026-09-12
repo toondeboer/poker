@@ -48,15 +48,28 @@ touching notifications, billing, or the keyboard — those are the paths that di
 
 **Needs attention**
 
-|     |                                                                                                |
-| --- | ---------------------------------------------------------------------------------------------- |
-| ❌  | **broken** — write it up under [Open defects](#open-defects)                                   |
-| 🔧  | broken, **fixed in code**, waiting on a re-test to become ✅                                   |
-| ⬜  | not run yet                                                                                    |
-| 🚫  | **blocked** — can't be exercised from a local build, needs TestFlight or Play internal testing |
+|     |                                                                           |
+| --- | ------------------------------------------------------------------------- |
+| ❌  | **broken** — write it up under [Open defects](#open-defects)              |
+| 🔧  | broken, **fixed in code**, waiting on a re-test to become ✅              |
+| ⬜  | not run yet                                                               |
+| 🚫  | **blocked on something other than time** — read the row to find out which |
 
 A fix landing never upgrades a row on its own: ❌ becomes 🔧, and only a re-test on hardware makes it
 ✅. Anything left as ❌ 🔧 ⬜ 🚫 still wants a human; 🟡 has already been ruled on.
+
+**🚫 means four different things in this file, and conflating them wastes a session.** It used to be
+defined as "needs TestFlight or Play internal testing", which is only the first of these:
+
+| Blocked on                         | Where                                                         | What unblocks it                      |
+| ---------------------------------- | ------------------------------------------------------------- | ------------------------------------- |
+| A build on a store track           | §1 and §1b's billing rows, §13's locked state, §9's deep link | Submitting a candidate — 14 cells     |
+| Somebody with an inbox             | §14's sign-up and deletion rows                               | A real address; `DEV_BACKEND` is fine |
+| A second Apple ID                  | §14b's Hide My Email row                                      | Another Apple account, or accept it   |
+| Time that cannot pass in a sitting | §18's six-hour session expiry                                 | Nothing — it is unit-tested instead   |
+
+Cutting step 6 in [CLAUDE.md](./CLAUDE.md) says to run "whatever rows are marked 🚫" on the store
+build. Only the first row of that table is what it means.
 
 <a id="passes-run"></a>
 **Passes run**

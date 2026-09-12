@@ -79,9 +79,14 @@ and [ARCHITECTURE.md](./ARCHITECTURE.md) for the full design.
   silently.** They are mermaid fences, so GitHub renders them in the diff and a syntax error is
   visible on the PR — but nothing checks whether they are still _true_. Update them in the same PR
   whenever the route table in `apps/infra/lib/pokerStack.ts` gains or loses a route, a Lambda is
-  added or removed, or the key schema in `apps/infra/lib/lambda/groupKeys.ts` changes shape. Those
-  three are the only things they claim, deliberately — a diagram that tried to show more would need
-  updating for changes that do not affect it, which is how diagrams stop being trusted.
+  added or removed, or the key schema changes shape. Those three are the only things they claim,
+  deliberately — a diagram that tried to show more would need updating for changes that do not
+  affect it, which is how diagrams stop being trusted.
+  - **"The key schema" is not only `groupKeys.ts`, and reading it that way is how both diagrams went
+    stale.** 1.2.0 added `SESSION#<code>` in `lambda/sessionStore.ts` and `ACCOUNT#<id>`/`PUSH#<token>`
+    in `lambda/pushStore.ts`, neither of which touches `groupKeys.ts` — so the rule as written was
+    satisfied while the picture was wrong, and the Sessions λ and both new routes were missing from
+    it for a whole release. Any file under `apps/infra/lib/lambda/` that mints a key counts.
 - **Only one scroller per screen.** Settings is a single `ScrollView`, the blind editor a single
   `FlatList`. A nested scroll region (`nestedScrollEnabled`) was the defect the Settings redesign
   removed — don't reintroduce one. A `ScrollView` inside a `Modal`/`Sheet` is fine: a modal is its
