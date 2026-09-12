@@ -2,10 +2,12 @@
 import {
   NO_FEATURES,
   readFeatures,
+  readBoardMembers,
   readRemoteBoard,
   reasonForRefusal,
   requestFor,
   resultForStatus,
+  type BoardMember,
   type Features,
   type RemoteBoard,
   type QueuedWrite,
@@ -96,6 +98,31 @@ export type GroupApi = {
    * actually ends the relationship.
    */
   leaveBoard: (groupId: string) => Promise<boolean>;
+  /**
+   * Who is on a board.
+   *
+   * `null` rather than an empty list when it could not be asked, the same
+   * distinction `myBoards` makes: "nobody else is here" and "we could not find
+   * out" look identical in a list and mean opposite things to somebody deciding
+   * whether a board still has the person they want off it.
+   */
+  members: (groupId: string) => Promise<BoardMember[] | null>;
+  /**
+   * Take somebody else off a board. Admin only, server-side.
+   *
+   * **The same route as `leaveBoard` and a different act.** That one names the
+   * caller and needs no privilege beyond being on the board; this one names
+   * somebody else and needs `manageAdmins`. The server keeps them apart, and so
+   * does this, because a single method taking "an account id" is one slip away
+   * from an ordinary member being offered a button that can only be refused.
+   *
+   * Says why when it refuses: there is a person watching this one, and "the
+   * board's only admin" and "no connection" want different answers.
+   */
+  removeMember: (
+    groupId: string,
+    accountId: string,
+  ) => Promise<{ ok: true } | { ok: false; reason: string }>;
 };
 
 /**
@@ -297,6 +324,60 @@ export const createGroupApi = (
     } catch (error) {
       logger.warn("Could not leave the board:", error);
       return false;
+    }
+  },
+
+  async members(groupId) {
+    const config = backendConfig;
+    if (!config) return null;
+    try {
+      const token = await idToken();
+      if (!token) return null;
+      const response = await fetcher(
+        `${config.apiUrl.replace(/\/$/, "")}/groups/${encodeURIComponent(groupId)}/members`,
+        { headers: { Authorization: token } },
+      );
+      if (!response.ok) {
+        logger.warn(`Could not list members: ${response.status}`);
+        return null;
+      }
+      return readBoardMembers(await response.json());
+    } catch (error) {
+      logger.warn("Could not list members:", error);
+      return null;
+    }
+  },
+
+  async removeMember(groupId, accountId) {
+    const config = backendConfig;
+    if (!config) return { ok: false, reason: "This build cannot do that." };
+    try {
+      const token = await idToken();
+      if (!token) return { ok: false, reason: "Sign in first." };
+      const response = await fetcher(
+        `${config.apiUrl.replace(/\/$/, "")}/groups/${encodeURIComponent(groupId)}/members/${encodeURIComponent(accountId)}`,
+        { method: "DELETE", headers: { Authorization: token } },
+      );
+      // **404 counts as done**, for the same reason it does when leaving: the
+      // server does not think that account is on this board, which is the state
+      // the button was pressed to reach.
+      if (response.ok || response.status === 404) return { ok: true };
+      const body: unknown = await response.json().catch(() => null);
+      logger.warn(`Could not remove a member (${response.status})`);
+      return {
+        ok: false,
+        reason:
+          response.status === 403
+            ? "Only an admin of a board can remove somebody from it."
+            : (reasonForRefusal(body) ??
+              "That didn't work. Try again in a moment."),
+      };
+    } catch (error) {
+      logger.warn("Could not remove a member:", error);
+      return {
+        ok: false,
+        reason: "No connection. Try again when you have signal.",
+      };
     }
   },
 

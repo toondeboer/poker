@@ -48,6 +48,7 @@ import {
   LeaderboardStanding,
   Placing,
   Player,
+  type BoardMember,
   type NameRejection,
   type RefusedWrite,
   type ReportReason,
@@ -148,6 +149,24 @@ type LeaderboardContextValue = {
     reason: ReportReason,
     detail: string,
   ) => Promise<boolean>;
+  /**
+   * Who is on a board. `null` when the server could not be asked, which is a
+   * different thing from a board with nobody else on it.
+   */
+  boardMembers: (id: string) => Promise<BoardMember[] | null>;
+  /**
+   * Take somebody else off a board, and replace the code that let them on.
+   *
+   * Admin only, enforced server-side. `codeReplaced` is how the screen tells
+   * the difference between a removal that revoked their way back in and one
+   * that did not — see the action itself for why the two can come apart.
+   */
+  removeMember: (
+    id: string,
+    accountId: string,
+  ) => Promise<
+    { ok: true; codeReplaced: boolean } | { ok: false; reason: string }
+  >;
   /** The active group's roster. Empty when there is no group yet. */
   players: Player[];
   /** The active group's game history. */
@@ -978,6 +997,34 @@ export function LeaderboardProvider({
     [sync],
   );
 
+  const boardMembers = useCallback((id: string) => sync.members(id), [sync]);
+
+  /**
+   * Take somebody off a board, then replace the code that let them on.
+   *
+   * **Removing is not revoking, and on its own it does not stick.** The invite
+   * the server holds is the one they were already sent; it never expires, so
+   * somebody removed for what they put on a board can rejoin from the same
+   * message a minute later. Minting is how the server revokes — creating and
+   * revoking are deliberately one operation — so removal rotates the code, and
+   * whoever is still expected shares a fresh one.
+   *
+   * **The two halves can come apart**, which is why the success says which
+   * happened rather than a bare `true`. A removal that worked with a rotation
+   * that did not is somebody off the board holding a live code, and reporting
+   * that as a clean success is the kind of quiet half-failure this app has been
+   * bitten by before.
+   */
+  const removeMember = useCallback(
+    async (id: string, accountId: string) => {
+      const removed = await sync.removeMember(id, accountId);
+      if (!removed.ok) return removed;
+      const rotated = await sync.createInvite(id);
+      return { ok: true as const, codeReplaced: rotated !== null };
+    },
+    [sync],
+  );
+
   const deleteGroup = useCallback(
     (id: string) => {
       persist(removeGroup(latestState.current, id));
@@ -1006,6 +1053,8 @@ export function LeaderboardProvider({
         deleteGroup,
         leaveGroup,
         reportGroup,
+        boardMembers,
+        removeMember,
         players: board.players,
         results: board.results,
         standings,

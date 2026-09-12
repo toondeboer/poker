@@ -43,6 +43,23 @@ platform-tagged heading (e.g. `## [1.1.3] - 2026-07-20 — Android`) when you cu
 
 ### Added
 
+- **A board's admin can remove somebody from it.** The board that somebody else's name appears on
+  is the one place the app lets a person put text in front of another, and until now the only
+  answers to that were leaving your own board or asking the person to stop. The server has been able
+  to do this all along — `DELETE /groups/{id}/members/{accountId}` has wanted `manageAdmins` since
+  the routes were written, and refuses to leave a board with no admin — but nothing in the app ever
+  called it. Groups → the members button on a board you administer lists everyone on it, and
+  removing somebody **also replaces the invite code**, because removal without that is not
+  revocation: the code they were sent would still let them back in.
+
+  **The list has no names in it, and that is deliberate.** A board strips other people's account ids
+  before it leaves the server, so the app cannot say which account holds which player; people are
+  listed by when they joined. Doing better would mean undoing that, which is a worse trade than a
+  list you have to read a date off.
+
+  Not gated on Club: hosting is what the subscription buys, and moderating a board you already host
+  is not something to lose when one lapses.
+
 - **The website says plainly what the app does with money.** A new section on the support page:
   nothing is wagered, staked or paid through the app; the card table deals and holds no chips; the
   payout screen is a calculator that settles nothing; the leaderboard records results and not

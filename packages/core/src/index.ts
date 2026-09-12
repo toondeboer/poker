@@ -324,6 +324,13 @@ export type {
   ClaimResult,
 } from "./leaderboard/groups";
 export type { LeaderboardStanding } from "./leaderboard/standings";
+// Who is on a shared board, and who may be taken off it
+export {
+  readBoardMembers,
+  removalRefusal,
+  sortedMembers,
+} from "./leaderboard/members";
+export type { BoardMember } from "./leaderboard/members";
 
 // Syncing a shared board: what this phone has done and not yet sent
 export {
@@ -386,7 +393,7 @@ export {
   mergeBoard,
   readRemoteBoard,
 } from "./sync/mergeBoard";
-export type { Deletions, RemoteBoard } from "./sync/mergeBoard";
+export type { BoardRole, Deletions, RemoteBoard } from "./sync/mergeBoard";
 export { applyReport, drain } from "./sync/drain";
 export {
   createSyncQueueStorage,

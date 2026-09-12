@@ -20,6 +20,7 @@ import { ListRow } from "@/src/components/ui/ListRow";
 import { Sheet } from "@/src/components/ui/Sheet";
 import { TextField } from "@/src/components/ui/TextField";
 import { ReportBoardSheet } from "@/src/components/leaderboard/ReportBoardSheet";
+import { BoardMembersSheet } from "@/src/components/leaderboard/BoardMembersSheet";
 
 /** "4 players · 12 games", skipping the halves that are still zero. */
 const describeGroup = (playerCount: number, gameCount: number) => {
@@ -63,6 +64,8 @@ export function GroupsSheet({
     deleteGroup,
     leaveGroup,
     reportGroup,
+    boardMembers,
+    removeMember,
     inviteToBoard,
     joinBoard,
   } = useLeaderboard();
@@ -96,6 +99,10 @@ export function GroupsSheet({
   const [joining, setJoining] = useState(false);
 
   const [reporting, setReporting] = useState<{
+    id: string;
+    name: string;
+  } | null>(null);
+  const [managing, setManaging] = useState<{
     id: string;
     name: string;
   } | null>(null);
@@ -402,6 +409,26 @@ export function GroupsSheet({
                       accessibilityLabel={`Share ${group.name}`}
                     />
                   ) : null}
+                  {/* **Only an admin can remove somebody**, which is what
+                      `canInvite` reads — the same role the server wants for
+                      `manageAdmins`.
+
+                      **Not gated on Club, deliberately.** Hosting is what the
+                      subscription buys; moderating a board you already host is
+                      not something to take away when a subscription lapses,
+                      and guideline 1.2 does not have a paid tier. */}
+                  {accountsAreReal &&
+                  account &&
+                  features.sharing &&
+                  group.canInvite ? (
+                    <IconButton
+                      icon="people-outline"
+                      onPress={() =>
+                        setManaging({ id: group.id, name: group.name })
+                      }
+                      accessibilityLabel={`Who's on ${group.name}`}
+                    />
+                  ) : null}
                   {/* **Only on a board somebody else shared.** Reporting your
                       own board is reporting yourself, and leaving one is
                       deleting it — both already have a button. */}
@@ -546,6 +573,26 @@ export function GroupsSheet({
           reporting
             ? reportGroup(reporting.id, reason, detail)
             : Promise.resolve(false)
+        }
+      />
+
+      {/* Mounted here for the same reason the report sheet is: the board it is
+          about is the one on the row behind it. */}
+      <BoardMembersSheet
+        visible={managing !== null}
+        boardName={managing?.name ?? ""}
+        callerId={account?.id ?? null}
+        onClose={() => setManaging(null)}
+        load={() =>
+          managing ? boardMembers(managing.id) : Promise.resolve(null)
+        }
+        onRemove={(accountId) =>
+          managing
+            ? removeMember(managing.id, accountId)
+            : Promise.resolve({
+                ok: false as const,
+                reason: "That board is no longer open.",
+              })
         }
       />
     </Sheet>
