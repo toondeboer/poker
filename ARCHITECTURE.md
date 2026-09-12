@@ -133,21 +133,24 @@ prevent submission entirely. See the Gambling classification section in
 [`ROADMAP.md`](./ROADMAP.md#gambling-classification--blocking-120), and the
 `archive/betting-engine` tag for the code.
 
-What the app reaches: Cognito sign-up/sign-in and `GET /me`, `GET /config` (the kill switch), and
-the shared leaderboard — `/groups`, `/groups/{groupId}`, the roster and result writes the outbox
-replays, `/invites/{token}`, `/groups/{groupId}/report`, and `DELETE /me`.
+What the app reaches: Cognito sign-up/sign-in and `GET /me`, `GET /config` (the kill switch), the
+shared leaderboard — `/groups`, `/groups/{groupId}`, the roster and result writes the outbox
+replays, `/invites/{token}`, `/groups/{groupId}/report`, `DELETE /me` — the shared clock's
+`/sessions` and `/sessions/{code}`, and `POST`/`DELETE /me/push-token`.
 
 Some group routes are in the same position on a smaller scale — `/claims`, the player and game
 deletions and the role changes are deployed and answer correctly, but nothing in the app sends
 them. The outbox knows three additive writes (`createGroup`, `addPlayer`, `recordGame`); see
 [`groupRequests.ts`](./packages/core/src/sync/groupRequests.ts) for that list.
 
-**`/members` came off that list in 1.2.0** and this paragraph said otherwise until it was checked.
-`leaveBoard` in [`groupApi.ts`](./apps/mobile/src/services/groupApi.ts) sends
+**Both member routes have a client as of 1.2.0**, and this paragraph twice said otherwise before it
+was checked. `leaveBoard` in [`groupApi.ts`](./apps/mobile/src/services/groupApi.ts) sends
 `DELETE /groups/{groupId}/members/{accountId}` for the caller's own account — leaving is not an
-admin action, so it is the one member route a phone reaches. Removing _somebody else_ still is an
-admin action and still has no client. The calls outside the outbox are worth knowing about: it
-replays queued writes, and these do not queue.
+admin action. Removing _somebody else_ is, and `BoardMembersSheet` now does it: `GET
+/groups/{groupId}/members` to learn the account ids a board deliberately strips from everything
+else, then the same `DELETE` for one of them, then `POST /groups/{groupId}/invite` to replace the
+code, because removal without rotation is not revocation. The calls outside the outbox are worth
+knowing about: it replays queued writes, and these do not queue.
 
 ```mermaid
 flowchart LR
@@ -161,19 +164,25 @@ flowchart LR
     API["HTTP API<br/><i>JWT authorizer</i>"]
     CFG["Config λ<br/><b>kill switch</b><br/><i>public, no auth</i>"]
     IDN["Identity λ<br/>GET /me"]
-    GRP["Groups λ<br/>/groups/* · /invites/*<br/>DELETE /me"]
+    GRP["Groups λ<br/>/groups/* · /invites/*<br/>/me/push-token · DELETE /me"]
+    SES["Sessions λ<br/>/sessions · /sessions/{code}<br/><i>the shared clock, polled at 4s</i>"]
     LNK["LinkAccounts λ<br/><i>Cognito trigger, not a route —<br/>one person, one account</i>"]
     DDB[("DynamoDB<br/><i>single table</i>")]
   end
 
+  EXPO["Expo push service<br/><i>exp.host</i>"]
+
   UI --> OB
   OB -->|"replays on foreground,<br/>sign-in, cold launch"| API
   UI -->|"asks at launch;<br/>unreachable ⇒ off"| CFG
+  UI -->|"hosts / joins a clock,<br/>polls while it runs"| SES
   UI -.->|"sign up / in"| COG
-  API --> IDN & GRP
+  API --> IDN & GRP & SES
   COG -.->|"verifies token"| API
   COG -.->|"pre-sign-up trigger"| LNK
-  IDN & GRP --> DDB
+  IDN & GRP & SES --> DDB
+  GRP -.->|"a game was recorded —<br/>never fails the write"| EXPO
+  EXPO -.->|"notifies the other members"| UI
 ```
 
 Everything above the outbox works with no network. What the backend adds is an account, and boards
@@ -198,10 +207,15 @@ flowchart TB
   subgraph A["pk = ACCOUNT#&lt;accountId&gt;"]
     AM["sk = GROUP#&lt;groupId&gt;<br/><i>the same membership,<br/>written twice</i>"]
     AC["sk = CLAIM#&lt;groupId&gt;<br/><b>one seat per board,<br/>enforced by the key</b>"]
+    AP["sk = PUSH#&lt;token&gt;<br/><i>one row per device, so a<br/>phone and a tablet both buzz</i>"]
   end
 
   subgraph I["pk = INVITE#&lt;token&gt;"]
     IM["sk = META<br/><i>its own partition — the<br/>redeemer has no groupId yet</i>"]
+  end
+
+  subgraph S["pk = SESSION#&lt;joinCode&gt;"]
+    SM["sk = META<br/><i>the clock: seconds left, round<br/>length, paused, blind index.<br/>Six-hour TTL, no names</i>"]
   end
 
   GB <-.->|"one transaction"| AM

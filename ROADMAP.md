@@ -178,32 +178,32 @@ what stays, because it is the evidence base and it is cited from four other file
    looks like.** Declaring UGC on the age-rating questionnaire brings the app under 1.2, which asks
    for four things:
 
-   | Requirement                        | State | Where                                                                                                                                 |
-   | ---------------------------------- | ----- | ------------------------------------------------------------------------------------------------------------------------------------- |
-   | Filter objectionable material      | ✅    | `moderation/textFilter.ts`, tested, refuses names and board names                                                                     |
-   | Report mechanism + timely response | ✅    | `ReportBoardSheet` → `POST /groups/{id}/report`, a `ContentReports` alarm so a report is actually noticed, and `/support` explains it |
-   | **Block abusive users**            | 🟡    | Any member may **leave** a board; an admin may **remove** a member. There is no per-user block                                        |
-   | Published contact information      | ✅    | `poker.blinds.buzzer@gmail.com` on `/support`, with a 2-business-day commitment                                                       |
+   | Requirement                        | State | Where                                                                                                                                  |
+   | ---------------------------------- | ----- | -------------------------------------------------------------------------------------------------------------------------------------- |
+   | Filter objectionable material      | ✅    | `moderation/textFilter.ts`, tested, refuses names and board names                                                                      |
+   | Report mechanism + timely response | ✅    | `ReportBoardSheet` → `POST /groups/{id}/report`, a `ContentReports` alarm so a report is actually noticed, and `/support` explains it  |
+   | **Block abusive users**            | ✅    | Any member may **leave**; an admin may **remove** somebody, which also rotates the invite code so it is revocation rather than a pause |
+   | Published contact information      | ✅    | `poker.blinds.buzzer@gmail.com` on `/support`, with a 2-business-day commitment                                                        |
 
-   **The block requirement is defensible as built, and here is the argument.** Nobody can reach you
-   unless you redeemed their invite link — there is no discovery, no feed, no messaging, and no way
-   to be added to a board you did not join. The only content another person can put in front of you
-   is a board name or a player name, and **leaving the board removes all of it**. For a closed,
-   invite-only group, "leave" _is_ the block. Apple's own February 2026 clarification points the
-   other way — it extended 1.2 to apps that "connect strangers even briefly", which this
-   deliberately does not.
+   **All four are met as of 1.2.0**, and the last two closed in different ways.
 
-   **The real gap is a EULA, and it is cheaper to close.** There is **no terms page, no EULA link
-   and no zero-tolerance statement anywhere** in the app or on the site — and a EULA with a
-   zero-tolerance clause is the item 1.2 rejection letters cite most often, more than the block.
-   Closing it needs **no binary change**: set the License Agreement field in App Store Connect (the
-   standard Apple EULA is accepted) and publish a short `/terms` page carrying the zero-tolerance
-   clause. Both are console and web only, so neither risks the build.
+   **Removal was built rather than argued.** This section used to make the case that "leave" _is_
+   the block on a closed, invite-only board — which is true as far as it goes, and answers the wrong
+   half: leaving works when the board is somebody else's, and does nothing when the board is yours
+   and somebody on it is the problem. The server had `DELETE /groups/{id}/members/{accountId}`
+   behind `manageAdmins` from the beginning, tested, with the last-admin guard and the claim
+   released first — and no client. `BoardMembersSheet` is that client, and removal rotates the
+   invite code with it, because the code the removed person holds would otherwise let them straight
+   back on. The surrounding argument still holds and is still worth saying in the review notes: no
+   discovery, no feed, no messaging, and no way onto a board except by redeeming a code.
 
-   **Do both before submitting**, and say the block argument in the review notes rather than waiting
-   to be asked — see the hand-off section in [STORE_LISTING.md](./STORE_LISTING.md). A per-user
-   block is worth building if a reviewer pushes back, and not before: it would mean deciding what
-   blocking even means on a shared board somebody else administers.
+   **The EULA gap closed on the web.** `/terms` is published and live with the zero-tolerance clause
+   that 1.2 rejection letters cite most often; what remains is pointing App Store Connect's License
+   Agreement field at it, which is console-only and cannot delay a build.
+
+   A **per-user block** — as distinct from removal — is still unbuilt, and still only worth building
+   if a reviewer asks: it would mean deciding what blocking means on a board somebody else
+   administers.
 
 3. 🟡 **UMP/ATT consent is still a placeholder** (`useAdsConsent.ts`). Serving AdMob to EEA/UK
    without a certified CMP is a live gap, pre-existing and separate from this work.
@@ -272,8 +272,13 @@ plans on Play, and both mapped in RevenueCat to **`club` _and_ `pro`**. The past
 traps — Play prices entered ex-tax, base plans starting inactive — are in
 [STORE_LISTING.md](./STORE_LISTING.md).
 
-**Apple has not approved the subscriptions yet**, and until it does §16b's 13 billing rows cannot
-run. They attach to the 1.2.0 submission rather than being approved separately.
+**"Approved" is the wrong bar, and waiting for it deadlocks.** Apple approves a first
+auto-renewable subscription **with an app version, in the same submission**, so approval cannot come
+before the thing it is attached to. What §16b's rows actually need is the products at **Ready to
+Submit** — at _Missing Metadata_ StoreKit returns nothing, which is exactly what keeps the Club
+section correctly absent — and on Play, base plans that have been **activated**, since they start
+inactive and an inactive plan is invisible to RevenueCat. Get both there and the rows run on the
+first candidate that reaches TestFlight or Play internal testing.
 
 ### 5. The testing pass
 
@@ -288,20 +293,23 @@ row went with it. The replacements are the passing-the-phone rows, which are the
 matter now — and the ones no synthetic tap could verify on the iOS simulator, so they have never
 been exercised by anything but a human.
 
-- **§14–§17 are new** and need the setup above plus **two devices** — one phone cannot see any of
-  the sharing failures worth finding.
-- **16 rows are blocked until the app is on a store track.** Play Billing cannot be exercised from a
-  local build at all, so purchase, restore and cancel are unverifiable until then. That is why the
-  submission goes to the **testing track first, never straight to production**.
+- **§14–§19 are new** and need the setup above plus **two devices** — though an iOS Simulator and a
+  Play-services emulator are two devices for this purpose, including for push.
+- **14 cells are blocked until the app is on a store track**, not 16, and they are the billing ones:
+  Play Billing cannot be exercised from a local build at all. That is why the submission goes to the
+  **testing track first, never straight to production**. The other 🚫 rows in the file are blocked on
+  different things entirely — an inbox, a second Apple ID — and §20 collects what only a store build
+  can answer.
 - **Android has seen almost none of this.** Several features were looked at on an iOS simulator
   only, and synthetic taps do not work here — so assume the first real tap finds something.
 
-### 6. Cut the release
+### 6. Cut the release — done, and candidate 1 is on both tracks
 
-The steps in [CLAUDE.md](./CLAUDE.md): roll the changelog into a dated heading, clear the finished
-items out of this file and reset `RELEASE_TESTING.md`, build and submit **from the release branch**
-to the testing track, promote once the blocked rows pass, merge PR #147, tag the built commit, then
-delete the branch.
+Cut at `a22c7a7`; built from `9380c59` as iOS build 27 and Android versionCode 16, both submitted to
+TestFlight and Play's internal track on 2026-09-12. What is left of the steps in
+[CLAUDE.md](./CLAUDE.md): run the store-track rows, promote, merge PR #147, tag the built commit,
+delete the branch — and reset `RELEASE_TESTING.md` **then**, at ship, rather than at cut, because
+cutting step 3 and cutting step 6 disagree and step 6 needs the 🚫 rows a reset would erase.
 
 ### Still open, not blocking the release
 
@@ -495,17 +503,19 @@ That left hosting as Club's only feature, which is the worst thing a subscriptio
 category where every serious competitor is one-time €2.99–7.99. **So Club launches with three, or it
 does not launch:**
 
-| Club at launch — €2.99/mo, €19.99/yr                                    | State                                                      |
-| ----------------------------------------------------------------------- | ---------------------------------------------------------- |
-| Host a shared board                                                     | ✅ shipped                                                 |
-| **Shared clock**                                                        | 🚧 built; needs a transport, which is now a small job      |
-| **Push notifications** — "game night tomorrow", "Ann recorded a result" | ⬜ not started; **there is no push infrastructure at all** |
+| Club at launch — €2.99/mo, €19.99/yr             | State                                                                                                                                                                                         |
+| ------------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Host a shared board                              | ✅ shipped                                                                                                                                                                                    |
+| **Shared clock**                                 | ✅ shipped in 1.2.0 — three HTTP routes, a `SESSION#<code>` row on a six-hour TTL, and a polling transport. The Settings row that opens it came later than the feature did; see the changelog |
+| **Push notifications** — "Ann recorded a result" | ✅ shipped in 1.2.0 — Expo's push service, one `PUSH#<token>` row per device                                                                                                                  |
 
-**On notifications: `expo-notifications` is only used for local timer alerts.** No push tokens, no
-APNs/FCM, nothing server-side. But the cheap path is real: `getExpoPushTokenAsync()` on the device,
-the token stored on the account row, and the existing groups handler POSTing to **Expo's push
-service** when a result is recorded. No new AWS services and no certificates — Expo holds the
-credentials. That is the difference between a couple of days and a week.
+**Both went the cheap way this section predicted**, and it is worth recording that the estimate held:
+`getExpoPushTokenAsync()` on the device, the token stored on the account row, and the groups handler
+POSTing to **Expo's push service** when a result is recorded. No new AWS services. **One correction
+to the reasoning, though**: "Expo holds the credentials" is only half true — Expo's service still
+needs _your_ APNs key and _your_ FCM v1 service-account key uploaded to EAS, and without them nothing
+is delivered. What it saves is the two payload shapes and the per-platform failure modes, not the
+credentials themselves.
 
 **A web view of your board is blocked, and not by the rating.** `revenueCatProvider.ts` calls
 `Purchases.configure({ apiKey })` with **no `appUserID` and never calls `logIn()`**, so entitlements
@@ -534,20 +544,19 @@ review and obvious in a store review. **Which boards reach the server is a per-b
 (`boardSyncs`): a shared board always syncs because the host is paying for it, a local board only
 if you host. A board that does not sync is never announced _and_ never queues writes.
 
-- ⬜ **Create both subscription SKUs** — `club_monthly` and `club_yearly` — in both stores, then the
-  `club` entitlement in RevenueCat with **`pro` attached to the same products**. Two SKUs because
-  the annual price is decided; one because somebody read a doc that only mentioned the monthly one.
-  **Both stores or neither.**
-- ⬜ **A way to buy it, and any way at all to hear about it.** `purchasePro` buys the one-time
-  unlock and nothing buys this. **Club currently has no surface in the app whatsoever**: the share
-  button is hidden once the store confirms there is no subscription, so a non-subscriber never
-  learns the feature exists. That is right while it cannot be bought — advertising an unbuyable
-  product is worse — and it becomes wrong the moment it can. The paywall needs a second offering,
-  which cannot be built honestly until there is a price.
-- ⬜ **Sharing cannot be tested from a normal build until then.** Nothing grants `club`, so a build
-  pointed at `DEV_BACKEND` announces no board, queues no write and shows no share button — silently
-  and correctly. Set `FORCE_PRO_IN_DEV` in `PremiumContext`, which forces both entitlements, to run
-  the sharing rows in `RELEASE_TESTING.md`. Worth knowing before somebody concludes sync is broken.
+- ✅ **Both subscription SKUs exist** — `club_monthly` and `club_yearly` on Apple, one `club`
+  subscription with `monthly` and `yearly` base plans on Play, all four mapped in RevenueCat to
+  `club` **and** `pro`. Created 2026-09-09; the paste blocks and the two traps (Play prices entered
+  ex-tax, base plans starting inactive) are in [STORE_LISTING.md](./STORE_LISTING.md).
+- ✅ **The paywall sells it.** A Club section with both plans, each naming its period and price, the
+  renewal terms, where to cancel, and Terms/Privacy links — guideline 3.1.2 wants all of that _in
+  the app_. It is absent rather than empty until the store returns products, so a build that cannot
+  buy Club never advertises it.
+- 🟡 **Sharing still cannot be exercised from a normal dev build**, and that has not changed:
+  nothing grants `club` without a real purchase, so a build pointed at `DEV_BACKEND` announces no
+  board, queues no write and shows no share button — silently and correctly. Set `FORCE_PRO_IN_DEV`
+  in `PremiumContext`, which forces both entitlements, to run the sharing rows. Worth knowing before
+  somebody concludes sync is broken.
 
 ### What a lapsed subscriber keeps — decided
 
@@ -575,8 +584,10 @@ returns on resubscribing, but somebody would reasonably call that the app eating
 
 Guests are unaffected either way. They never paid.
 
-- **Not before 1.2.0 ships.** §1 billing already blocks submission and can only be exercised from a
-  Play track; a second product makes that pole longer.
+- **Shipped in 1.2.0 after all.** This said "not before 1.2.0 ships", on the reasoning that a second
+  product lengthens the billing pole. It does — §16b is 13 rows that did not exist before — but Club
+  shipping without a way to buy it was the worse trade, and guideline 3.1.2 made "a paywall that
+  sells something nobody can purchase" unshippable in its own right.
 
 ## Backend: the plan
 
@@ -596,9 +607,13 @@ identity providers. Checked on 2026-09-11 against `PROD_BACKEND`: both open
 `pokerkit.auth.us-east-1.amazoncognito.com` and reach the provider's own page, with Apple's carrying
 the app's icon and name from the Services ID record.
 
-**A completed sign-in is still unverified** — that needs real provider credentials, and it is the
-highest-value open row in `RELEASE_TESTING.md`. The reasoning below is kept because it is why the
-providers sit ahead of email, which is a decision somebody will otherwise reverse.
+**A completed sign-in is verified on one pool and one platform only.** #220 recorded Apple, Google,
+the returning sign-in and the linking case all passing on the iOS Simulator against **dev** on
+2026-09-07. What remains unproven is Android on either pool, and **prod on either platform** — which
+is the half that ships, since the prod pool has its own Services ID, its own Google client and its
+own redirect URIs. It is still the highest-value open row in `RELEASE_TESTING.md`. The reasoning
+below is kept because it is why the providers sit ahead of email, which is a decision somebody will
+otherwise reverse.
 
 **Social becomes the primary path and email/password the fallback.** Not because it is fashionable,
 but for one measurable reason: the emailed confirmation code is the highest-drop-off step in any
@@ -611,45 +626,38 @@ a path if accounts ever reach it, and nobody is locked to a platform account for
 supposed to follow _them_ across phones. Password reset stays SES's job — a much safer place for it
 than every new user.
 
-**Not before 1.2.0 ships.** It adds native modules, which invalidate every dev-client binary, to a
-release that is feature-complete with an unrun testing pass. Nothing here is urgent enough to
-reopen that.
+#### The order it was built in, kept for the two decisions inside it
 
-#### The order, and what only a person can do
+All nine steps below are done — they shipped in 1.2.0, which is also why the "not before 1.2.0
+ships" note that stood here is gone. Two of them are worth keeping legible, because they are
+decisions rather than tasks: **step 3**, which is a billing trap disguised as a config choice, and
+**step 4**, whose failure mode is silent and looks exactly like data loss.
 
-1. ⬜ **Credentials, and they gate everything below.** Google: an OAuth client in Google Cloud
-   Console. Apple: a Services ID, Team ID, Key ID and a `.p8` private key from the Apple Developer
-   portal. **The `.p8` is a real secret** — `.gitignore` already excludes `*.p8`, and it belongs in
-   context or Secrets Manager, never in the repository.
-2. ⬜ **Both, or neither, on iOS.** App Store guideline 4.8 requires Sign in with Apple wherever
-   another third-party provider is offered. There is no ship-Google-first increment.
-3. ⬜ **CDK: `UserPoolIdentityProviderGoogle` and `UserPoolIdentityProviderApple`.** Never
+1. ✅ **Credentials.** A Google OAuth client, and an Apple Services ID, Team ID, Key ID and `.p8`.
+   Both stages' ids are in `cdk.json`; the two real secrets are in Secrets Manager. **The `.p8` is a
+   real secret** — `.gitignore` excludes `*.p8`, and it belongs nowhere near the repository.
+2. ✅ **Both, or neither, on iOS.** Guideline 4.8 requires Sign in with Apple wherever another
+   third-party provider is offered, so there was never a ship-Google-first increment.
+3. ✅ **CDK: `UserPoolIdentityProviderGoogle` and `UserPoolIdentityProviderApple`.** Never
    `UserPoolIdentityProviderOidc` — it works, looks identical on the login screen, and bills every
-   user on the 50-MAU federated tier instead of the 10,000-MAU one (see below). Follow
-   `mailIdentity`/`apiDomain`: opt-in through `cdk.json` context, so `cdk synth` and the tests keep
-   working with no credentials.
-4. ⬜ **Decide account linking before writing the app half. This is the trap.** Cognito treats
-   `Google_1234` and the email/password user as **two different accounts** even with the same
-   address — so somebody who signed up with a password in 1.2.0 and later taps _Continue with
-   Google_ silently gets a second, empty one, and their boards appear to have vanished. Either link
-   on first federated sign-in with `AdminLinkProviderForUser`, or refuse and tell them to use their
-   password. **Whichever is chosen needs a test**: the failure is silent, looks exactly like data
-   loss, and only affects users who predate the feature — which by then is everybody.
-5. ⬜ **App: `expo-apple-authentication`, plus Google.** Both native, so `npm run pods -w
-@poker/mobile` and a rebuilt dev client on both platforms before anything on screen means
-   anything.
-6. ⬜ **`AuthProvider` grows one method, not a parallel path.** `AuthContext.tsx` already swaps
-   `stubAuthProvider` for `createCognitoAuthProvider` behind that seam and nothing above it knows
-   which it got. A `signInWithProvider(provider, idToken)` beside the existing `signIn` keeps that
-   true; a second context beside it would not.
-7. ⬜ **The account screen re-orders rather than grows.** Apple and Google above the fold, email and
-   password behind a _Use email instead_ disclosure. The screens exist — layout, not new UI.
-8. ⬜ **Hide My Email is not an error case.** Apple relays give a `@privaterelay.appleid.com`
-   address that works and can later be revoked. Identity keys on the Cognito subject and survives
-   that; anything assuming a reachable address does not. Nothing today emails users outside sign-up
-   and reset, and that is now worth keeping deliberately.
-9. ⬜ **Testing rows for §14** — first federated sign-up, returning federated sign-in, the linking
-   case from step 4, Hide My Email, and cancelling the provider sheet halfway.
+   user on the 50-MAU federated tier instead of the 10,000-MAU one (see below).
+4. ✅ **Account linking, decided before the app half.** Cognito treats `Google_1234` and the
+   email/password user as **two different accounts** even with the same address, so linking happens
+   on first federated sign-in rather than leaving somebody with a second, empty account and boards
+   that appear to have vanished. The row that proves it is §14b's linking case.
+5. ✅ **App — and not the way this predicted.** It said `expo-apple-authentication`, plus Google.
+   What shipped is neither: sign-in goes through **Cognito's hosted UI** in
+   `WebBrowser.openAuthSessionAsync`, with `expo-crypto` for PKCE, so there is one code path for
+   both providers and no per-provider native SDK. Still native modules, so a dev client built before
+   #211 red-screens at launch with `Cannot find native module 'ExpoCrypto'`.
+6. ✅ **`AuthProvider` grew one method, not a parallel path** — `signInWithProvider` beside `signIn`,
+   behind the seam `AuthContext.tsx` already had.
+7. ✅ **The account screen re-ordered rather than grew.** Apple and Google above the fold, email and
+   password behind _Use email instead_.
+8. ✅ **Hide My Email is not an error case.** Identity keys on the Cognito subject, so a relay
+   address survives being revoked. The row for it stays 🚫: proving it needs a second Apple ID.
+9. ✅ **Testing rows for §14 and §14b exist**, and the completed-sign-in ones are the release's
+   highest-value open rows.
 
 - ✅ **Cognito's federated-MAU pricing — resolved 2026-09-05, and the answer is the cheap one.**
   Social providers are _not_ federated for billing: AWS's pricing page puts them explicitly with
@@ -682,7 +690,7 @@ reopen that.
 
 ## Website and store copy — written, waiting on the release
 
-- 🚧 **PR #155 now targets `release/1.2.0`, so it ships when the app does.** The page advertises
+- ✅ **PR #155 merged into `release/1.2.0` on 2026-08-31, so it ships when the app does.** The page advertises
   payouts, the chop, the leaderboard, groups, dealing a hand and sharing — none of it downloadable
   yet — and pushing to `main` deploys the site immediately. Retargeting means the RC merge at
   cutting step 8 is the deploy, which removes the standing promise to remember to merge it
@@ -707,10 +715,11 @@ reopen that.
 - ⬜ **Leaderboard dates use `toLocaleDateString()`**, and Hermes' Intl support on Android is
   uneven — the format may differ from iOS or from what the locale implies. It won't crash. If it
   reads badly on a device, a fixed format is the fallback.
-- ⬜ **`prettier --check` fails on files nobody touched** (e.g. `soundPackStorage.ts`), so it's
-  version drift rather than a formatting regression. Nothing in CI runs it. Either pin prettier at
-  the root and reformat once, deliberately, or drop the expectation that it passes — the current
-  state means "prettier says no" carries no information.
+- ✅ **Prettier is pinned, the repo is formatted, and CI enforces it.** This said `prettier --check`
+  failed on files nobody had touched and that nothing in CI ran it, so "prettier says no" carried no
+  information. Both halves were fixed together: the repo was reformatted once, deliberately, and
+  `npm run format:check` is a CI step. **Scope any `--write` to the files you changed** — a
+  repo-wide one buries a real diff under a formatting one.
 
 ## Android notification permission: no recovery path once blocked
 

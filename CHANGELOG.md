@@ -927,6 +927,37 @@ platform-tagged heading (e.g. `## [1.1.3] - 2026-07-20 — Android`) when you cu
   PRs that each pass alone can still be broken together. The process now says to run the suite
   locally on the branch before building.
 
+- **The documentation stopped describing a release that no longer exists.** A sweep of everything
+  that had gone stale while 1.2.0 was built, and the pattern is the same each time: a file said what
+  was true when somebody wrote it, and nothing made it wrong out loud.
+
+  **Both ARCHITECTURE diagrams were missing a third of the backend.** No Sessions λ, no `/sessions`,
+  no `/me/push-token`, no `SESSION#<code>` or `PUSH#<token>` item types, and no arrow to Expo's push
+  service — for a whole release. CLAUDE.md's rule for keeping them honest is the reason why: it says
+  to update them when "the key schema in `groupKeys.ts` changes shape", and 1.2.0's new keys were
+  minted in `sessionStore.ts` and `pushStore.ts`, so the rule was satisfied while the picture was
+  wrong. The rule now covers any file under `lambda/` that mints a key.
+
+  **ARCHITECTURE also said removing somebody from a board "still has no client".** It has one as of
+  this release, and the paragraph had already been corrected once for the same sentence about
+  `/members`.
+
+  **`backendConfig.ts` still opened by saying it was `null` today**, and `PROD_BACKEND` still
+  described itself as never deployed, in the file whose entire job is making the choice between the
+  two visible.
+
+  **ROADMAP carried a shipped release as unstarted work**: push "not started — there is no push
+  infrastructure at all", the shared clock as "needs a transport", both Club SKUs as "⬜ create
+  them", nine social sign-in steps as ⬜ (step 5 naming `expo-apple-authentication`, which is not
+  what shipped — sign-in goes through Cognito's hosted UI), "not before 1.2.0 ships" on two things
+  that shipped in it, PR #155 as in-progress a fortnight after it merged, and prettier as something
+  "nothing in CI runs".
+
+  **And 🚫 in `RELEASE_TESTING.md` meant four different things** — needs a store build, needs an
+  inbox, needs a second Apple ID, needs six hours to pass — while the legend defined only the first.
+  Cutting step 6 says to run "whatever rows are marked 🚫" on the store build, which is true of 14
+  cells and wrong about the rest. The legend now says which is which.
+
 ### Removed
 
 - **The server-side poker table is gone**, and with it the AppSync Events realtime bus. It was a
