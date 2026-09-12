@@ -9,6 +9,14 @@ platform-tagged heading (e.g. `## [1.1.3] - 2026-07-20 — Android`) when you cu
 
 ## [Unreleased]
 
+### Fixed
+- Web: the support page promised that "the only money the app ever handles is its own one-time Pro
+  purchase" — true today, and false the moment a subscription exists. It now says "its own in-app
+  purchases", which holds both now and afterwards. The page is served from `main` and deploys on
+  every push, so a sentence written for a release that has not shipped yet is wrong for however
+  long the two are out of step. It matters more than ordinary stale copy because the App Review
+  notes quote this page and tell the reviewer the two agree.
+
 ### Changed
 - Mobile: brought every Expo package up to the version SDK 56 actually expects — the project had
   drifted 12 packages behind, including `expo` itself, the router, notifications, the splash screen
