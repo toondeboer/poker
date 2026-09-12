@@ -896,6 +896,19 @@ platform-tagged heading (e.g. `## [1.1.3] - 2026-07-20 — Android`) when you cu
 
 ### Fixed
 
+- **The shared clock can be reached.** The screen, the `/sessions` routes and the polling transport
+  all shipped in 1.2.0. The row that opens it did not: the route was registered while there was
+  still no transport behind it — a join code nobody else can join being worse than none — and when
+  the transport landed, the link did not follow. The only way in was typing `pokerkit://session`,
+  while both store descriptions, both sets of release notes and the notes for review all describe
+  the feature. Settings → Tournament now carries a **Shared clock** row, shown only when there is a
+  backend to poll _and_ the server's `sharing` flag is on, which also puts the clock behind the kill
+  switch for the first time.
+- **The dealer is called "Deal a hand" everywhere.** The Settings row, the screen title and the
+  locked card said "Play a hand", while the store copy, the paywall and the notes for review all say
+  the app deals. It does exactly that — shuffles, deals, turns the streets, reads the showdown — and
+  holds no chips to bet with, so _play_ was both the wrong word and the one most likely to be read
+  as something else in the release that has to answer a gambling question.
 - **An ordinary failure no longer red-screens a dev build.** Every failed auth call logged at
   `error`, so being offline — or mistyping a password — put a full-screen LogBox over a message the
   screen had already handled in words. In a dev build an offline sign-in looked like a crash, which

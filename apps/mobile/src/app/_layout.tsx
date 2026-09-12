@@ -112,9 +112,12 @@ export default function RootLayout() {
                                     headerBackTitle: "Back",
                                   }}
                                 />
-                                {/* Same again: there is no transport behind shared
-                            sessions yet, and a join code nobody else can join
-                            is worse than none. See ROADMAP.md. */}
+                                {/* Reached from Settings via `TournamentCard`.
+                            It was linked from nowhere for most of 1.2.0: the
+                            route was registered while there was still no
+                            transport behind it, and a join code nobody else can
+                            join is worse than none. The transport shipped, and
+                            the Settings row with it. */}
                                 <Stack.Screen
                                   name="session"
                                   options={{
@@ -125,7 +128,7 @@ export default function RootLayout() {
                                 <Stack.Screen
                                   name="game"
                                   options={{
-                                    title: "Play a hand",
+                                    title: "Deal a hand",
                                     headerBackTitle: "Settings",
                                   }}
                                 />

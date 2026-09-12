@@ -7,6 +7,8 @@ import { useBlinds } from "@/src/contexts/BlindsContext";
 import { usePremium } from "@/src/contexts/PremiumContext";
 import { usePayouts } from "@/src/contexts/PayoutContext";
 import { useLeaderboard } from "@/src/contexts/LeaderboardContext";
+import { useFeatures } from "@/src/contexts/FeaturesContext";
+import { sessionTransport } from "@/src/services/loopbackSessionTransport";
 import { Badge } from "@/src/components/ui/Badge";
 import { Card, CardContent, CardHeader } from "@/src/components/ui/Card";
 import { DurationField } from "@/src/components/ui/DurationField";
@@ -21,6 +23,7 @@ export function TournamentCard({ style }: { style?: StyleProp<ViewStyle> }) {
   const { isPremium } = usePremium();
   const { settings } = usePayouts();
   const { players, results } = useLeaderboard();
+  const features = useFeatures();
 
   // The row summarises the saved setup even while locked, so the value on
   // offer is visible before paying rather than described in the abstract.
@@ -44,6 +47,21 @@ export function TournamentCard({ style }: { style?: StyleProp<ViewStyle> }) {
           badgeLabel={isDraftDirty ? "Unapplied changes" : undefined}
           onPress={() => router.navigate("/blinds")}
         />
+        {/* **The clock had no way in until this row.** The screen, the
+            `/sessions` routes and the polling transport all shipped in 1.2.0;
+            the link never did, because the route was registered back when there
+            was no transport behind it and a join code nobody can join is worse
+            than none. Gated on `features.sharing` as well as on there being a
+            transport at all, so the kill switch reaches the clock the way it
+            already reaches a shared board — without that, a clock misbehaving
+            after release could only be answered with a new binary. */}
+        {sessionTransport && features.sharing ? (
+          <NavRow
+            title="Shared clock"
+            summary="One clock on every phone at the table"
+            onPress={() => router.navigate("/session")}
+          />
+        ) : null}
         <NavRow
           title="Payouts"
           summary={
@@ -70,7 +88,7 @@ export function TournamentCard({ style }: { style?: StyleProp<ViewStyle> }) {
           onPress={() => router.navigate("/leaderboard")}
         />
         <NavRow
-          title="Play a hand"
+          title="Deal a hand"
           summary={
             players.length > 0
               ? `Deal from the phone · ${players.length} on the roster`

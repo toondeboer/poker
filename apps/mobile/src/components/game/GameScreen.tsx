@@ -137,7 +137,7 @@ export function GameScreen() {
 
   const content = game.isLoading ? null : !isPremium ? (
     <Card>
-      <CardHeader icon="grid" title="Play a hand" />
+      <CardHeader icon="grid" title="Deal a hand" />
       <CardContent>
         <Text style={styles.empty}>
           Deal a real hand of hold&apos;em from the phone, for a table with
