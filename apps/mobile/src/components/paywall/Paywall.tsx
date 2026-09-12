@@ -9,7 +9,7 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
-import { SITE_URL } from "@poker/core";
+import { annualSavingPercent, SITE_URL } from "@poker/core";
 import { colors, radius, space, text } from "@/src/theme";
 import { usePremium } from "@/src/contexts/PremiumContext";
 import { Sheet } from "@/src/components/ui/Sheet";
@@ -150,6 +150,20 @@ export function Paywall({
   const showClub = clubPlans.length > 0 || hasClub;
   const clubFocused = focus === "club" && showClub;
 
+  /**
+   * What the annual saves against twelve monthlies, or `null`.
+   *
+   * Needs both plans to say anything, which is the ordinary case — and says
+   * nothing rather than guessing when only one came back from the store.
+   */
+  const annualSaving = (() => {
+    const monthly = clubPlans.find((plan) => plan.period === "monthly");
+    const annual = clubPlans.find((plan) => plan.period === "annual");
+    return monthly && annual
+      ? annualSavingPercent(monthly.price, annual.price)
+      : null;
+  })();
+
   const proCard = (
     <View key="pro" style={[styles.card, styles.proCard]}>
       <View style={styles.cardHead}>
@@ -256,33 +270,64 @@ export function Paywall({
           <Text style={styles.ownedText}>✓ Club active — thank you!</Text>
         </View>
       ) : (
-        clubPlans.map((plan) => (
-          <TouchableOpacity
-            key={plan.id}
-            style={[
-              styles.cta,
-              clubFocused ? styles.clubFilled : styles.clubOutlined,
-              purchasing && styles.disabled,
-            ]}
-            onPress={() => run(() => purchaseClub(plan.id))}
-            disabled={purchasing}
-            activeOpacity={0.85}
-          >
-            {/* **The period once, not twice.** "Monthly · €2,99 / month" says
-                it at both ends and reads like a stutter. The label carries the
-                billing period, which is what 3.1.2 asks to be on screen, and the
-                price then only has to be the price. */}
-            <Text
+        clubPlans.map((plan) => {
+          /**
+           * **The annual is the plan, and the monthly is the trial.**
+           *
+           * Both were filled or outlined together, which offered them as equals
+           * — and they are not. €2.99 a month is €35.88 a year against a €19.99
+           * annual, and one month of Club already grants Pro permanently, so a
+           * subscriber who does not stay is worth what Pro is worth. The annual
+           * is the one where the difference lives, so it is the filled button
+           * and it leads; the monthly is still one tap away, outlined.
+           *
+           * Deliberately **not** keyed on `clubFocused`: which card was asked
+           * for decides the order of the two cards, not which plan inside Club
+           * is the better deal. That is a fact about the prices.
+           */
+          const isAnnual = plan.period === "annual";
+          return (
+            <TouchableOpacity
+              key={plan.id}
               style={[
-                styles.ctaText,
-                clubFocused ? styles.clubFilledText : styles.clubOutlinedText,
+                styles.cta,
+                isAnnual ? styles.clubFilled : styles.clubOutlined,
+                purchasing && styles.disabled,
               ]}
+              onPress={() => run(() => purchaseClub(plan.id))}
+              disabled={purchasing}
+              activeOpacity={0.85}
             >
-              {plan.period === "monthly" ? "Monthly" : "Annual"} ·{" "}
-              {plan.priceString}
-            </Text>
-          </TouchableOpacity>
-        ))
+              {/* **The period once, not twice.** "Monthly · €2,99 / month" says
+                  it at both ends and reads like a stutter. The label carries the
+                  billing period, which is what 3.1.2 asks to be on screen, and
+                  the price then only has to be the price. */}
+              <Text
+                style={[
+                  styles.ctaText,
+                  isAnnual ? styles.clubFilledText : styles.clubOutlinedText,
+                ]}
+              >
+                {isAnnual ? "Annual" : "Monthly"} · {plan.priceString}
+              </Text>
+              {/**
+               * **Worked out from what the store charges, never hardcoded.**
+               *
+               * It is a price claim, so it is computed from both plans' numeric
+               * prices in `@poker/core` and is simply absent when there is
+               * nothing true to claim — a storefront where the rounding lands
+               * badly, a promotional monthly, or a missing price. "vs monthly"
+               * is on screen because a percentage with nothing to compare
+               * against is not a statement.
+               */}
+              {isAnnual && annualSaving !== null ? (
+                <Text style={styles.savingText}>
+                  Save {annualSaving}% vs monthly
+                </Text>
+              ) : null}
+            </TouchableOpacity>
+          );
+        })
       )}
 
       {/* Required wording: it renews until cancelled, and where to cancel. */}
@@ -435,6 +480,14 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   ctaText: { fontSize: 17, fontWeight: "700" },
+  // Sits under the annual's price inside the same button, so the claim and the
+  // thing it is about cannot be read apart.
+  savingText: {
+    ...text.meta,
+    color: colors.textOnClub,
+    fontWeight: "600",
+    marginTop: 2,
+  },
   proFilled: { backgroundColor: colors.pro, borderColor: colors.pro },
   proFilledText: { color: colors.textOnPro },
   proOutlined: { backgroundColor: "transparent", borderColor: colors.pro },

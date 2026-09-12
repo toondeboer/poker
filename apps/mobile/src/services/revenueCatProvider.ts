@@ -36,6 +36,16 @@ export type ClubPlan = {
   period: "monthly" | "annual";
   /** Localised and store-correct — never built by hand from a number. */
   priceString: string;
+  /**
+   * The same price as a **number**, in the storefront's currency.
+   *
+   * **Never rendered** — `priceString` is the only thing that goes on screen,
+   * because only the store knows where the currency sign belongs. This exists
+   * solely so the two plans can be compared arithmetically for the saving the
+   * annual advertises; see `annualSavingPercent`, which is why it is a number
+   * rather than something parsed back out of the string above.
+   */
+  price: number;
 };
 
 export interface BillingProvider extends EntitlementProvider {
@@ -167,9 +177,21 @@ async function getClubPackages(): Promise<
       found.push({ pkg, period: "annual" });
     }
   }
-  // Monthly first: it is the cheaper number, and a list that opens with the
-  // larger one reads as the price of the thing.
-  return found.sort((a, b) => (a.period === "monthly" ? -1 : 1));
+  /**
+   * **Annual first — and this reverses what this line used to do.**
+   *
+   * It sorted monthly first, on the reasoning that the cheaper number should
+   * lead because "a list that opens with the larger one reads as the price of
+   * the thing". That was right while the two were offered as equals. They are
+   * not any more: the annual is the plan worth selling, it now carries the
+   * saving against twelve monthlies, and the badge beside it explains the
+   * bigger number that used to need explaining away.
+   *
+   * The monthly is the trial, which is what `ROADMAP.md` concluded from the
+   * prices — €2.99 a month is €35.88 against a €2.99 app, and one month of Club
+   * already grants Pro permanently.
+   */
+  return found.sort((a, b) => (a.period === "annual" ? -1 : 1));
 }
 
 export const revenueCatProvider: BillingProvider = {
@@ -282,6 +304,7 @@ export const revenueCatProvider: BillingProvider = {
         id: pkg.identifier,
         period,
         priceString: pkg.product.priceString,
+        price: pkg.product.price,
       }));
     } catch (error) {
       // Same posture as the Pro price: a paywall that cannot price Club still

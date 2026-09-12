@@ -705,6 +705,24 @@ platform-tagged heading (e.g. `## [1.1.3] - 2026-07-20 — Android`) when you cu
   - **Every hardcoded colour in the paywall is gone**, about twenty of them. That file predated the
     theme and is why the two tiers were the same colour in the first place.
 
+- **The annual Club plan leads, and says what it saves.** The two plans were offered as equals —
+  both filled or both outlined, monthly first — which is not what the prices say. €2.99 a month is
+  €35.88 a year against a €19.99 annual, and because one month of Club already grants Pro
+  permanently, a subscriber who does not stay is worth roughly what Pro is worth. The annual is
+  where the difference actually lives, so it now comes first, is the filled button, and carries
+  **"Save 44% vs monthly"**; the monthly stays one tap away, outlined, as the trial it is.
+
+  **The percentage is worked out from what the store charges and is never hardcoded.** It is a price
+  claim, so it is computed in `@poker/core` from both plans' _numeric_ prices — not by parsing
+  "€19,99" back into a number, which is the same class of mistake as matching Club products by name:
+  it works in the currency it was written in and produces nonsense everywhere else. It is absent
+  entirely whenever there is nothing true to claim, including a storefront where the rounding lands
+  badly, a promotional monthly, a missing price, or only one plan coming back from the store.
+
+  This reverses the previous sort order, which put monthly first so that a list would not open with
+  the larger number. That reasoning held while the two were presented as equals; the badge is now
+  what explains the bigger number.
+
 - **Club could not be bought from anywhere it was needed, and now can.** The share control is hidden
   without the subscription — correctly, since it could only ever refuse — but that left the groups
   sheet saying nothing at all: no button, no explanation, and no way to buy the thing that would
