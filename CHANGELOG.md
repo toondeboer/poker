@@ -637,6 +637,17 @@ platform-tagged heading (e.g. `## [1.1.3] - 2026-07-20 — Android`) when you cu
 
 ### Changed
 
+- **The notes for review stopped claiming things the binary does not do.** Four of them, found by
+  reading the draft against the code rather than against the previous draft. A demo account "with
+  both entitlements granted", which cannot be produced: `revenueCatProvider.ts` configures
+  RevenueCat with no app user id and never calls `logIn`, so an entitlement belongs to the App Store
+  account on the device rather than to a Cognito login — and a reviewer told they are past the
+  paywall, who then meets it, files the rejection the note existed to prevent. An invite "by link",
+  when what the app shares is a code. "A board admin can remove a member outright", true of the
+  server and with no client at all until this release. And money described as "its own one-time Pro
+  purchase", which stops being true the day Club ships. The notes now also say **where each feature
+  is**, because guideline 2.1 asks for them to be reachable and a reviewer has no way to guess that
+  the shared clock lives in Settings → Tournament.
 - **The privacy declarations now account for push tokens, which they did not.** The App
   Privacy/Data Safety table in `STORE_LISTING.md` was derived before push shipped, and declared
   Device ID once: AdMob's advertising id, **not** linked to the user, for advertising. An Expo push

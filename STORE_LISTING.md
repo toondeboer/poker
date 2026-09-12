@@ -693,38 +693,53 @@ from _Paste-ready review note_ above, then this:
 ```
 New in this version:
 
-- Accounts (optional). Email/password, Sign in with Apple, and Sign in with Google, backed by
-  Amazon Cognito. Everything in the app works signed out; an account exists only to keep boards
-  across devices.
-- Shared leaderboards. A host can invite others to a board by link. Members see the board's player
-  names and the games recorded on it: who played, who won, and finishing positions. No monetary
-  amount is stored or shared.
-- Reporting and leaving a board, plus a name filter, because board and player names are
-  user-generated and visible to other members.
-- A shared tournament clock. The host starts a session and the app shows a short code; other
-  players type it in and see the same countdown, blind level and structure. The server holds one
-  short-lived row per session containing the clock state and nothing else — no names, no amounts,
-  no cards. It expires by itself after six hours.
-- Push notifications, through Expo's push service, sent only to members of a board somebody else
-  just recorded a game on. The notification contains the board's name and a fixed sentence; no
-  player name and no amount ever appears on a lock screen.
-- A card dealer. The phone shuffles and deals two cards per player, turns the flop, turn and river
-  when the host taps, and reads the showdown. Each player's own cards stay hidden until they tap,
-  and hide again when the phone moves on. It holds no chips and has no betting controls.
-- A payout calculator and a chop calculator. Both are one-shot calculators for money that changes
-  hands away from the phone. Neither settles nor stores anything.
+- Accounts (optional). Email/password, Sign in with Apple, and Sign in with Google, backed by Amazon
+  Cognito. Everything works signed out; an account only keeps boards across devices.
+- Shared leaderboards. A host invites others with a one-time code, replaced each time it is shared.
+  Members see the board's player names and its games: who played, who won, finishing positions. No
+  monetary amount is stored or shared.
+- Reporting a board, leaving one, and — for a board's admin — seeing who is on it and removing
+  somebody, which also replaces the invite code. Board and player names are user-generated, visible
+  to other members, and filtered on entry.
+- A shared tournament clock. The host starts a session and the app shows a short code; others type
+  it in and see the same countdown, level and structure. The server holds one short-lived row per
+  session: clock state, no names, no amounts, no cards. It expires after six hours.
+- Push notifications, through Expo's push service, to members of a board somebody else just recorded
+  a game on. They carry the board's name and a fixed sentence — never a player name or an amount.
+- A card dealer. The phone shuffles, deals two cards each, turns the flop, turn and river when the
+  host taps, and reads the showdown. Each player's cards stay hidden until they tap, and hide again
+  when the phone moves on. It holds no chips and has no betting controls.
+- A payout calculator and a chop calculator, both one-shot and for money that changes hands away
+  from the phone. Neither settles nor stores anything. There is no wagering anywhere in this app.
 
-Removed in this version: an earlier build of 1.2.0 contained a betting engine for the dealt game
-(fold/check/call/raise, pots, side pots). It was removed before submission, along with all monetary
-amounts on the leaderboard. There is no wagering anywhere in this app.
+Pro and Club are needed for the dealer, a shared board and the shared clock, and cannot be attached
+to a demo account: purchases belong to the App Store account on the device, not to the app's own
+login. Please buy them in the review sandbox, where they cost nothing. The paywall is Settings →
+Pro, with Club as a section on the same sheet.
 
-To review the dealer, the shared board and the shared clock, Pro and Club are required. Please use
-the demo account below, which has both entitlements granted.
+Where things are: Settings → Tournament holds Deal a hand, Payouts, Leaderboard and Shared clock;
+Settings → Account holds sign-in and account deletion; Leaderboard → Groups holds sharing a board,
+joining one by code, reporting one, and who is on a board you administer.
+
+Two demo accounts are below: a shared board and a shared clock each need one device to start and
+another to join.
 ```
 
-**The three blocks together are 3,442 characters against a 4,000-character field**, so they fit —
-but only just. Anything added here from now on has to come out of something else; check the total in
-the console rather than assuming there is room.
+**The three blocks together are 3,947 characters against a 4,000-character field** — the money note
+860, this one 2,360, the user-generated-content paragraph 723, plus a blank line between each.
+**That leaves 53 characters**, so anything added from now on genuinely has to come out of something
+else.
+
+**Re-measure rather than estimate.** This said 3,442 until the blocks were rewritten against the
+binary, and the rewrite took the total to 4,498 — over the limit, with nothing to say so until it
+was counted. `String.length` in node is the UTF-16 measure the console compares against; python's
+`len` is code points and will disagree.
+
+The rewrite is also where _"Removed in this version: an earlier build contained a betting engine"_
+went. App Review never saw such a build — they existed on the release branch and on internal
+TestFlight, neither of which is reviewed — so it raised a question about something that is not
+there, and its load-bearing sentence ("There is no wagering anywhere in this app") is kept on the
+calculator bullet instead.
 
 **Add this too, because Guideline 1.2 will otherwise be asked about.** The app declares
 user-generated content, and 1.2 wants a way to block abusive users. Say the argument rather than
@@ -733,10 +748,12 @@ waiting for the question:
 ```
 On user-generated content: the only content one person can put in front of another is a board name
 or a player name, both filtered on entry and both limited to 40 characters. Boards are invite-only.
-There is no discovery, no feed, no messaging, and no way to be added to a board you did not join by
-redeeming a link. Any member can leave a board at any time, which removes every name on it from
-their device; a board admin can remove a member outright. Offensive content can be reported from
-inside the app, and reports are monitored and answered — see the Support page.
+There is no discovery, no feed, no messaging, and no way onto a board except by redeeming a code
+somebody sent. Any member can leave a board at any time, which removes every name on it from their
+device. An admin can see everyone on their board and remove somebody outright, which also replaces
+the board's invite code, so the code that person holds stops working rather than letting them
+straight back on. Offensive content can be reported from inside the app, and reports are monitored
+and answered — see the Support page.
 ```
 
 **The EULA gap is closed, bar one console field.**
@@ -745,9 +762,17 @@ clause that 1.2 rejection letters cite most often. What is left is to point App 
 **License Agreement** field at it (Apple's standard EULA is also accepted). That is console only —
 **it needs no new binary**, so it cannot delay the build.
 
-**Leave a demo account and password in the review notes**, with Pro and Club granted in RevenueCat —
-a reviewer who cannot get past the paywall cannot review the feature the release is built on, and
-that is a rejection for reasons that have nothing to do with the app.
+**Leave two demo accounts and their passwords in the review notes**, made against the **production**
+pool — a reviewer who cannot sign in cannot see a shared board at all, and that is a rejection with
+nothing to do with the app. Two, because a shared board and a shared clock both need somebody to
+join what somebody else started.
+
+**Do not promise them entitlements.** This file used to say to grant Pro and Club to the demo
+account in RevenueCat, and there is no way to do it: `revenueCatProvider.ts` calls
+`Purchases.configure` with no `appUserID` and never calls `logIn`, so an entitlement belongs to the
+App Store account on the device rather than to a Cognito login. A reviewer told they already have
+Club, who then meets a paywall, files the rejection this was meant to prevent. Tell them to buy both
+in the sandbox instead, where it costs nothing and is the flow reviewers already use.
 
 ## Age rating, and the review note
 
@@ -781,14 +806,17 @@ board, this paragraph stops being accurate — check it before repeating it.
 
 ### Paste-ready review note
 
-Everything above, in the form the App Review notes field wants. The same wording is published at
+Everything above, in the form the App Review notes field wants. The same claim is published at
 [/support](https://poker-timer.toondeboer.com/support) under "Money, and what the app does with it", so a
-reviewer who checks finds the two agreeing.
+reviewer who checks finds the two agreeing. **The page says "its own in-app purchases" rather than
+naming them**, deliberately: it is served from `main` and is live now, when the only purchase is
+Pro, and it has to stay true on the day Club appears without a deploy timed to the minute.
 
 ```
 Nothing is wagered, staked or paid through this app. There is no way to bet in it, buy chips in it,
 or cash anything out of it — no wallet, no balance, and no payment of any kind between players. The
-only money the app handles is its own one-time Pro purchase, taken by Apple.
+only money the app handles is its own in-app purchases — a one-time Pro unlock and the Club
+subscription — taken by Apple.
 
 The card table deals: it shuffles, deals two cards to each player, turns the flop, turn and river
 when the host taps, and reads the showdown. It holds no chips and has no betting controls — players
