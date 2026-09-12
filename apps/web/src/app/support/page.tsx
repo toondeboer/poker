@@ -128,8 +128,8 @@ const Support: React.FC = () => {
             <p className="text-blue-700">
               You cannot bet in it, buy chips in it, or cash anything out of it.
               There is no wallet, no balance and no payment of any kind between
-              players — the only money the app ever handles is its own one-time
-              Pro purchase, taken by Apple or Google.
+              players — the only money the app ever handles is its own in-app
+              purchases, taken by Apple or Google.
             </p>
           </div>
           <ul className="list-disc list-inside space-y-1 text-gray-600">
