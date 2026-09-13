@@ -360,7 +360,12 @@ export function Paywall({
       visible={visible}
       onClose={onClose}
       gestureDismissible={false}
-      maxContentHeightRatio={0.8}
+      // **As tall as it can safely be**, which is what a number this high means:
+      // `Sheet` clamps it to the room left below the status bar, so the height is
+      // decided by the device rather than by a ratio tuned against one phone. Two
+      // full cards do not fit on a phone at any setting — the second is meant to
+      // be scrolled to — but there is no reason to stop short of what fits.
+      maxContentHeightRatio={0.95}
     >
       <Text style={styles.title}>Poker Blinds Buzzer</Text>
       <Text style={styles.subtitle}>

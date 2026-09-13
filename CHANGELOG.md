@@ -1100,6 +1100,30 @@ platform-tagged heading (e.g. `## [1.1.3] - 2026-07-20 — Android`) when you cu
   capture reads **"Save 50% vs monthly"** on a US storefront — `1 − 17.99 ÷ (2.99 × 12)` — where the
   euro prices give 44%.
 
+- **A sheet's content runs to the bottom of the screen instead of stopping short of it.** Every sheet
+  reserved `space.xl + insets.bottom` — about 58pt — as padding on its container, so the scroll
+  region ended that far above the screen edge and left a band of empty sheet below the last content.
+  On the paywall it read as a card clipped mid-sentence with dead space underneath it.
+
+  **Raising `maxContentHeightRatio` could not fix this, and trying it first was the wrong diagnosis.**
+  The band is outside the region that ratio sizes, so a taller sheet just moved the same gap down.
+  What fixes it is moving the padding rather than growing the region: a sheet **with a footer** keeps
+  it on the container, because the footer has to sit above the home indicator and taking it away is a
+  regression this file has already had once on the generator sheet; a sheet **without one** now
+  carries the same padding in its `contentContainerStyle`, so the content scrolls the whole way down
+  and the last item still ends clear of the indicator.
+
+  **A second, quieter defect came out with it.** The keyboard branch of the height calculation had
+  always subtracted `insets.top`, with a comment explaining that otherwise the sheet's own header
+  ends up behind the clock and the Dynamic Island. The other branch had no ceiling at all — only a
+  share of the whole window — so the same defect was one large ratio away from any caller. Nothing
+  had hit it while the only values in use were 0.6 and 0.72. Both branches are now bounded, and the
+  paywall asks for 0.95 to mean "as tall as it can safely be" and lets the clamp decide the rest.
+
+  Together these give the paywall over 100pt more: the Pro card went from clipped mid-description to
+  showing its description and two of its features. The review screenshot is re-shot against the
+  corrected layout, since the one taken moments earlier shows the dead band.
+
 ### Removed
 
 - **The server-side poker table is gone**, and with it the AppSync Events realtime bus. It was a
