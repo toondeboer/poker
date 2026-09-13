@@ -65,13 +65,24 @@ the 2026-09-13 review fixes have changed the binary since. What remains, in orde
   the thing the item above unlocks — once RevenueCat knows the Cognito `sub`, a RevenueCat webhook
   writing an entitlement row, or its REST API, lets `groups.ts` and `sessions.ts` refuse on the
   server.
-- ⬜ **The mobile app has no tests below the screen, and 1.2.0's worst defect was exactly that
-  kind.** `startHosting` and `join` in `SharedSessionContext` captured the refusal from the first
-  render and turned away every signed-in subscriber; the rules they call are unit-tested in
-  `@poker/core`, the wiring was not, and §18 had never been run. A `jest-expo` + React Native
+- ⬜ **The mobile app has no tests below the screen, and 1.2.0's worst defects were exactly that
+  kind.** The shared clock shipped to the release branch broken three ways, all in the wiring rather
+  than the rules: `startHosting`/`join` kept the first render's refusal, `useSessionSync` never
+  cleared a reload mark so no press was ever published, and the HTTP transport dropped every
+  heartbeat. The protocol in `@poker/core` has a two-phone test suite and passed throughout; the
+  hook and the transport had nothing, and §18 had never been run. A `jest-expo` + React Native
   Testing Library harness for the contexts that make decisions (`SharedSession`, `Premium`,
   `GroupSync`, `Leaderboard`) would have caught it in CI. It is new tooling in `apps/mobile`, so it
   wants its own PR rather than riding along with a fix.
+- 🔍 **A shared-clock press takes 6–16 seconds to arrive, not the ~4 the design assumed.** Measured
+  on 2026-09-13. The session is one DynamoDB row, last write wins, and every device rewrites it on a
+  five-second heartbeat — so a newer press is routinely overwritten by an older heartbeat before the
+  other phone polls, and only gets through on a later beat. It converges, so it is not a release
+  blocker, but a pause arriving fifteen seconds late at a poker table reads as broken. Two shapes
+  would fix it: a conditional write in `sessionStore.publish` that refuses a lower version than the
+  one stored (the comment there says "no version check happens here" deliberately — revisit that
+  with this measurement), or a row per sender so writers stop overwriting each other. Also seen
+  once and not explained: a joiner's countdown standing still for ~7 seconds after a resume.
 - ⬜ **Four `react-hooks/exhaustive-deps` warnings remain**, all in long-shipped timer code
   (`TimerContext`, `useTimerEngine` ×2, `useTimerNotification`). Each may be deliberate — omitting
   `timeLeft` from an effect is often the point — but none says so. Either document the omission

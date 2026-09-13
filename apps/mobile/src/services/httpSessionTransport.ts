@@ -6,6 +6,7 @@ import {
 } from "@poker/core";
 import { apiToken } from "@/src/contexts/AuthContext";
 import { backendConfig } from "@/src/services/backendConfig";
+import { generateId } from "@/src/utils/id";
 import { logger } from "@/src/utils/logger";
 
 /**
@@ -46,6 +47,22 @@ const POLL_MS = Math.round(HEARTBEAT_MS * 0.8);
 
 /** Long enough to cross a bad connection, short enough not to stack up polls. */
 const TIMEOUT_MS = 4_000;
+
+/**
+ * A message as it travels: the protocol's message plus an id for this one send.
+ *
+ * **Why the id exists.** Polls see the same stored row over and over, so they
+ * need a way to tell a new write from the one they already delivered. The
+ * version cannot be that: a heartbeat deliberately repeats it, and two people
+ * pressing at once produce the same version from different senders. Filtering
+ * on it dropped every heartbeat after the first — a host never saw a joiner
+ * arrive, a joiner went "Out of touch" fifteen seconds in, and a same-version
+ * tie never reached the sender tie-break that exists to settle it.
+ *
+ * The server stores the message whole, so the id needs no backend change. It is
+ * never compared across devices, only for equality, so it carries no clock.
+ */
+type Envelope = TimerSyncMessage & { delivery?: string };
 
 const request = async (
   path: string,
@@ -116,7 +133,9 @@ export const httpSessionTransport = (): SessionTransport => ({
   async publish(sessionId: string, message: TimerSyncMessage): Promise<void> {
     await request(`/sessions/${encodeURIComponent(sessionId)}`, {
       method: "POST",
-      body: JSON.stringify({ message }),
+      body: JSON.stringify({
+        message: { ...message, delivery: generateId() } satisfies Envelope,
+      }),
     });
   },
 
@@ -126,16 +145,17 @@ export const httpSessionTransport = (): SessionTransport => ({
   ): () => void {
     let stopped = false;
     /**
-     * Only forward what is new.
+     * Only forward what is new — **a new write, not a new version.**
      *
      * The row is read every poll whether or not it changed, so without this the
      * same snapshot arrives four times a heartbeat. `shouldApply` upstream
      * would discard the repeats correctly, but it would also mean
      * `lastMessageAt` never stops advancing — and that is what decides whether
      * a session reads as `live` or `stale`. A host who closed the app would
-     * look alive forever.
+     * look alive forever. Keyed on the delivery id; see {@link Envelope} for
+     * why the version is the wrong key.
      */
-    let lastSeen: number | null = null;
+    let lastSeen: string | null = null;
 
     const poll = async () => {
       const response = await request(
@@ -143,10 +163,15 @@ export const httpSessionTransport = (): SessionTransport => ({
       );
       if (stopped || !response?.ok) return;
       const body: unknown = await response.json().catch(() => null);
-      const message = (body as { message?: TimerSyncMessage } | null)?.message;
-      if (!message || typeof message.version !== "number") return;
-      if (lastSeen !== null && message.version <= lastSeen) return;
-      lastSeen = message.version;
+      const envelope = (body as { message?: Envelope } | null)?.message;
+      if (!envelope || typeof envelope.version !== "number") return;
+      const { delivery, ...message } = envelope;
+      // A row with no id cannot be told apart from the last one, so it is
+      // keyed on everything in it: delivered once, then not again until it
+      // changes.
+      const key = delivery ?? JSON.stringify(message);
+      if (key === lastSeen) return;
+      lastSeen = key;
       onMessage(message);
     };
 

@@ -1144,6 +1144,20 @@ platform-tagged heading (e.g. `## [1.1.3] - 2026-07-20 — Android`) when you cu
   transfer setting hands the first account's Club to whoever signs in next on that phone, and which
   RevenueCat says must never run without a tap because it can raise an Apple ID prompt. The design
   work is in `ROADMAP.md`.
+- **A press on a shared clock reaches the other phones.** Pausing, resuming or skipping a level
+  never left the phone it was pressed on: the check that stops a phone re-announcing a clock it has
+  just read back from storage was set once and never cleared, so it held for every press after it.
+  The other phones moved only on the heartbeat — which repeats a version they already had, and so
+  changed nothing. A phone coming back from the background now also adopts the table's clock rather
+  than the one it stored.
+- **The shared clock stops saying nobody has joined.** The connection skipped every message whose
+  version it had already seen, and a heartbeat deliberately repeats one — so a host read "Waiting
+  for another phone to join…" for the whole session, a joiner read "Out of touch" fifteen seconds
+  after joining with a working connection, and two people pressing at the same moment could never
+  be settled. Messages are now told apart by a per-send id instead.
+- **Signing in with email no longer leaves the sign-in form on screen.** The signed-in card sat
+  above a second Sign in and a Create-an-account button — and App Review signs in exactly that way,
+  with the demo accounts from the review notes.
 - **The paywall stops selling Club where Club cannot be used.** Settings' Club card already hid
   itself with the kill switch off or with no backend; the paywall, which every locked Pro feature
   opens, did not — so switching sharing off left a subscription on sale whose only features had just

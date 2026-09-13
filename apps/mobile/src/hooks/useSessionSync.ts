@@ -62,9 +62,9 @@ export function useSessionSync({
   const hydratedRef = useRef<number | null>(null);
   // Read through refs so the effects below don't depend on values that change
   // every second, or on callbacks rebuilt every render.
-  const localRef = useRef({ state, blindIndex, publish });
+  const localRef = useRef({ state, blindIndex, publish, status });
   useEffect(() => {
-    localRef.current = { state, blindIndex, publish };
+    localRef.current = { state, blindIndex, publish, status };
   });
 
   useEffect(() => {
@@ -73,10 +73,22 @@ export function useSessionSync({
     hydratedRef.current = null;
   }, [status]);
 
-  // Declared before the publishing effect on purpose: both run in the same
-  // commit when a reload lands, and this one has to mark it first.
+  // Declared before the other two on purpose: all three run in the same commit
+  // when a reload lands, and this one has to mark it first.
+  //
+  // **A mark to be consumed, not a standing flag.** This used to set the ref and
+  // nothing ever cleared it, so `hydratedRef.current === hydrationCount` held
+  // from mount onwards and the publishing effect below returned on every run:
+  // no press ever left the phone, and the table moved only on heartbeats, which
+  // repeat a version everyone already holds. Only a reload during a live
+  // session is marked — one at launch, before anybody hosts, is not news to
+  // anyone — and the publishing effect clears the mark when it skips.
   useEffect(() => {
+    if (localRef.current.status === "off") return;
     hydratedRef.current = hydrationCount;
+    // Forget what was applied, so the table's latest state is adopted again
+    // over the one just read from storage instead of being skipped as seen.
+    appliedRef.current = null;
   }, [hydrationCount]);
 
   // Apply what the table says.
@@ -96,9 +108,10 @@ export function useSessionSync({
     selectBlind(latest.blindIndex);
     onRemoteApplied(remote);
     // The callbacks are rebuilt every render; the key guard above is what
-    // decides whether this runs.
+    // decides whether this runs. `hydrationCount` is here so a reload re-applies
+    // the table over what came out of storage.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [status, latest, isLoading, deviceId]);
+  }, [status, latest, isLoading, deviceId, hydrationCount]);
 
   // Tell the table about a local change.
   //
@@ -113,7 +126,10 @@ export function useSessionSync({
     // A clock that was just read back from storage is not news, and announcing
     // it would overwrite whatever the table did while this phone was away. The
     // table's next heartbeat, seconds away, puts this phone right instead.
-    if (hydratedRef.current === hydrationCount) return;
+    if (hydratedRef.current === hydrationCount) {
+      hydratedRef.current = null;
+      return;
+    }
     if (
       matchesSession({
         message: latest,

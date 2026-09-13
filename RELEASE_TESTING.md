@@ -83,6 +83,12 @@ build. Only the first row of that table is what it means.
 1. **Android** — `Android_small` emulator, API 35, 30s screen timeout. §10 keep-awake: holding,
    pause-releases and reset-releases all verified against the window flag and `mWakefulness`.
    iOS not covered: the Simulator has no auto-lock, so §10 needs a real device there.
+1. **iOS Simulator + Android emulator, together** — iPhone 17 Pro (iOS 26.5) and `Pixel_stable`
+   (API 35), dev clients against `DEV_BACKEND`, `FORCE_PRO_IN_DEV` on, signed in as two dev-pool
+   accounts created with `admin-create-user`. §18's gate, codes, joining and press propagation, plus
+   the email sign-in in §14. Driven with Maestro on iOS — buttons expose their label as
+   `", <label>"`, so match with a leading `.*` — and `adb` on Android. The Android dev client had to
+   be rebuilt first: it predated #211 and red-screened on `ExpoCrypto`.
 
 ---
 
@@ -203,9 +209,10 @@ because everything was unlocked.
 
 ### Where the risk actually is
 
-- **§15, §18 and §19 have never been run**, from any build, on any platform. §18 had a defect that
-  made hosting and joining impossible for everyone (fixed on 2026-09-13, found by reading the code),
-  which is what a section nobody has opened looks like.
+- **§15 and §19 have never been run**, from any build, on any platform. §18 had not been either,
+  and its first run on 2026-09-13 found the shared clock broken three separate ways — hosting
+  refused, no press ever sent, every heartbeat dropped. That is what a section nobody has opened
+  looks like, and there is no reason to expect §15 and §19 to be different.
 - **§14's sign-up rows need a person with an inbox**, and every two-account row in §15–§19 is
   queued behind them.
 - **§11–§13 cover what this release invented.** If time runs short, short-change something else.
@@ -240,18 +247,20 @@ Anything else left ⬜ at submission should be a decision, not an accident: mark
 Defects fixed on the release branch that were **found by review rather than by testing** — so these are rows this checklist previously let through. Worth running
 deliberately rather than waiting for them to come up in sequence.
 
-| Fix                                                     | Where it shows up                                   |
-| ------------------------------------------------------- | --------------------------------------------------- |
-| A deleted board came back on the next pull              | §12 deleting a group · §15 a board rejoined by link |
-| A refused game closed the sheet and lost the entry      | §12 recording a game                                |
-| Renaming to a duplicate or empty name                   | §12 — the rename rows already exist                 |
-| A refusal notice shown on the wrong board               | §15 two boards, one refusal                         |
-| Identical chip stacks split unevenly                    | §11 a chop with two equal stacks                    |
-| Chop sheet blank with every stack cleared               | §11 clear all stacks to 0                           |
-| A half-written token signed you out silently            | §14 force-quit mid-sign-up                          |
-| **2026-09-13:** hosting/joining a clock always refused  | §18 host and join, signed in, with Club             |
-| **2026-09-13:** paywall sold Club under the kill switch | §16c and §17 with `featureSharing=off`              |
-| **2026-09-13:** sheet content stopped short of the edge | §3 bottom edge · §5 sheet rows · every sheet        |
+| Fix                                                           | Where it shows up                                   |
+| ------------------------------------------------------------- | --------------------------------------------------- |
+| A deleted board came back on the next pull                    | §12 deleting a group · §15 a board rejoined by link |
+| A refused game closed the sheet and lost the entry            | §12 recording a game                                |
+| Renaming to a duplicate or empty name                         | §12 — the rename rows already exist                 |
+| A refusal notice shown on the wrong board                     | §15 two boards, one refusal                         |
+| Identical chip stacks split unevenly                          | §11 a chop with two equal stacks                    |
+| Chop sheet blank with every stack cleared                     | §11 clear all stacks to 0                           |
+| A half-written token signed you out silently                  | §14 force-quit mid-sign-up                          |
+| **2026-09-13:** hosting/joining a clock always refused        | §18 host and join, signed in, with Club             |
+| **2026-09-13:** paywall sold Club under the kill switch       | §16c and §17 with `featureSharing=off`              |
+| **2026-09-13:** sheet content stopped short of the edge       | §3 bottom edge · §5 sheet rows · every sheet        |
+| **2026-09-13:** no shared-clock press reached another phone   | §18 pause, resume and level jump, both ways         |
+| **2026-09-13:** email sign-in left the sign-in form on screen | §14 the email sign-in row                           |
 
 ---
 
@@ -640,6 +649,7 @@ Two defects came out of the part that could be run, and both are fixed:
 
 |                                                                                                                                                                                                                                                                    | iOS | Android |
 | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | --- | ------- |
+| After signing in **with email**, only the signed-in card shows — no second Sign in or Create-an-account form beneath it                                                                                                                                            | ⬜  | ✅      |
 | Settings shows the account row, and it opens the account screen                                                                                                                                                                                                    | ⬜  | ✅      |
 | **Sign up with a real address → the code arrives.** This is the row the whole feature rests on: Cognito's own sender was capped and landed in spam, which is why it now goes through SES                                                                           | ⬜  | 🚫      |
 | The code arrives **in the inbox, not spam**, and is from `Poker Blinds Timer`                                                                                                                                                                                      | ⬜  | 🚫      |
@@ -944,23 +954,43 @@ skip a level or resume, and every interesting failure is about two clocks disagr
 device can show is the gate, the codes and the refusals.
 
 **The transport is HTTP polling at 4s against a 5s heartbeat**, so "immediately" is the wrong
-expectation throughout: a press reaches the other phone within about four seconds and the section
-reads `stale` only after fifteen without contact. A pause that shows up three seconds later is a
-pass.
+expectation throughout, and the section reads `stale` only after fifteen seconds without contact.
+**Measured on 2026-09-13, a press took 6–16 seconds to reach the other phone, not the four this
+used to promise** — every device's heartbeat rewrites the one stored row, so a newer press can be
+overwritten before the other phone reads it, and arrives on a later beat. A pause that shows up
+fifteen seconds later is a pass; one that never arrives is not. See `ROADMAP.md`.
+
+**Run on 2026-09-13** — iPhone 17 Pro Simulator (iOS 26.5) and `Pixel_stable` (API 35), both dev
+clients against `DEV_BACKEND` with `FORCE_PRO_IN_DEV`, signed in as two accounts. **Where a row
+involves both devices, each column is the platform that pressed.** It found three defects, all
+fixed on the release branch the same day, and nothing here passed before they were:
+
+- **Hosting and joining were refused for everyone** — a callback kept the signed-out answer from
+  launch.
+- **No press ever left the phone.** `useSessionSync` marked a reload from storage and never cleared
+  the mark, so its publishing effect returned on every run; the table moved only on heartbeats,
+  which repeat a version everyone already holds. Found when Next on Android left the iPhone at
+  Level 1 for 46 seconds, and confirmed by reading the stored row: the new level, under version 1.
+- **Heartbeats were dropped on arrival.** The HTTP transport skipped any message whose version it
+  had seen, so a host showed "Waiting for another phone to join…" forever and a joiner went "Out of
+  touch" fifteen seconds after joining, with a working connection.
+
+One thing seen and not explained: shortly after a resume, the iPhone's countdown stood still for
+about seven seconds while Android's ran, then caught up. Worth watching for on real phones.
 
 |                                                                                                                                              | iOS | Android |
 | -------------------------------------------------------------------------------------------------------------------------------------------- | --- | ------- |
-| **Settings → Tournament shows "Shared clock"**, and it opens this screen. Absent with `featureSharing=off`, and on a build with no backend   | ⬜  | ⬜      |
+| **Settings → Tournament shows "Shared clock"**, and it opens this screen. Absent with `featureSharing=off`, and on a build with no backend   | ⬜  | ✅      |
 | **Without Club**, Start is disabled and says sharing is part of Club — and that **joining is free**                                          | ⬜  | ⬜      |
-| **Signed out**, both Start and Join are disabled and each says to sign in — not "subscribe"                                                  | ⬜  | ⬜      |
+| **Signed out**, both Start and Join are disabled and each says to sign in — not "subscribe"                                                  | ✅  | ✅      |
 | While entitlements are still loading, it says so rather than refusing — a subscriber must never be told they have not paid                   | ⬜  | ⬜      |
-| **Hosting produces a six-character code** from the alphabet that drops what gets misheard — no I, O, S, Z                                    | ⬜  | ⬜      |
-| **A second device joins by typing it**, and sees the same round, level and countdown within ~4s                                              | ⬜  | ⬜      |
-| Lower case and spaces work — the code is normalised on the way in                                                                            | ⬜  | ⬜      |
-| **A wrong code says no clock is running under it**, and leaves the screen usable                                                             | ⬜  | ⬜      |
-| **Pausing on either device pauses both.** This is the row the feature exists for — and either device, not just the host                      | ⬜  | ⬜      |
+| **Hosting produces a six-character code** from the alphabet that drops what gets misheard — no I, O, S, Z                                    | ✅  | ✅      |
+| **A second device joins by typing it**, and sees the same round, level and countdown within ~4s                                              | ✅  | ✅      |
+| Lower case and spaces work — the code is normalised on the way in                                                                            | ⬜  | ✅      |
+| **A wrong code says no clock is running under it**, and leaves the screen usable                                                             | ⬜  | ✅      |
+| **Pausing on either device pauses both.** This is the row the feature exists for — and either device, not just the host                      | ✅  | ✅      |
 | **Two people pause at the same moment** and both phones settle on the same answer rather than splitting                                      | ⬜  | ⬜      |
-| A level jump travels too — `blindIndex` is in the message                                                                                    | ⬜  | ⬜      |
+| A level jump travels too — `blindIndex` is in the message                                                                                    | ✅  | ⬜      |
 | **Killing the host app leaves the joiner counting down**, and it reads `stale` after ~15s rather than freezing or lying                      | ⬜  | ⬜      |
 | Reopening the host **rejoins and the two agree again** within a poll                                                                         | ⬜  | ⬜      |
 | **Airplane mode on the joiner** for 30s, then back: it catches up rather than needing a rejoin                                               | ⬜  | ⬜      |
