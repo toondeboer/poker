@@ -4,14 +4,14 @@ import { logger } from "@/src/utils/logger";
 import { AppState, AppStateStatus } from "react-native";
 import { createContext, useContext, useEffect, useState } from "react";
 
-type AppStateContext = {
+type AppStateContextValue = {
   appState: AppStateStatus;
   isActive: boolean;
   isBackground: boolean;
   isInactive: boolean;
 };
 
-const AppStateContext = createContext<AppStateContext | null>(null);
+const AppStateContext = createContext<AppStateContextValue | null>(null);
 
 export function AppStateProvider({
   children,

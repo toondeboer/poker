@@ -8,8 +8,6 @@ import {
   useState,
 } from "react";
 import type { Entitlements } from "@poker/core";
-import { onAccountChanged } from "@/src/contexts/AuthContext";
-import { logger } from "@/src/utils/logger";
 import {
   revenueCatProvider,
   type ClubPlan,
@@ -94,11 +92,11 @@ export function PremiumProvider({
 }: Readonly<{ children: React.ReactNode }>) {
   const [isPremium, setIsPremium] = useState(FORCE_PRO_IN_DEV);
   /**
-   * Forced alongside Pro in development, and **this is currently the only way
-   * to exercise sharing at all**: nothing grants `club` yet, so a dev build
-   * without this announces no board, queues no write and shows no share button
-   * — silently, and correctly. `ROADMAP.md` says so next to the testing rows,
-   * because otherwise it reads exactly like sync being broken.
+   * Forced alongside Pro in development, and **this is the only way to
+   * exercise sharing from a dev client**: a dev client cannot buy `club`, so
+   * without it a build announces no board, queues no write and shows no share
+   * button — silently, and correctly. `ROADMAP.md` says so, because otherwise it
+   * reads exactly like sync being broken.
    */
   const [hasClub, setHasClub] = useState(FORCE_PRO_IN_DEV);
   const [ownsProOutright, setOwnsProOutright] = useState(FORCE_PRO_IN_DEV);
@@ -223,42 +221,6 @@ export function PremiumProvider({
       unsubscribe();
     };
   }, [refreshProPrice, refreshClubPlans, applyEntitlements]);
-
-  /**
-   * **Follow the app account, so a purchase belongs to a person.**
-   *
-   * Without this the SDK is configured with no `appUserID` and never told who is
-   * using it, so an entitlement belongs to the **App Store or Play account** on
-   * the device: signing out kept Club, deleting the account kept Club, the same
-   * person paid twice across iOS and Android, and a new phone on a different
-   * Apple ID had nothing to restore even signed into the same app account.
-   *
-   * The id is the Cognito `sub` — stable, opaque, and never reused. Somebody who
-   * bought anonymously keeps what they bought: RevenueCat transfers an anonymous
-   * user's purchases to the identified one the first time it is told who they
-   * are, which is the migration for everybody who already owns Pro.
-   *
-   * Skipped under either FORCE flag, like the check above: those exist to hold
-   * the entitlements at a chosen value, and the store's real answer arriving a
-   * moment later would undo exactly that.
-   */
-  useEffect(() => {
-    if (FORCE_PRO_IN_DEV || FORCE_FREE_IN_DEV) return;
-    return onAccountChanged((accountId) => {
-      void (
-        accountId === null
-          ? revenueCatProvider.forget()
-          : revenueCatProvider.identify(accountId)
-      )
-        .then(applyEntitlements)
-        // **Never wipes what is on screen.** A failed log-in is a network
-        // problem, not an answer about what somebody owns — and treating it as
-        // one would take Pro off a paying customer's screen for the session.
-        .catch((error: unknown) =>
-          logger.warn("Could not link purchases to the account:", error),
-        );
-    });
-  }, [applyEntitlements]);
 
   const purchaseClub = useCallback(
     async (planId: string) => {

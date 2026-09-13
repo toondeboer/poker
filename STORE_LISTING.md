@@ -131,7 +131,7 @@ Lock Screen bullet already promised in the promotional text above.
 
 **Rewritten for 1.2.0.** The previous draft described an app with no dealt game and told people
 there was "no account, no sign-up" — both false by the time this ships, and the second one is the
-kind of false that reads as a bait-and-switch when the app then asks for an email. `2848` chars,
+kind of false that reads as a bait-and-switch when the app then asks for an email. `2864` chars,
 against a 4,000 limit:
 
 ```
@@ -152,7 +152,7 @@ Built for real Texas Hold'em tournament nights at somebody's kitchen table:
 • Save tournament presets (Pro) — store your blind structure & round length, load them in one tap
 • Choose your alarm sound (Pro) — pick from a few bundled alarm packs beyond the default
 
-An account is optional and only takes an email — you need one to share a board or to have your boards follow you to a new phone. The timer, the structures and a leaderboard of your own all work without one.
+An account is optional — sign in with Apple, Google or an email. You need one to share a board or to have your boards follow you to a new phone. The timer, the structures and a leaderboard of your own all work without one.
 
 Whether it's a casual poker night with friends or a bigger home tournament, Poker Blinds Buzzer keeps the blinds clock visible and on schedule so everyone can focus on the cards, not the clock — and settles who won what before it turns into an argument.
 
@@ -197,7 +197,7 @@ Go Pro to remove ads, deal a hand, work out the payouts, chop the last pot, keep
   • Save tournament presets (Pro) — store your blind structure & round length, load them in one tap
   • Choose your alarm sound (Pro) — pick from a few bundled alarm packs beyond the default
 
-  An account is optional and only takes an email — you need one to share a board or to have your boards follow you to a new phone. The timer, the structures and a leaderboard of your own all work without one.
+  An account is optional — sign in with Apple, Google or an email. You need one to share a board or to have your boards follow you to a new phone. The timer, the structures and a leaderboard of your own all work without one.
 
   Whether it's a casual poker night with friends or a bigger home tournament, Poker Blinds Timer & Buzzer keeps the blinds clock visible and on schedule so everyone can focus on the cards, not the clock — and settles who won what before it turns into an argument.
 
@@ -229,7 +229,7 @@ Go Pro to remove ads, deal a hand, work out the payouts, chop the last pot, keep
   which is the single most useful sentence in it: the misunderstanding likeliest
   to cost installs is somebody assuming a blinds timer now needs a login.
 
-  `2833` chars, against a 4,000 limit — the block above is indented two spaces to
+  `2849` chars, against a 4,000 limit — the block above is indented two spaces to
   sit inside this list, so counting its lines as written overstates the text that
   actually gets pasted by two per line. Play mines keywords from the first two
   sentences (the part visible before "Read more"); those keep the same opening
@@ -712,10 +712,9 @@ New in this version:
 - A payout calculator and a chop calculator, both one-shot and for money that changes hands away
   from the phone. Neither settles nor stores anything. There is no wagering anywhere in this app.
 
-Pro and Club are needed for the dealer, a shared board and the shared clock, and cannot be attached
-to a demo account: purchases belong to the App Store account on the device, not to the app's own
-login. Please buy them in the review sandbox, where they cost nothing. The paywall is Settings →
-Pro, with Club as a section on the same sheet.
+Pro unlocks the dealer; Club hosts a shared board or clock. Neither can be attached to a demo
+account: purchases belong to the App Store account on the device, not to the app's own login.
+Please buy them in the review sandbox, where they cost nothing — Settings has a card for each.
 
 Where things are: Settings → Tournament holds Deal a hand, Payouts, Leaderboard and Shared clock;
 Settings → Account holds sign-in and account deletion; Leaderboard → Groups holds sharing a board,
@@ -725,9 +724,9 @@ Two demo accounts are below: a shared board and a shared clock each need one dev
 another to join.
 ```
 
-**The three blocks together are 3,947 characters against a 4,000-character field** — the money note
-860, this one 2,360, the user-generated-content paragraph 723, plus a blank line between each.
-**That leaves 53 characters**, so anything added from now on genuinely has to come out of something
+**The three blocks together are 3,889 characters against a 4,000-character field** — the money note
+860, this one 2,302, the user-generated-content paragraph 723, plus a blank line between each.
+**That leaves 111 characters**, so anything added from now on largely has to come out of something
 else.
 
 **Re-measure rather than estimate.** This said 3,442 until the blocks were rewritten against the
@@ -778,7 +777,7 @@ in the sandbox instead, where it costs nothing and is the flow reviewers already
 
 **4+ on Apple, PEGI 3 on Google**, answered 2026-09-11. The reasoning — the two triggers, the
 comparable-app evidence, PEGI's actual wording, the Individual-developer-account question — lives in
-[the gambling section of ROADMAP.md](./ROADMAP.md#gambling-classification--blocking-120) and is not
+[the gambling section of ROADMAP.md](./ROADMAP.md#gambling-classification--the-rating-record) and is not
 repeated here. It used to be, and the two copies drifted apart: this file stated the
 Individual-account rule as settled fact while ROADMAP correctly called it unresolved.
 

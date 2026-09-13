@@ -654,33 +654,13 @@ platform-tagged heading (e.g. `## [1.1.3] - 2026-07-20 — Android`) when you cu
 
 ### Changed
 
-- **A purchase now belongs to your account, not to the phone's store account.** RevenueCat was
-  configured with no `appUserID` and never told who was using the app, so an entitlement belonged to
-  the **App Store or Play account** on the device. Everything that follows was true and none of it
-  was intended: signing out kept Club, deleting your account kept Club, the same person paid twice to
-  have it on an iPhone and an Android, and a new phone signed into the same app account under a
-  different Apple ID had nothing to restore.
-
-  The SDK is now handed the **Cognito `sub`** whenever the signed-in account changes — stable,
-  opaque, never reused, and not an email, which RevenueCat's own guidance rules out. **Nobody who
-  already bought anything loses it:** RevenueCat transfers an anonymous user's purchases to the
-  identified one the first time it is told who they are, so an existing Pro owner is migrated by
-  signing in.
-
-  Two details worth writing down, because both are the kind that look like a bug later:
-
-  - **Signing out re-reads the store receipt**, deliberately. `logOut` mints a _fresh anonymous
-    user_, which owns nothing — so without that step, signing out of the app would make Pro vanish
-    from a phone that plainly still has it, recoverable only through a Restore button nobody would
-    think to press. Restoring re-attaches the receipt held by the store account, which never signed
-    out of anything.
-  - **A failed link never wipes what is on screen.** A network failure is not an answer about what
-    somebody owns, and treating it as one would take Pro off a paying customer's screen for the rest
-    of the session. It warns and leaves the entitlements alone.
-
-  Done before Club has subscribers on purpose: migrating real ones later is considerably harder than
-  not creating unattached ones now. `ROADMAP.md` had it as "worth doing one day, not before Club
-  launches" — that ordering was the wrong way round.
+- **The release docs were checked against the binary before shipping.** `RELEASE_TESTING.md` stops
+  carrying hand-written counts — `npm run testing:status` measures them — gains the shortest pass a
+  release should not ship without, and puts §14 and §16 back in order; `ROADMAP.md` loses the
+  finished work it had kept and gains what the review found; `CLAUDE.md` no longer tells the cut to
+  reset a checklist that step 6 still needs, and says where the release's own docs go. The store
+  descriptions stop saying an account "only takes an email", and the notes for review stop
+  describing a paywall that no longer exists.
 
 - **Pro and Club are now two purchases on screen, because they are two purchases.** They were sold
   in one amber sheet headed _"Poker Blinds Buzzer Pro"_, reached from buttons that every one of them
@@ -1152,6 +1132,22 @@ platform-tagged heading (e.g. `## [1.1.3] - 2026-07-20 — Android`) when you cu
 
 ### Fixed
 
+- **A signed-in subscriber can actually start or join a shared clock.** Both actions checked the
+  sign-in and Club refusal as it stood when the app launched — signed out, entitlements unknown —
+  and never looked again, so every attempt came back "not allowed" however long ago the person had
+  signed in and paid — the button was enabled, and tapping it said _"That isn't available on this
+  account."_ Found in review before any device had run §18, which is the only reason it never
+  reached a store.
+- **Purchases stay with the App Store or Play account for 1.2.0**, as they did in 1.1.4. Tying them
+  to the app account was built for this release and taken back out before any build carried it:
+  the sign-out path re-read the receipt with `restorePurchases`, which under RevenueCat's default
+  transfer setting hands the first account's Club to whoever signs in next on that phone, and which
+  RevenueCat says must never run without a tap because it can raise an Apple ID prompt. The design
+  work is in `ROADMAP.md`.
+- **The paywall stops selling Club where Club cannot be used.** Settings' Club card already hid
+  itself with the kill switch off or with no backend; the paywall, which every locked Pro feature
+  opens, did not — so switching sharing off left a subscription on sale whose only features had just
+  been switched off.
 - **The shared clock can be reached.** The screen, the `/sessions` routes and the polling transport
   all shipped in 1.2.0. The row that opens it did not: the route was registered while there was
   still no transport behind it — a join code nobody else can join being worse than none — and when

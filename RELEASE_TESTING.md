@@ -63,7 +63,7 @@ defined as "needs TestFlight or Play internal testing", which is only the first 
 
 | Blocked on                         | Where                                                         | What unblocks it                      |
 | ---------------------------------- | ------------------------------------------------------------- | ------------------------------------- |
-| A build on a store track           | §1 and §1b's billing rows, §13's locked state, §9's deep link | Submitting a candidate — 14 cells     |
+| A build on a store track           | §1 and §1b's billing rows, §13's locked state, §9's deep link | Submitting a candidate                |
 | Somebody with an inbox             | §14's sign-up and deletion rows                               | A real address; `DEV_BACKEND` is fine |
 | A second Apple ID                  | §14b's Hide My Email row                                      | Another Apple account, or accept it   |
 | Time that cannot pass in a sitting | §18's six-hour session expiry                                 | Nothing — it is unit-tested instead   |
@@ -117,15 +117,10 @@ build. Only the first row of that table is what it means.
       | `src/services/backendConfig.ts` | `DEV_BACKEND` | **`PROD_BACKEND`** |
       | `src/contexts/PremiumContext.tsx` | `__DEV__ && true` | `__DEV__ && false` |
 
-      ```bash
-      git status --short apps/mobile/src   # must be empty before `eas build`
-      ```
-
-      **A clean `git diff` is not proof.** These reached `release/1.2.0` once already, staged by a
-      `git add -A` run while they were flipped — at which point the very check this step describes
-      comes back clean because the change is committed rather than pending. `git status` on the
-      working tree only catches the uncommitted case; the committed case needs the table above read
-      against the branch.
+      **The gate before `eas build` is cutting step 5 in [CLAUDE.md](./CLAUDE.md)**, not a
+      `git status` on `apps/mobile/src`: eas-cli uploads untracked files anywhere in the tree, and
+      a toggle that was _committed_ while flipped (it happened once, via `git add -A`) passes any
+      working-tree check. Step 5 reads both values out of `HEAD` for that reason.
 
 - [⬜] **Run §17, the kill switch, against dev** — and read prod with `curl` rather than deploying to
   it. The app half of those rows does not depend on which backend answers, and the prod half is one
@@ -138,10 +133,10 @@ build. Only the first row of that table is what it means.
   `npm run deploy:dev -w @poker/infra -- -c featureSharing=off`, from a laptop with credentials,
   and re-running it without the flag puts it back. Doing that to prod during a review is how a
   reviewer meets a feature that has been switched off.
-- [⬜] **And §15–§16 need the Club entitlement**, which nothing grants until the subscription exists
-  in both stores. Until then set `FORCE_PRO_IN_DEV` in `PremiumContext.tsx`, which forces Pro
-  **and** Club. Without it the share button and join field are simply not there, which reads
-  exactly like sync being broken.
+- [⬜] **And §15–§16 need the Club entitlement.** A dev client cannot buy it, so set
+  `FORCE_PRO_IN_DEV` in `PremiumContext.tsx`, which forces Pro **and** Club. Without it the share
+  button and join field are simply not there, which reads exactly like sync being broken. On a
+  store build, buy it in the sandbox instead.
 - [⬜] **§15 needs two devices**, and a third for the "boards follow the account" row. One phone
   cannot see any of the failures worth finding.
 
@@ -149,9 +144,10 @@ build. Only the first row of that table is what it means.
 
 ## Running the pass: what needs what
 
-**268 rows, most wanting both platforms** — 536 cells, of which 29 are ✅ today. The cost is **setup churn**: flipping
-entitlements, switching backends, signing two accounts in on two devices. Grouped so each setup is
-paid for once.
+**Where things stand is `npm run testing:status`** — rows and cells per section, by icon. Do not
+write a count into this file; every one it carried went stale within a day. The cost of the pass
+is **setup churn** — flipping entitlements, switching backends, signing two accounts in on two
+devices — so the sessions below group rows so each setup is paid for once.
 
 **Where a session runs is not "any device".** A dev client and a store build share a bundle id, and
 on Android they are signed with different keys — so swapping between them means uninstalling, which
@@ -173,16 +169,16 @@ Three switches decide what a build can see:
 either side (`validateCredentials` in `@poker/core`), so `you+a@…` and `you+b@…` are two accounts
 that both arrive in one place. Every two-account session below uses the same pair.
 
-| Session | Where                                          | Switches                 | Sections                                                                             | Rows                |
-| ------- | ---------------------------------------------- | ------------------------ | ------------------------------------------------------------------------------------ | ------------------- |
-| **S1**  | Mac + a real inbox                             | both off                 | §14 accounts, including delete · §14b on Android, re-run on iOS                      | 13 + 9              |
-| **S2**  | Mac                                            | PRO=true, then FREE=true | §16, run twice                                                                       | 7 × 2               |
-| **S3**  | Simulator **and** emulator, signed in as A / B | PRO=true on both         | §15 boards · §15b the 1.2 rows · §18 clock · §19 push                                | 16 + 4 + 15 + 10    |
-| **S4**  | Mac                                            | PRO=true                 | §11 payouts · §12 leaderboard · §13 dealer **on iOS**                                | 12 + 25 + 17        |
-| **S5**  | Mac                                            | both off                 | §5 keyboard first, then §2 · §3 · §4 · §8                                            | 13 + 15 + 7 + 5 + 4 |
-| **S6**  | iPad Simulator                                 | PRO=true                 | §7 tablets                                                                           | 7                   |
-| **S7**  | Mac, against **dev**                           | both off                 | §17 kill switch                                                                      | 4                   |
-| **P**   | The phones, once a candidate is on a track     | none — a release build   | §20 first, then §1 · §1b · §16b · §9 · §13 locked · §6 · §10 iOS · §14b against prod | see §20             |
+| Session | Where                                          | Switches                 | Sections                                                                |
+| ------- | ---------------------------------------------- | ------------------------ | ----------------------------------------------------------------------- |
+| **S1**  | Mac + a real inbox                             | both off                 | §14 accounts, including delete · §14b on Android, re-run on iOS         |
+| **S2**  | Mac                                            | PRO=true, then FREE=true | §16, run twice                                                          |
+| **S3**  | Simulator **and** emulator, signed in as A / B | PRO=true on both         | §15 boards · §15b · §18 clock · §19 push                                |
+| **S4**  | Mac                                            | PRO=true                 | §11 payouts · §12 leaderboard · §13 dealer **on iOS**                   |
+| **S5**  | Mac                                            | both off                 | §5 keyboard first, then §2 · §3 · §4 · §8                               |
+| **S6**  | iPad Simulator                                 | PRO=true                 | §7 tablets                                                              |
+| **S7**  | Mac, against **dev**                           | both off                 | §17 kill switch                                                         |
+| **P**   | The phones, once a candidate is on a track     | none — a release build   | §20 first, then §1 · §1b · §16b · §16c · §9 · §13 locked · §6 · §10 iOS |
 
 **S1 comes first for what it unblocks**, not for itself: every two-account session is stuck behind
 it, and its rows need a person with an inbox rather than a script.
@@ -207,46 +203,55 @@ because everything was unlocked.
 
 ### Where the risk actually is
 
-- **204 of the 268 rows have no result on either platform**, and only 2 are passed everywhere they
-  apply. Read any plan that says otherwise against this number, and re-measure rather than
-  estimating. **This file's own counts have now been wrong three times**, so the method matters more
-  than the number:
-  - _35 ✅_ was quoted before the 2026-09-11 pass, and matched neither the rows nor the cells.
-  - _236 rows / 472 cells_ was written here and repeated in #147, and predated §16c and §16d.
-  - _266 rows / 27 ✅_ came from counting with a regex that required a status cell to hold **only**
-    an emoji — which silently dropped the two rows whose cells read `⬜ **never verified**`.
-  - **Measure like this**: split each table row on `|`, take the last two fields, and count a row
-    only when both of them contain a status emoji and little else. Attribute nothing by eye.
-- **§11–§13 are 54 rows** and cover what this release invented. If time runs short, short-change
-  something else.
-- **§15, §18 and §19 have never been run at all**, from any build, on any platform — 21, 16 and 10
-  rows, not one of them ✅. **§14 used to be named here and does not belong**: §14b's nine provider
-  rows carry **ten ✅** from the iOS Simulator run on 2026-09-07, written up directly beneath that
-  table, and one row of §14's own account table is ✅ as well. What is true of §14 is narrower and
-  worth saying exactly — its thirteen account rows are otherwise unrun, and ten of their cells are 🚫
-  for want of a real inbox.
+- **§15, §18 and §19 have never been run**, from any build, on any platform. §18 had a defect that
+  made hosting and joining impossible for everyone (fixed on 2026-09-13, found by reading the code),
+  which is what a section nobody has opened looks like.
+- **§14's sign-up rows need a person with an inbox**, and every two-account row in §15–§19 is
+  queued behind them.
+- **§11–§13 cover what this release invented.** If time runs short, short-change something else.
 - **Android has seen almost none of this.** Several features were checked on an iOS Simulator only,
   and synthetic taps do not exist here — assume the first real Android tap finds something.
-- **§1 blocks submission** and cannot start until the build is on a track: **7 cells** across §1 and
-  §1b are 🚫 for that reason (this said 11). It is the long pole, not the big one. The other 🚫 are
-  §9's 2, §13's 2 and §14's 10 — 21 in the file altogether. **§14's ten are blocked on a real inbox,
-  not on a store build**, which is the 🚫-means-four-things problem the legend already admits to.
+- **§1 blocks submission** and cannot start until the build is on a track. It is the long pole, not
+  the big one.
 
-### Rows that cover a fix made on 2026-09-04
+### The shortest pass that can ship
 
-Thirteen defects were fixed on the release branch the day before this pass, **found by review
-rather than by testing** — so these are rows this checklist previously let through. Worth running
+Everything in this file is worth running; not all of it is worth holding a release for. **If the
+goal is shipping soon, these are the rows a release should not go out without**, because each is a
+store rejection, a lost purchase, or a headline feature that does not work — and none of them is
+covered by a unit test:
+
+1. **§20** in full, on the phones, before anything else touches them.
+2. **§1, §1b and §16b** on the store builds — billing and guideline 3.1.2.
+3. **§14's sign-up, confirm, sign-in, delete rows** and **§14b's completed provider sign-in against
+   prod** — the sign-in card is the first thing a reviewer taps.
+4. **§15's first eight rows and §18's first eleven**, on two devices — share, join, sync, and the
+   shared clock the listing advertises.
+5. **§16c's first six rows** — that a person can tell a one-time purchase from a subscription.
+6. **§3 and §5's sheet rows, and one look at every sheet**, on both platforms — #265 changed how
+   every sheet lays out after candidate 1 was built.
+7. **§13's peek rows on iOS**, and **§12's upgrade row** — the one piece of data a user cannot
+   recreate.
+
+Anything else left ⬜ at submission should be a decision, not an accident: mark it 🟡 with the reason.
+
+### Rows that cover a fix found by review
+
+Defects fixed on the release branch that were **found by review rather than by testing** — so these are rows this checklist previously let through. Worth running
 deliberately rather than waiting for them to come up in sequence.
 
-| Fix                                                | Where it shows up                                   |
-| -------------------------------------------------- | --------------------------------------------------- |
-| A deleted board came back on the next pull         | §12 deleting a group · §15 a board rejoined by link |
-| A refused game closed the sheet and lost the entry | §12 recording a game                                |
-| Renaming to a duplicate or empty name              | §12 — the rename rows already exist                 |
-| A refusal notice shown on the wrong board          | §15 two boards, one refusal                         |
-| Identical chip stacks split unevenly               | §11 a chop with two equal stacks                    |
-| Chop sheet blank with every stack cleared          | §11 clear all stacks to 0                           |
-| A half-written token signed you out silently       | §14 force-quit mid-sign-up                          |
+| Fix                                                     | Where it shows up                                   |
+| ------------------------------------------------------- | --------------------------------------------------- |
+| A deleted board came back on the next pull              | §12 deleting a group · §15 a board rejoined by link |
+| A refused game closed the sheet and lost the entry      | §12 recording a game                                |
+| Renaming to a duplicate or empty name                   | §12 — the rename rows already exist                 |
+| A refusal notice shown on the wrong board               | §15 two boards, one refusal                         |
+| Identical chip stacks split unevenly                    | §11 a chop with two equal stacks                    |
+| Chop sheet blank with every stack cleared               | §11 clear all stacks to 0                           |
+| A half-written token signed you out silently            | §14 force-quit mid-sign-up                          |
+| **2026-09-13:** hosting/joining a clock always refused  | §18 host and join, signed in, with Club             |
+| **2026-09-13:** paywall sold Club under the kill switch | §16c and §17 with `featureSharing=off`              |
+| **2026-09-13:** sheet content stopped short of the edge | §3 bottom edge · §5 sheet rows · every sheet        |
 
 ---
 
@@ -273,7 +278,7 @@ to handle something a person bought stopping working — every row below is a fi
 | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --- | -------------------------------- |
 | Both SKUs appear and are priced — monthly **and** annual. One store having only one of them is a half-shipped product                                                                                                | ⬜  | 🚫 [see below](#android-billing) |
 | **Subscribing grants Pro as well.** A subscriber who never bought Pro can open the leaderboard — otherwise they are hosting a board they cannot see                                                                  | ⬜  | 🚫                               |
-| **Restore brings back both**, on a fresh install of the same account — Pro and Club, not one of them                                                                                                                 | ⬜  | 🚫                               |
+| **Restore brings back both**, on a fresh install on the same store account — Pro and Club, not one                                                                                                                   | ⬜  | 🚫                               |
 | Cancelling in the store leaves the app sane, and access continues to the end of the paid period                                                                                                                      | ⬜  | 🚫                               |
 | **After it expires: sharing stops, and Pro does not.** Once a subscription has granted Pro it keeps it, so the boards stay visible and only hosting goes. Getting this wrong takes the sight of every board they own | ⬜  | 🚫                               |
 | An expired subscriber's **existing shared boards keep working for the other members** — they are still on the server, and stranding them is worse than the cost it saves                                             | ⬜  | 🚫                               |
@@ -551,7 +556,7 @@ it**.
 ## 13. Deal a hand (Pro)
 
 **The whole betting half of this section is gone**, along with the engine it tested — see the
-Gambling classification section in [ROADMAP.md](./ROADMAP.md#gambling-classification--blocking-120).
+Gambling classification section in [ROADMAP.md](./ROADMAP.md#gambling-classification--the-rating-record).
 Roughly thirty rows went with it: blinds posting, fold/check/call, raise validation, Min/Pot/All-in,
 side pots, awards, finishing order, every save-to-leaderboard row, knockouts and progressive
 bounties. None of that exists any more, and rows testing it would be worse than no rows.
@@ -604,17 +609,74 @@ to a unit test, obvious in a screenshot.
 - **Readable across a table — 🚫 by nature.** An emulator on a laptop cannot answer "legible at
   arm's length across a kitchen table". Needs a real device and a real table.
 
-**A seat sitting out is not reachable from the app.** `GameContext` exposes `toggleSittingOut` and
-`@poker/core` implements and tests `sitOut`, but **no component calls it** — there is no control
-anywhere in the dealer UI. The row that used to test it has been dropped rather than left permanently
-unrunnable. Either wire it up or delete the dead path; until then, a player who leaves is handled by
-unseating them and starting a new game.
+**A seat sitting out is not reachable from the app** — there is no control for it, so there is no
+row. The dead code path is tracked in [ROADMAP.md](./ROADMAP.md#minor-cleanups).
 
 ---
 
-## 14. Accounts · **new in 1.2.0, and never once run from the app**
+## 14. Accounts · **new in 1.2.0**
 
-### 14b. Signing in with Apple and Google · **new, and never run**
+Every screen here was written, wired to Cognito and exercised from a script. **The email flow has
+not been completed from inside the app**, which is a different thing — the script never mistyped a
+code, never backgrounded the phone mid-flow, and never had to find the entry point.
+
+**Read this before starting.** The account screens are reachable from Settings, and `backendConfig`
+must point at a real backend or they cannot work at all. If sign-up says the build cannot do it,
+that is the switch, not a bug.
+
+**Partly run on Android, 2026-09-08.** What a laptop can drive was driven; **every row that needs a
+confirmation code is 🚫, because running it needs somebody with an inbox.** Those are the rows the
+feature rests on and they are still outstanding — see the note under the table.
+
+Two defects came out of the part that could be run, and both are fixed:
+
+- **Fixed: the same error was printed twice.** `AccountScreen` keeps one `error` state and rendered
+  it in four places. The "Sign in" card and the "Email and password" card are on screen together
+  once _Use email instead_ is tapped, so a failed email sign-in also printed a red line under the
+  Apple and Google buttons — about a provider nobody had touched.
+- **Fixed: an offline sign-in red-screened a dev build.** The screen handled it in words and then
+  logged at `error`, which LogBox turns into a full-screen overlay. Ordinary auth failures now log
+  at `warn`.
+
+|                                                                                                                                                                                                                                                                    | iOS | Android |
+| ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | --- | ------- |
+| Settings shows the account row, and it opens the account screen                                                                                                                                                                                                    | ⬜  | ✅      |
+| **Sign up with a real address → the code arrives.** This is the row the whole feature rests on: Cognito's own sender was capped and landed in spam, which is why it now goes through SES                                                                           | ⬜  | 🚫      |
+| The code arrives **in the inbox, not spam**, and is from `Poker Blinds Timer`                                                                                                                                                                                      | ⬜  | 🚫      |
+| Confirming with the emailed code signs you in                                                                                                                                                                                                                      | ⬜  | 🚫      |
+| **After confirming, the account can reset its password.** A user confirmed without the emailed code ends up `email_verified: false` and Cognito refuses to send to them at all — it reads as a mail failure and is not one. [See D-note](#accounts-email-verified) | ⬜  | 🚫      |
+| A **wrong code** says so and lets you try again, rather than dead-ending                                                                                                                                                                                           | ⬜  | 🚫      |
+| An **already-taken email** says so in words, not an error code                                                                                                                                                                                                     | ⬜  | 🚫      |
+| A **wrong password** on sign-in says so and does not clear the email field                                                                                                                                                                                         | ⬜  | 🟡      |
+| Sign out, then sign back in — the boards are still there                                                                                                                                                                                                           | ⬜  | 🚫      |
+| **Force-quit mid-sign-up, relaunch** → not signed in and not stuck; signing up again with the same address behaves sanely                                                                                                                                          | ⬜  | 🚫      |
+| **Airplane mode during sign-in** says there is no connection, and does **not** sign you out of an existing session                                                                                                                                                 | ⬜  | 🟡      |
+| **Delete account removes the data, not just the login.** Delete, then sign up again with the same address: no old boards, no old claims. App Store 5.1.1(v) asks for the data as well                                                                              | ⬜  | 🚫      |
+| After deleting, the app still works — local boards intact, timer fine, no crash on next launch                                                                                                                                                                     | ⬜  | 🚫      |
+
+**These 🚫 are a different blocker from the billing rows.** They are not blocked on a store build —
+`DEV_BACKEND` reaches a real Cognito pool and SES has production access, so the flow works. They are
+blocked on **somebody with an inbox**: every one of them turns on receiving a confirmation code, and
+that is the one step no script can do honestly. Run them by hand against `DEV_BACKEND` with a real
+address. They remain the largest untested surface in 1.2.0.
+
+**What the two 🟡 mean:**
+
+- **Wrong password.** The half that could be checked was checked: a failed sign-in **keeps the email
+  field**, which is what the row is really guarding against. The wording of the wrong-password
+  message itself needs an account that exists.
+- **Airplane mode.** Says there is no connection, in words, and keeps what was typed — verified. The
+  second half of the row, that it does **not** sign you out of an existing session, needs a session,
+  so it needs the sign-up rows above first.
+
+<a id="accounts-email-verified"></a>
+
+> **Why the password-reset row is there.** Both smoke accounts were `CONFIRMED` with
+> `email_verified: false`, because they had been confirmed administratively rather than through the
+> emailed code. Cognito then refuses to send to them — _"no registered/verified email"_ — which looks
+> exactly like SES being broken. Real sign-up should set it; this row is what proves it does.
+
+### 14b. Signing in with Apple and Google
 
 **Needs `backendConfig = DEV_BACKEND` and a rebuilt dev client** — `expo-web-browser` and
 `expo-crypto` are native, so a reloaded JS bundle talks to a binary that does not have them.
@@ -703,69 +765,6 @@ nothing in the pool, `no-account-to-link`, a new user. What Hide My Email adds b
 fails silently. Apple's server-to-server notification endpoint is what would tell us, and it is
 deliberately not built — see `ROADMAP.md`.
 
-Every screen here was written, wired to Cognito and exercised from a script. **None of it has been
-used from inside the app**, which is a different thing — the script never mistyped a code, never
-backgrounded the phone mid-flow, and never had to find the entry point.
-
-**Read this before starting.** The account screens are reachable from Settings, and `backendConfig`
-must point at a real backend or they cannot work at all. If sign-up says the build cannot do it,
-that is the switch, not a bug.
-
-**Partly run on Android, 2026-09-08.** What a laptop can drive was driven; **every row that needs a
-confirmation code is 🚫, because running it needs somebody with an inbox.** Those are the rows the
-feature rests on and they are still outstanding — see the note under the table.
-
-Two defects came out of the part that could be run. One is fixed; one is dev-only and deliberately
-left:
-
-- **Fixed: the same error was printed twice.** `AccountScreen` keeps one `error` state and rendered
-  it in four places. The "Sign in" card and the "Email and password" card are on screen together
-  once _Use email instead_ is tapped, so a failed email sign-in also printed a red line under the
-  Apple and Google buttons — about a provider nobody had touched.
-- **Dev-only, not fixed: an offline sign-in red-screens a dev build.** The app handles it correctly
-  in the UI ("Couldn't reach the server. Check your connection.") and then calls `console.error`,
-  which LogBox turns into a full-screen Console Error over the top. Nothing is wrong and release
-  builds have no LogBox — but it looks alarming, and it is the same shape as the bug #219 fixed:
-  treating an ordinary condition as an error. Worth demoting to `warn` at some point.
-
-|                                                                                                                                                                                                                                                                    | iOS | Android |
-| ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | --- | ------- |
-| Settings shows the account row, and it opens the account screen                                                                                                                                                                                                    | ⬜  | ✅      |
-| **Sign up with a real address → the code arrives.** This is the row the whole feature rests on: Cognito's own sender was capped and landed in spam, which is why it now goes through SES                                                                           | ⬜  | 🚫      |
-| The code arrives **in the inbox, not spam**, and is from `Poker Blinds Timer`                                                                                                                                                                                      | ⬜  | 🚫      |
-| Confirming with the emailed code signs you in                                                                                                                                                                                                                      | ⬜  | 🚫      |
-| **After confirming, the account can reset its password.** A user confirmed without the emailed code ends up `email_verified: false` and Cognito refuses to send to them at all — it reads as a mail failure and is not one. [See D-note](#accounts-email-verified) | ⬜  | 🚫      |
-| A **wrong code** says so and lets you try again, rather than dead-ending                                                                                                                                                                                           | ⬜  | 🚫      |
-| An **already-taken email** says so in words, not an error code                                                                                                                                                                                                     | ⬜  | 🚫      |
-| A **wrong password** on sign-in says so and does not clear the email field                                                                                                                                                                                         | ⬜  | 🟡      |
-| Sign out, then sign back in — the boards are still there                                                                                                                                                                                                           | ⬜  | 🚫      |
-| **Force-quit mid-sign-up, relaunch** → not signed in and not stuck; signing up again with the same address behaves sanely                                                                                                                                          | ⬜  | 🚫      |
-| **Airplane mode during sign-in** says there is no connection, and does **not** sign you out of an existing session                                                                                                                                                 | ⬜  | 🟡      |
-| **Delete account removes the data, not just the login.** Delete, then sign up again with the same address: no old boards, no old claims. App Store 5.1.1(v) asks for the data as well                                                                              | ⬜  | 🚫      |
-| After deleting, the app still works — local boards intact, timer fine, no crash on next launch                                                                                                                                                                     | ⬜  | 🚫      |
-
-**These 🚫 are a different blocker from the billing rows.** They are not blocked on a store build —
-`DEV_BACKEND` reaches a real Cognito pool and SES has production access, so the flow works. They are
-blocked on **somebody with an inbox**: every one of them turns on receiving a confirmation code, and
-that is the one step no script can do honestly. Run them by hand against `DEV_BACKEND` with a real
-address. They remain the largest untested surface in 1.2.0.
-
-**What the two 🟡 mean:**
-
-- **Wrong password.** The half that could be checked was checked: a failed sign-in **keeps the email
-  field**, which is what the row is really guarding against. The wording of the wrong-password
-  message itself needs an account that exists.
-- **Airplane mode.** Says there is no connection, in words, and keeps what was typed — verified. The
-  second half of the row, that it does **not** sign you out of an existing session, needs a session,
-  so it needs the sign-up rows above first.
-
-<a id="accounts-email-verified"></a>
-
-> **Why the password-reset row is there.** Both smoke accounts were `CONFIRMED` with
-> `email_verified: false`, because they had been confirmed administratively rather than through the
-> emailed code. Cognito then refuses to send to them — _"no registered/verified email"_ — which looks
-> exactly like SES being broken. Real sign-up should set it; this row is what proves it does.
-
 ---
 
 ## 15. Shared boards (Club) · **new in 1.2.0, needs two devices**
@@ -774,10 +773,9 @@ address. They remain the largest untested surface in 1.2.0.
 every interesting failure — a stale board, a write that never arrives, a member seeing an empty
 board — only shows with two.
 
-**Nothing grants `club` until the subscription exists in both stores.** Until then set
-`FORCE_PRO_IN_DEV` in `PremiumContext.tsx`, which forces both entitlements. Without it the share
-button and join field are simply absent, silently and correctly, which reads exactly like sync being
-broken.
+**A dev client cannot buy `club`.** Set `FORCE_PRO_IN_DEV` in `PremiumContext.tsx`, which forces
+both entitlements. Without it the share button and join field are simply absent, silently and
+correctly, which reads exactly like sync being broken.
 
 **It needs two accounts as well as two devices, and that is the harder half.** Checked on Android
 on 2026-09-09: the share control is gated on `accountsAreReal && account && mayShare &&
@@ -816,7 +814,7 @@ than broken**, which is the shape the guest rows below are about.
 
 ---
 
-## 15b. Reporting, leaving, and the filter · **what guideline 1.2 asks for**
+### 15b. Reporting, leaving, and the filter · **what guideline 1.2 asks for**
 
 Apple's 1.2 wants four things of an app carrying user-generated content: a filter on what goes in, a
 way to report, a way to block, and published contact details. **Three of them had no rows at all**,
@@ -853,38 +851,6 @@ something they already own**, which is the failure that reaches a store review.
 | Nobody is ever told to buy something they hold — check the messages for a Pro-only, a Club-only, and a signed-out account                                         | ⬜  | ⬜      |
 | A **signed-out** person tapping "Join a board" is offered a sign-in, not a paywall and not an empty sheet                                                         | ⬜  | ⬜      |
 
-### 16c. Telling the two purchases apart · **new in 1.2.0**
-
-**The failure these exist for is somebody starting a subscription while meaning to pay once.** Until
-this release both were sold in one amber sheet headed "Pro", behind buttons that all said "Unlock
-Pro", so nothing on screen distinguished a one-time purchase from a recurring one. Everything below
-is about whether a person can tell, before they tap, which of the two they are buying.
-
-|                                                                                                                                                  | iOS | Android |
-| ------------------------------------------------------------------------------------------------------------------------------------------------ | --- | ------- |
-| Settings shows **two separate cards**, Pro badged **One-time** and Club badged **Subscription**                                                  | ⬜  | ⬜      |
-| The two are **visibly different colours** — Pro amber, Club violet — on the cards, the pills and the buttons                                     | ⬜  | ⬜      |
-| Opening the sheet from a **locked Pro feature** puts Pro first, filled; Club is below it and outlined                                            | ⬜  | ⬜      |
-| Opening it from **"See Club"** puts Club first, filled; Pro is below it and outlined                                                             | ⬜  | ⬜      |
-| **Both stay buyable either way** — the unfocused card is outlined, never hidden, and its button still works                                      | ⬜  | ⬜      |
-| Each card says its shape in words: Pro _"paid once … nothing to renew"_, Club _"renews automatically until cancelled"_                           | ⬜  | ⬜      |
-| The **shared clock** row in Settings carries a **CLUB** pill, and the Pro rows carry **PRO** pills — a subscriber sees neither on what they hold | ⬜  | ⬜      |
-| **Groups → the Club offer** appears for a signed-in non-subscriber and opens the sheet on Club                                                   | ⬜  | ⬜      |
-| That offer is **absent on a cold launch until the store answers** — never shown while entitlements are still the default                         | ⬜  | ⬜      |
-| **Start a clock → "See Club"** opens the sheet on Club, and the refusal sentence above it still reads the same                                   | ⬜  | ⬜      |
-| Club is **absent everywhere** with `featureSharing=off` — the Settings card, the groups offer and the clock's button all go                      | ⬜  | ⬜      |
-| Club is **absent everywhere** in a build whose subscriptions are not live — no empty card, no dead button                                        | ⬜  | ⬜      |
-| **The annual plan comes first and is the filled button**; the monthly sits below it, outlined                                                    | ⬜  | ⬜      |
-| The annual carries **"Save N% vs monthly"**, and N is right for the two prices **actually on screen** — work it out by hand and compare          | ⬜  | ⬜      |
-| **The claim is absent rather than wrong** when it cannot be made: only one plan returned by the store, or an annual that is not cheaper          | ⬜  | ⬜      |
-| In a **non-euro storefront** the saving is still correct — the whole reason it is computed from numbers instead of the formatted price strings   | ⬜  | ⬜      |
-| The leaderboard's free text share now reads **"Send a text summary"** and still produces exactly that — a text blob in the system share sheet    | ⬜  | ⬜      |
-| **"Share this board" sits beside it**, violet, for a signed-in non-subscriber, and opens the sheet on Club                                       | ⬜  | ⬜      |
-| For a **Club subscriber** the same button is grey and opens Groups — not the paywall, and not a second invite-minting path                       | ⬜  | ⬜      |
-| It is **absent on a board somebody else hosts.** Inviting to one you are only a member of is refused on role, so selling Club for it is a lie    | ⬜  | ⬜      |
-| It is **absent** with `featureSharing=off`, in a no-backend build, and while signed out                                                          | ⬜  | ⬜      |
-| It is **absent on a cold launch until the store answers** — same rule as the Groups offer                                                        | ⬜  | ⬜      |
-
 ### 16b. Buying Club · **the rows a subscription is rejected over**
 
 **Guideline 3.1.2 is the reason for most of these.** An app selling an auto-renewable subscription
@@ -919,29 +885,37 @@ reaches TestFlight or Play internal testing — before submission, not after it.
 | Cancelling a purchase halfway leaves the sheet usable, with no error — cancelling is not a failure                                                                                                                       | ⬜  | ⬜      |
 | **Restore brings back both entitlements** on a fresh install                                                                                                                                                             | ⬜  | ⬜      |
 
----
+### 16c. Telling the two purchases apart · **new in 1.2.0**
 
-## 16d. Purchases follow the account · **new in 1.2.0, and the riskiest rows here**
+**The failure these exist for is somebody starting a subscription while meaning to pay once.** Until
+this release both were sold in one amber sheet headed "Pro", behind buttons that all said "Unlock
+Pro", so nothing on screen distinguished a one-time purchase from a recurring one. Everything below
+is about whether a person can tell, before they tap, which of the two they are buying.
 
-**This is the section where a defect takes a paying customer's purchase away**, so treat a failure
-here as blocking regardless of how small it looks. Until 1.2.0 an entitlement belonged to the App
-Store or Play account on the phone; it now follows the Cognito `sub`, and the failure modes are
-somebody losing what they bought and somebody inheriting what they did not.
-
-Needs **two app accounts** and, for the cross-platform row, both phones. Sandbox on iOS, a licence
-tester on Play.
-
-|                                                                                                                                                         | iOS | Android |
-| ------------------------------------------------------------------------------------------------------------------------------------------------------- | --- | ------- |
-| **Buy Pro signed out, then sign in — Pro survives.** The anonymous→identified transfer, and the migration every existing owner will run                 | ⬜  | ⬜      |
-| **Sign out — Pro is still there**, with no Restore tapped. `logOut` mints a fresh anonymous user, and the re-read of the store receipt is what saves it | ⬜  | ⬜      |
-| **Delete the account — Pro is still on the phone.** It was paid for at the store, and deletion is not a refund                                          | ⬜  | ⬜      |
-| **Sign in as a second account on the same phone — it does _not_ inherit the first one's Club.** The row that matters most                               | ⬜  | ⬜      |
-| Signing back in as the first account **brings Club back**                                                                                               | ⬜  | ⬜      |
-| **Buy Club signed in, then sign in on the other platform with the same account — Club is there**, with nothing bought twice                             | ⬜  | ⬜      |
-| **Sign in with no network — nothing is wiped.** Entitlements stay as they were and a warning is logged; Pro must not leave the screen                   | ⬜  | ⬜      |
-| RevenueCat's dashboard shows the **Cognito `sub`** as the app user id — never an email                                                                  | ⬜  | ⬜      |
-| A build with **no backend** (`backendConfig` null) still buys and restores Pro exactly as before — nothing here is reachable, and nothing breaks        | ⬜  | ⬜      |
+|                                                                                                                                                  | iOS | Android |
+| ------------------------------------------------------------------------------------------------------------------------------------------------ | --- | ------- |
+| Settings shows **two separate cards**, Pro badged **One-time** and Club badged **Subscription**                                                  | ⬜  | ⬜      |
+| The two are **visibly different colours** — Pro amber, Club violet — on the cards, the pills and the buttons                                     | ⬜  | ⬜      |
+| Opening the sheet from a **locked Pro feature** puts Pro first, filled; Club is below it and outlined                                            | ⬜  | ⬜      |
+| Opening it from **"See Club"** puts Club first, filled; Pro is below it and outlined                                                             | ⬜  | ⬜      |
+| **Both stay buyable either way** — the unfocused card is outlined, never hidden, and its button still works                                      | ⬜  | ⬜      |
+| Each card says its shape in words: Pro _"paid once … nothing to renew"_, Club _"renews automatically until cancelled"_                           | ⬜  | ⬜      |
+| The **shared clock** row in Settings carries a **CLUB** pill, and the Pro rows carry **PRO** pills — a subscriber sees neither on what they hold | ⬜  | ⬜      |
+| **Groups → the Club offer** appears for a signed-in non-subscriber and opens the sheet on Club                                                   | ⬜  | ⬜      |
+| That offer is **absent on a cold launch until the store answers** — never shown while entitlements are still the default                         | ⬜  | ⬜      |
+| **Start a clock → "See Club"** opens the sheet on Club, and the refusal sentence above it still reads the same                                   | ⬜  | ⬜      |
+| Club is **absent everywhere** with `featureSharing=off` — the Settings card, the paywall's Club card, the groups offer and the clock's button    | ⬜  | ⬜      |
+| Club is **absent everywhere** in a build whose subscriptions are not live — no empty card, no dead button                                        | ⬜  | ⬜      |
+| **The annual plan comes first and is the filled button**; the monthly sits below it, outlined                                                    | ⬜  | ⬜      |
+| The annual carries **"Save N% vs monthly"**, and N is right for the two prices **actually on screen** — work it out by hand and compare          | ⬜  | ⬜      |
+| **The claim is absent rather than wrong** when it cannot be made: only one plan returned by the store, or an annual that is not cheaper          | ⬜  | ⬜      |
+| In a **non-euro storefront** the saving is still correct — the whole reason it is computed from numbers instead of the formatted price strings   | ⬜  | ⬜      |
+| The leaderboard's free text share now reads **"Send a text summary"** and still produces exactly that — a text blob in the system share sheet    | ⬜  | ⬜      |
+| **"Share this board" sits beside it**, violet, for a signed-in non-subscriber, and opens the sheet on Club                                       | ⬜  | ⬜      |
+| For a **Club subscriber** the same button is grey and opens Groups — not the paywall, and not a second invite-minting path                       | ⬜  | ⬜      |
+| It is **absent on a board somebody else hosts.** Inviting to one you are only a member of is refused on role, so selling Club for it is a lie    | ⬜  | ⬜      |
+| It is **absent** with `featureSharing=off`, in a no-backend build, and while signed out                                                          | ⬜  | ⬜      |
+| It is **absent on a cold launch until the store answers** — same rule as the Groups offer                                                        | ⬜  | ⬜      |
 
 ---
 
