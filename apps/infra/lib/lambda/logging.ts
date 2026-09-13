@@ -114,6 +114,5 @@ export const log = (
   // `console` is the only transport a Lambda has to CloudWatch, and CloudWatch
   // is where these are read: Logs Insights parses JSON out of a line for free,
   // so `filter accountId = "..."` is an answer where a sentence is a shrug.
-  // eslint-disable-next-line no-console
   console.log(JSON.stringify(logLine(level, message, fields)));
 };

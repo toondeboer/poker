@@ -204,7 +204,10 @@ export function SharedSessionProvider({
     } finally {
       setBusy(false);
     }
-  }, [listen]);
+    // The refusal is a dependency, not decoration. The provider first renders
+    // signed out with entitlements unknown, so a callback memoized without it
+    // keeps that first refusal forever and turns away a signed-in subscriber.
+  }, [listen, hostRefusalText]);
 
   const join = useCallback(
     async (typed: string): Promise<JoinError | null> => {
@@ -230,7 +233,7 @@ export function SharedSessionProvider({
         setBusy(false);
       }
     },
-    [listen],
+    [listen, joinRefusalText],
   );
 
   const publish = useCallback(

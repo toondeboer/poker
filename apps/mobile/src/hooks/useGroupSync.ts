@@ -224,7 +224,7 @@ export const useGroupSync = (): GroupSync => {
       .finally(() => {
         draining.current = false;
       });
-  }, [update, enabled]);
+  }, [update, enabled, wantPull]);
 
   const record = useCallback(
     (write: PendingWrite) => {
@@ -395,7 +395,7 @@ export const useGroupSync = (): GroupSync => {
       wantPull();
     });
     return () => subscription.remove();
-  }, [syncNow]);
+  }, [syncNow, wantPull]);
 
   /**
    * And whenever somebody signs in.

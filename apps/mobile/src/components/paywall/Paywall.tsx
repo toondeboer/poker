@@ -12,6 +12,8 @@ import {
 import { annualSavingPercent, SITE_URL } from "@poker/core";
 import { colors, radius, space, text } from "@/src/theme";
 import { usePremium } from "@/src/contexts/PremiumContext";
+import { useFeatures } from "@/src/contexts/FeaturesContext";
+import { accountsAreReal } from "@/src/contexts/AuthContext";
 import { Sheet } from "@/src/components/ui/Sheet";
 
 /**
@@ -103,6 +105,7 @@ export function Paywall({
     purchaseClub,
     restore,
   } = usePremium();
+  const features = useFeatures();
   const [error, setError] = useState<string | null>(null);
 
   // Re-attempt the price every time the sheet opens. The launch-time fetch can
@@ -146,8 +149,14 @@ export function Paywall({
    * nobody can buy is worse than saying nothing — and a subscriber is shown the
    * card even with the fetch empty, because they still need the renewal terms
    * and the links to them.
+   *
+   * **And absent wherever Club cannot be used**, on the same terms as
+   * `ClubCard`: a build with no backend, or the kill switch turned off. Every
+   * locked Pro feature opens this sheet, so without that gate it would go on
+   * selling a subscription whose only features had just been switched off.
    */
-  const showClub = clubPlans.length > 0 || hasClub;
+  const showClub =
+    hasClub || (accountsAreReal && features.sharing && clubPlans.length > 0);
   const clubFocused = focus === "club" && showClub;
 
   /**

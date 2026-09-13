@@ -1152,6 +1152,16 @@ platform-tagged heading (e.g. `## [1.1.3] - 2026-07-20 — Android`) when you cu
 
 ### Fixed
 
+- **A signed-in subscriber can actually start or join a shared clock.** Both actions checked the
+  sign-in and Club refusal as it stood when the app launched — signed out, entitlements unknown —
+  and never looked again, so every attempt came back "not allowed" however long ago the person had
+  signed in and paid — the button was enabled, and tapping it said _"That isn't available on this
+  account."_ Found in review before any device had run §18, which is the only reason it never
+  reached a store.
+- **The paywall stops selling Club where Club cannot be used.** Settings' Club card already hid
+  itself with the kill switch off or with no backend; the paywall, which every locked Pro feature
+  opens, did not — so switching sharing off left a subscription on sale whose only features had just
+  been switched off.
 - **The shared clock can be reached.** The screen, the `/sessions` routes and the polling transport
   all shipped in 1.2.0. The row that opens it did not: the route was registered while there was
   still no transport behind it — a join code nobody else can join being worse than none — and when
