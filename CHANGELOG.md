@@ -1064,6 +1064,25 @@ platform-tagged heading (e.g. `## [1.1.3] - 2026-07-20 — Android`) when you cu
   Cutting step 6 says to run "whatever rows are marked 🚫" on the store build, which is true of 14
   cells and wrong about the rest. The legend now says which is which.
 
+- **The testing checklist stopped miscounting itself, and now records how to count.** It described
+  itself as "236 rows … 472 cells, of which 29 are ✅" and "209 of the 236 rows have no result" —
+  both written before §16c and §16d existed. Measured: **268 rows, 536 cells — ⬜ 468 · ✅ 29 · 🚫 21
+  · ➖ 14 · 🟡 4**, with **204 rows carrying no result on either platform** and **2 passed on both**.
+
+  **Three of its numbers were wrong in three different ways**, which is why the method is now written
+  down beside them rather than just the answer. An early estimate of 35 ✅ matched neither rows nor
+  cells; 236/472 simply went stale; and a recount during this change reported 266/27 because the
+  regex demanded a status cell contain _only_ an emoji — silently dropping the two rows whose cells
+  read `⬜ **never verified**`. The recorded method is to split each row on `|`, take the last two
+  fields, and count only where both hold a status emoji and little else.
+
+  Two claims sitting beside those numbers were wrong too. **§1's blocked cells are 7, not 11** (the
+  other 🚫 are §9's 2, §13's 2 and §14's 10 — 21 altogether), and §14's ten are waiting on a **real
+  inbox rather than a store build**, which is the 🚫-means-four-things problem the legend already
+  admits to. And **§14 was listed as never run at all**: §14b's nine provider rows carry ten ✅ from
+  the iOS Simulator run on 2026-09-07 that the same file writes up two paragraphs later. §15, §18 and
+  §19 remain genuinely untouched — 21, 16 and 10 rows, not one ✅ between them.
+
 ### Removed
 
 - **The server-side poker table is gone**, and with it the AppSync Events realtime bus. It was a
