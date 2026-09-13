@@ -95,6 +95,15 @@ and [ARCHITECTURE.md](./ARCHITECTURE.md) for the full design.
   (`react-hooks/refs`) and no `setState` in an effect body (`react-hooks/set-state-in-effect`). To
   sync state from a prop, adjust it during render behind a previous-value comparison rather than in
   a `useEffect` — see `DurationField` and `GenerateStructureSheet`.
+- **`react-hooks/exhaustive-deps` is only a warning here, and ignoring one shipped a dead feature
+  to the release branch.** `SharedSessionContext`'s `startHosting`/`join` left the Club and sign-in
+  refusals out of their `useCallback` deps, so they kept the first render's answer — signed out —
+  and refused every subscriber. Don't add a new warning; if an omission is deliberate, disable the
+  rule on that line with the reason. The four left in the timer code are tracked in `ROADMAP.md`.
+- **Billing: `Purchases.restorePurchases()` only ever runs from a user's tap.** RevenueCat says it
+  can raise an OS sign-in prompt, and under the project's transfer behaviour it _moves_ purchases
+  between app user ids. Programmatic re-reads use `syncPurchases`. Why account-linked purchases
+  were pulled from 1.2.0 is in `ROADMAP.md`.
 
 ## Release process
 
@@ -107,12 +116,8 @@ Mobile releases are batched on a short-lived branch per version, not shipped str
   _website's_ production branch** — the Vercel project deploys on every push to it (see
   [README.md](./README.md#deploy)), so web and docs changes must land there to ship, and they ship
   continuously.
-  - This used to read "`main` always matches what's actually live in the App Store", which was never
-    compatible with the web deploying from the same branch: every web fix would have had to wait
-    behind a pending mobile review. Predictably, it didn't hold — `main` was 21 commits ahead of
-    `v1.1.3` by the time 1.1.4 was cut, almost all of it web, docs and Dependabot, i.e. changes that
-    _belonged_ there. The rule was wrong, not the commits, and pointing "what's live" at the tag
-    fixes it without asking anyone to hold web releases hostage to the App Store.
+  - It used to be "`main` matches the App Store", which could never hold with the website deploying
+    from `main`: every web fix would have waited behind a mobile review.
   - Never version-bump, tag, or `eas submit` from `main` directly — those happen on the release
     branch, so that a mobile submission is always a deliberate act on a known set of commits.
   - The consequence to keep in mind: **`main` is not a buildable "what shipped" for mobile.** Don't
@@ -142,8 +147,8 @@ Mobile releases are batched on a short-lived branch per version, not shipped str
     anything in `packages/core` that mobile consumes, and **dependency bumps that mobile bundles**
     (`expo*`, `react-native*`, `react`, `react-native-purchases`, …) target it instead. Those change
     what gets submitted, so they belong to a version and want the release's testing pass.
-  - **Always `main`, release branch or not:** `apps/web`, **docs**, CI, and tooling-only or web-only
-    dependency bumps. Docs and Dependabot may be **pushed straight to `main` without a PR** — they
+  - **Always `main`, release branch or not:** `apps/web`, **docs** (except the release's own — next
+    bullet), CI, and tooling-only or web-only dependency bumps. Docs and Dependabot may be **pushed straight to `main` without a PR** — they
     can't change a binary, and a PR for a typo fix is ceremony. (Everything touching `apps/mobile`
     or `packages/core` still goes through review.)
   - **The one exception: web copy that describes an unreleased app targets the release branch.**
@@ -155,6 +160,14 @@ Mobile releases are batched on a short-lived branch per version, not shipped str
     weeks before being retargeted. The cost is web files in the mobile RC diff, which is noise and
     nothing more: `apps/web` cannot change a binary. **A web fix still goes straight to `main`** —
     this is only for copy that would be lying until the store catches up.
+  - **The same carve-out covers the release's own docs:** `CHANGELOG.md` entries for what the
+    release branch carries, `RELEASE_TESTING.md`, the release section of `ROADMAP.md`, and
+    `STORE_LISTING.md` copy for the unreleased version. They describe a binary that only exists on
+    that branch. **Anything touching `CHANGELOG.md` on `main` after the cut conflicts with the RC
+    PR** — the release branch has rolled `[Unreleased]` into a version heading and `main` has not.
+    #258 did exactly this. Resolve it on a branch cut from the release branch with
+    `git merge origin/main`, PR it into the release branch, and merge that PR with a **merge
+    commit**: a squash drops `main` from the ancestry and the RC PR stays conflicted.
   - **Dependabot targets `main`, and that's correct** — don't set `target-branch` in
     `.github/dependabot.yml` to redirect it. Two reasons: a per-version branch is deleted at ship
     time, so the pin goes stale every cycle and errors in between; and `target-branch` only
@@ -186,7 +199,9 @@ Mobile releases are batched on a short-lived branch per version, not shipped str
   lands it (Keep a Changelog format) — no exceptions, don't defer this to release time, or the
   changelog stops being a reliable diff of what changed. Entries keep accumulating there across
   however many PRs land before the release ships; don't roll them into a dated heading until the
-  release is actually being cut (last step below).
+  release is actually being cut (last step below). **After the cut**, a PR into the release branch
+  adds its entry under that version's heading, not `[Unreleased]` — the heading is the release, and
+  its date is corrected to the ship date at step 8.
 - **Renaming a release branch closes its standing RC PR — it does not retarget it.** GitHub's
   branch-rename API (`gh api -X POST repos/{owner}/{repo}/branches/<old>/rename -f new_name=<new>`)
   moves the branch and retargets pull requests that _point at_ it, but the RC PR's **head** is that
@@ -201,14 +216,17 @@ Mobile releases are batched on a short-lived branch per version, not shipped str
   exist — don't merge it until the release
   actually ships. It's the running release-candidate diff, not a normal feature PR. Every time
   something merges into `release/<version>`, update this PR's description so it still reflects
-  what's in the release — easiest way is to mirror the current `[Unreleased]` section of
-  `CHANGELOG.md` into it (`gh pr edit <number> --body "..."`).
+  what's in the release (`gh pr edit <number> --body "..."`). Mirroring the changelog works for a
+  small release; 1.2.0's section passed GitHub's 65,536-character body limit, so for a large one
+  summarise the shape and link the changelog. Keep its status lines — which candidate is built,
+  from which commit, what superseded it — current, because that is what the PR is read for.
 - **CI never runs on the release branch itself.** `.github/workflows/ci.yml` triggers on
   `pull_request` and on `push` to `main`, so every run you see against `release/<version>` is a PR
   run against a _proposed_ merge. The merged combination that actually becomes the binary is tested
   by nobody — four PRs that each passed alone can still be broken together, and the first thing to
   find out would be an EAS build failing twenty minutes in. Run the suite on the release branch
   before building: `npm run typecheck && npm run lint && npm run test && npm run format:check`.
+  (Adding `release/**` to the workflow's push branches is tracked in `ROADMAP.md`.)
 - **Cutting the release**, once everything intended for it is merged into `release/<version>`:
   1. Bump native version files for whichever platform(s) are shipping. The marketing version
      lives in **`apps/mobile/ios/PokerTimer/Info.plist`** (`CFBundleShortVersionString`,
@@ -224,15 +242,14 @@ Mobile releases are batched on a short-lived branch per version, not shipped str
   2. Roll the accumulated `[Unreleased]` entries into a dated heading (e.g.
      `## [1.1.3] - 2026-07-20 — Android`, or `— iOS & Android` when both platforms ship together
      in one heading), add the compare link at the bottom.
-  3. **Clear the finished work out of `ROADMAP.md` and `RELEASE_TESTING.md`.** Neither is a
-     record — `CHANGELOG.md` and git history are. Delete every ✅ item from `ROADMAP.md` (an item
-     that shipped is described in the changelog and reasoned about in its commit; keeping it here
-     just buries what's actually open — the file was 1,044 lines and almost none of it was work),
-     and reset `RELEASE_TESTING.md`'s rows to ⬜, dropping the defect write-ups and the pass log.
-     What survives in both is only what's still open, accepted (🟡), or durable — a
-     known-and-accepted entry, a blocker explaining _why_ a row can't be run locally. Anything carried into the next version (a fix that shipped untested, say)
-     moves to a "Carried over from `<version>`" section at the top of `ROADMAP.md`, so it can't be
-     lost between cycles.
+  3. **Clear the finished work out of `ROADMAP.md`.** It is not a record — `CHANGELOG.md` and git
+     history are. Delete every ✅ item (an item that shipped is described in the changelog and
+     reasoned about in its commit; keeping it here just buries what's actually open). What
+     survives is what's still open, accepted (🟡), or a decision record other files cite. Anything
+     carried into the next version (a fix that shipped untested, say) moves to a "Carried into
+     `<next version>`" section near the top, so it can't be lost between cycles. **Do not reset
+     `RELEASE_TESTING.md` here** — this release's pass has not finished, and step 6 needs its 🚫
+     rows. That happens at step 9.
   4. Commit those release-prep changes on the release branch.
   5. `eas build` **from the release branch, and from a clean tree** — which is a stronger
      requirement than having the right branch checked out. `eas.json` sets no `cli.requireCommit`,
@@ -292,16 +309,20 @@ Mobile releases are batched on a short-lived branch per version, not shipped str
        Review" there is the whole of it. Add the Club subscription group and both subscriptions to
        that same submission — Apple approves a first auto-renewable subscription only alongside an
        app version, so waiting for them to be approved first waits for something that cannot happen.
-  8. Once the release is actually live: merge the standing `release/<version>` → `main` PR (update
-     its description one last time first), then tag the built commit — not just wherever
+  8. Once the release is actually live: correct the version heading's date in `CHANGELOG.md` to
+     the ship date, merge the standing `release/<version>` → `main` PR (update its description one
+     last time first), then tag the built commit — not just wherever
      the version string changed, since one version number can span several commits before the one
      that actually ships:
      `git tag -a v<version> <built-commit-sha> -m "v<version> (<platform>, build <n>)"` then
      `git push origin v<version>`. Find the built commit via `eas build:view <id>` or the EAS
      build page. **The tag is what "live" means now** (see the top of this section), so it has to
      point at the commit that was actually built, not at the merge.
-  9. Delete `release/<version>`. Cut the next `release/<version>` from the new `main` tip when you
-     start batching the next round of work.
+  9. Delete `release/<version>`, and reset `RELEASE_TESTING.md` on `main`: every row back to ⬜,
+     the defect write-ups and the pass log dropped, keeping only known-and-accepted entries and the
+     notes explaining _why_ a row cannot be run locally. `npm run testing:status` shows what is
+     left; never write a count into the file. Cut the next `release/<version>` from the new `main`
+     tip when you start batching the next round of work.
 - **Hotfixing the live version while a release branch is mid-cycle**: branch `hotfix/<version>`
   **from the `v<version>` tag of what's actually live** — `git checkout -b hotfix/1.1.5 v1.1.4` —
   not from `main` and not from the active release branch. Neither of those is what shipped: `main`
@@ -525,28 +546,13 @@ style/Theme.EdgeToEdge`/`Theme.SplashScreen ... not found` during `processDebugR
   removed the Podfile `ENV` lines — restore them rather than just reverting the lock file.
 - **Keep `ios.supportsTablet: true`.** The app shipped universal (iPhone + iPad); an update that
   drops iPad is rejected at upload with App Store error 90101.
-- **Fixed: Android could crash with `java.lang.NullPointerException` when the activity was
-  paused/resumed/reconfigured before the JS bridge finished attaching** (e.g. backgrounded within
-  the first second of a cold dev-client launch — reliably reproducible via rapid `adb shell am
-force-stop` + `am start` cycles, which showed it 100% of the time, not just as an occasional
-  race). Real root cause: **`com.facebook.react.ReactActivityDelegate`'s** own
-  `onUserLeaveHint()`/`onPause()`/`onResume()`/`onDestroy()`/`onActivityResult()`/
-  `onWindowFocusChanged()`/`onConfigurationChanged()` all do
-  `Objects.requireNonNull(mReactDelegate).xxx(...)` with no null-check, and `mReactDelegate` isn't
-  set until the underlying `ReactDelegate` has attached — this is `react-native` itself
-  (`ReactActivityDelegate.java`), not `expo`'s `ReactActivityDelegateWrapper.kt` (which just awaits
-  `loadAppReady` and forwards to the real delegate; an earlier version of this note incorrectly
-  placed the bug there). Can't be patched at the vendored-source level: `com.facebook.react:
-react-android` resolves as a **prebuilt AAR from Maven** (`~/.gradle/caches/modules-2/files-2.1/
-com.facebook.react/react-android/`), not compiled from `node_modules/react-native/ReactAndroid`
-  — editing that source tree (e.g. via `patch-package`) has zero effect on the compiled app, since
-  no `:ReactAndroid` Gradle task ever runs (confirmed by grepping a full build log for it — nothing
-  matches). **Fix:** override all seven of those lifecycle methods in our own `MainActivity.kt`
-  (`apps/mobile/android/app/src/main/java/com/toondeboer/pokerkit/MainActivity.kt`), wrapping each
-  `super.<method>()` call in a try/catch for `NullPointerException` via a small `guardReactLifecycle`
-  helper. Safe because Android's own `Activity`-level handling for each of these already runs
-  synchronously _first_ inside `super.<method>()`, before the react-native-specific call that can
-  throw — catching only skips react-native's own bookkeeping for an instance that was never
-  attached, never any real OS-level lifecycle work. Verified with the same rapid force-stop/start
-  reproduction: 10/10 clean (previously 5/5 and 8/8 crashed) on a `Pixel_stable` API 35 emulator,
-  app fully usable afterward.
+- **Keep the `guardReactLifecycle` overrides in `MainActivity.kt`.** React Native's own
+  `ReactActivityDelegate` calls `Objects.requireNonNull(mReactDelegate)` in seven lifecycle methods
+  (`onPause`, `onResume`, `onDestroy`, `onUserLeaveHint`, `onActivityResult`,
+  `onWindowFocusChanged`, `onConfigurationChanged`), so an activity paused before the bridge attached
+  crashed with an NPE — 100% reproducible with rapid `adb shell am force-stop` + `am start`.
+  `MainActivity` overrides all seven and catches only that NPE after Android's own `Activity` work
+  has already run inside `super`. **Don't try to fix it with `patch-package`** on
+  `node_modules/react-native/ReactAndroid`: `react-android` comes from Maven as a prebuilt AAR, so
+  that source is never compiled. The bug is in `react-native`, not Expo's
+  `ReactActivityDelegateWrapper`.

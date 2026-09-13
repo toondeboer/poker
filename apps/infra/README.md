@@ -134,7 +134,7 @@ destroy`; a direct `DeleteTable` call is untouched by it, and this account also 
 table — the AppSync Events API, both channel namespaces, `TableAction`, `SubscribeAuthorizer` and
 the by-hand SigV4 signing — was deleted before 1.2.0 shipped, along with the betting engine it
 enforced. See the
-Gambling classification section in [`ROADMAP.md`](../../ROADMAP.md#gambling-classification--blocking-120),
+Gambling classification section in [`ROADMAP.md`](../../ROADMAP.md#gambling-classification--the-rating-record),
 and the `archive/betting-engine` tag for the code.
 
 One idea from it is worth keeping in writing, because anything that replaces it will face the same
@@ -228,7 +228,7 @@ are needed.
 **This used to have a push side.** A table-action Lambda published to AppSync Events and the app
 subscribed to it; that whole path was removed before 1.2.0 shipped — it had no client, and the
 betting engine it enforced is simulated gambling under Apple's definition. See the Gambling
-classification section in [`ROADMAP.md`](../../ROADMAP.md#gambling-classification--blocking-120)
+classification section in [`ROADMAP.md`](../../ROADMAP.md#gambling-classification--the-rating-record)
 and the `archive/betting-engine` tag. The reasoning below is kept because it is about the HTTP
 side, which is unchanged.
 
@@ -750,7 +750,7 @@ half — the offline queue, the merge, and somewhere to say a queued write was r
 AppSync Events bus, a subscribe authorizer guarding hole cards, and no client. It was deleted before
 1.2.0 shipped: betting chips is simulated gambling under Apple's definition, which forces an 18+
 rating and, on an Individual developer account, may prevent submission at all. See the Gambling
-classification section in [ROADMAP.md](../../ROADMAP.md#gambling-classification--blocking-120), and
+classification section in [ROADMAP.md](../../ROADMAP.md#gambling-classification--the-rating-record), and
 the `archive/betting-engine` tag for the code. **The shared clock is the one casualty**: it was
 waiting on a `session` namespace for a bus that existed, and the bus is gone, so it now needs that
 stood back up too.

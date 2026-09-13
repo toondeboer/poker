@@ -26,7 +26,7 @@ Lambda, so there is no second implementation to keep in step.
 This used to say more: the _poker rules_ ran in both places, so a client predicting its own action
 was running the same function as the authority that decided it. That was true of a server-authoritative
 betting engine, and both halves of it are gone — see the Gambling classification section in
-[`ROADMAP.md`](./ROADMAP.md#gambling-classification--blocking-120).
+[`ROADMAP.md`](./ROADMAP.md#gambling-classification--the-rating-record).
 
 ## Repository layout
 
@@ -130,7 +130,7 @@ and correct with **no client at all**, because the app half was never built. It 
 1.2.0 shipped, along with the betting engine it enforced: wagering chips is simulated gambling
 under Apple's definition, which forces an 18+ rating and, on an Individual developer account, may
 prevent submission entirely. See the Gambling classification section in
-[`ROADMAP.md`](./ROADMAP.md#gambling-classification--blocking-120), and the
+[`ROADMAP.md`](./ROADMAP.md#gambling-classification--the-rating-record), and the
 `archive/betting-engine` tag for the code.
 
 What the app reaches: Cognito sign-up/sign-in and `GET /me`, `GET /config` (the kill switch), the

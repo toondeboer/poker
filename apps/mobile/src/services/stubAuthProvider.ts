@@ -22,14 +22,12 @@ export const RECOVERABLE_APP_KEYS: readonly string[] = [STORAGE_KEY];
  * checked. Any password of a legal length signs any address in, and the same
  * address on another phone is a different person entirely.
  *
- * It exists so the account screens can be built and looked at before the
- * backend is deployed. That is also why **nothing links to those screens** —
- * see ROADMAP.md. Shipping a sign-up form that signs nobody up is worse than
- * shipping no sign-up form, so the entry point is deliberately absent until
- * there is something behind it.
- *
- * When Cognito is live, this file is replaced and nothing above it changes:
- * that is what the {@link AuthProvider} seam is for.
+ * **Only used by a build with no backend** (`backendConfig === null`); every
+ * build with one talks to Cognito through `cognitoAuthProvider`, behind the
+ * same {@link AuthProvider} seam. In such a build `accountsAreReal` is false,
+ * so Settings shows no Account row at all (`AccountCard`) — a sign-up form that
+ * signs nobody up is worse than none — and the screen is reachable only by
+ * deep link.
  */
 export const stubAuthProvider: AuthProvider = {
   async currentAccount(): Promise<Account | null> {

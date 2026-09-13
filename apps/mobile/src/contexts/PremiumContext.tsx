@@ -92,11 +92,11 @@ export function PremiumProvider({
 }: Readonly<{ children: React.ReactNode }>) {
   const [isPremium, setIsPremium] = useState(FORCE_PRO_IN_DEV);
   /**
-   * Forced alongside Pro in development, and **this is currently the only way
-   * to exercise sharing at all**: nothing grants `club` yet, so a dev build
-   * without this announces no board, queues no write and shows no share button
-   * — silently, and correctly. `ROADMAP.md` says so next to the testing rows,
-   * because otherwise it reads exactly like sync being broken.
+   * Forced alongside Pro in development, and **this is the only way to
+   * exercise sharing from a dev client**: a dev client cannot buy `club`, so
+   * without it a build announces no board, queues no write and shows no share
+   * button — silently, and correctly. `ROADMAP.md` says so, because otherwise it
+   * reads exactly like sync being broken.
    */
   const [hasClub, setHasClub] = useState(FORCE_PRO_IN_DEV);
   const [ownsProOutright, setOwnsProOutright] = useState(FORCE_PRO_IN_DEV);

@@ -654,6 +654,14 @@ platform-tagged heading (e.g. `## [1.1.3] - 2026-07-20 — Android`) when you cu
 
 ### Changed
 
+- **The release docs were checked against the binary before shipping.** `RELEASE_TESTING.md` stops
+  carrying hand-written counts — `npm run testing:status` measures them — gains the shortest pass a
+  release should not ship without, and puts §14 and §16 back in order; `ROADMAP.md` loses the
+  finished work it had kept and gains what the review found; `CLAUDE.md` no longer tells the cut to
+  reset a checklist that step 6 still needs, and says where the release's own docs go. The store
+  descriptions stop saying an account "only takes an email", and the notes for review stop
+  describing a paywall that no longer exists.
+
 - **Pro and Club are now two purchases on screen, because they are two purchases.** They were sold
   in one amber sheet headed _"Poker Blinds Buzzer Pro"_, reached from buttons that every one of them
   said "Unlock Pro", with the subscription bolted on underneath. Nothing distinguished them — same
