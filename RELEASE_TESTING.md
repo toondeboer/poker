@@ -149,7 +149,7 @@ build. Only the first row of that table is what it means.
 
 ## Running the pass: what needs what
 
-**236 rows, most wanting both platforms** — 472 cells, of which 29 are ✅ today. The cost is **setup churn**: flipping
+**268 rows, most wanting both platforms** — 536 cells, of which 29 are ✅ today. The cost is **setup churn**: flipping
 entitlements, switching backends, signing two accounts in on two devices. Grouped so each setup is
 paid for once.
 
@@ -207,17 +207,30 @@ because everything was unlocked.
 
 ### Where the risk actually is
 
-- **209 of the 236 rows have no result on either platform**, and only 2 are passed everywhere they
+- **204 of the 268 rows have no result on either platform**, and only 2 are passed everywhere they
   apply. Read any plan that says otherwise against this number, and re-measure rather than
-  estimating: the number quoted before this pass was 35 ✅, which matched neither the rows nor the
-  cells.
+  estimating. **This file's own counts have now been wrong three times**, so the method matters more
+  than the number:
+  - _35 ✅_ was quoted before the 2026-09-11 pass, and matched neither the rows nor the cells.
+  - _236 rows / 472 cells_ was written here and repeated in #147, and predated §16c and §16d.
+  - _266 rows / 27 ✅_ came from counting with a regex that required a status cell to hold **only**
+    an emoji — which silently dropped the two rows whose cells read `⬜ **never verified**`.
+  - **Measure like this**: split each table row on `|`, take the last two fields, and count a row
+    only when both of them contain a status emoji and little else. Attribute nothing by eye.
 - **§11–§13 are 54 rows** and cover what this release invented. If time runs short, short-change
   something else.
-- **§14, §15, §18 and §19 have never been run at all**, from any build, on any platform.
+- **§15, §18 and §19 have never been run at all**, from any build, on any platform — 21, 16 and 10
+  rows, not one of them ✅. **§14 used to be named here and does not belong**: §14b's nine provider
+  rows carry **ten ✅** from the iOS Simulator run on 2026-09-07, written up directly beneath that
+  table, and one row of §14's own account table is ✅ as well. What is true of §14 is narrower and
+  worth saying exactly — its thirteen account rows are otherwise unrun, and ten of their cells are 🚫
+  for want of a real inbox.
 - **Android has seen almost none of this.** Several features were checked on an iOS Simulator only,
   and synthetic taps do not exist here — assume the first real Android tap finds something.
-- **§1 blocks submission** and cannot start until the build is on a track: 11 cells are 🚫 for that
-  reason. It is the long pole, not the big one.
+- **§1 blocks submission** and cannot start until the build is on a track: **7 cells** across §1 and
+  §1b are 🚫 for that reason (this said 11). It is the long pole, not the big one. The other 🚫 are
+  §9's 2, §13's 2 and §14's 10 — 21 in the file altogether. **§14's ten are blocked on a real inbox,
+  not on a store build**, which is the 🚫-means-four-things problem the legend already admits to.
 
 ### Rows that cover a fix made on 2026-09-04
 
