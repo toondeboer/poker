@@ -1344,6 +1344,9 @@ platform-tagged heading (e.g. `## [1.1.3] - 2026-07-20 — Android`) when you cu
   expo CLI resolves that package from its own nested location — so every one of those commands died
   with `Cannot find module 'expo-router/_ctx-shared'` before Metro served anything. The scripts now
   set `NODE_PATH`, which appends the workspace's own `node_modules` to the CLI's lookup path.
+- **The support page's money sentence survives the release.** It said the only money the app
+  handles is "its own one-time Pro purchase", which stops being true the moment Club exists; it now
+  says "its own in-app purchases". Shipped to the website from `main` ahead of the app (#258).
 
 ## [1.1.4] - 2026-08-19 — iOS & Android
 
