@@ -1083,6 +1083,23 @@ platform-tagged heading (e.g. `## [1.1.3] - 2026-07-20 — Android`) when you cu
   the iOS Simulator run on 2026-09-07 that the same file writes up two paragraphs later. §15, §18 and
   §19 remain genuinely untouched — 21, 16 and 10 rows, not one ✅ between them.
 
+- **The iOS subscription review screenshot has been re-shot, and is tracked this time.** Apple asks
+  for a screenshot of the purchase UI with each subscription, and the one that existed showed the
+  **pre-redesign** sheet — a single amber card headed "Pro" with Club bolted on below the fold. It
+  was also sitting untracked in the working tree, which meant `git status --untracked-files=all`
+  could not print nothing, and cutting step 5 requires exactly that before `eas build`, because
+  eas-cli uploads uncommitted _and untracked_ files while still recording `HEAD` as the commit.
+
+  The replacement lives at `store-assets/ios/paywall-club-review.png`, **tracked**, beside the
+  Android feature graphic that was already there. It shows the sheet opened on Club: both plan
+  names, both periods, both prices, the renewal sentence naming the App Store, and the Terms and
+  Privacy links — everything guideline 3.1.2 wants to see in one frame, with no scrolling. The same
+  file serves both `club_monthly` and `club_yearly`, since it is the same purchase UI.
+
+  It also happens to be evidence that the annual's saving is computed rather than written down: the
+  capture reads **"Save 50% vs monthly"** on a US storefront — `1 − 17.99 ÷ (2.99 × 12)` — where the
+  euro prices give 44%.
+
 ### Removed
 
 - **The server-side poker table is gone**, and with it the AppSync Events realtime bus. It was a
