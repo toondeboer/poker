@@ -1167,7 +1167,8 @@ platform-tagged heading (e.g. `## [1.1.3] - 2026-07-20 — Android`) when you cu
   on a board used to show the server's "no such group"; it now says you are not on the board any
   more. A code that no longer works talks about an invite rather than a "link", since the app
   shares codes. Somebody who can only join boards is no longer told to "add another group", and the
-  remove-member button stops reading "who joined Joined" to a screen reader.
+  remove-member button stops reading "who joined Joined" to a screen reader. The timer's reset button,
+  an icon with no label, now announces itself as "Reset round".
 - **Removing a player or deleting a game on a shared board removes it for everybody.** It never
   did: the app had no call to the server's delete routes, so the player or game disappeared from the
   phone that removed it and stayed on every other phone at the table — and on the server, where the

@@ -341,6 +341,9 @@ export default function PokerTimer() {
                 <TouchableOpacity
                   style={[styles.resetButton, { paddingVertical: s(12) }]}
                   onPress={handleReset}
+                  // Icon only, so a screen reader had nothing to announce.
+                  accessibilityRole="button"
+                  accessibilityLabel="Reset round"
                 >
                   <Ionicons name="refresh" size={s(20)} color="white" />
                 </TouchableOpacity>

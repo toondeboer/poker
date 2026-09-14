@@ -830,6 +830,11 @@ Four small things came out of it, all fixed: a guest was told to "add another gr
 add, a pasted code's refusal talked about a "link", a removed member's card said "no such group",
 and the remove-member button read "who joined Joined" to a screen reader.
 
+**Re-run after #268's review fixes, 2026-09-14:** an admin added a player and removed him before the
+outbox pass could finish — his row reached the server and was tombstoned, and he never appeared on
+the guest; a plain removal and a game delete both tombstoned and left the guest on the next
+foreground.
+
 **Test data, not a defect:** Bob is still on the dev board for the guest. The host removed him before
 removals reached the server, and the host's phone has hidden him since, so nothing can take him off
 now. Only a board used before the fix can be in that state.
@@ -1015,6 +1020,14 @@ fixed on the release branch the same day, and nothing here passed before they we
 
 One thing seen and not explained: shortly after a resume, the iPhone's countdown stood still for
 about seven seconds while Android's ran, then caught up. Worth watching for on real phones.
+
+**Re-run on 2026-09-14 after #268's review fixes.** A joiner sent to the background for 45 seconds
+came back showing **exactly** the host's time (03:55 on both) — before the fix it re-applied the
+table's last message as if it had just arrived and wound the countdown back by however long ago
+that was. A reset on the host reached the joiner too. **Seen once and not reproduced:** in one
+session the host stopped sending heartbeats altogether, so the joiner read "Out of touch" while the
+host read "In step"; a fresh session on the same builds behaved, and nothing in the logs from the
+bad one says why. If a phone shows that asymmetry, note which one is hosting.
 
 |                                                                                                                                              | iOS | Android |
 | -------------------------------------------------------------------------------------------------------------------------------------------- | --- | ------- |
