@@ -466,11 +466,17 @@ export function GroupsSheet({
                       accessibilityLabel={`Report ${group.name}`}
                     />
                   ) : null}
-                  <IconButton
-                    icon="pencil"
-                    onPress={() => startRename(group.id, group.name)}
-                    accessibilityLabel={`Rename ${group.name}`}
-                  />
+                  {/* **Not on somebody else's board.** There is no route that
+                      renames a board, so a guest's rename changed their phone
+                      alone — a board called one thing for them and another
+                      for everyone who shared it. */}
+                  {group.isGuest ? null : (
+                    <IconButton
+                      icon="pencil"
+                      onPress={() => startRename(group.id, group.name)}
+                      accessibilityLabel={`Rename ${group.name}`}
+                    />
+                  )}
                   {group.isGuest ? (
                     <IconButton
                       icon={

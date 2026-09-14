@@ -83,6 +83,12 @@ build. Only the first row of that table is what it means.
 1. **Android** — `Android_small` emulator, API 35, 30s screen timeout. §10 keep-awake: holding,
    pause-releases and reset-releases all verified against the window flag and `mWakefulness`.
    iOS not covered: the Simulator has no auto-lock, so §10 needs a real device there.
+1. **iOS Simulator + Android emulator, together** — iPhone 17 Pro (iOS 26.5) and `Pixel_stable`
+   (API 35), dev clients against `DEV_BACKEND`, `FORCE_PRO_IN_DEV` on, signed in as two dev-pool
+   accounts created with `admin-create-user`. §18's gate, codes, joining and press propagation, plus
+   the email sign-in in §14. Driven with Maestro on iOS — buttons expose their label as
+   `", <label>"`, so match with a leading `.*` — and `adb` on Android. The Android dev client had to
+   be rebuilt first: it predated #211 and red-screened on `ExpoCrypto`.
 
 ---
 
@@ -169,16 +175,16 @@ Three switches decide what a build can see:
 either side (`validateCredentials` in `@poker/core`), so `you+a@…` and `you+b@…` are two accounts
 that both arrive in one place. Every two-account session below uses the same pair.
 
-| Session | Where                                          | Switches                 | Sections                                                                |
-| ------- | ---------------------------------------------- | ------------------------ | ----------------------------------------------------------------------- |
-| **S1**  | Mac + a real inbox                             | both off                 | §14 accounts, including delete · §14b on Android, re-run on iOS         |
-| **S2**  | Mac                                            | PRO=true, then FREE=true | §16, run twice                                                          |
-| **S3**  | Simulator **and** emulator, signed in as A / B | PRO=true on both         | §15 boards · §15b · §18 clock · §19 push                                |
-| **S4**  | Mac                                            | PRO=true                 | §11 payouts · §12 leaderboard · §13 dealer **on iOS**                   |
-| **S5**  | Mac                                            | both off                 | §5 keyboard first, then §2 · §3 · §4 · §8                               |
-| **S6**  | iPad Simulator                                 | PRO=true                 | §7 tablets                                                              |
-| **S7**  | Mac, against **dev**                           | both off                 | §17 kill switch                                                         |
-| **P**   | The phones, once a candidate is on a track     | none — a release build   | §20 first, then §1 · §1b · §16b · §16c · §9 · §13 locked · §6 · §10 iOS |
+| Session | Where                                          | Switches                 | Sections                                                                               |
+| ------- | ---------------------------------------------- | ------------------------ | -------------------------------------------------------------------------------------- |
+| **S1**  | Mac + a real inbox                             | both off                 | §14 accounts, including delete · §14b on Android, re-run on iOS                        |
+| **S2**  | Mac                                            | PRO=true, then FREE=true | §16, run twice                                                                         |
+| **S3**  | Simulator **and** emulator, signed in as A / B | PRO=true on both         | §15 boards · §15b · §18 clock · §19 registration                                       |
+| **S4**  | Mac                                            | PRO=true                 | §11 payouts · §12 leaderboard · §13 dealer **on iOS**                                  |
+| **S5**  | Mac                                            | both off                 | §5 keyboard first, then §2 · §3 · §4 · §8                                              |
+| **S6**  | iPad Simulator                                 | PRO=true                 | §7 tablets                                                                             |
+| **S7**  | Mac, against **dev**                           | both off                 | §17 kill switch                                                                        |
+| **P**   | The phones, once a candidate is on a track     | none — a release build   | §20 first, then §1 · §1b · §16b · §16c · §19 delivery · §9 · §13 locked · §6 · §10 iOS |
 
 **S1 comes first for what it unblocks**, not for itself: every two-account session is stuck behind
 it, and its rows need a person with an inbox rather than a script.
@@ -187,9 +193,11 @@ it, and its rows need a person with an inbox rather than a script.
 bar — recurs in every sheet those sections open, and you will spot it faster having just looked for
 it.
 
-**§19 runs on the Mac.** Expo supports push on the iOS Simulator (Xcode 14+, macOS 13+, iOS 16+,
-Apple silicon) and on an Android emulator with Play services. Only the production-credential
-round-trip needs a phone, and that one is in §20.
+**§19 does not fully run on the Mac, whatever this used to say.** Registration does, and is worth
+checking there. Delivery did not, on 2026-09-14: APNs refused the iOS Simulator's token with
+`BadDeviceToken` (a dev client's sandbox token against the environment Expo sends to), and FCM
+accepted the Android emulator's message without it ever appearing. The rows that end with a
+notification on screen want the phones and a store build — §20.
 
 ### The switch trap
 
@@ -203,9 +211,10 @@ because everything was unlocked.
 
 ### Where the risk actually is
 
-- **§15, §18 and §19 have never been run**, from any build, on any platform. §18 had a defect that
-  made hosting and joining impossible for everyone (fixed on 2026-09-13, found by reading the code),
-  which is what a section nobody has opened looks like.
+- **§19 has never been run**, from any build, on any platform. §15 and §18 had not been either,
+  and their first runs on 2026-09-13 and 2026-09-14 found the shared clock broken three separate
+  ways and shared boards unable to remove anything. That is what a section nobody has opened looks
+  like, and there is no reason to expect §19 to be different.
 - **§14's sign-up rows need a person with an inbox**, and every two-account row in §15–§19 is
   queued behind them.
 - **§11–§13 cover what this release invented.** If time runs short, short-change something else.
@@ -232,6 +241,8 @@ covered by a unit test:
    every sheet lays out after candidate 1 was built.
 7. **§13's peek rows on iOS**, and **§12's upgrade row** — the one piece of data a user cannot
    recreate.
+8. **§19's first row on the phones, after the backend fix is on prod** — until then no device can
+   register, so push cannot work for anybody.
 
 Anything else left ⬜ at submission should be a decision, not an accident: mark it 🟡 with the reason.
 
@@ -240,18 +251,21 @@ Anything else left ⬜ at submission should be a decision, not an accident: mark
 Defects fixed on the release branch that were **found by review rather than by testing** — so these are rows this checklist previously let through. Worth running
 deliberately rather than waiting for them to come up in sequence.
 
-| Fix                                                     | Where it shows up                                   |
-| ------------------------------------------------------- | --------------------------------------------------- |
-| A deleted board came back on the next pull              | §12 deleting a group · §15 a board rejoined by link |
-| A refused game closed the sheet and lost the entry      | §12 recording a game                                |
-| Renaming to a duplicate or empty name                   | §12 — the rename rows already exist                 |
-| A refusal notice shown on the wrong board               | §15 two boards, one refusal                         |
-| Identical chip stacks split unevenly                    | §11 a chop with two equal stacks                    |
-| Chop sheet blank with every stack cleared               | §11 clear all stacks to 0                           |
-| A half-written token signed you out silently            | §14 force-quit mid-sign-up                          |
-| **2026-09-13:** hosting/joining a clock always refused  | §18 host and join, signed in, with Club             |
-| **2026-09-13:** paywall sold Club under the kill switch | §16c and §17 with `featureSharing=off`              |
-| **2026-09-13:** sheet content stopped short of the edge | §3 bottom edge · §5 sheet rows · every sheet        |
+| Fix                                                                     | Where it shows up                                        |
+| ----------------------------------------------------------------------- | -------------------------------------------------------- |
+| A deleted board came back on the next pull                              | §12 deleting a group · §15 a board rejoined by link      |
+| A refused game closed the sheet and lost the entry                      | §12 recording a game                                     |
+| Renaming to a duplicate or empty name                                   | §12 — the rename rows already exist                      |
+| A refusal notice shown on the wrong board                               | §15 two boards, one refusal                              |
+| Identical chip stacks split unevenly                                    | §11 a chop with two equal stacks                         |
+| Chop sheet blank with every stack cleared                               | §11 clear all stacks to 0                                |
+| A half-written token signed you out silently                            | §14 force-quit mid-sign-up                               |
+| **2026-09-13:** hosting/joining a clock always refused                  | §18 host and join, signed in, with Club                  |
+| **2026-09-13:** paywall sold Club under the kill switch                 | §16c and §17 with `featureSharing=off`                   |
+| **2026-09-13:** sheet content stopped short of the edge                 | §3 bottom edge · §5 sheet rows · every sheet             |
+| **2026-09-13:** no shared-clock press reached another phone             | §18 pause, resume and level jump, both ways              |
+| **2026-09-13:** email sign-in left the sign-in form on screen           | §14 the email sign-in row                                |
+| **2026-09-14:** nothing removed from a shared board reached anyone else | §15 deletion propagates, offline removal, guest controls |
 
 ---
 
@@ -640,6 +654,7 @@ Two defects came out of the part that could be run, and both are fixed:
 
 |                                                                                                                                                                                                                                                                    | iOS | Android |
 | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | --- | ------- |
+| After signing in **with email**, only the signed-in card shows — no second Sign in or Create-an-account form beneath it                                                                                                                                            | ⬜  | ✅      |
 | Settings shows the account row, and it opens the account screen                                                                                                                                                                                                    | ⬜  | ✅      |
 | **Sign up with a real address → the code arrives.** This is the row the whole feature rests on: Cognito's own sender was capped and landed in spam, which is why it now goes through SES                                                                           | ⬜  | 🚫      |
 | The code arrives **in the inbox, not spam**, and is from `Poker Blinds Timer`                                                                                                                                                                                      | ⬜  | 🚫      |
@@ -788,28 +803,66 @@ sheet **explains itself rather than failing** — _"Sign in to join a board. Joi
 person who shares a board is the one who pays for it."_ — and the share control is **absent rather
 than broken**, which is the shape the guest rows below are about.
 
+**Run on 2026-09-14** — the same Simulator + emulator pair as §18, Android hosting as one account
+and the iPhone joining as another, `FORCE_PRO_IN_DEV` on both. **Each column is the platform that
+acted.** Invite codes were read from the dev table rather than typed off a screenshot.
+
+**It found that a shared board could only ever add.** Removing a player, deleting a game and
+renaming a board all changed the phone that did it and nothing else: the app never called the
+server's delete routes, so a player removed on the host stayed on the server and on every guest,
+and a guest's own delete or rename quietly diverged from everybody else's board. Fixed the same
+day — an admin's removal now goes to the server first and the phone changes only when it agrees,
+and a guest has no such controls. Renaming is still local, because no route renames a board; it is
+admin-only now, and in `ROADMAP.md`.
+
+Also passed and not a row of its own: a player added **with no signal** reached the other phone once
+the host reconnected, exactly once — the game half of the offline row was not run, so that row stays
+⬜. And removing a member worked from the host's side (the membership went, the invite code rotated
+on the server).
+
+**The rest, later the same day, with `FORCE_PRO_IN_DEV` off on both.** A guest with nothing bought
+read the whole board, and its Groups sheet offered no create form and no share control — only
+Join, and a Club offer. The removed phone kept its copy, and the game it then recorded came back as
+the "Not saved for others" card; its old code, opened as a link, said the invite had been replaced;
+and pasting the entire share message with the new code joined it again. **Dismiss is unverified**:
+the tap may not have landed, and re-joining clears a board's refusals anyway, so that row stays ⬜.
+Four small things came out of it, all fixed: a guest was told to "add another group" it could not
+add, a pasted code's refusal talked about a "link", a removed member's card said "no such group",
+and the remove-member button read "who joined Joined" to a screen reader.
+
+**Re-run after #268's review fixes, 2026-09-14:** an admin added a player and removed him before the
+outbox pass could finish — his row reached the server and was tombstoned, and he never appeared on
+the guest; a plain removal and a game delete both tombstoned and left the guest on the next
+foreground.
+
+**Test data, not a defect:** Bob is still on the dev board for the guest. The host removed him before
+removals reached the server, and the host's phone has hidden him since, so nothing can take him off
+now. Only a board used before the fix can be in that state.
+
 |                                                                                                                                                    | iOS | Android |
 | -------------------------------------------------------------------------------------------------------------------------------------------------- | --- | ------- |
-| **The host shares a board** — the code arrives in the share sheet with a message naming the app                                                    | ⬜  | ⬜      |
-| **A second device joins by pasting the code**, and the board arrives with its whole roster and season, not empty                                   | ⬜  | ⬜      |
-| Pasting **the entire shared message** works, not just the bare code                                                                                | ⬜  | ⬜      |
-| A **wrong or expired code** says so and leaves the app usable                                                                                      | ⬜  | ⬜      |
-| **A guest pays nothing.** A device with neither Pro nor Club joins, and can read the board it was sent — if it hits a paywall, the feature is dead | ⬜  | ⬜      |
-| That guest **cannot** create a board of their own (Pro) or share one (Club) — the create and share controls are absent, not broken                 | ⬜  | ⬜      |
-| **A player added on one device appears on the other** after foregrounding it                                                                       | ⬜  | ⬜      |
-| **A game recorded on one appears on the other**, with the same standings                                                                           | ⬜  | ⬜      |
+| **The host shares a board** — the code arrives in the share sheet with a message naming the app                                                    | ⬜  | ✅      |
+| **A second device joins by pasting the code**, and the board arrives with its whole roster and season, not empty                                   | ✅  | ⬜      |
+| Pasting **the entire shared message** works, not just the bare code                                                                                | ✅  | ⬜      |
+| A **wrong or expired code** says so and leaves the app usable                                                                                      | ⬜  | ✅      |
+| **A guest pays nothing.** A device with neither Pro nor Club joins, and can read the board it was sent — if it hits a paywall, the feature is dead | ✅  | ⬜      |
+| That guest **cannot** create a board of their own (Pro) or share one (Club) — the create and share controls are absent, not broken                 | ✅  | ⬜      |
+| **A player added on one device appears on the other** after foregrounding it                                                                       | ⬜  | ✅      |
+| **A game recorded on one appears on the other**, with the same standings                                                                           | ✅  | ⬜      |
 | **Record with no signal, then reconnect.** Airplane mode, add a player and record a game, come back — both arrive, and nothing was lost or doubled | ⬜  | ⬜      |
-| **A deletion propagates.** Remove a player on the host; the guest stops showing them                                                               | ⬜  | ⬜      |
-| **A local delete stays deleted.** Delete a game on the guest, foreground twice — it does not come back                                             | ⬜  | ⬜      |
+| **A deletion propagates.** Remove a player on the host; the guest stops showing them                                                               | ⬜  | ✅      |
+| **Removing with no signal says so and changes nothing** — the player stays, and the alert says removing needs signal                               | ⬜  | ✅      |
+| **A guest has no remove, delete or rename** on a board somebody else shared — only an admin can, and a guest's used to change their phone alone    | ✅  | ⬜      |
+| **A game the admin deletes stays gone on the guest** — foreground the guest twice and it does not come back                                        | ✅  | ⬜      |
 | **A board deleted locally stays deleted**, and is not re-added by the next sync                                                                    | ⬜  | ⬜      |
-| The **share button is absent on a board you joined** — only an admin can invite, so offering it would only ever explain itself                     | ⬜  | ⬜      |
+| The **share button is absent on a board you joined** — only an admin can invite, so offering it would only ever explain itself                     | ✅  | ⬜      |
 | **Sign in on a third device → the boards are there**, without anybody sharing anything                                                             | ⬜  | ⬜      |
 | A write the server refuses shows the "Not saved for others" card, and dismissing it works                                                          | ⬜  | ⬜      |
 | Renaming a board on one device does **not** revert on the next sync                                                                                | ⬜  | ⬜      |
-| **An admin sees the members button on their own board**, and a member sees none on a board they joined                                             | ⬜  | ⬜      |
-| **Removing a member stops that phone syncing the board.** They keep the local copy, and their next write comes back refused rather than vanishing  | ⬜  | ⬜      |
-| **The code they were sent stops working afterwards** — rejoining needs a fresh one, and the sheet says the code was replaced                       | ⬜  | ⬜      |
-| Your own row says **"you"** and offers no remove; leaving is still on the boards list                                                              | ⬜  | ⬜      |
+| **An admin sees the members button on their own board**, and a member sees none on a board they joined                                             | ✅  | ✅      |
+| **Removing a member stops that phone syncing the board.** They keep the local copy, and their next write comes back refused rather than vanishing  | ✅  | ⬜      |
+| **The code they were sent stops working afterwards** — rejoining needs a fresh one, and the sheet says the code was replaced                       | ✅  | ⬜      |
+| Your own row says **"you"** and offers no remove; leaving is still on the boards list                                                              | ⬜  | ✅      |
 | The **only admin cannot be removed**, and the sheet says why rather than failing                                                                   | ⬜  | ⬜      |
 
 ---
@@ -944,23 +997,51 @@ skip a level or resume, and every interesting failure is about two clocks disagr
 device can show is the gate, the codes and the refusals.
 
 **The transport is HTTP polling at 4s against a 5s heartbeat**, so "immediately" is the wrong
-expectation throughout: a press reaches the other phone within about four seconds and the section
-reads `stale` only after fifteen without contact. A pause that shows up three seconds later is a
-pass.
+expectation throughout, and the section reads `stale` only after fifteen seconds without contact.
+**Measured on 2026-09-13, a press took 6–16 seconds to reach the other phone, not the four this
+used to promise** — every device's heartbeat rewrites the one stored row, so a newer press can be
+overwritten before the other phone reads it, and arrives on a later beat. A pause that shows up
+fifteen seconds later is a pass; one that never arrives is not. See `ROADMAP.md`.
+
+**Run on 2026-09-13** — iPhone 17 Pro Simulator (iOS 26.5) and `Pixel_stable` (API 35), both dev
+clients against `DEV_BACKEND` with `FORCE_PRO_IN_DEV`, signed in as two accounts. **Where a row
+involves both devices, each column is the platform that pressed.** It found three defects, all
+fixed on the release branch the same day, and nothing here passed before they were:
+
+- **Hosting and joining were refused for everyone** — a callback kept the signed-out answer from
+  launch.
+- **No press ever left the phone.** `useSessionSync` marked a reload from storage and never cleared
+  the mark, so its publishing effect returned on every run; the table moved only on heartbeats,
+  which repeat a version everyone already holds. Found when Next on Android left the iPhone at
+  Level 1 for 46 seconds, and confirmed by reading the stored row: the new level, under version 1.
+- **Heartbeats were dropped on arrival.** The HTTP transport skipped any message whose version it
+  had seen, so a host showed "Waiting for another phone to join…" forever and a joiner went "Out of
+  touch" fifteen seconds after joining, with a working connection.
+
+One thing seen and not explained: shortly after a resume, the iPhone's countdown stood still for
+about seven seconds while Android's ran, then caught up. Worth watching for on real phones.
+
+**Re-run on 2026-09-14 after #268's review fixes.** A joiner sent to the background for 45 seconds
+came back showing **exactly** the host's time (03:55 on both) — before the fix it re-applied the
+table's last message as if it had just arrived and wound the countdown back by however long ago
+that was. A reset on the host reached the joiner too. **Seen once and not reproduced:** in one
+session the host stopped sending heartbeats altogether, so the joiner read "Out of touch" while the
+host read "In step"; a fresh session on the same builds behaved, and nothing in the logs from the
+bad one says why. If a phone shows that asymmetry, note which one is hosting.
 
 |                                                                                                                                              | iOS | Android |
 | -------------------------------------------------------------------------------------------------------------------------------------------- | --- | ------- |
-| **Settings → Tournament shows "Shared clock"**, and it opens this screen. Absent with `featureSharing=off`, and on a build with no backend   | ⬜  | ⬜      |
+| **Settings → Tournament shows "Shared clock"**, and it opens this screen. Absent with `featureSharing=off`, and on a build with no backend   | ⬜  | ✅      |
 | **Without Club**, Start is disabled and says sharing is part of Club — and that **joining is free**                                          | ⬜  | ⬜      |
-| **Signed out**, both Start and Join are disabled and each says to sign in — not "subscribe"                                                  | ⬜  | ⬜      |
+| **Signed out**, both Start and Join are disabled and each says to sign in — not "subscribe"                                                  | ✅  | ✅      |
 | While entitlements are still loading, it says so rather than refusing — a subscriber must never be told they have not paid                   | ⬜  | ⬜      |
-| **Hosting produces a six-character code** from the alphabet that drops what gets misheard — no I, O, S, Z                                    | ⬜  | ⬜      |
-| **A second device joins by typing it**, and sees the same round, level and countdown within ~4s                                              | ⬜  | ⬜      |
-| Lower case and spaces work — the code is normalised on the way in                                                                            | ⬜  | ⬜      |
-| **A wrong code says no clock is running under it**, and leaves the screen usable                                                             | ⬜  | ⬜      |
-| **Pausing on either device pauses both.** This is the row the feature exists for — and either device, not just the host                      | ⬜  | ⬜      |
+| **Hosting produces a six-character code** from the alphabet that drops what gets misheard — no I, O, S, Z                                    | ✅  | ✅      |
+| **A second device joins by typing it**, and sees the same round, level and countdown within ~4s                                              | ✅  | ✅      |
+| Lower case and spaces work — the code is normalised on the way in                                                                            | ⬜  | ✅      |
+| **A wrong code says no clock is running under it**, and leaves the screen usable                                                             | ⬜  | ✅      |
+| **Pausing on either device pauses both.** This is the row the feature exists for — and either device, not just the host                      | ✅  | ✅      |
 | **Two people pause at the same moment** and both phones settle on the same answer rather than splitting                                      | ⬜  | ⬜      |
-| A level jump travels too — `blindIndex` is in the message                                                                                    | ⬜  | ⬜      |
+| A level jump travels too — `blindIndex` is in the message                                                                                    | ✅  | ⬜      |
 | **Killing the host app leaves the joiner counting down**, and it reads `stale` after ~15s rather than freezing or lying                      | ⬜  | ⬜      |
 | Reopening the host **rejoins and the two agree again** within a poll                                                                         | ⬜  | ⬜      |
 | **Airplane mode on the joiner** for 30s, then back: it catches up rather than needing a rejoin                                               | ⬜  | ⬜      |
@@ -976,13 +1057,27 @@ every poll means the token, not the code.
 
 ## 19. Push notifications · **new in 1.2.0, needs two accounts**
 
-**It needs credentials, not necessarily a phone.** An APNs key for iOS and an FCM v1 service account
-for Android, both held by EAS — without them nothing is sent at all, and that is a console check
-rather than a row. What it does **not** need is a real device: Expo supports push on the iOS
-Simulator (Xcode 14+, macOS 13+, iOS 16+, Apple silicon) and on an Android emulator with Google Play
-services, so the rows below run on the Mac against `DEV_BACKEND`. This section used to say the
-opposite, which made the most expensive-looking part of the pass look like it needed hardware it
-does not.
+**It needs credentials, and in practice a store build.** An APNs key for iOS and an FCM v1 service
+account for Android, both held by EAS. This section used to promise that the rows run on the iOS
+Simulator and an Android emulator; the 2026-09-14 run says otherwise for delivery — see the run
+notes below. **Registration can be checked anywhere**: a device that registered has a
+`PUSH#<token>` row under `ACCOUNT#<its sub>` in the table.
+
+**Run on 2026-09-14** — the §15 pair, against dev.
+
+- **Nobody had ever been registered.** `POST /me/push-token` answered 400 "no group" to every
+  device; fixed in #268 and deployed to dev, after which both devices wrote a token row. Prod still
+  has the bug until it is deployed.
+- **Registration needs the notification permission and never asks for it.** The Android emulator
+  had it denied, and so registered nothing — silently, as designed. Granted with
+  `adb shell pm grant com.toondeboer.pokerkit android.permission.POST_NOTIFICATIONS`.
+- **Recording a game on the host reached the sender and Expo accepted the send**, but no
+  notification was seen on either device. iOS: Expo's receipt says APNs `BadDeviceToken`. Android:
+  the receipt is `ok` and nothing appeared, with the app foregrounded or not. Neither says the
+  feature is broken, and neither proves it works.
+- **The sender used to log nothing for a refused ticket**; it now logs the error code (not the
+  token). Delivery errors like `BadDeviceToken` only arrive in receipts, which nothing on the server
+  fetches — see `ROADMAP.md`.
 
 The **production** APNs/FCM path is a different set of credentials, and is worth one round-trip on a
 store build — see §20.
@@ -995,12 +1090,19 @@ store build — see §20.
 | **The person who recorded it is not notified** — they are holding the phone                                                            | ⬜  | ⬜      |
 | **It names the board, not the player.** No player name appears on the lock screen                                                      | ⬜  | ⬜      |
 | Tapping it opens the app — and does not crash from a cold start                                                                        | ⬜  | ⬜      |
-| **Declining the notification permission means no push, and no error.** Somebody who said no should not be asked again by this feature  | ⬜  | ⬜      |
+| **Declining the notification permission means no push, and no error.** Somebody who said no should not be asked again by this feature  | ⬜  | ✅      |
 | **Signed in on two devices, both are notified** — a token is a row per device, and the second sign-in must not unregister the first    | ⬜  | ⬜      |
 | **Recording while the other phone is offline**: it arrives when that phone comes back, or not at all — never as a duplicate            | ⬜  | ⬜      |
 | **The outbox replaying a queued game sends no second notification.** Only a write that actually landed notifies                        | ⬜  | ⬜      |
 | **A failed push never fails the write.** Break it deliberately (sign out on the receiver, delete the app) and recording still succeeds | ⬜  | ⬜      |
 | Uninstalling the receiving app and recording again does not error on the sender — the token is forgotten on `DeviceNotRegistered`      | ⬜  | ⬜      |
+
+**Blocked on 2026-09-14 by a server bug, now fixed:** `POST /me/push-token` answered 400 "no group"
+to every device, because the groups handler's group-id guard ran before the push routes. Both
+simulators obtained an Expo push token and were refused, so no row in this section could ever have
+passed. The fix is on dev; **prod needs the same deploy before this section means anything on a
+store build.** Check registration with the dev table rather than by waiting for a notification: a
+device that registered has a `PUSH#<token>` row under `ACCOUNT#<its sub>`.
 
 **The quiet failure to watch for**: registration rides on the notification permission the timer
 already asked for and never prompts on its own. So a device that never allowed notifications simply

@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { createPushSender, resultRecordedMessage } from "../lib/lambda/push";
 import { isExpoPushToken } from "../lib/lambda/pushStore";
 import type { PushStore } from "../lib/lambda/pushStore";
@@ -180,5 +180,32 @@ describe("when sending goes wrong", () => {
     expect(forgotten).toEqual([
       { accountId: "c", token: "ExponentPushToken[c]" },
     ]);
+  });
+
+  it("logs any other refusal instead of dropping it, without the token", async () => {
+    const { impl, forgotten } = store({ b: ["ExponentPushToken[b]"] });
+    const lines: string[] = [];
+    const spy = vi.spyOn(console, "log").mockImplementation((line: string) => {
+      lines.push(line);
+    });
+    const sender = createPushSender(impl, (async () =>
+      ok([
+        { status: "error", details: { error: "InvalidCredentials" } },
+      ])) as unknown as typeof fetch);
+
+    await sender.resultRecorded({
+      groupId: "g-1",
+      boardName: "Board",
+      memberIds: ["a", "b"],
+      actorId: "a",
+    });
+    spy.mockRestore();
+
+    expect(forgotten).toEqual([]);
+    const refused = lines
+      .map((line) => JSON.parse(line) as Record<string, unknown>)
+      .find((entry) => entry.message === "push ticket refused");
+    expect(refused?.error).toBe("InvalidCredentials");
+    expect(lines.join("")).not.toContain("ExponentPushToken[b]");
   });
 });

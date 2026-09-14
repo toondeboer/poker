@@ -88,9 +88,21 @@ export const requestFor = (write: QueuedWrite, baseUrl: string): GroupCall => {
  */
 export const RETRYABLE_STATUSES: readonly number[] = [401, 408, 429];
 
+/** What a person is told when the server no longer has them on a board. */
+export const NOT_ON_BOARD =
+  "You are not on this board any more, or it no longer exists.";
+
 export const resultForStatus = (status: number, reason: string): SendResult => {
   if (status >= 200 && status < 300) return { status: "ok" };
   if (RETRYABLE_STATUSES.includes(status)) return { status: "unreachable" };
+  /**
+   * **404 is one sentence, whatever the server wrote.** The API answers it for
+   * exactly one situation on a write — this account is not on the board, or the
+   * board is gone — and deliberately does not say which, so a guessed id learns
+   * nothing. Its body is `"no such group"`, which reached the refusal card word
+   * for word in front of somebody who had just been removed from a board.
+   */
+  if (status === 404) return { status: "refused", reason: NOT_ON_BOARD };
   if (status >= 400 && status < 500) return { status: "refused", reason };
   return { status: "unreachable" };
 };

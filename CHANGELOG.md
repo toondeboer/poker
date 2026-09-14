@@ -101,10 +101,10 @@ platform-tagged heading (e.g. `## [1.1.3] - 2026-07-20 — Android`) when you cu
   again once anything queued has been sent, each board is fetched and merged with what is already
   on the phone. Merged rather than replaced, which is the whole of the design: a board that
   existed before any of this has a history the server has never been told about, so trusting the
-  server's copy would delete a season of game nights. Somebody else's additions arrive, removals
-  they made are applied, and a game recorded thirty seconds ago does not flicker off the screen
+  server's copy would delete a season of game nights. Somebody else's additions arrive, an admin's
+  removals are applied, and a game recorded thirty seconds ago does not flicker off the screen
   while the request is in flight. A game or player you delete stays deleted, and a board you rename
-  keeps the name you gave it.
+  keeps the name you gave it — on your phone only, since a rename is not yet sent to anybody else.
 - **Deleting your account now deletes what is on the server too.** Every board membership, claim
   and shared result goes first and the login goes last — the other order leaves rows nobody can
   ever reach again, because once the login is gone there is no way to prove they were yours. If it
@@ -1144,6 +1144,39 @@ platform-tagged heading (e.g. `## [1.1.3] - 2026-07-20 — Android`) when you cu
   transfer setting hands the first account's Club to whoever signs in next on that phone, and which
   RevenueCat says must never run without a tap because it can raise an Apple ID prompt. The design
   work is in `ROADMAP.md`.
+- **A press on a shared clock reaches the other phones.** Pausing, resuming or skipping a level
+  never left the phone it was pressed on: the check that stops a phone re-announcing a clock it has
+  just read back from storage was set once and never cleared, so it held for every press after it.
+  The other phones moved only on the heartbeat — which repeats a version they already had, and so
+  changed nothing. A phone coming back from the background now also adopts the table's clock rather
+  than the one it stored.
+- **The shared clock stops saying nobody has joined.** The connection skipped every message whose
+  version it had already seen, and a heartbeat deliberately repeats one — so a host read "Waiting
+  for another phone to join…" for the whole session, a joiner read "Out of touch" fifteen seconds
+  after joining with a working connection, and two people pressing at the same moment could never
+  be settled. Messages are now told apart by a per-send id instead.
+- **Signing in with email no longer leaves the sign-in form on screen.** The signed-in card sat
+  above a second Sign in and a Create-an-account button — and App Review signs in exactly that way,
+  with the demo accounts from the review notes.
+- **Push notifications can reach a phone at all.** The server refused every device that tried to
+  register — the route asked for a board id it has no reason to have, so it answered "no group" to
+  all of them — and the app never looked at the answer. Phones got a push token, nothing was stored,
+  and nobody was ever notified that a game had been recorded. The server now takes the registration,
+  and the app logs when one is refused, as the server now does for a notification Expo will not send.
+- **Shared-board messages say what happened, in words.** A write refused because you are no longer
+  on a board used to show the server's "no such group"; it now says you are not on the board any
+  more. A code that no longer works talks about an invite rather than a "link", since the app
+  shares codes. Somebody who can only join boards is no longer told to "add another group", and the
+  remove-member button stops reading "who joined Joined" to a screen reader. The timer's reset button,
+  an icon with no label, now announces itself as "Reset round".
+- **Removing a player or deleting a game on a shared board removes it for everybody.** It never
+  did: the app had no call to the server's delete routes, so the player or game disappeared from the
+  phone that removed it and stayed on every other phone at the table — and on the server, where the
+  next sync kept showing it. An admin's removal is now sent straight away and the phone changes only
+  once the server agrees; with no signal it says so and changes nothing, rather than hiding
+  something that is still on everyone else's board. Somebody who joined a board no longer sees
+  remove, delete or rename at all, since only an admin can do those and a guest's used to change
+  their own phone and nobody else's.
 - **The paywall stops selling Club where Club cannot be used.** Settings' Club card already hid
   itself with the kill switch off or with no backend; the paywall, which every locked Pro feature
   opens, did not — so switching sharing off left a subscription on sale whose only features had just

@@ -123,6 +123,26 @@ export type GroupApi = {
     groupId: string,
     accountId: string,
   ) => Promise<{ ok: true } | { ok: false; reason: string }>;
+  /**
+   * Take a player or a game off a shared board. Admin only, server-side.
+   *
+   * **Sent now, never queued**, for the reason `pendingWrites.ts` gives: a
+   * removal is destructive and checked against who you are *now*, so one
+   * replayed days later can be refused long after the phone has hidden the
+   * thing. The caller removes locally only once this says yes.
+   *
+   * Until this existed nothing sent a removal at all — a player deleted on the
+   * host stayed on every other phone, and on the server, for good.
+   */
+  removeFromBoard: (
+    groupId: string,
+    target: { kind: "player" | "game"; id: string },
+  ) => Promise<
+    | { ok: true }
+    /** `status` when the server answered, so a caller can tell a refusal
+     * about the row from one about the person. Absent when offline. */
+    | { ok: false; reason: string; status?: number }
+  >;
 };
 
 /**
@@ -381,6 +401,40 @@ export const createGroupApi = (
     }
   },
 
+  async removeFromBoard(groupId, target) {
+    const config = backendConfig;
+    if (!config) return { ok: false, reason: "This build cannot do that." };
+    try {
+      const token = await idToken();
+      if (!token) return { ok: false, reason: "Sign in first." };
+      const collection = target.kind === "player" ? "players" : "games";
+      const response = await fetcher(
+        `${config.apiUrl.replace(/\/$/, "")}/groups/${encodeURIComponent(groupId)}/${collection}/${encodeURIComponent(target.id)}`,
+        { method: "DELETE", headers: { Authorization: token } },
+      );
+      // **404 counts as done**, as it does for members: the server does not
+      // have it, which is the state the button was pressed to reach.
+      if (response.ok || response.status === 404) return { ok: true };
+      const body: unknown = await response.json().catch(() => null);
+      logger.warn(`Could not remove a ${target.kind} (${response.status})`);
+      return {
+        ok: false,
+        status: response.status,
+        reason:
+          response.status === 403
+            ? "Only an admin of this board can remove that."
+            : (reasonForRefusal(body) ??
+              "That didn't work. Try again in a moment."),
+      };
+    } catch (error) {
+      logger.warn(`Could not remove a ${target.kind}:`, error);
+      return {
+        ok: false,
+        reason: "No connection. Removing needs signal, so nothing was changed.",
+      };
+    }
+  },
+
   async redeemInvite(invite) {
     const config = backendConfig;
     if (!config) return { ok: false, reason: "This build cannot join boards." };
@@ -405,8 +459,8 @@ export const createGroupApi = (
         ok: false,
         reason:
           response.status === 404
-            ? "That link has expired or been replaced. Ask for a new one."
-            : (reasonForRefusal(body) ?? "That link could not be used."),
+            ? "That invite has expired or been replaced. Ask for a new one."
+            : (reasonForRefusal(body) ?? "That invite could not be used."),
       };
     } catch (error) {
       logger.warn("Could not redeem an invite:", error);

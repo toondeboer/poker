@@ -357,9 +357,14 @@ export function AccountScreen() {
    * underneath it — so the screen asked for a code and still showed the email
    * and password that had just been submitted, with a Create-an-account button
    * that would start the whole thing again.
+   *
+   * **Nor once somebody is signed in**, for the same reason. Signing in with
+   * email left `showEmail` set, so the signed-in card sat above a second Sign in
+   * and a Create-an-account button — and App Review signs in exactly that way,
+   * with the demo accounts from the review notes.
    */
   const emailForm =
-    !showEmail || awaitingCode ? null : (
+    !showEmail || awaitingCode || account ? null : (
       <Card>
         <CardHeader icon="mail" title="Email and password" />
         <CardContent>

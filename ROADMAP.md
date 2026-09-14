@@ -19,21 +19,27 @@ The release is cut (native versions, changelog heading, this file) and **candida
 superseded**: iOS build 27 and Android versionCode 16 were built from `9380c59`, and #262, #265 and
 the 2026-09-13 review fixes have changed the binary since. What remains, in order:
 
-1. ⬜ **Merge the open PRs into `release/1.2.0`** — the review fixes, and the sync of `main` (#258's
-   support-page fix) which clears the conflict on the RC PR, #147. The sync must land as a **merge
-   commit**: a squash leaves the conflict in place for the RC merge.
-2. ⬜ **Run the suite on the merged branch** (CI never runs there), then build candidate 2 from a
+1. ⬜ **Merge #268 into `release/1.2.0`, and the new sync of `main`.** #266 and #267 are in. #267
+   landed as a **squash**, so `main` is still not in the release branch's ancestry and the RC PR,
+   #147, is conflicting again; the replacement sync PR has to be merged with **"Create a merge
+   commit"**, or the same thing happens a second time.
+2. ⬜ **Deploy the backend to prod** once #268 is merged — your call, through the Infra workflow.
+   `POST /me/push-token` refuses every device on today's prod (fixed in #268 and on dev), so push
+   cannot work for anybody until it goes out. The app change alone does nothing for it. Run
+   `cdk diff` against prod first: nothing else from 1.2.0's infra should be pending, and if something
+   is, it needs reading before it ships.
+3. ⬜ **Run the suite on the merged branch** (CI never runs there), then build candidate 2 from a
    clean tree — cutting step 5 in [CLAUDE.md](./CLAUDE.md), including the stash of both testing
    toggles.
-3. ⬜ **Submit candidate 2 to TestFlight and Play internal**, and run
+4. ⬜ **Submit candidate 2 to TestFlight and Play internal**, and run
    [the shortest pass that can ship](./RELEASE_TESTING.md#the-shortest-pass-that-can-ship). Mark
    anything else left unrun 🟡 deliberately rather than by omission.
-4. ⬜ **Console work that cannot delay a build but can delay a review:** paste the rewritten store
+5. ⬜ **Console work that cannot delay a build but can delay a review:** paste the rewritten store
    copy from [STORE_LISTING.md](./STORE_LISTING.md) and count the fields in the console; point App
    Store Connect's License Agreement field at `/terms`; confirm the `ContentReports` SNS email
    subscription is confirmed (§20); add the Club group and both subscriptions to the same App Store
    submission as the app version.
-5. ⬜ **Ship** — cutting steps 7–9: promote, merge #147, tag the built commit, delete the branch,
+6. ⬜ **Ship** — cutting steps 7–9: promote, merge #147, tag the built commit, delete the branch,
    reset `RELEASE_TESTING.md`.
 
 ## Carried into 1.2.1 — from the 1.2.0 release review
@@ -65,13 +71,42 @@ the 2026-09-13 review fixes have changed the binary since. What remains, in orde
   the thing the item above unlocks — once RevenueCat knows the Cognito `sub`, a RevenueCat webhook
   writing an entitlement row, or its REST API, lets `groups.ts` and `sessions.ts` refuse on the
   server.
-- ⬜ **The mobile app has no tests below the screen, and 1.2.0's worst defect was exactly that
-  kind.** `startHosting` and `join` in `SharedSessionContext` captured the refusal from the first
-  render and turned away every signed-in subscriber; the rules they call are unit-tested in
-  `@poker/core`, the wiring was not, and §18 had never been run. A `jest-expo` + React Native
+- ⬜ **The mobile app has no tests below the screen, and 1.2.0's worst defects were exactly that
+  kind.** Push registration was refused by the server for every device and the app never read the
+  status, shared boards could not remove anything, because nothing called the delete routes, and
+  the shared clock shipped to the release branch broken three ways, all in the wiring rather
+  than the rules: `startHosting`/`join` kept the first render's refusal, `useSessionSync` never
+  cleared a reload mark so no press was ever published, and the HTTP transport dropped every
+  heartbeat. The protocol in `@poker/core` has a two-phone test suite and passed throughout; the
+  hook and the transport had nothing, and §18 had never been run. A `jest-expo` + React Native
   Testing Library harness for the contexts that make decisions (`SharedSession`, `Premium`,
   `GroupSync`, `Leaderboard`) would have caught it in CI. It is new tooling in `apps/mobile`, so it
   wants its own PR rather than riding along with a fix.
+- 🔍 **A shared-clock press takes 6–16 seconds to arrive, not the ~4 the design assumed.** Measured
+  on 2026-09-13. The session is one DynamoDB row, last write wins, and every device rewrites it on a
+  five-second heartbeat — so a newer press is routinely overwritten by an older heartbeat before the
+  other phone polls, and only gets through on a later beat. It converges, so it is not a release
+  blocker, but a pause arriving fifteen seconds late at a poker table reads as broken. Two shapes
+  would fix it: a conditional write in `sessionStore.publish` that refuses a lower version than the
+  one stored (the comment there says "no version check happens here" deliberately — revisit that
+  with this measurement), or a row per sender so writers stop overwriting each other. Also seen
+  once and not explained: a joiner's countdown standing still for ~7 seconds after a resume.
+- ⬜ **Renaming a shared board only renames it on the admin's phone.** No route renames a board, so
+  `mergeBoard` keeps the local name and members see whatever the board was called when they joined.
+  1.2.0 made rename admin-only, which stops a guest's board silently disagreeing with the host's,
+  but the admin's own rename still does not reach anybody. A `PATCH /groups/{groupId}` behind the
+  existing `rename` permission, sent online the way removal is, would close it.
+- ⬜ **Push delivery failures are invisible.** Expo reports some errors when a message is sent
+  (now logged) and the rest only in a **receipt**, fetched separately, later — `BadDeviceToken`,
+  an APNs key for the wrong environment, a revoked FCM key. Nothing fetches receipts, so a
+  credentials problem that stops every notification in production would leave no trace. A scheduled
+  Lambda that stores ticket ids briefly and reads their receipts fifteen minutes later is the
+  standard shape. Found when the 2026-09-14 §19 run got `ok` from Expo and no notification.
+- ⬜ **Every Lambda runs on `nodejs20.x`, which AWS has deprecated.** `cdk diff` warns on each
+  function: deprecated 2026-04-30, **creation disabled 2027-02-01 and updates disabled
+  2027-03-03** — after which a fix to any handler cannot be deployed at all. Move the stack to
+  `nodejs24.x` well before then, in its own PR with a dev deploy and the infra tests, not inside a
+  feature change.
 - ⬜ **Four `react-hooks/exhaustive-deps` warnings remain**, all in long-shipped timer code
   (`TimerContext`, `useTimerEngine` ×2, `useTimerNotification`). Each may be deliberate — omitting
   `timeLeft` from an effect is often the point — but none says so. Either document the omission
