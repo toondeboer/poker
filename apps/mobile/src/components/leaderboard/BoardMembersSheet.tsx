@@ -182,7 +182,7 @@ export function BoardMembersSheet({
                       }
                       tone="danger"
                       onPress={() => remove(member)}
-                      accessibilityLabel={`Remove the member who joined ${describeMember(member, false)}`}
+                      accessibilityLabel={`Remove this member, ${describeMember(member, false).toLowerCase()}`}
                     />
                   )
                 }

@@ -453,8 +453,8 @@ export const createGroupApi = (
         ok: false,
         reason:
           response.status === 404
-            ? "That link has expired or been replaced. Ask for a new one."
-            : (reasonForRefusal(body) ?? "That link could not be used."),
+            ? "That invite has expired or been replaced. Ask for a new one."
+            : (reasonForRefusal(body) ?? "That invite could not be used."),
       };
     } catch (error) {
       logger.warn("Could not redeem an invite:", error);

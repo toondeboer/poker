@@ -1,5 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { reasonFrom, requestFor, resultForStatus } from "./groupRequests";
+import {
+  NOT_ON_BOARD,
+  reasonFrom,
+  requestFor,
+  resultForStatus,
+} from "./groupRequests";
 import type { QueuedWrite } from "./pendingWrites";
 
 const addPlayer = (groupId = "g1"): QueuedWrite => ({
@@ -96,6 +101,15 @@ describe("what an answer means", () => {
     expect(resultForStatus(403, "an admin has to do that").status).toBe(
       "refused",
     );
+  });
+
+  it("says a 404 in words instead of passing the server's body through", () => {
+    // The API's 404 means "not on this board, or it is gone". Its body said
+    // "no such group", which somebody who had just been removed read verbatim.
+    expect(resultForStatus(404, "no such group")).toEqual({
+      status: "refused",
+      reason: NOT_ON_BOARD,
+    });
   });
 
   it("does not take a 5xx as a refusal", () => {

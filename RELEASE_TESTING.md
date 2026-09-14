@@ -818,17 +818,30 @@ admin-only now, and in `ROADMAP.md`.
 Also passed and not a row of its own: a player added **with no signal** reached the other phone once
 the host reconnected, exactly once — the game half of the offline row was not run, so that row stays
 ⬜. And removing a member worked from the host's side (the membership went, the invite code rotated
-on the server), but the removed phone's next write could not be driven from the Simulator, so those
-rows stay ⬜ too.
+on the server).
+
+**The rest, later the same day, with `FORCE_PRO_IN_DEV` off on both.** A guest with nothing bought
+read the whole board, and its Groups sheet offered no create form and no share control — only
+Join, and a Club offer. The removed phone kept its copy, and the game it then recorded came back as
+the "Not saved for others" card; its old code, opened as a link, said the invite had been replaced;
+and pasting the entire share message with the new code joined it again. **Dismiss is unverified**:
+the tap may not have landed, and re-joining clears a board's refusals anyway, so that row stays ⬜.
+Four small things came out of it, all fixed: a guest was told to "add another group" it could not
+add, a pasted code's refusal talked about a "link", a removed member's card said "no such group",
+and the remove-member button read "who joined Joined" to a screen reader.
+
+**Test data, not a defect:** Bob is still on the dev board for the guest. The host removed him before
+removals reached the server, and the host's phone has hidden him since, so nothing can take him off
+now. Only a board used before the fix can be in that state.
 
 |                                                                                                                                                    | iOS | Android |
 | -------------------------------------------------------------------------------------------------------------------------------------------------- | --- | ------- |
 | **The host shares a board** — the code arrives in the share sheet with a message naming the app                                                    | ⬜  | ✅      |
 | **A second device joins by pasting the code**, and the board arrives with its whole roster and season, not empty                                   | ✅  | ⬜      |
-| Pasting **the entire shared message** works, not just the bare code                                                                                | ⬜  | ⬜      |
-| A **wrong or expired code** says so and leaves the app usable                                                                                      | ⬜  | ⬜      |
-| **A guest pays nothing.** A device with neither Pro nor Club joins, and can read the board it was sent — if it hits a paywall, the feature is dead | ⬜  | ⬜      |
-| That guest **cannot** create a board of their own (Pro) or share one (Club) — the create and share controls are absent, not broken                 | ⬜  | ⬜      |
+| Pasting **the entire shared message** works, not just the bare code                                                                                | ✅  | ⬜      |
+| A **wrong or expired code** says so and leaves the app usable                                                                                      | ⬜  | ✅      |
+| **A guest pays nothing.** A device with neither Pro nor Club joins, and can read the board it was sent — if it hits a paywall, the feature is dead | ✅  | ⬜      |
+| That guest **cannot** create a board of their own (Pro) or share one (Club) — the create and share controls are absent, not broken                 | ✅  | ⬜      |
 | **A player added on one device appears on the other** after foregrounding it                                                                       | ⬜  | ✅      |
 | **A game recorded on one appears on the other**, with the same standings                                                                           | ✅  | ⬜      |
 | **Record with no signal, then reconnect.** Airplane mode, add a player and record a game, come back — both arrive, and nothing was lost or doubled | ⬜  | ⬜      |
@@ -842,8 +855,8 @@ rows stay ⬜ too.
 | A write the server refuses shows the "Not saved for others" card, and dismissing it works                                                          | ⬜  | ⬜      |
 | Renaming a board on one device does **not** revert on the next sync                                                                                | ⬜  | ⬜      |
 | **An admin sees the members button on their own board**, and a member sees none on a board they joined                                             | ✅  | ✅      |
-| **Removing a member stops that phone syncing the board.** They keep the local copy, and their next write comes back refused rather than vanishing  | ⬜  | ⬜      |
-| **The code they were sent stops working afterwards** — rejoining needs a fresh one, and the sheet says the code was replaced                       | ⬜  | ⬜      |
+| **Removing a member stops that phone syncing the board.** They keep the local copy, and their next write comes back refused rather than vanishing  | ✅  | ⬜      |
+| **The code they were sent stops working afterwards** — rejoining needs a fresh one, and the sheet says the code was replaced                       | ✅  | ⬜      |
 | Your own row says **"you"** and offers no remove; leaving is still on the boards list                                                              | ⬜  | ✅      |
 | The **only admin cannot be removed**, and the sheet says why rather than failing                                                                   | ⬜  | ⬜      |
 

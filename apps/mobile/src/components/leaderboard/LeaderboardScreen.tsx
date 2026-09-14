@@ -268,7 +268,11 @@ export function LeaderboardScreen() {
     groups.length === 0
       ? "Tap to name your first group"
       : groups.length === 1
-        ? "Tap to add another group"
+        ? // Only Pro can create one, and the sheet hides the form without it —
+          // so a guest reading a shared board is offered what they can do.
+          isPremium
+          ? "Tap to add another group"
+          : "Tap to join another board"
         : `${groups.length} groups · tap to switch`;
 
   // Nothing renders until the stored leaderboard has landed. Without this the
