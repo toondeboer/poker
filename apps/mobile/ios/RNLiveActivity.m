@@ -51,8 +51,15 @@ RCT_EXPORT_METHOD(updateActivity:(NSString *)activityId
         return;
       }
             
-      [LiveActivityManager updateActivityWithId:activityId data:activityData];
-      resolve(@"success");
+      // Reject when the id names nothing that is still on screen. This used to
+      // resolve either way, which made the JS recovery path unreachable: an
+      // activity that had been ended, dismissed, or auto-expired by iOS was
+      // reported as updated, and the app went on believing it had a live card.
+      if ([LiveActivityManager updateActivityWithId:activityId data:activityData]) {
+        resolve(@"success");
+      } else {
+        reject(@"activity_not_found", @"No live Live Activity with that ID", nil);
+      }
     } @catch (NSException *exception) {
       reject(@"update_activity_error", exception.reason, nil);
     }

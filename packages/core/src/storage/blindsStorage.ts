@@ -2,7 +2,7 @@ import { StorageAdapter } from "./StorageAdapter";
 import { BlindLevel } from "../types/BlindLevel";
 import { generateBlindLevels } from "../blinds/generateBlinds";
 
-const STORAGE_KEYS = {
+export const BLINDS_KEYS = {
   CURRENT_BLIND_INDEX: "current_blind_index",
   BLIND_LEVELS: "blind_levels",
   CUSTOM_BLIND_LEVELS: "custom_blind_levels",
@@ -29,10 +29,10 @@ export function createBlindsStorage(storage: StorageAdapter): BlindsStorage {
   return {
     async saveBlindsState(state: BlindsState): Promise<void> {
       await storage.multiSet([
-        [STORAGE_KEYS.CURRENT_BLIND_INDEX, state.currentBlindIndex.toString()],
-        [STORAGE_KEYS.BLIND_LEVELS, JSON.stringify(state.blindLevels)],
+        [BLINDS_KEYS.CURRENT_BLIND_INDEX, state.currentBlindIndex.toString()],
+        [BLINDS_KEYS.BLIND_LEVELS, JSON.stringify(state.blindLevels)],
         [
-          STORAGE_KEYS.CUSTOM_BLIND_LEVELS,
+          BLINDS_KEYS.CUSTOM_BLIND_LEVELS,
           JSON.stringify(state.customBlindLevels),
         ],
       ]);
@@ -41,9 +41,9 @@ export function createBlindsStorage(storage: StorageAdapter): BlindsStorage {
     async loadBlindsState(): Promise<BlindsState> {
       try {
         const values = await storage.multiGet([
-          STORAGE_KEYS.CURRENT_BLIND_INDEX,
-          STORAGE_KEYS.BLIND_LEVELS,
-          STORAGE_KEYS.CUSTOM_BLIND_LEVELS,
+          BLINDS_KEYS.CURRENT_BLIND_INDEX,
+          BLINDS_KEYS.BLIND_LEVELS,
+          BLINDS_KEYS.CUSTOM_BLIND_LEVELS,
         ]);
 
         const indexStr = values[0][1];
@@ -72,7 +72,7 @@ export function createBlindsStorage(storage: StorageAdapter): BlindsStorage {
     async saveCurrentBlindIndex(index: number): Promise<void> {
       try {
         await storage.setItem(
-          STORAGE_KEYS.CURRENT_BLIND_INDEX,
+          BLINDS_KEYS.CURRENT_BLIND_INDEX,
           index.toString(),
         );
       } catch {
@@ -81,7 +81,7 @@ export function createBlindsStorage(storage: StorageAdapter): BlindsStorage {
     },
 
     async clearBlindsState(): Promise<void> {
-      await storage.multiRemove(Object.values(STORAGE_KEYS));
+      await storage.multiRemove(Object.values(BLINDS_KEYS));
     },
   };
 }

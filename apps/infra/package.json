@@ -1,0 +1,37 @@
+{
+  "name": "@poker/infra",
+  "version": "0.0.0",
+  "private": true,
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint bin lib test scripts",
+    "test": "vitest run",
+    "synth": "cdk synth",
+    "diff": "cdk diff",
+    "deploy": "cdk deploy",
+    "diff:dev": "cdk diff PokerBackend-dev -c account=096695166445 -c region=us-east-1",
+    "deploy:dev": "cdk deploy PokerBackend-dev -c account=096695166445 -c region=us-east-1",
+    "deploy:roles": "cdk deploy PokerDeployment -c account=096695166445 -c region=us-east-1 -c existingProviderArn=arn:aws:iam::096695166445:oidc-provider/token.actions.githubusercontent.com",
+    "smoke": "tsx scripts/smoke.ts"
+  },
+  "dependencies": {
+    "@aws-sdk/client-cognito-identity-provider": "^3.1123.0",
+    "@poker/core": "*",
+    "aws-cdk-lib": "^2.219.0",
+    "constructs": "^10.4.2"
+  },
+  "devDependencies": {
+    "@aws-sdk/client-dynamodb": "^3.1119.0",
+    "@aws-sdk/lib-dynamodb": "^3.1119.0",
+    "@eslint/js": "^9.39.4",
+    "@types/aws-lambda": "^8.10.152",
+    "@types/node": "^22",
+    "aws-cdk": "^2.1030.0",
+    "esbuild": "^0.25.10",
+    "eslint": "^9.39.4",
+    "tsx": "^4.20.6",
+    "typescript": "~5.8.3",
+    "typescript-eslint": "^8.67.0",
+    "vitest": "^4.1.11"
+  }
+}
