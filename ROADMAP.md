@@ -15,22 +15,17 @@ stay because code and other docs cite them.
 
 ## Shipping 1.2.0 — what is left
 
-The release is cut (native versions, changelog heading, this file) and **candidate 1 is
-superseded**: iOS build 27 and Android versionCode 16 were built from `9380c59`, and #262, #265 and
-the 2026-09-13 review fixes have changed the binary since. What remains, in order:
+The release is cut (native versions, changelog heading, this file). **Candidate 1 is superseded**
+(iOS build 27 and Android versionCode 16, from `9380c59`); **candidate 2 is iOS build 28 and Android
+versionCode 17, built from `8b03ac5`** on 2026-09-14 after the clean-tree gate. What remains, in
+order:
 
-1. ⬜ **Merge #268 into `release/1.2.0`, and the new sync of `main`.** #266 and #267 are in. #267
-   landed as a **squash**, so `main` is still not in the release branch's ancestry and the RC PR,
-   #147, is conflicting again; the replacement sync PR has to be merged with **"Create a merge
-   commit"**, or the same thing happens a second time.
-2. ⬜ **Deploy the backend to prod** once #268 is merged — your call, through the Infra workflow.
-   `POST /me/push-token` refuses every device on today's prod (fixed in #268 and on dev), so push
-   cannot work for anybody until it goes out. The app change alone does nothing for it. Run
-   `cdk diff` against prod first: nothing else from 1.2.0's infra should be pending, and if something
-   is, it needs reading before it ships.
-3. ⬜ **Run the suite on the merged branch** (CI never runs there), then build candidate 2 from a
-   clean tree — cutting step 5 in [CLAUDE.md](./CLAUDE.md), including the stash of both testing
-   toggles.
+1. ✅ **Review fixes merged** — #266, #267, #269 (as a merge commit, so `main` is an ancestor and
+   #147 is mergeable) and #268. The merged branch ran green.
+2. ⬜ **Deploy the backend to prod** — your call, through the Infra workflow dispatched from
+   `release/1.2.0` with stage `prod`. `POST /me/push-token` refuses every device on today's prod, so
+   push cannot work for anybody until it goes out. `cdk diff` on 2026-09-14 showed Lambda code only.
+3. ✅ **Candidate 2 built from a clean tree** — `eas build:view` names `8b03ac5` for both.
 4. ⬜ **Submit candidate 2 to TestFlight and Play internal**, and run
    [the shortest pass that can ship](./RELEASE_TESTING.md#the-shortest-pass-that-can-ship). Mark
    anything else left unrun 🟡 deliberately rather than by omission.
