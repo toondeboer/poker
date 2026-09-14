@@ -155,6 +155,17 @@ const forgetDeadTokens = async (
   await Promise.all(
     tickets.map(async (ticket, index) => {
       const details = (ticket as { details?: { error?: string } })?.details;
+      /**
+       * **Every other refusal is logged, never dropped.** Only
+       * `DeviceNotRegistered` has something to act on here, but a batch of
+       * `InvalidCredentials` means nobody on any board is being notified, and
+       * it used to leave no trace in CloudWatch at all. The code, not the token:
+       * a token is a way to reach somebody's phone.
+       */
+      if (details?.error && details.error !== "DeviceNotRegistered") {
+        log("warn", "push ticket refused", { error: details.error });
+        return;
+      }
       if (details?.error !== "DeviceNotRegistered") return;
       const owner = batch[index];
       if (!owner) return;

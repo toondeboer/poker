@@ -95,6 +95,12 @@ the 2026-09-13 review fixes have changed the binary since. What remains, in orde
   1.2.0 made rename admin-only, which stops a guest's board silently disagreeing with the host's,
   but the admin's own rename still does not reach anybody. A `PATCH /groups/{groupId}` behind the
   existing `rename` permission, sent online the way removal is, would close it.
+- ⬜ **Push delivery failures are invisible.** Expo reports some errors when a message is sent
+  (now logged) and the rest only in a **receipt**, fetched separately, later — `BadDeviceToken`,
+  an APNs key for the wrong environment, a revoked FCM key. Nothing fetches receipts, so a
+  credentials problem that stops every notification in production would leave no trace. A scheduled
+  Lambda that stores ticket ids briefly and reads their receipts fifteen minutes later is the
+  standard shape. Found when the 2026-09-14 §19 run got `ok` from Expo and no notification.
 - ⬜ **Every Lambda runs on `nodejs20.x`, which AWS has deprecated.** `cdk diff` warns on each
   function: deprecated 2026-04-30, **creation disabled 2027-02-01 and updates disabled
   2027-03-03** — after which a fix to any handler cannot be deployed at all. Move the stack to

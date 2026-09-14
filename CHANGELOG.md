@@ -1162,7 +1162,7 @@ platform-tagged heading (e.g. `## [1.1.3] - 2026-07-20 — Android`) when you cu
   register — the route asked for a board id it has no reason to have, so it answered "no group" to
   all of them — and the app never looked at the answer. Phones got a push token, nothing was stored,
   and nobody was ever notified that a game had been recorded. The server now takes the registration,
-  and the app logs when one is refused.
+  and the app logs when one is refused, as the server now does for a notification Expo will not send.
 - **Removing a player or deleting a game on a shared board removes it for everybody.** It never
   did: the app had no call to the server's delete routes, so the player or game disappeared from the
   phone that removed it and stayed on every other phone at the table — and on the server, where the

@@ -175,16 +175,16 @@ Three switches decide what a build can see:
 either side (`validateCredentials` in `@poker/core`), so `you+a@…` and `you+b@…` are two accounts
 that both arrive in one place. Every two-account session below uses the same pair.
 
-| Session | Where                                          | Switches                 | Sections                                                                |
-| ------- | ---------------------------------------------- | ------------------------ | ----------------------------------------------------------------------- |
-| **S1**  | Mac + a real inbox                             | both off                 | §14 accounts, including delete · §14b on Android, re-run on iOS         |
-| **S2**  | Mac                                            | PRO=true, then FREE=true | §16, run twice                                                          |
-| **S3**  | Simulator **and** emulator, signed in as A / B | PRO=true on both         | §15 boards · §15b · §18 clock · §19 push                                |
-| **S4**  | Mac                                            | PRO=true                 | §11 payouts · §12 leaderboard · §13 dealer **on iOS**                   |
-| **S5**  | Mac                                            | both off                 | §5 keyboard first, then §2 · §3 · §4 · §8                               |
-| **S6**  | iPad Simulator                                 | PRO=true                 | §7 tablets                                                              |
-| **S7**  | Mac, against **dev**                           | both off                 | §17 kill switch                                                         |
-| **P**   | The phones, once a candidate is on a track     | none — a release build   | §20 first, then §1 · §1b · §16b · §16c · §9 · §13 locked · §6 · §10 iOS |
+| Session | Where                                          | Switches                 | Sections                                                                               |
+| ------- | ---------------------------------------------- | ------------------------ | -------------------------------------------------------------------------------------- |
+| **S1**  | Mac + a real inbox                             | both off                 | §14 accounts, including delete · §14b on Android, re-run on iOS                        |
+| **S2**  | Mac                                            | PRO=true, then FREE=true | §16, run twice                                                                         |
+| **S3**  | Simulator **and** emulator, signed in as A / B | PRO=true on both         | §15 boards · §15b · §18 clock · §19 registration                                       |
+| **S4**  | Mac                                            | PRO=true                 | §11 payouts · §12 leaderboard · §13 dealer **on iOS**                                  |
+| **S5**  | Mac                                            | both off                 | §5 keyboard first, then §2 · §3 · §4 · §8                                              |
+| **S6**  | iPad Simulator                                 | PRO=true                 | §7 tablets                                                                             |
+| **S7**  | Mac, against **dev**                           | both off                 | §17 kill switch                                                                        |
+| **P**   | The phones, once a candidate is on a track     | none — a release build   | §20 first, then §1 · §1b · §16b · §16c · §19 delivery · §9 · §13 locked · §6 · §10 iOS |
 
 **S1 comes first for what it unblocks**, not for itself: every two-account session is stuck behind
 it, and its rows need a person with an inbox rather than a script.
@@ -193,9 +193,11 @@ it, and its rows need a person with an inbox rather than a script.
 bar — recurs in every sheet those sections open, and you will spot it faster having just looked for
 it.
 
-**§19 runs on the Mac.** Expo supports push on the iOS Simulator (Xcode 14+, macOS 13+, iOS 16+,
-Apple silicon) and on an Android emulator with Play services. Only the production-credential
-round-trip needs a phone, and that one is in §20.
+**§19 does not fully run on the Mac, whatever this used to say.** Registration does, and is worth
+checking there. Delivery did not, on 2026-09-14: APNs refused the iOS Simulator's token with
+`BadDeviceToken` (a dev client's sandbox token against the environment Expo sends to), and FCM
+accepted the Android emulator's message without it ever appearing. The rows that end with a
+notification on screen want the phones and a store build — §20.
 
 ### The switch trap
 
@@ -239,6 +241,8 @@ covered by a unit test:
    every sheet lays out after candidate 1 was built.
 7. **§13's peek rows on iOS**, and **§12's upgrade row** — the one piece of data a user cannot
    recreate.
+8. **§19's first row on the phones, after the backend fix is on prod** — until then no device can
+   register, so push cannot work for anybody.
 
 Anything else left ⬜ at submission should be a decision, not an accident: mark it 🟡 with the reason.
 
@@ -1027,13 +1031,27 @@ every poll means the token, not the code.
 
 ## 19. Push notifications · **new in 1.2.0, needs two accounts**
 
-**It needs credentials, not necessarily a phone.** An APNs key for iOS and an FCM v1 service account
-for Android, both held by EAS — without them nothing is sent at all, and that is a console check
-rather than a row. What it does **not** need is a real device: Expo supports push on the iOS
-Simulator (Xcode 14+, macOS 13+, iOS 16+, Apple silicon) and on an Android emulator with Google Play
-services, so the rows below run on the Mac against `DEV_BACKEND`. This section used to say the
-opposite, which made the most expensive-looking part of the pass look like it needed hardware it
-does not.
+**It needs credentials, and in practice a store build.** An APNs key for iOS and an FCM v1 service
+account for Android, both held by EAS. This section used to promise that the rows run on the iOS
+Simulator and an Android emulator; the 2026-09-14 run says otherwise for delivery — see the run
+notes below. **Registration can be checked anywhere**: a device that registered has a
+`PUSH#<token>` row under `ACCOUNT#<its sub>` in the table.
+
+**Run on 2026-09-14** — the §15 pair, against dev.
+
+- **Nobody had ever been registered.** `POST /me/push-token` answered 400 "no group" to every
+  device; fixed in #266 and deployed to dev, after which both devices wrote a token row. Prod still
+  has the bug until it is deployed.
+- **Registration needs the notification permission and never asks for it.** The Android emulator
+  had it denied, and so registered nothing — silently, as designed. Granted with
+  `adb shell pm grant com.toondeboer.pokerkit android.permission.POST_NOTIFICATIONS`.
+- **Recording a game on the host reached the sender and Expo accepted the send**, but no
+  notification was seen on either device. iOS: Expo's receipt says APNs `BadDeviceToken`. Android:
+  the receipt is `ok` and nothing appeared, with the app foregrounded or not. Neither says the
+  feature is broken, and neither proves it works.
+- **The sender used to log nothing for a refused ticket**; it now logs the error code (not the
+  token). Delivery errors like `BadDeviceToken` only arrive in receipts, which nothing on the server
+  fetches — see `ROADMAP.md`.
 
 The **production** APNs/FCM path is a different set of credentials, and is worth one round-trip on a
 store build — see §20.
@@ -1046,7 +1064,7 @@ store build — see §20.
 | **The person who recorded it is not notified** — they are holding the phone                                                            | ⬜  | ⬜      |
 | **It names the board, not the player.** No player name appears on the lock screen                                                      | ⬜  | ⬜      |
 | Tapping it opens the app — and does not crash from a cold start                                                                        | ⬜  | ⬜      |
-| **Declining the notification permission means no push, and no error.** Somebody who said no should not be asked again by this feature  | ⬜  | ⬜      |
+| **Declining the notification permission means no push, and no error.** Somebody who said no should not be asked again by this feature  | ⬜  | ✅      |
 | **Signed in on two devices, both are notified** — a token is a row per device, and the second sign-in must not unregister the first    | ⬜  | ⬜      |
 | **Recording while the other phone is offline**: it arrives when that phone comes back, or not at all — never as a duplicate            | ⬜  | ⬜      |
 | **The outbox replaying a queued game sends no second notification.** Only a write that actually landed notifies                        | ⬜  | ⬜      |
