@@ -234,7 +234,12 @@ export function LeaderboardScreen() {
         {
           text: "Remove",
           style: "destructive",
-          onPress: () => deletePlayer(id),
+          onPress: () =>
+            void deletePlayer(id).then((outcome) => {
+              // Nothing was changed when it was refused, so say so rather than
+              // leaving the player on screen with no explanation.
+              if (!outcome.ok) Alert.alert("Not removed", outcome.reason);
+            }),
         },
       ],
     );
@@ -243,7 +248,14 @@ export function LeaderboardScreen() {
   const confirmDeleteResult = (id: string, when: string) => {
     Alert.alert("Delete game", `Delete the game from ${when}?`, [
       { text: "Cancel", style: "cancel" },
-      { text: "Delete", style: "destructive", onPress: () => deleteResult(id) },
+      {
+        text: "Delete",
+        style: "destructive",
+        onPress: () =>
+          void deleteResult(id).then((outcome) => {
+            if (!outcome.ok) Alert.alert("Not deleted", outcome.reason);
+          }),
+      },
     ]);
   };
 
@@ -445,14 +457,19 @@ export function LeaderboardScreen() {
                             }
                           />
                         ) : null}
-                        <IconButton
-                          icon="trash"
-                          tone="danger"
-                          onPress={() =>
-                            confirmDeletePlayer(player.id, player.name)
-                          }
-                          accessibilityLabel={`Remove player ${player.name}`}
-                        />
+                        {/* **Not on a board somebody else shared.** Only an
+                            admin may remove, and a guest's delete used to
+                            change their own phone and nobody else's. */}
+                        {activeBoardIsGuest ? null : (
+                          <IconButton
+                            icon="trash"
+                            tone="danger"
+                            onPress={() =>
+                              confirmDeletePlayer(player.id, player.name)
+                            }
+                            accessibilityLabel={`Remove player ${player.name}`}
+                          />
+                        )}
                       </View>
                     }
                   />
@@ -482,12 +499,14 @@ export function LeaderboardScreen() {
                     title={when}
                     meta={`${result.playerIds.length} played${winner ? ` · won by ${winner.name}` : ""}`}
                     right={
-                      <IconButton
-                        icon="trash"
-                        tone="danger"
-                        onPress={() => confirmDeleteResult(result.id, when)}
-                        accessibilityLabel={`Delete game from ${when}`}
-                      />
+                      activeBoardIsGuest ? undefined : (
+                        <IconButton
+                          icon="trash"
+                          tone="danger"
+                          onPress={() => confirmDeleteResult(result.id, when)}
+                          accessibilityLabel={`Delete game from ${when}`}
+                        />
+                      )
                     }
                   />
                 );

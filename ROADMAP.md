@@ -66,7 +66,8 @@ the 2026-09-13 review fixes have changed the binary since. What remains, in orde
   writing an entitlement row, or its REST API, lets `groups.ts` and `sessions.ts` refuse on the
   server.
 - ⬜ **The mobile app has no tests below the screen, and 1.2.0's worst defects were exactly that
-  kind.** The shared clock shipped to the release branch broken three ways, all in the wiring rather
+  kind.** Shared boards could not remove anything, because nothing called the delete routes, and
+  the shared clock shipped to the release branch broken three ways, all in the wiring rather
   than the rules: `startHosting`/`join` kept the first render's refusal, `useSessionSync` never
   cleared a reload mark so no press was ever published, and the HTTP transport dropped every
   heartbeat. The protocol in `@poker/core` has a two-phone test suite and passed throughout; the
@@ -83,6 +84,11 @@ the 2026-09-13 review fixes have changed the binary since. What remains, in orde
   one stored (the comment there says "no version check happens here" deliberately — revisit that
   with this measurement), or a row per sender so writers stop overwriting each other. Also seen
   once and not explained: a joiner's countdown standing still for ~7 seconds after a resume.
+- ⬜ **Renaming a shared board only renames it on the admin's phone.** No route renames a board, so
+  `mergeBoard` keeps the local name and members see whatever the board was called when they joined.
+  1.2.0 made rename admin-only, which stops a guest's board silently disagreeing with the host's,
+  but the admin's own rename still does not reach anybody. A `PATCH /groups/{groupId}` behind the
+  existing `rename` permission, sent online the way removal is, would close it.
 - ⬜ **Four `react-hooks/exhaustive-deps` warnings remain**, all in long-shipped timer code
   (`TimerContext`, `useTimerEngine` ×2, `useTimerNotification`). Each may be deliberate — omitting
   `timeLeft` from an effect is often the point — but none says so. Either document the omission

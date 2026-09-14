@@ -93,6 +93,9 @@ export type GroupSummary = {
   isGuest: boolean;
 };
 
+/** Whether a removal went through, and why not when it did not. */
+export type RemovalOutcome = { ok: true } | { ok: false; reason: string };
+
 type LeaderboardContextValue = {
   /** Every group, oldest first, for the picker. */
   groups: GroupSummary[];
@@ -175,7 +178,11 @@ type LeaderboardContextValue = {
   standings: LeaderboardStanding[];
   isLoading: boolean;
   addNewPlayer: (name: string) => void;
-  deletePlayer: (id: string) => void;
+  /**
+   * Remove a player. **On a shared board this asks the server first** and
+   * changes nothing on the phone unless it agrees — see `removeFromServer`.
+   */
+  deletePlayer: (id: string) => Promise<RemovalOutcome>;
   /** Returns false when the result was refused, so a caller can say so
    * instead of reporting a save that never happened. */
   recordResult: (params: {
@@ -188,7 +195,8 @@ type LeaderboardContextValue = {
      */
     placings: Placing[];
   }) => boolean;
-  deleteResult: (id: string) => void;
+  /** Delete a game, on the same terms as {@link deletePlayer}. */
+  deleteResult: (id: string) => Promise<RemovalOutcome>;
   /** The player this account holds on the active board, if any. */
   claimedPlayer: (accountId: string) => Player | null;
   /**
@@ -662,35 +670,96 @@ export function LeaderboardProvider({
     [withActiveGroup, recordWrite],
   );
 
+  /**
+   * **Ask the server before hiding anything, on a board it has.**
+   *
+   * Removal never goes through the outbox (`pendingWrites.ts` explains why),
+   * and until this existed it did not go anywhere else either: a player removed
+   * or a game deleted on a shared board vanished from the phone that did it and
+   * stayed on every other one — and on the server, which the next pull on the
+   * other phones kept faithfully showing. So on a board the server knows, the
+   * removal is sent now, and the phone changes only once the server agrees.
+   *
+   * Three cases skip the server, and each is the whole of the job:
+   * - a board the server has never heard of (`role` unset);
+   * - a player or game still waiting in the outbox — cancelling it is the
+   *   removal, and the server would only say it has no such thing;
+   * - no active board at all.
+   *
+   * A board somebody else shared (`member`) is refused here as well as having
+   * no button: only an admin may remove, and a guest's delete that changed
+   * only their own phone was the misleading half of this bug.
+   */
+  const removeFromServer = useCallback(
+    async (target: {
+      kind: "player" | "game";
+      id: string;
+    }): Promise<RemovalOutcome & { groupId: string | null }> => {
+      const current = latestState.current;
+      const active = current.groups.find(
+        (entry) => entry.group.id === current.activeGroupId,
+      );
+      if (!active || active.role === undefined) {
+        return { ok: true, groupId: active?.group.id ?? null };
+      }
+      const groupId = active.group.id;
+      const stillQueued = sync.queue.pending.some((write) =>
+        target.kind === "player"
+          ? write.kind === "addPlayer" &&
+            write.groupId === groupId &&
+            write.player.id === target.id
+          : write.kind === "recordGame" &&
+            write.groupId === groupId &&
+            write.result.id === target.id,
+      );
+      if (stillQueued) return { ok: true, groupId };
+      if (active.role === "member") {
+        return {
+          ok: false,
+          reason: "Only an admin of this board can remove that.",
+          groupId,
+        };
+      }
+      const outcome = await sync.removeFromBoard(groupId, target);
+      return { ...outcome, groupId };
+    },
+    [sync],
+  );
+
   const deletePlayer = useCallback(
-    (id: string) => {
+    async (id: string): Promise<RemovalOutcome> => {
+      const allowed = await removeFromServer({ kind: "player", id });
+      if (!allowed.ok) return { ok: false, reason: allowed.reason };
       // Results keep the id. The games still happened, and everyone else's
       // history depends on the field sizes they were part of; computeStandings
       // simply ignores placings for players no longer on the roster.
-      const groupId = withActiveGroup((entry) =>
-        // Noted as deleted, or the next pull reads it back off the server and
-        // faithfully puts it back — nothing tells the server about a removal.
+      const remove = (entry: GroupState): GroupState =>
+        // Noted as deleted as well, so a pull that lands before the server's
+        // tombstone does cannot read the player back onto the board.
         noteDeleted(
           { ...entry, players: removePlayer(entry.players, id) },
           "players",
           id,
-        ),
-      );
+        );
+      // **The board the removal was sent for**, not whichever is active by the
+      // time the server answered — somebody can switch boards while it is out.
+      let groupId: string;
+      if (allowed.groupId) {
+        persist(updateGroup(latestState.current, allowed.groupId, remove));
+        groupId = allowed.groupId;
+      } else {
+        groupId = withActiveGroup(remove);
+      }
       /**
        * **A name added with no signal and deleted before it went must not go.**
        *
-       * Removing a player from a shared board is admin-only and deliberately
-       * not a thing the queue can carry, so an add that survives its own
-       * deletion is permanent: the typo appears on every member's board on the
-       * next foreground and only an admin can take it off again.
-       *
-       * Cancels nothing that has already been sent — there is no recalling
-       * that, and the board here has diverged from the server either way,
-       * which is the same state a build with no backend has always been in.
+       * Otherwise the queued add survives its own deletion and the typo
+       * appears on every member's board on the next foreground.
        */
       cancelWrite({ kind: "addPlayer", groupId, playerId: id });
+      return { ok: true };
     },
-    [withActiveGroup, cancelWrite],
+    [removeFromServer, persist, withActiveGroup, cancelWrite],
   );
 
   const recordResult = useCallback(
@@ -724,20 +793,29 @@ export function LeaderboardProvider({
   );
 
   const deleteResult = useCallback(
-    (id: string) => {
-      const groupId = withActiveGroup((entry) =>
+    async (id: string): Promise<RemovalOutcome> => {
+      const allowed = await removeFromServer({ kind: "game", id });
+      if (!allowed.ok) return { ok: false, reason: allowed.reason };
+      const remove = (entry: GroupState): GroupState =>
         noteDeleted(
           { ...entry, results: removeGameResult(entry.results, id) },
           "results",
           id,
-        ),
-      );
+        );
+      let groupId: string;
+      if (allowed.groupId) {
+        persist(updateGroup(latestState.current, allowed.groupId, remove));
+        groupId = allowed.groupId;
+      } else {
+        groupId = withActiveGroup(remove);
+      }
       // Same as deleting a player: a game recorded at the table and deleted
       // before there was any signal should not turn up later on everybody
-      // else's board, where removing it is somebody else's job.
+      // else's board.
       cancelWrite({ kind: "recordGame", groupId, resultId: id });
+      return { ok: true };
     },
-    [withActiveGroup, cancelWrite],
+    [removeFromServer, persist, withActiveGroup, cancelWrite],
   );
 
   const claimedPlayer = useCallback(

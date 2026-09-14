@@ -209,10 +209,10 @@ because everything was unlocked.
 
 ### Where the risk actually is
 
-- **§15 and §19 have never been run**, from any build, on any platform. §18 had not been either,
-  and its first run on 2026-09-13 found the shared clock broken three separate ways — hosting
-  refused, no press ever sent, every heartbeat dropped. That is what a section nobody has opened
-  looks like, and there is no reason to expect §15 and §19 to be different.
+- **§19 has never been run**, from any build, on any platform. §15 and §18 had not been either,
+  and their first runs on 2026-09-13 and 2026-09-14 found the shared clock broken three separate
+  ways and shared boards unable to remove anything. That is what a section nobody has opened looks
+  like, and there is no reason to expect §19 to be different.
 - **§14's sign-up rows need a person with an inbox**, and every two-account row in §15–§19 is
   queued behind them.
 - **§11–§13 cover what this release invented.** If time runs short, short-change something else.
@@ -247,20 +247,21 @@ Anything else left ⬜ at submission should be a decision, not an accident: mark
 Defects fixed on the release branch that were **found by review rather than by testing** — so these are rows this checklist previously let through. Worth running
 deliberately rather than waiting for them to come up in sequence.
 
-| Fix                                                           | Where it shows up                                   |
-| ------------------------------------------------------------- | --------------------------------------------------- |
-| A deleted board came back on the next pull                    | §12 deleting a group · §15 a board rejoined by link |
-| A refused game closed the sheet and lost the entry            | §12 recording a game                                |
-| Renaming to a duplicate or empty name                         | §12 — the rename rows already exist                 |
-| A refusal notice shown on the wrong board                     | §15 two boards, one refusal                         |
-| Identical chip stacks split unevenly                          | §11 a chop with two equal stacks                    |
-| Chop sheet blank with every stack cleared                     | §11 clear all stacks to 0                           |
-| A half-written token signed you out silently                  | §14 force-quit mid-sign-up                          |
-| **2026-09-13:** hosting/joining a clock always refused        | §18 host and join, signed in, with Club             |
-| **2026-09-13:** paywall sold Club under the kill switch       | §16c and §17 with `featureSharing=off`              |
-| **2026-09-13:** sheet content stopped short of the edge       | §3 bottom edge · §5 sheet rows · every sheet        |
-| **2026-09-13:** no shared-clock press reached another phone   | §18 pause, resume and level jump, both ways         |
-| **2026-09-13:** email sign-in left the sign-in form on screen | §14 the email sign-in row                           |
+| Fix                                                                     | Where it shows up                                        |
+| ----------------------------------------------------------------------- | -------------------------------------------------------- |
+| A deleted board came back on the next pull                              | §12 deleting a group · §15 a board rejoined by link      |
+| A refused game closed the sheet and lost the entry                      | §12 recording a game                                     |
+| Renaming to a duplicate or empty name                                   | §12 — the rename rows already exist                      |
+| A refusal notice shown on the wrong board                               | §15 two boards, one refusal                              |
+| Identical chip stacks split unevenly                                    | §11 a chop with two equal stacks                         |
+| Chop sheet blank with every stack cleared                               | §11 clear all stacks to 0                                |
+| A half-written token signed you out silently                            | §14 force-quit mid-sign-up                               |
+| **2026-09-13:** hosting/joining a clock always refused                  | §18 host and join, signed in, with Club                  |
+| **2026-09-13:** paywall sold Club under the kill switch                 | §16c and §17 with `featureSharing=off`                   |
+| **2026-09-13:** sheet content stopped short of the edge                 | §3 bottom edge · §5 sheet rows · every sheet             |
+| **2026-09-13:** no shared-clock press reached another phone             | §18 pause, resume and level jump, both ways              |
+| **2026-09-13:** email sign-in left the sign-in form on screen           | §14 the email sign-in row                                |
+| **2026-09-14:** nothing removed from a shared board reached anyone else | §15 deletion propagates, offline removal, guest controls |
 
 ---
 
@@ -798,28 +799,48 @@ sheet **explains itself rather than failing** — _"Sign in to join a board. Joi
 person who shares a board is the one who pays for it."_ — and the share control is **absent rather
 than broken**, which is the shape the guest rows below are about.
 
+**Run on 2026-09-14** — the same Simulator + emulator pair as §18, Android hosting as one account
+and the iPhone joining as another, `FORCE_PRO_IN_DEV` on both. **Each column is the platform that
+acted.** Invite codes were read from the dev table rather than typed off a screenshot.
+
+**It found that a shared board could only ever add.** Removing a player, deleting a game and
+renaming a board all changed the phone that did it and nothing else: the app never called the
+server's delete routes, so a player removed on the host stayed on the server and on every guest,
+and a guest's own delete or rename quietly diverged from everybody else's board. Fixed the same
+day — an admin's removal now goes to the server first and the phone changes only when it agrees,
+and a guest has no such controls. Renaming is still local, because no route renames a board; it is
+admin-only now, and in `ROADMAP.md`.
+
+Also passed and not a row of its own: a player added **with no signal** reached the other phone once
+the host reconnected, exactly once — the game half of the offline row was not run, so that row stays
+⬜. And removing a member worked from the host's side (the membership went, the invite code rotated
+on the server), but the removed phone's next write could not be driven from the Simulator, so those
+rows stay ⬜ too.
+
 |                                                                                                                                                    | iOS | Android |
 | -------------------------------------------------------------------------------------------------------------------------------------------------- | --- | ------- |
-| **The host shares a board** — the code arrives in the share sheet with a message naming the app                                                    | ⬜  | ⬜      |
-| **A second device joins by pasting the code**, and the board arrives with its whole roster and season, not empty                                   | ⬜  | ⬜      |
+| **The host shares a board** — the code arrives in the share sheet with a message naming the app                                                    | ⬜  | ✅      |
+| **A second device joins by pasting the code**, and the board arrives with its whole roster and season, not empty                                   | ✅  | ⬜      |
 | Pasting **the entire shared message** works, not just the bare code                                                                                | ⬜  | ⬜      |
 | A **wrong or expired code** says so and leaves the app usable                                                                                      | ⬜  | ⬜      |
 | **A guest pays nothing.** A device with neither Pro nor Club joins, and can read the board it was sent — if it hits a paywall, the feature is dead | ⬜  | ⬜      |
 | That guest **cannot** create a board of their own (Pro) or share one (Club) — the create and share controls are absent, not broken                 | ⬜  | ⬜      |
-| **A player added on one device appears on the other** after foregrounding it                                                                       | ⬜  | ⬜      |
-| **A game recorded on one appears on the other**, with the same standings                                                                           | ⬜  | ⬜      |
+| **A player added on one device appears on the other** after foregrounding it                                                                       | ⬜  | ✅      |
+| **A game recorded on one appears on the other**, with the same standings                                                                           | ✅  | ⬜      |
 | **Record with no signal, then reconnect.** Airplane mode, add a player and record a game, come back — both arrive, and nothing was lost or doubled | ⬜  | ⬜      |
-| **A deletion propagates.** Remove a player on the host; the guest stops showing them                                                               | ⬜  | ⬜      |
-| **A local delete stays deleted.** Delete a game on the guest, foreground twice — it does not come back                                             | ⬜  | ⬜      |
+| **A deletion propagates.** Remove a player on the host; the guest stops showing them                                                               | ⬜  | ✅      |
+| **Removing with no signal says so and changes nothing** — the player stays, and the alert says removing needs signal                               | ⬜  | ✅      |
+| **A guest has no remove, delete or rename** on a board somebody else shared — only an admin can, and a guest's used to change their phone alone    | ✅  | ⬜      |
+| **A game the admin deletes stays gone on the guest** — foreground the guest twice and it does not come back                                        | ✅  | ⬜      |
 | **A board deleted locally stays deleted**, and is not re-added by the next sync                                                                    | ⬜  | ⬜      |
-| The **share button is absent on a board you joined** — only an admin can invite, so offering it would only ever explain itself                     | ⬜  | ⬜      |
+| The **share button is absent on a board you joined** — only an admin can invite, so offering it would only ever explain itself                     | ✅  | ⬜      |
 | **Sign in on a third device → the boards are there**, without anybody sharing anything                                                             | ⬜  | ⬜      |
 | A write the server refuses shows the "Not saved for others" card, and dismissing it works                                                          | ⬜  | ⬜      |
 | Renaming a board on one device does **not** revert on the next sync                                                                                | ⬜  | ⬜      |
-| **An admin sees the members button on their own board**, and a member sees none on a board they joined                                             | ⬜  | ⬜      |
+| **An admin sees the members button on their own board**, and a member sees none on a board they joined                                             | ✅  | ✅      |
 | **Removing a member stops that phone syncing the board.** They keep the local copy, and their next write comes back refused rather than vanishing  | ⬜  | ⬜      |
 | **The code they were sent stops working afterwards** — rejoining needs a fresh one, and the sheet says the code was replaced                       | ⬜  | ⬜      |
-| Your own row says **"you"** and offers no remove; leaving is still on the boards list                                                              | ⬜  | ⬜      |
+| Your own row says **"you"** and offers no remove; leaving is still on the boards list                                                              | ⬜  | ✅      |
 | The **only admin cannot be removed**, and the sheet says why rather than failing                                                                   | ⬜  | ⬜      |
 
 ---

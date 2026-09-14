@@ -101,10 +101,10 @@ platform-tagged heading (e.g. `## [1.1.3] - 2026-07-20 — Android`) when you cu
   again once anything queued has been sent, each board is fetched and merged with what is already
   on the phone. Merged rather than replaced, which is the whole of the design: a board that
   existed before any of this has a history the server has never been told about, so trusting the
-  server's copy would delete a season of game nights. Somebody else's additions arrive, removals
-  they made are applied, and a game recorded thirty seconds ago does not flicker off the screen
+  server's copy would delete a season of game nights. Somebody else's additions arrive, an admin's
+  removals are applied, and a game recorded thirty seconds ago does not flicker off the screen
   while the request is in flight. A game or player you delete stays deleted, and a board you rename
-  keeps the name you gave it.
+  keeps the name you gave it — on your phone only, since a rename is not yet sent to anybody else.
 - **Deleting your account now deletes what is on the server too.** Every board membership, claim
   and shared result goes first and the login goes last — the other order leaves rows nobody can
   ever reach again, because once the login is gone there is no way to prove they were yours. If it
@@ -1158,6 +1158,14 @@ platform-tagged heading (e.g. `## [1.1.3] - 2026-07-20 — Android`) when you cu
 - **Signing in with email no longer leaves the sign-in form on screen.** The signed-in card sat
   above a second Sign in and a Create-an-account button — and App Review signs in exactly that way,
   with the demo accounts from the review notes.
+- **Removing a player or deleting a game on a shared board removes it for everybody.** It never
+  did: the app had no call to the server's delete routes, so the player or game disappeared from the
+  phone that removed it and stayed on every other phone at the table — and on the server, where the
+  next sync kept showing it. An admin's removal is now sent straight away and the phone changes only
+  once the server agrees; with no signal it says so and changes nothing, rather than hiding
+  something that is still on everyone else's board. Somebody who joined a board no longer sees
+  remove, delete or rename at all, since only an admin can do those and a guest's used to change
+  their own phone and nobody else's.
 - **The paywall stops selling Club where Club cannot be used.** Settings' Club card already hid
   itself with the kill switch off or with no backend; the paywall, which every locked Pro feature
   opens, did not — so switching sharing off left a subscription on sale whose only features had just
