@@ -157,6 +157,59 @@ afterEach(() => {
   pushed.length = 0;
 });
 
+describe("registering a device for push", () => {
+  /**
+   * **With no group id in the path, which is how the app calls it.** The shared
+   * `request` helper supplies `groupId: "g1"` by default, and that default is
+   * what hid a guard answering 400 "no group" to every real registration.
+   */
+  it("remembers a token sent with no group in the path", async () => {
+    const remembered: { accountId: string; token: string }[] = [];
+    useGroupStore({} as GroupStore);
+    usePush(
+      {
+        ...fakeTokens,
+        async remember(accountId: string, token: string) {
+          remembered.push({ accountId, token });
+        },
+      },
+      fakePush,
+    );
+    const response = await handler(
+      request("POST /me/push-token", {
+        pathParameters: {},
+        body: { token: "ExponentPushToken[abc-123]" },
+      }),
+    );
+    expect(response.statusCode).toBe(204);
+    expect(remembered).toEqual([
+      { accountId: "me", token: "ExponentPushToken[abc-123]" },
+    ]);
+  });
+
+  it("forgets a token sent with no group in the path", async () => {
+    const forgotten: string[] = [];
+    useGroupStore({} as GroupStore);
+    usePush(
+      {
+        ...fakeTokens,
+        async forget(_accountId: string, token: string) {
+          forgotten.push(token);
+        },
+      },
+      fakePush,
+    );
+    const response = await handler(
+      request("DELETE /me/push-token", {
+        pathParameters: {},
+        body: { token: "ExponentPushToken[abc-123]" },
+      }),
+    );
+    expect(response.statusCode).toBe(204);
+    expect(forgotten).toEqual(["ExponentPushToken[abc-123]"]);
+  });
+});
+
 describe("who is calling", () => {
   it("is the subject and nothing else", () => {
     // The one field in a request the caller cannot choose, put there by API

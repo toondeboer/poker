@@ -318,6 +318,31 @@ export const handler = async (request: VerifiedRequest): Promise<Response> => {
     return json(200, { groupId: invited, joined: outcome.status === "ok" });
   }
 
+  /**
+   * **Before the group guard below, because these have no group.** They sat
+   * inside the switch after it, so `POST /me/push-token` answered 400 "no
+   * group" to every device that ever registered — nobody could be notified of
+   * anything, and the app did not check the status. The tests never saw it
+   * because their request helper supplies a group id by default.
+   */
+  if (route === "POST /me/push-token") {
+    // The account comes from the token, never the body — the same rule every
+    // other route here follows about who a caller may act as.
+    if (!isExpoPushToken(body.token)) {
+      return json(400, { error: "not a push token" });
+    }
+    await pushTokens().remember(caller, body.token, Date.now());
+    return json(204, {});
+  }
+
+  if (route === "DELETE /me/push-token") {
+    if (!isExpoPushToken(body.token)) {
+      return json(400, { error: "not a push token" });
+    }
+    await pushTokens().forget(caller, body.token);
+    return json(204, {});
+  }
+
   if (!groupId) return json(400, { error: "no group" });
 
   switch (route) {
@@ -383,24 +408,6 @@ export const handler = async (request: VerifiedRequest): Promise<Response> => {
         });
       }
       return answer(outcome, requestId, { groupId, caller });
-    }
-
-    case "POST /me/push-token": {
-      // The account comes from the token, never the body — the same rule every
-      // other route here follows about who a caller may act as.
-      if (!isExpoPushToken(body.token)) {
-        return json(400, { error: "not a push token" });
-      }
-      await pushTokens().remember(caller, body.token, Date.now());
-      return json(204, {});
-    }
-
-    case "DELETE /me/push-token": {
-      if (!isExpoPushToken(body.token)) {
-        return json(400, { error: "not a push token" });
-      }
-      await pushTokens().forget(caller, body.token);
-      return json(204, {});
     }
 
     case "POST /groups/{groupId}/claims": {

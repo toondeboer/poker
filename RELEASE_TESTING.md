@@ -1053,6 +1053,13 @@ store build — see §20.
 | **A failed push never fails the write.** Break it deliberately (sign out on the receiver, delete the app) and recording still succeeds | ⬜  | ⬜      |
 | Uninstalling the receiving app and recording again does not error on the sender — the token is forgotten on `DeviceNotRegistered`      | ⬜  | ⬜      |
 
+**Blocked on 2026-09-14 by a server bug, now fixed:** `POST /me/push-token` answered 400 "no group"
+to every device, because the groups handler's group-id guard ran before the push routes. Both
+simulators obtained an Expo push token and were refused, so no row in this section could ever have
+passed. The fix is on dev; **prod needs the same deploy before this section means anything on a
+store build.** Check registration with the dev table rather than by waiting for a notification: a
+device that registered has a `PUSH#<token>` row under `ACCOUNT#<its sub>`.
+
 **The quiet failure to watch for**: registration rides on the notification permission the timer
 already asked for and never prompts on its own. So a device that never allowed notifications simply
 never registers, silently and correctly. If nothing arrives, check the permission before suspecting

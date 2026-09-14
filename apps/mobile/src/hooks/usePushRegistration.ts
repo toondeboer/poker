@@ -64,7 +64,7 @@ export function usePushRegistration(): void {
         const auth = await apiToken();
         if (!auth || cancelled) return;
 
-        await fetch(
+        const response = await fetch(
           `${backendConfig.apiUrl.replace(/\/$/, "")}/me/push-token`,
           {
             method: "POST",
@@ -75,6 +75,12 @@ export function usePushRegistration(): void {
             body: JSON.stringify({ token }),
           },
         );
+        // **Checked, and only logged.** The status was never read, which is how
+        // a server refusing every registration went unnoticed: devices got a
+        // token, the request "succeeded", and nobody was ever notified.
+        if (!response.ok) {
+          logger.warn(`Push registration refused (${response.status})`);
+        }
       } catch (error) {
         // **Never surfaced.** Not being reachable by push is a degraded
         // courtesy, not a broken app, and there is nothing the person holding
