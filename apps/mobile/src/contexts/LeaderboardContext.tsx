@@ -690,6 +690,20 @@ export function LeaderboardProvider({
    * no button: only an admin may remove, and a guest's delete that changed
    * only their own phone was the misleading half of this bug.
    */
+  /**
+   * The outbox as it is **now**, not as it was when a confirm dialog opened.
+   *
+   * The callbacks below are captured by an alert's button when it is shown, so
+   * reading `sync.queue` from their closure answered "is this still waiting to
+   * be sent?" about a moment that may have passed — and a write that had gone
+   * out in between was treated as unsent, so its removal never reached the
+   * server.
+   */
+  const queueRef = useRef(sync.queue);
+  useEffect(() => {
+    queueRef.current = sync.queue;
+  }, [sync.queue]);
+
   const removeFromServer = useCallback(
     async (target: {
       kind: "player" | "game";
@@ -703,25 +717,55 @@ export function LeaderboardProvider({
         return { ok: true, groupId: active?.group.id ?? null };
       }
       const groupId = active.group.id;
-      const stillQueued = sync.queue.pending.some((write) =>
+      const matches = (write: PendingWrite): boolean =>
         target.kind === "player"
           ? write.kind === "addPlayer" &&
             write.groupId === groupId &&
             write.player.id === target.id
           : write.kind === "recordGame" &&
             write.groupId === groupId &&
-            write.result.id === target.id,
-      );
-      if (stillQueued) return { ok: true, groupId };
+            write.result.id === target.id;
+      const { pending, refused } = queueRef.current;
+
+      // **The server refused it, so it never had it.** Deleting it is a local
+      // act, and asking the server would only be told there is no such row —
+      // forever, so the thing could never be deleted at all.
+      if (refused.some((entry) => matches(entry.write))) {
+        return { ok: true, groupId };
+      }
+
+      /**
+       * **Possibly unsent — which is not the same as unsent.** The outbox only
+       * marks a write sent once a whole pass finishes, so one listed here may
+       * already be on the server. It is cancelled by the caller either way, and
+       * the removal is still sent; "no such row" then just means the add never
+       * landed, which is the state being asked for.
+       *
+       * One gap is left, deliberately: an add still *in flight* when the
+       * server says "no such row" lands a moment later and stays. Closing it
+       * would mean holding the delete until the pass finishes, and a removal
+       * that waits on the outbox is the thing `pendingWrites.ts` rules out.
+       */
+      const possiblyUnsent = pending.some(matches);
+
       if (active.role === "member") {
-        return {
-          ok: false,
-          reason: "Only an admin of this board can remove that.",
-          groupId,
-        };
+        return possiblyUnsent
+          ? { ok: true, groupId }
+          : {
+              ok: false,
+              reason: "Only an admin of this board can remove that.",
+              groupId,
+            };
       }
       const outcome = await sync.removeFromBoard(groupId, target);
-      return { ...outcome, groupId };
+      if (outcome.ok) return { ok: true, groupId };
+      if (
+        possiblyUnsent &&
+        (outcome.status === 404 || outcome.status === 409)
+      ) {
+        return { ok: true, groupId };
+      }
+      return { ok: false, reason: outcome.reason, groupId };
     },
     [sync],
   );

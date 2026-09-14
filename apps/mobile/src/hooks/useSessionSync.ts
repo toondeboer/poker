@@ -103,7 +103,13 @@ export function useSessionSync({
     if (appliedRef.current === key) return;
     appliedRef.current = key;
 
-    const remote = applySyncMessage(latest, Date.now());
+    /**
+     * **From when it arrived, not from now.** A reload re-applies a message
+     * that may be minutes old, and anchoring its `remaining` at `Date.now()`
+     * wound the countdown back by however long ago that was — which the next
+     * tick then published to the whole table as a new version.
+     */
+    const remote = applySyncMessage(latest, latestAt ?? Date.now());
     applyRemoteState(remote);
     selectBlind(latest.blindIndex);
     onRemoteApplied(remote);
@@ -111,7 +117,7 @@ export function useSessionSync({
     // decides whether this runs. `hydrationCount` is here so a reload re-applies
     // the table over what came out of storage.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [status, latest, isLoading, deviceId, hydrationCount]);
+  }, [status, latest, latestAt, isLoading, deviceId, hydrationCount]);
 
   // Tell the table about a local change.
   //

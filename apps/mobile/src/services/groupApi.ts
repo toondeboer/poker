@@ -137,7 +137,12 @@ export type GroupApi = {
   removeFromBoard: (
     groupId: string,
     target: { kind: "player" | "game"; id: string },
-  ) => Promise<{ ok: true } | { ok: false; reason: string }>;
+  ) => Promise<
+    | { ok: true }
+    /** `status` when the server answered, so a caller can tell a refusal
+     * about the row from one about the person. Absent when offline. */
+    | { ok: false; reason: string; status?: number }
+  >;
 };
 
 /**
@@ -414,6 +419,7 @@ export const createGroupApi = (
       logger.warn(`Could not remove a ${target.kind} (${response.status})`);
       return {
         ok: false,
+        status: response.status,
         reason:
           response.status === 403
             ? "Only an admin of this board can remove that."
