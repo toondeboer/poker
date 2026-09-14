@@ -1053,7 +1053,7 @@ notes below. **Registration can be checked anywhere**: a device that registered 
 **Run on 2026-09-14** — the §15 pair, against dev.
 
 - **Nobody had ever been registered.** `POST /me/push-token` answered 400 "no group" to every
-  device; fixed in #266 and deployed to dev, after which both devices wrote a token row. Prod still
+  device; fixed in #268 and deployed to dev, after which both devices wrote a token row. Prod still
   has the bug until it is deployed.
 - **Registration needs the notification permission and never asks for it.** The Android emulator
   had it denied, and so registered nothing — silently, as designed. Granted with

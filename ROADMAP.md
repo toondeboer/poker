@@ -19,11 +19,12 @@ The release is cut (native versions, changelog heading, this file) and **candida
 superseded**: iOS build 27 and Android versionCode 16 were built from `9380c59`, and #262, #265 and
 the 2026-09-13 review fixes have changed the binary since. What remains, in order:
 
-1. ⬜ **Merge the open PRs into `release/1.2.0`** — the review fixes, and the sync of `main` (#258's
-   support-page fix) which clears the conflict on the RC PR, #147. The sync must land as a **merge
-   commit**: a squash leaves the conflict in place for the RC merge.
-2. ⬜ **Deploy the backend to prod** once #266 is merged — your call, through the Infra workflow.
-   `POST /me/push-token` refuses every device on today's prod (fixed in #266 and on dev), so push
+1. ⬜ **Merge #268 into `release/1.2.0`, and the new sync of `main`.** #266 and #267 are in. #267
+   landed as a **squash**, so `main` is still not in the release branch's ancestry and the RC PR,
+   #147, is conflicting again; the replacement sync PR has to be merged with **"Create a merge
+   commit"**, or the same thing happens a second time.
+2. ⬜ **Deploy the backend to prod** once #268 is merged — your call, through the Infra workflow.
+   `POST /me/push-token` refuses every device on today's prod (fixed in #268 and on dev), so push
    cannot work for anybody until it goes out. The app change alone does nothing for it. Run
    `cdk diff` against prod first: nothing else from 1.2.0's infra should be pending, and if something
    is, it needs reading before it ships.
