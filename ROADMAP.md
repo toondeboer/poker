@@ -22,18 +22,23 @@ the 2026-09-13 review fixes have changed the binary since. What remains, in orde
 1. ⬜ **Merge the open PRs into `release/1.2.0`** — the review fixes, and the sync of `main` (#258's
    support-page fix) which clears the conflict on the RC PR, #147. The sync must land as a **merge
    commit**: a squash leaves the conflict in place for the RC merge.
-2. ⬜ **Run the suite on the merged branch** (CI never runs there), then build candidate 2 from a
+2. ⬜ **Deploy the backend to prod** once #266 is merged — your call, through the Infra workflow.
+   `POST /me/push-token` refuses every device on today's prod (fixed in #266 and on dev), so push
+   cannot work for anybody until it goes out. The app change alone does nothing for it. Run
+   `cdk diff` against prod first: nothing else from 1.2.0's infra should be pending, and if something
+   is, it needs reading before it ships.
+3. ⬜ **Run the suite on the merged branch** (CI never runs there), then build candidate 2 from a
    clean tree — cutting step 5 in [CLAUDE.md](./CLAUDE.md), including the stash of both testing
    toggles.
-3. ⬜ **Submit candidate 2 to TestFlight and Play internal**, and run
+4. ⬜ **Submit candidate 2 to TestFlight and Play internal**, and run
    [the shortest pass that can ship](./RELEASE_TESTING.md#the-shortest-pass-that-can-ship). Mark
    anything else left unrun 🟡 deliberately rather than by omission.
-4. ⬜ **Console work that cannot delay a build but can delay a review:** paste the rewritten store
+5. ⬜ **Console work that cannot delay a build but can delay a review:** paste the rewritten store
    copy from [STORE_LISTING.md](./STORE_LISTING.md) and count the fields in the console; point App
    Store Connect's License Agreement field at `/terms`; confirm the `ContentReports` SNS email
    subscription is confirmed (§20); add the Club group and both subscriptions to the same App Store
    submission as the app version.
-5. ⬜ **Ship** — cutting steps 7–9: promote, merge #147, tag the built commit, delete the branch,
+6. ⬜ **Ship** — cutting steps 7–9: promote, merge #147, tag the built commit, delete the branch,
    reset `RELEASE_TESTING.md`.
 
 ## Carried into 1.2.1 — from the 1.2.0 release review
