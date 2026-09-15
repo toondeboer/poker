@@ -305,10 +305,28 @@ to handle something a person bought stopping working — every row below is a fi
 | Resubscribing restores hosting without anything being lost                                                                                                                                                           | ⬜  | 🚫                               |
 | A Pro-only buyer is **never** told to buy Pro again by any Club message                                                                                                                                              | ⬜  | 🚫                               |
 
-> **Expiry is the row most likely to be skipped and most likely to hurt.** Sandbox subscriptions
-> renew and expire on a compressed clock — minutes rather than months on both stores — so it is
-> genuinely testable in an afternoon. `entitlementsFrom` reads `entitlements.all` rather than
-> `active` precisely so a lapsed subscriber keeps Pro through a reinstall; this is what proves it.
+> **Expiry is the row most likely to be skipped and most likely to hurt.** `entitlementsFrom` reads
+> `entitlements.all` rather than `active` precisely so a lapsed subscriber keeps Pro through a
+> reinstall; this is what proves it.
+>
+> **On iOS it is only quick with a Sandbox Apple Account — a plain TestFlight install renews daily.**
+> This note used to say subscriptions expire "in minutes on both stores", which sent a tester
+> looking for a Settings screen that does not exist for a normal Apple ID. Since late 2024 a
+> TestFlight subscription renews **every 24 hours, up to 6 times**, and auto-renew switches off on
+> day 8. For expiry within the hour, on the same TestFlight build:
+>
+> 1. App Store Connect → Users and Access → **Sandbox**: create a tester and set its **Subscription
+>    Renewal Rate** to every 3 minutes.
+> 2. iPhone: sign out of the Apple ID under **Media & Purchases**, then **Settings → Developer**
+>    (needs Developer Mode, or a phone that has been connected to Xcode) → sign in to the Sandbox
+>    Apple Account.
+> 3. Buy the monthly Club plan, let it lapse (it stops renewing on its own after a limited number
+>    of cycles), relaunch, and check that hosting is gone and Pro is not. Sign back in to the real
+>    Apple ID afterwards.
+>
+> Sources: [Testing subscriptions in TestFlight](https://developer.apple.com/help/app-store-connect/test-a-beta-version/testing-subscriptions-and-in-app-purchases-in-testflight/),
+> [Sandbox Apple Account settings](https://developer.apple.com/help/app-store-connect/test-in-app-purchases/manage-sandbox-apple-account-settings).
+> Play's licence-tester renewal times were not checked when this was corrected.
 
 > Set `FORCE_PRO_IN_DEV`/`FORCE_FREE_IN_DEV` in `PremiumContext.tsx` to exercise the _gated UI_
 > without buying — but that does **not** test billing itself. Both flags leave the **price** fetch
