@@ -89,6 +89,12 @@ build. Only the first row of that table is what it means.
    the email sign-in in §14. Driven with Maestro on iOS — buttons expose their label as
    `", <label>"`, so match with a leading `.*` — and `adb` on Android. The Android dev client had to
    be rebuilt first: it predated #211 and red-screened on `ExpoCrypto`.
+1. **iPhone, store build** — candidate 2, TestFlight build 28 (built from `8b03ac5`), on 2026-09-15.
+   §20: updating from 1.1.4 kept the round length, the edited structure, a preset and Pro, and
+   Continue with Google named the prod pool. §1: the Pro price, a purchase, a restore on a fresh
+   install and a cancelled purchase. Club was not bought and nothing was expired, and Android has not
+   been run from a store build at all. **TestFlight shows a build only to members of a tester group**
+   — the upload was fine and invisible until the tester was added to one.
 
 ---
 
@@ -278,10 +284,10 @@ sandbox/test account, and for Android, a build uploaded to a Play track.
 |                                                                                                      | iOS | Android                          |
 | ---------------------------------------------------------------------------------------------------- | --- | -------------------------------- |
 | Paywall opens from all five entry points (Pro card, Presets, Sound Pack, Payouts, Leaderboard)       | ⬜  | ⬜                               |
-| Price string renders (not blank, not `one-time` alone)                                               | ⬜  | ⬜                               |
-| **Purchase completes** and Pro unlocks (ads gone, Presets, Sound Pack, Payouts + Leaderboard usable) | ⬜  | 🚫 [see below](#android-billing) |
-| **Restore purchases** works on a fresh install of the same account                                   | ⬜  | 🚫 [see below](#android-billing) |
-| Cancelling a purchase leaves the app in a sane state, no error toast                                 | ⬜  | 🚫 [see below](#android-billing) |
+| Price string renders (not blank, not `one-time` alone)                                               | ✅  | ⬜                               |
+| **Purchase completes** and Pro unlocks (ads gone, Presets, Sound Pack, Payouts + Leaderboard usable) | ✅  | 🚫 [see below](#android-billing) |
+| **Restore purchases** works on a fresh install of the same account                                   | ✅  | 🚫 [see below](#android-billing) |
+| Cancelling a purchase leaves the app in a sane state, no error toast                                 | ✅  | 🚫 [see below](#android-billing) |
 
 ### 1b. The Club subscription · **new in 1.2.0**
 
@@ -299,10 +305,28 @@ to handle something a person bought stopping working — every row below is a fi
 | Resubscribing restores hosting without anything being lost                                                                                                                                                           | ⬜  | 🚫                               |
 | A Pro-only buyer is **never** told to buy Pro again by any Club message                                                                                                                                              | ⬜  | 🚫                               |
 
-> **Expiry is the row most likely to be skipped and most likely to hurt.** Sandbox subscriptions
-> renew and expire on a compressed clock — minutes rather than months on both stores — so it is
-> genuinely testable in an afternoon. `entitlementsFrom` reads `entitlements.all` rather than
-> `active` precisely so a lapsed subscriber keeps Pro through a reinstall; this is what proves it.
+> **Expiry is the row most likely to be skipped and most likely to hurt.** `entitlementsFrom` reads
+> `entitlements.all` rather than `active` precisely so a lapsed subscriber keeps Pro through a
+> reinstall; this is what proves it.
+>
+> **On iOS it is only quick with a Sandbox Apple Account — a plain TestFlight install renews daily.**
+> This note used to say subscriptions expire "in minutes on both stores", which sent a tester
+> looking for a Settings screen that does not exist for a normal Apple ID. Since late 2024 a
+> TestFlight subscription renews **every 24 hours, up to 6 times**, and auto-renew switches off on
+> day 8. For expiry within the hour, on the same TestFlight build:
+>
+> 1. App Store Connect → Users and Access → **Sandbox**: create a tester and set its **Subscription
+>    Renewal Rate** to every 3 minutes.
+> 2. iPhone: sign out of the Apple ID under **Media & Purchases**, then **Settings → Developer**
+>    (needs Developer Mode, or a phone that has been connected to Xcode) → sign in to the Sandbox
+>    Apple Account.
+> 3. Buy the monthly Club plan, let it lapse (it stops renewing on its own after a limited number
+>    of cycles), relaunch, and check that hosting is gone and Pro is not. Sign back in to the real
+>    Apple ID afterwards.
+>
+> Sources: [Testing subscriptions in TestFlight](https://developer.apple.com/help/app-store-connect/test-a-beta-version/testing-subscriptions-and-in-app-purchases-in-testflight/),
+> [Sandbox Apple Account settings](https://developer.apple.com/help/app-store-connect/test-in-app-purchases/manage-sandbox-apple-account-settings).
+> Play's licence-tester renewal times were not checked when this was corrected.
 
 > Set `FORCE_PRO_IN_DEV`/`FORCE_FREE_IN_DEV` in `PremiumContext.tsx` to exercise the _gated UI_
 > without buying — but that does **not** test billing itself. Both flags leave the **price** fetch
@@ -1118,8 +1142,8 @@ out of EAS and went to TestFlight or Play internal testing.
 
 |                                                                                                                                                                                                                  | iOS | Android |
 | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --- | ------- |
-| **It talks to prod.** Account → Continue with Google: the page must name `pokerkit.auth.us-east-1.amazoncognito.com`, with no `-dev`. This is what proves the local testing toggles did not ship                 | ⬜  | ⬜      |
-| **Updating from the live version keeps everything.** Install 1.1.4 from the store, set a round length, edit a structure, save a preset — then update to the candidate and check all of it survived, Pro included | ⬜  | ⬜      |
+| **It talks to prod.** Account → Continue with Google: the page must name `pokerkit.auth.us-east-1.amazoncognito.com`, with no `-dev`. This is what proves the local testing toggles did not ship                 | ✅  | ⬜      |
+| **Updating from the live version keeps everything.** Install 1.1.4 from the store, set a round length, edit a structure, save a preset — then update to the candidate and check all of it survived, Pro included | ✅  | ⬜      |
 | **A report reaches a person.** File one against prod and confirm the alarm email arrives at `alertEmail` — `/support` promises an answer within two business days                                                | ⬜  | ⬜      |
 
 **Run the update row before anything else touches that phone.** It needs the live version installed
