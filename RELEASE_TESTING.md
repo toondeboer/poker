@@ -89,6 +89,12 @@ build. Only the first row of that table is what it means.
    the email sign-in in §14. Driven with Maestro on iOS — buttons expose their label as
    `", <label>"`, so match with a leading `.*` — and `adb` on Android. The Android dev client had to
    be rebuilt first: it predated #211 and red-screened on `ExpoCrypto`.
+1. **iPhone, store build** — candidate 2, TestFlight build 28 (built from `8b03ac5`), on 2026-09-15.
+   §20: updating from 1.1.4 kept the round length, the edited structure, a preset and Pro, and
+   Continue with Google named the prod pool. §1: the Pro price, a purchase, a restore on a fresh
+   install and a cancelled purchase. Club was not bought and nothing was expired, and Android has not
+   been run from a store build at all. **TestFlight shows a build only to members of a tester group**
+   — the upload was fine and invisible until the tester was added to one.
 
 ---
 
@@ -278,10 +284,10 @@ sandbox/test account, and for Android, a build uploaded to a Play track.
 |                                                                                                      | iOS | Android                          |
 | ---------------------------------------------------------------------------------------------------- | --- | -------------------------------- |
 | Paywall opens from all five entry points (Pro card, Presets, Sound Pack, Payouts, Leaderboard)       | ⬜  | ⬜                               |
-| Price string renders (not blank, not `one-time` alone)                                               | ⬜  | ⬜                               |
-| **Purchase completes** and Pro unlocks (ads gone, Presets, Sound Pack, Payouts + Leaderboard usable) | ⬜  | 🚫 [see below](#android-billing) |
-| **Restore purchases** works on a fresh install of the same account                                   | ⬜  | 🚫 [see below](#android-billing) |
-| Cancelling a purchase leaves the app in a sane state, no error toast                                 | ⬜  | 🚫 [see below](#android-billing) |
+| Price string renders (not blank, not `one-time` alone)                                               | ✅  | ⬜                               |
+| **Purchase completes** and Pro unlocks (ads gone, Presets, Sound Pack, Payouts + Leaderboard usable) | ✅  | 🚫 [see below](#android-billing) |
+| **Restore purchases** works on a fresh install of the same account                                   | ✅  | 🚫 [see below](#android-billing) |
+| Cancelling a purchase leaves the app in a sane state, no error toast                                 | ✅  | 🚫 [see below](#android-billing) |
 
 ### 1b. The Club subscription · **new in 1.2.0**
 
@@ -1118,8 +1124,8 @@ out of EAS and went to TestFlight or Play internal testing.
 
 |                                                                                                                                                                                                                  | iOS | Android |
 | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --- | ------- |
-| **It talks to prod.** Account → Continue with Google: the page must name `pokerkit.auth.us-east-1.amazoncognito.com`, with no `-dev`. This is what proves the local testing toggles did not ship                 | ⬜  | ⬜      |
-| **Updating from the live version keeps everything.** Install 1.1.4 from the store, set a round length, edit a structure, save a preset — then update to the candidate and check all of it survived, Pro included | ⬜  | ⬜      |
+| **It talks to prod.** Account → Continue with Google: the page must name `pokerkit.auth.us-east-1.amazoncognito.com`, with no `-dev`. This is what proves the local testing toggles did not ship                 | ✅  | ⬜      |
+| **Updating from the live version keeps everything.** Install 1.1.4 from the store, set a round length, edit a structure, save a preset — then update to the candidate and check all of it survived, Pro included | ✅  | ⬜      |
 | **A report reaches a person.** File one against prod and confirm the alarm email arrives at `alertEmail` — `/support` promises an answer within two business days                                                | ⬜  | ⬜      |
 
 **Run the update row before anything else touches that phone.** It needs the live version installed
