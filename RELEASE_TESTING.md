@@ -104,6 +104,13 @@ build. Only the first row of that table is what it means.
    be an existing Apple Account, though a `+alias` address works, and an existing tester's email and
    password cannot be edited
    ([Apple](https://developer.apple.com/help/app-store-connect/test-in-app-purchases/create-a-sandbox-apple-account/)).
+1. **iPhone, TestFlight build 28 + a Sandbox Apple Account, 2026-09-16 — the subscription life
+   cycle.** A fresh install showed Club and Pro locked; buying Club unlocked the leaderboard with no
+   Pro purchase; cancelling in the sandbox account left the app usable with access running to the
+   end of the period; and after the lapse **hosting was gone and Pro was still unlocked** — §1b's
+   expiry row, on a device, for the first time. The recipe is written out under §1b. **Not run:**
+   resubscribing, restore on a fresh install, an expired host's boards seen by another member, and
+   everything Android.
 
 ---
 
@@ -306,10 +313,10 @@ to handle something a person bought stopping working — every row below is a fi
 |                                                                                                                                                                                                                      | iOS | Android                          |
 | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --- | -------------------------------- |
 | Both SKUs appear and are priced — monthly **and** annual. One store having only one of them is a half-shipped product                                                                                                | ✅  | 🚫 [see below](#android-billing) |
-| **Subscribing grants Pro as well.** A subscriber who never bought Pro can open the leaderboard — otherwise they are hosting a board they cannot see                                                                  | ⬜  | 🚫                               |
+| **Subscribing grants Pro as well.** A subscriber who never bought Pro can open the leaderboard — otherwise they are hosting a board they cannot see                                                                  | ✅  | 🚫                               |
 | **Restore brings back both**, on a fresh install on the same store account — Pro and Club, not one                                                                                                                   | ⬜  | 🚫                               |
-| Cancelling in the store leaves the app sane, and access continues to the end of the paid period                                                                                                                      | ⬜  | 🚫                               |
-| **After it expires: sharing stops, and Pro does not.** Once a subscription has granted Pro it keeps it, so the boards stay visible and only hosting goes. Getting this wrong takes the sight of every board they own | ⬜  | 🚫                               |
+| Cancelling in the store leaves the app sane, and access continues to the end of the paid period                                                                                                                      | ✅  | 🚫                               |
+| **After it expires: sharing stops, and Pro does not.** Once a subscription has granted Pro it keeps it, so the boards stay visible and only hosting goes. Getting this wrong takes the sight of every board they own | ✅  | 🚫                               |
 | An expired subscriber's **existing shared boards keep working for the other members** — they are still on the server, and stranding them is worse than the cost it saves                                             | ⬜  | 🚫                               |
 | Resubscribing restores hosting without anything being lost                                                                                                                                                           | ⬜  | 🚫                               |
 | A Pro-only buyer is **never** told to buy Pro again by any Club message                                                                                                                                              | ⬜  | 🚫                               |
@@ -318,24 +325,50 @@ to handle something a person bought stopping working — every row below is a fi
 > `entitlements.all` rather than `active` precisely so a lapsed subscriber keeps Pro through a
 > reinstall; this is what proves it.
 >
-> **On iOS it is only quick with a Sandbox Apple Account — a plain TestFlight install renews daily.**
-> This note used to say subscriptions expire "in minutes on both stores", which sent a tester
-> looking for a Settings screen that does not exist for a normal Apple ID. Since late 2024 a
-> TestFlight subscription renews **every 24 hours, up to 6 times**, and auto-renew switches off on
-> day 8. For expiry within the hour, on the same TestFlight build:
+> **On iOS, the whole subscription life cycle is testable in half an hour — but only with a Sandbox
+> Apple Account, and only in this order.** Run on 2026-09-16 against TestFlight build 28, where it
+> produced the expiry row's first real result: hosting went, Pro stayed.
 >
-> 1. App Store Connect → Users and Access → **Sandbox**: create a tester and set its **Subscription
->    Renewal Rate** to every 3 minutes.
-> 2. iPhone: sign out of the Apple ID under **Media & Purchases**, then **Settings → Developer**
->    (needs Developer Mode, or a phone that has been connected to Xcode) → sign in to the Sandbox
->    Apple Account.
-> 3. Buy the monthly Club plan, let it lapse (it stops renewing on its own after a limited number
->    of cycles), relaunch, and check that hosting is gone and Pro is not. Sign back in to the real
->    Apple ID afterwards.
+> **What the accounts do.** TestFlight installs the build and needs a **real** Apple Account. The
+> **sandbox** account only ever pays for what is bought inside the app, and is signed in at
+> Settings → Developer → Sandbox Apple Account. A sandbox tester's email **cannot be an existing
+> Apple Account** — a `+alias` works — and a tester's email and password cannot be edited afterwards.
+>
+> **Why the order matters.** A purchase made with the real Apple ID grants the entitlement to _this
+> install's_ RevenueCat customer, and signing a sandbox account in afterwards does not take it away:
+> the app keeps showing Club until that subscription lapses on its own. Signing out **before the
+> app's first launch** is what stops the old receipt re-attaching.
+>
+> 1. App Store Connect → Users and Access → **Sandbox**: create a tester, and set its **Subscription
+>    Renewal Rate** to **every 3 minutes**.
+> 2. Delete the app. Reinstall it from TestFlight, then close TestFlight **without opening the app**.
+> 3. Settings → your name → **Media & Purchases** → **Sign Out**.
+> 4. Settings → **Developer** → **Sandbox Apple Account** → sign in as the tester. No Developer menu
+>    means Developer Mode is off (Settings → Privacy & Security), and turning it on restarts the
+>    phone.
+> 5. Open the app **from the home screen**. Club and Pro must both be locked. If Club is unlocked
+>    here, the old receipt re-attached and this device cannot run the test.
+> 6. Buy Club. **A sandbox tester has never bought Pro**, so the leaderboard opening is what proves
+>    Club grants Pro — the row a personal account can never show once it owns Pro.
+> 7. **A sandbox subscription renews, it does not expire.** At 3 minutes it renews every 3 minutes,
+>    **up to 12 times**, so leaving it alone takes about 36 minutes. Cancel instead: Settings →
+>    Developer → **Sandbox Apple Account → Manage** (older iOS: Settings → App Store → Sandbox
+>    Account → Manage), then wait out the current period.
+> 8. **Force-quit and reopen** before judging: entitlements are cached for a few minutes, so a
+>    foreground refresh is what shows the lapse.
+> 9. Afterwards: sign the sandbox account out, sign back in under Media & Purchases, and reinstall
+>    from TestFlight for a normal build.
+>
+> **A plain TestFlight purchase is the slow path**, and this note used to describe a faster one that
+> does not exist: since late 2024 a TestFlight subscription renews **every 24 hours, up to 6 times**,
+> lapsing around day 8. Signing out of Media & Purchases costs nothing permanent — iCloud, Find My
+> and backups are a different account slot — but Apple Music and App Store downloads stop until you
+> sign back in, and nothing is cancelled or refunded.
 >
 > Sources: [Testing subscriptions in TestFlight](https://developer.apple.com/help/app-store-connect/test-a-beta-version/testing-subscriptions-and-in-app-purchases-in-testflight/),
-> [Sandbox Apple Account settings](https://developer.apple.com/help/app-store-connect/test-in-app-purchases/manage-sandbox-apple-account-settings).
-> Play's licence-tester renewal times were not checked when this was corrected.
+> [Create a Sandbox Apple Account](https://developer.apple.com/help/app-store-connect/test-in-app-purchases/create-a-sandbox-apple-account/),
+> [Manage Sandbox Apple Account settings](https://developer.apple.com/help/app-store-connect/test-in-app-purchases/manage-sandbox-apple-account-settings/).
+> **Play's licence-tester timings are not checked** — Android still wants its own pass.
 
 > Set `FORCE_PRO_IN_DEV`/`FORCE_FREE_IN_DEV` in `PremiumContext.tsx` to exercise the _gated UI_
 > without buying — but that does **not** test billing itself. Both flags leave the **price** fetch
@@ -963,9 +996,9 @@ reaches TestFlight or Play internal testing — before submission, not after it.
 | **"Joining a board is always free" is on screen.** The misunderstanding most likely to kill the feature                                                                                                                  | ⬜  | ⬜      |
 | **Terms of Use opens `/terms`** in a browser, and the page loads                                                                                                                                                         | ⬜  | ⬜      |
 | **Privacy Policy opens `/privacy-policy`**, and the page loads                                                                                                                                                           | ⬜  | ⬜      |
-| Buying **monthly** grants `club` **and** `pro` — the board opens straight away, with no second purchase                                                                                                                  | ⬜  | ⬜      |
+| Buying **monthly** grants `club` **and** `pro` — the board opens straight away, with no second purchase                                                                                                                  | ✅  | ⬜      |
 | Buying **annual** does the same                                                                                                                                                                                          | ⬜  | ⬜      |
-| **Cancelling at the store** removes hosting but **leaves Pro** — the boards stay visible. This is the promise `clubEver` exists to keep                                                                                  | ⬜  | ⬜      |
+| **Cancelling at the store** removes hosting but **leaves Pro** — the boards stay visible. This is the promise `clubEver` exists to keep                                                                                  | ✅  | ⬜      |
 | **A subscriber is never offered the plans again** — the two plan buttons are replaced by "Club active"                                                                                                                   | ✅  | ⬜      |
 | **…but the card itself stays**, carrying the renewal terms and both legal links. Changed in 1.2.0: the whole section used to vanish, which took the cancellation terms with it — away from the one person who needs them | ✅  | ⬜      |
 | Cancelling a purchase halfway leaves the sheet usable, with no error — cancelling is not a failure                                                                                                                       | ⬜  | ⬜      |
@@ -991,7 +1024,7 @@ is about whether a person can tell, before they tap, which of the two they are b
 | That offer is **absent on a cold launch until the store answers** — never shown while entitlements are still the default                         | ⬜  | ⬜      |
 | **Start a clock → "See Club"** opens the sheet on Club, and the refusal sentence above it still reads the same                                   | ⬜  | ⬜      |
 | Club is **absent everywhere** with `featureSharing=off` — the Settings card, the paywall's Club card, the groups offer and the clock's button    | ⬜  | ⬜      |
-| Club is **absent everywhere** in a build whose subscriptions are not live — no empty card, no dead button                                        | ⬜  | ⬜      |
+| Club is **absent everywhere** in a build whose subscriptions are not live — no empty card, no dead button                                        | ✅  | ⬜      |
 | **The annual plan comes first and is the filled button**; the monthly sits below it, outlined                                                    | ⬜  | ⬜      |
 | The annual carries **"Save N% vs monthly"**, and N is right for the two prices **actually on screen** — work it out by hand and compare          | ⬜  | ⬜      |
 | **The claim is absent rather than wrong** when it cannot be made: only one plan returned by the store, or an annual that is not cheaper          | ⬜  | ⬜      |
