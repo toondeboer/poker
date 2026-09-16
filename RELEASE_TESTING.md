@@ -95,6 +95,15 @@ build. Only the first row of that table is what it means.
    install and a cancelled purchase. Club was not bought and nothing was expired, and Android has not
    been run from a store build at all. **TestFlight shows a build only to members of a tester group**
    — the upload was fine and invisible until the tester was added to one.
+1. **iPhone, store build — Club bought, 2026-09-16.** Both plans priced with their periods and the
+   renewal terms, the purchase completed, and a subscriber sees "Club active" with the card still
+   carrying its terms. **Not marked:** the Terms and Privacy links were not opened, and which plan
+   was bought was not recorded. **Expiry cannot be run on that purchase:** it was made with a normal
+   Apple ID in TestFlight, so it renews daily and lapses around day 8, and the account already owns
+   Pro so it cannot show that Club grants Pro. Both rows want a Sandbox Apple Account — which cannot
+   be an existing Apple Account, though a `+alias` address works, and an existing tester's email and
+   password cannot be edited
+   ([Apple](https://developer.apple.com/help/app-store-connect/test-in-app-purchases/create-a-sandbox-apple-account/)).
 
 ---
 
@@ -296,7 +305,7 @@ to handle something a person bought stopping working — every row below is a fi
 
 |                                                                                                                                                                                                                      | iOS | Android                          |
 | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --- | -------------------------------- |
-| Both SKUs appear and are priced — monthly **and** annual. One store having only one of them is a half-shipped product                                                                                                | ⬜  | 🚫 [see below](#android-billing) |
+| Both SKUs appear and are priced — monthly **and** annual. One store having only one of them is a half-shipped product                                                                                                | ✅  | 🚫 [see below](#android-billing) |
 | **Subscribing grants Pro as well.** A subscriber who never bought Pro can open the leaderboard — otherwise they are hosting a board they cannot see                                                                  | ⬜  | 🚫                               |
 | **Restore brings back both**, on a fresh install on the same store account — Pro and Club, not one                                                                                                                   | ⬜  | 🚫                               |
 | Cancelling in the store leaves the app sane, and access continues to the end of the paid period                                                                                                                      | ⬜  | 🚫                               |
@@ -947,18 +956,18 @@ reaches TestFlight or Play internal testing — before submission, not after it.
 
 |                                                                                                                                                                                                                          | iOS | Android |
 | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | --- | ------- |
-| **The Club section appears at all** once the products are live — and is absent before, rather than showing an empty box                                                                                                  | ⬜  | ⬜      |
-| **Both plans show a price**, taken from the store rather than written into the app — so it is right in every currency                                                                                                    | ⬜  | ⬜      |
-| **Each says its billing period** — "Monthly" and "Annual". Price without period is the 3.1.2 rejection                                                                                                                   | ⬜  | ⬜      |
-| It says **renews until cancelled**, and where to cancel — App Store on iOS, Play Store on Android                                                                                                                        | ⬜  | ⬜      |
+| **The Club section appears at all** once the products are live — and is absent before, rather than showing an empty box                                                                                                  | ✅  | ⬜      |
+| **Both plans show a price**, taken from the store rather than written into the app — so it is right in every currency                                                                                                    | ✅  | ⬜      |
+| **Each says its billing period** — "Monthly" and "Annual". Price without period is the 3.1.2 rejection                                                                                                                   | ✅  | ⬜      |
+| It says **renews until cancelled**, and where to cancel — App Store on iOS, Play Store on Android                                                                                                                        | ✅  | ⬜      |
 | **"Joining a board is always free" is on screen.** The misunderstanding most likely to kill the feature                                                                                                                  | ⬜  | ⬜      |
 | **Terms of Use opens `/terms`** in a browser, and the page loads                                                                                                                                                         | ⬜  | ⬜      |
 | **Privacy Policy opens `/privacy-policy`**, and the page loads                                                                                                                                                           | ⬜  | ⬜      |
 | Buying **monthly** grants `club` **and** `pro` — the board opens straight away, with no second purchase                                                                                                                  | ⬜  | ⬜      |
 | Buying **annual** does the same                                                                                                                                                                                          | ⬜  | ⬜      |
 | **Cancelling at the store** removes hosting but **leaves Pro** — the boards stay visible. This is the promise `clubEver` exists to keep                                                                                  | ⬜  | ⬜      |
-| **A subscriber is never offered the plans again** — the two plan buttons are replaced by "Club active"                                                                                                                   | ⬜  | ⬜      |
-| **…but the card itself stays**, carrying the renewal terms and both legal links. Changed in 1.2.0: the whole section used to vanish, which took the cancellation terms with it — away from the one person who needs them | ⬜  | ⬜      |
+| **A subscriber is never offered the plans again** — the two plan buttons are replaced by "Club active"                                                                                                                   | ✅  | ⬜      |
+| **…but the card itself stays**, carrying the renewal terms and both legal links. Changed in 1.2.0: the whole section used to vanish, which took the cancellation terms with it — away from the one person who needs them | ✅  | ⬜      |
 | Cancelling a purchase halfway leaves the sheet usable, with no error — cancelling is not a failure                                                                                                                       | ⬜  | ⬜      |
 | **Restore brings back both entitlements** on a fresh install                                                                                                                                                             | ⬜  | ⬜      |
 
