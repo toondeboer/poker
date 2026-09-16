@@ -34,9 +34,17 @@ export function ClubCard({ onRequestClub }: { onRequestClub: () => void }) {
   if (!accountsAreReal || !features.sharing) return null;
   if (!hasClub && clubPlans.length === 0) return null;
 
-  // Nothing left to act on, so this collapses to a single line rather than
-  // keeping a full card's worth of space — the same shape ProCard takes once
-  // Pro is unlocked.
+  /**
+   * Collapsed to a line and a badge — but **not to nothing to press.**
+   *
+   * The sheet this opens is where the renewal terms, where to cancel, and the
+   * Terms of Use and Privacy Policy links live, and guideline 3.1.2 wants all
+   * four in the app. Without this button a subscriber could not reach any of
+   * them: every other route to the paywall is a locked feature, and nothing is
+   * locked for somebody who has just paid. The person most likely to want the
+   * cancellation terms is the one already paying, which is the argument the
+   * paywall's own comment makes and this card used to defeat.
+   */
   if (hasClub) {
     return (
       <Card style={styles.activeCard}>
@@ -47,6 +55,12 @@ export function ClubCard({ onRequestClub }: { onRequestClub: () => void }) {
           </Text>
           <Badge label="Active" tone="live" />
         </View>
+        <Button
+          label="Subscription details"
+          icon="document-text-outline"
+          variant="secondary"
+          onPress={onRequestClub}
+        />
       </Card>
     );
   }
@@ -77,7 +91,7 @@ export function ClubCard({ onRequestClub }: { onRequestClub: () => void }) {
 }
 
 const styles = StyleSheet.create({
-  activeCard: { padding: space.lg },
+  activeCard: { padding: space.lg, gap: space.md },
   activeRow: { flexDirection: "row", alignItems: "center", gap: space.md },
   activeText: { ...text.body, flex: 1 },
   description: text.body,

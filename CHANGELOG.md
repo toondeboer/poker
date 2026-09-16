@@ -1163,6 +1163,12 @@ platform-tagged heading (e.g. `## [1.1.3] - 2026-07-20 — Android`) when you cu
   all of them — and the app never looked at the answer. Phones got a push token, nothing was stored,
   and nobody was ever notified that a game had been recorded. The server now takes the registration,
   and the app logs when one is refused, as the server now does for a notification Expo will not send.
+- **A subscriber can still find the renewal terms and the legal links.** Settings collapsed the Club
+  card to a line and a badge once the subscription was active, and every other route to that sheet
+  is a locked feature — so the moment somebody paid, the renewal terms, where to cancel, and the
+  Terms of Use and Privacy Policy links all became unreachable. The active card now carries a
+  **Subscription details** button that opens the same sheet, which is also what guideline 3.1.2 asks
+  the app to keep on screen.
 - **Shared-board messages say what happened, in words.** A write refused because you are no longer
   on a board used to show the server's "no such group"; it now says you are not on the board any
   more. A code that no longer works talks about an invite rather than a "link", since the app
