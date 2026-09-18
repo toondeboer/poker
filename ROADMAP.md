@@ -15,27 +15,31 @@ stay because code and other docs cite them.
 
 ## Shipping 1.2.0 — what is left
 
-The release is cut (native versions, changelog heading, this file). **Candidate 1 is superseded**
-(iOS build 27 and Android versionCode 16, from `9380c59`); **candidate 2 is iOS build 28 and Android
-versionCode 17, built from `8b03ac5`** on 2026-09-14 after the clean-tree gate. What remains, in
-order:
+The release is cut (native versions, changelog heading, this file), and **the backend is deployed**:
+prod ran from `release/1.2.0` carrying the push-token fix, so `POST /me/push-token` accepts a device
+there now. Dev also carries extra push-ticket logging; prod deliberately does not.
 
-1. ✅ **Review fixes merged** — #266, #267, #269 (as a merge commit, so `main` is an ancestor and
-   #147 is mergeable) and #268. The merged branch ran green.
-2. ⬜ **Deploy the backend to prod** — your call, through the Infra workflow dispatched from
-   `release/1.2.0` with stage `prod`. `POST /me/push-token` refuses every device on today's prod, so
-   push cannot work for anybody until it goes out. `cdk diff` on 2026-09-14 showed Lambda code only.
-3. ✅ **Candidate 2 built from a clean tree** — `eas build:view` names `8b03ac5` for both.
-4. ⬜ **Submit candidate 2 to TestFlight and Play internal**, and run
-   [the shortest pass that can ship](./RELEASE_TESTING.md#the-shortest-pass-that-can-ship). Mark
-   anything else left unrun 🟡 deliberately rather than by omission.
-5. ⬜ **Console work that cannot delay a build but can delay a review:** paste the rewritten store
-   copy from [STORE_LISTING.md](./STORE_LISTING.md) and count the fields in the console; point App
-   Store Connect's License Agreement field at `/terms`; confirm the `ContentReports` SNS email
-   subscription is confirmed (§20); add the Club group and both subscriptions to the same App Store
-   submission as the app version.
-6. ⬜ **Ship** — cutting steps 7–9: promote, merge #147, tag the built commit, delete the branch,
-   reset `RELEASE_TESTING.md`.
+**Candidates 1 and 2 are both superseded.** Candidate 2 — iOS build 28 and Android versionCode 17,
+from `8b03ac5` — is on TestFlight and Play internal, and running §16b against it is what found #272:
+a Club subscriber could not reach the renewal terms or either legal link from anywhere in the app,
+which is a Guideline 3.1.2 rejection. That fix is on the branch and in no build, so **candidate 3 has
+to be built before anything is submitted for review.** What remains, in order:
+
+1. ⬜ **Build and submit candidate 3** — cutting steps 5 and 6: a clean tree on `release/1.2.0`,
+   then TestFlight and Play internal.
+2. ⬜ **Finish the pass** — [the shortest pass that can ship](./RELEASE_TESTING.md#the-shortest-pass-that-can-ship),
+   plus the two §16b rows candidate 2 was marked against before #272 existed. Still unrun on a
+   phone: **Android billing entirely** (§1, §1b, §16b — never once exercised, and reachable only from
+   the Play internal track with a licence tester), a completed provider sign-in against prod
+   (§14, §14b), a notification actually arriving (§19), and the sheet and keyboard rows #265 reopened
+   (§3, §5). Mark anything left unrun 🟡 deliberately rather than by omission.
+3. ⬜ **Console work that cannot delay a build but can delay a review:** paste the store copy from
+   [STORE_LISTING.md](./STORE_LISTING.md) and count the fields in the console; point App Store
+   Connect's License Agreement field at `/terms`; confirm the `ContentReports` SNS email
+   subscription (§20); add the Club group and both subscriptions to the same App Store submission as
+   the app version.
+4. ⬜ **Ship** — cutting steps 7–9: promote in both consoles, correct the changelog date, merge
+   #147, tag the **built** commit, delete the branch, reset `RELEASE_TESTING.md`.
 
 ## Carried into 1.2.1 — from the 1.2.0 release review
 
@@ -97,22 +101,25 @@ order:
   credentials problem that stops every notification in production would leave no trace. A scheduled
   Lambda that stores ticket ids briefly and reads their receipts fifteen minutes later is the
   standard shape. Found when the 2026-09-14 §19 run got `ok` from Expo and no notification.
-- ⬜ **Every Lambda runs on `nodejs20.x`, which AWS has deprecated.** `cdk diff` warns on each
-  function: deprecated 2026-04-30, **creation disabled 2027-02-01 and updates disabled
-  2027-03-03** — after which a fix to any handler cannot be deployed at all. Move the stack to
-  `nodejs24.x` well before then, in its own PR with a dev deploy and the infra tests, not inside a
-  feature change.
+- ⬜ **One Lambda still runs on `nodejs20.x`, which AWS has deprecated** — `LinkAccounts`, the
+  Cognito `PreSignUp` trigger in `pokerStack.ts`. The other four functions are already on
+  `nodejs22.x`; this entry claimed _every_ Lambda until 2026-09-18, which made the job look far
+  bigger than it is. Deprecated 2026-04-30, **creation disabled 2027-02-01 and updates disabled
+  2027-03-03** — after which that handler cannot be redeployed at all. Move it onto the same runtime
+  as the rest, in its own PR with a dev deploy and the infra tests, not inside a feature change.
 - ⬜ **Four `react-hooks/exhaustive-deps` warnings remain**, all in long-shipped timer code
   (`TimerContext`, `useTimerEngine` ×2, `useTimerNotification`). Each may be deliberate — omitting
   `timeLeft` from an effect is often the point — but none says so. Either document the omission
   with an `eslint-disable-next-line` and a reason, or fix it, so that a new warning is noticed
   instead of joining a list everybody has learnt to ignore. Not in a release: this is the timer.
 - ⬜ **The docs are too long to be read, which is how they go stale.** `CHANGELOG.md`'s 1.2.0
-  section is ~1,300 lines, most of it rationale that is also in the commits; `RELEASE_TESTING.md` is
-  ~1,050 and `CLAUDE.md` ~550, the latter loaded into every agent session. Every stale claim the
-  1.2.0 review found sat in prose nobody re-read. At the next cut: user-facing changelog entries of
-  a few lines each, with the reasoning left in the commit — which is what this file already says
-  about itself.
+  section is the worst of it — most of it rationale that is also in the commits — and `CLAUDE.md` is
+  loaded into every agent session. Every stale claim the 1.2.0 review found sat in prose nobody
+  re-read, including three in this file. `RELEASE_TESTING.md` has had its run history cut back to
+  what a future tester needs, which is the shape the rest should follow: at the next cut,
+  user-facing changelog entries of a few lines each, with the reasoning left in the commit — which
+  is what this file already says about itself. Don't write counts or line totals into any of them;
+  `npm run testing:status` measures the one that matters.
 - ⬜ **CI should run on `release/**` pushes.** It triggers on `pull_request` and pushes to `main`
   only, so the merged combination that becomes the binary is tested by whoever remembers to run the
   suite locally. Cutting step 5 says to; a workflow would not forget.

@@ -72,45 +72,25 @@ Cutting step 6 in [CLAUDE.md](./CLAUDE.md) says to run "whatever rows are marked
 build. Only the first row of that table is what it means.
 
 <a id="passes-run"></a>
-**Passes run**
+**Passes run** — what hardware the ✅s came from, one line each. Detail that outlives a pass belongs
+in the section it was found in, not here; this list is cleared when the release ships.
 
-1. **iOS Simulator** — iPhone 17 Pro, iOS 26.5, dev client. Covers the **locked/non-Pro states
-   only**: both Pro pills in Settings, the Payouts and Leaderboard screens rendering their locked
-   cards and unlock buttons, the paywall listing all six Pro features, and the banner ad appearing
-   (so `shouldShowAds` is live). Also confirmed the end-of-game prompt produces **nothing** with Pro
-   locked, driven from a temporary mount trigger rather than the reset button. A Simulator can't
-   speak to billing, notifications or screen-wake, so nothing else here is claimed from it.
-1. **Android** — `Android_small` emulator, API 35, 30s screen timeout. §10 keep-awake: holding,
-   pause-releases and reset-releases all verified against the window flag and `mWakefulness`.
-   iOS not covered: the Simulator has no auto-lock, so §10 needs a real device there.
-1. **iOS Simulator + Android emulator, together** — iPhone 17 Pro (iOS 26.5) and `Pixel_stable`
-   (API 35), dev clients against `DEV_BACKEND`, `FORCE_PRO_IN_DEV` on, signed in as two dev-pool
-   accounts created with `admin-create-user`. §18's gate, codes, joining and press propagation, plus
-   the email sign-in in §14. Driven with Maestro on iOS — buttons expose their label as
-   `", <label>"`, so match with a leading `.*` — and `adb` on Android. The Android dev client had to
-   be rebuilt first: it predated #211 and red-screened on `ExpoCrypto`.
-1. **iPhone, store build** — candidate 2, TestFlight build 28 (built from `8b03ac5`), on 2026-09-15.
-   §20: updating from 1.1.4 kept the round length, the edited structure, a preset and Pro, and
-   Continue with Google named the prod pool. §1: the Pro price, a purchase, a restore on a fresh
-   install and a cancelled purchase. Club was not bought and nothing was expired, and Android has not
-   been run from a store build at all. **TestFlight shows a build only to members of a tester group**
-   — the upload was fine and invisible until the tester was added to one.
-1. **iPhone, store build — Club bought, 2026-09-16.** Both plans priced with their periods and the
-   renewal terms, the purchase completed, and a subscriber sees "Club active" with the card still
-   carrying its terms. **Not marked:** the Terms and Privacy links were not opened, and which plan
-   was bought was not recorded. **Expiry cannot be run on that purchase:** it was made with a normal
-   Apple ID in TestFlight, so it renews daily and lapses around day 8, and the account already owns
-   Pro so it cannot show that Club grants Pro. Both rows want a Sandbox Apple Account — which cannot
-   be an existing Apple Account, though a `+alias` address works, and an existing tester's email and
-   password cannot be edited
-   ([Apple](https://developer.apple.com/help/app-store-connect/test-in-app-purchases/create-a-sandbox-apple-account/)).
-1. **iPhone, TestFlight build 28 + a Sandbox Apple Account, 2026-09-16 — the subscription life
-   cycle.** A fresh install showed Club and Pro locked; buying Club unlocked the leaderboard with no
-   Pro purchase; cancelling in the sandbox account left the app usable with access running to the
-   end of the period; and after the lapse **hosting was gone and Pro was still unlocked** — §1b's
-   expiry row, on a device, for the first time. The recipe is written out under §1b. **Not run:**
-   resubscribing, restore on a fresh install, an expired host's boards seen by another member, and
-   everything Android.
+| #   | Where                                                                                                                        | What it covered                                                                                                                                                                                             |
+| --- | ---------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1   | iPhone 17 Pro Simulator, iOS 26.5, dev client                                                                                | **Locked / non-Pro states only** — both Pro pills, the locked Payouts and Leaderboard cards, the paywall's six features, the banner ad, and the end-of-game prompt staying silent without Pro               |
+| 2   | `Android_small` emulator, API 35, 30s screen timeout                                                                         | §10 keep-awake, read off the window flag and `mWakefulness`. iOS still wants a real device — the Simulator has no auto-lock                                                                                 |
+| 3   | iPhone 17 Pro Simulator **+** `Pixel_stable` API 35, dev clients on `DEV_BACKEND`, `FORCE_PRO_IN_DEV`, two dev-pool accounts | 2026-09-13/14 — §15 boards, §18 clock, §19 registration, §14's email sign-in. Found the shared-clock and shared-board defects fixed in #268 and before it; nothing in those sections passed until they were |
+| 4   | iPhone, **TestFlight build 28** (candidate 2, from `8b03ac5`)                                                                | 2026-09-15 — §20 in full, and §1's Pro rows: price, purchase, restore on a fresh install, cancelled purchase                                                                                                |
+| 5   | iPhone, TestFlight build 28, ordinary Apple ID                                                                               | 2026-09-16 — §1b's pricing and purchase rows, and §16b — **which is where #272 was found**                                                                                                                  |
+| 6   | iPhone, TestFlight build 28 **+ a Sandbox Apple Account**                                                                    | 2026-09-16 — the whole subscription life cycle, including §1b's expiry row on a device for the first time: hosting went, Pro stayed. The recipe is under §1b                                                |
+
+**What no pass has touched:** anything from an **Android store build** — so Android billing (§1, §1b,
+§16b) has never been exercised at all — a completed provider sign-in against prod, and a push
+notification arriving on a phone.
+
+> **TestFlight shows a build only to members of a tester group.** Build 28's upload was fine and
+> invisible until the tester was added to one. If a build is "missing" from TestFlight, check the
+> group before rebuilding anything.
 
 ---
 
@@ -153,7 +133,7 @@ build. Only the first row of that table is what it means.
 - [⬜] **Run §17, the kill switch, against dev** — and read prod with `curl` rather than deploying to
   it. The app half of those rows does not depend on which backend answers, and the prod half is one
   command: `curl https://poker-api.toondeboer.com/config` should say
-  `{"accounts":true,"sharing":true}` (it did on 2026-09-04, and again on 2026-09-12). This said
+  `{"accounts":true,"sharing":true}` (it did on 2026-09-04, 2026-09-12 and 2026-09-18). This said
   "against prod" until somebody worked out what that means. The flags are CDK context —
   `featureAccounts` / `featureSharing`, defaulting to `on` and absent from `cdk.json` — so flipping
   one is **a deploy to production**, and the Infra workflow cannot do it at all: its only input is
@@ -233,10 +213,13 @@ because everything was unlocked.
 
 ### Where the risk actually is
 
-- **§19 has never been run**, from any build, on any platform. §15 and §18 had not been either,
-  and their first runs on 2026-09-13 and 2026-09-14 found the shared clock broken three separate
-  ways and shared boards unable to remove anything. That is what a section nobody has opened looks
-  like, and there is no reason to expect §19 to be different.
+- **§19's delivery rows have never been seen to work**, on any build or platform — registration is
+  all that has been run. §15 and §18 were in the same state until 2026-09-13/14, and their first runs
+  found the shared clock broken three separate ways and shared boards unable to remove anything.
+  That is what a section nobody has opened looks like.
+- **Android billing has never been exercised at all** (§1, §1b, §16b), and it is the one area a
+  laptop cannot help with: it needs the Play internal track and a licence tester. Budget for it
+  rather than discovering it last.
 - **§14's sign-up rows need a person with an inbox**, and every two-account row in §15–§19 is
   queued behind them.
 - **§11–§13 cover what this release invented.** If time runs short, short-change something else.
@@ -263,8 +246,8 @@ covered by a unit test:
    every sheet lays out after candidate 1 was built.
 7. **§13's peek rows on iOS**, and **§12's upgrade row** — the one piece of data a user cannot
    recreate.
-8. **§19's first row on the phones, after the backend fix is on prod** — until then no device can
-   register, so push cannot work for anybody.
+8. **§19's first row on the phones.** The server fix is deployed, so a device can register now; what
+   has never been seen is a notification arriving.
 
 Anything else left ⬜ at submission should be a decision, not an accident: mark it 🟡 with the reason.
 
@@ -273,21 +256,22 @@ Anything else left ⬜ at submission should be a decision, not an accident: mark
 Defects fixed on the release branch that were **found by review rather than by testing** — so these are rows this checklist previously let through. Worth running
 deliberately rather than waiting for them to come up in sequence.
 
-| Fix                                                                     | Where it shows up                                        |
-| ----------------------------------------------------------------------- | -------------------------------------------------------- |
-| A deleted board came back on the next pull                              | §12 deleting a group · §15 a board rejoined by link      |
-| A refused game closed the sheet and lost the entry                      | §12 recording a game                                     |
-| Renaming to a duplicate or empty name                                   | §12 — the rename rows already exist                      |
-| A refusal notice shown on the wrong board                               | §15 two boards, one refusal                              |
-| Identical chip stacks split unevenly                                    | §11 a chop with two equal stacks                         |
-| Chop sheet blank with every stack cleared                               | §11 clear all stacks to 0                                |
-| A half-written token signed you out silently                            | §14 force-quit mid-sign-up                               |
-| **2026-09-13:** hosting/joining a clock always refused                  | §18 host and join, signed in, with Club                  |
-| **2026-09-13:** paywall sold Club under the kill switch                 | §16c and §17 with `featureSharing=off`                   |
-| **2026-09-13:** sheet content stopped short of the edge                 | §3 bottom edge · §5 sheet rows · every sheet             |
-| **2026-09-13:** no shared-clock press reached another phone             | §18 pause, resume and level jump, both ways              |
-| **2026-09-13:** email sign-in left the sign-in form on screen           | §14 the email sign-in row                                |
-| **2026-09-14:** nothing removed from a shared board reached anyone else | §15 deletion propagates, offline removal, guest controls |
+| Fix                                                                               | Where it shows up                                        |
+| --------------------------------------------------------------------------------- | -------------------------------------------------------- |
+| A deleted board came back on the next pull                                        | §12 deleting a group · §15 a board rejoined by link      |
+| A refused game closed the sheet and lost the entry                                | §12 recording a game                                     |
+| Renaming to a duplicate or empty name                                             | §12 — the rename rows already exist                      |
+| A refusal notice shown on the wrong board                                         | §15 two boards, one refusal                              |
+| Identical chip stacks split unevenly                                              | §11 a chop with two equal stacks                         |
+| Chop sheet blank with every stack cleared                                         | §11 clear all stacks to 0                                |
+| A half-written token signed you out silently                                      | §14 force-quit mid-sign-up                               |
+| **2026-09-13:** hosting/joining a clock always refused                            | §18 host and join, signed in, with Club                  |
+| **2026-09-13:** paywall sold Club under the kill switch                           | §16c and §17 with `featureSharing=off`                   |
+| **2026-09-13:** sheet content stopped short of the edge                           | §3 bottom edge · §5 sheet rows · every sheet             |
+| **2026-09-13:** no shared-clock press reached another phone                       | §18 pause, resume and level jump, both ways              |
+| **2026-09-13:** email sign-in left the sign-in form on screen                     | §14 the email sign-in row                                |
+| **2026-09-14:** nothing removed from a shared board reached anyone else           | §15 deletion propagates, offline removal, guest controls |
+| **2026-09-16:** a subscriber could not reach the renewal terms or the legal links | §16b — as a **subscriber**, on candidate 3               |
 
 ---
 
@@ -323,52 +307,77 @@ to handle something a person bought stopping working — every row below is a fi
 
 > **Expiry is the row most likely to be skipped and most likely to hurt.** `entitlementsFrom` reads
 > `entitlements.all` rather than `active` precisely so a lapsed subscriber keeps Pro through a
-> reinstall; this is what proves it.
->
-> **On iOS, the whole subscription life cycle is testable in half an hour — but only with a Sandbox
-> Apple Account, and only in this order.** Run on 2026-09-16 against TestFlight build 28, where it
-> produced the expiry row's first real result: hosting went, Pro stayed.
->
-> **What the accounts do.** TestFlight installs the build and needs a **real** Apple Account. The
-> **sandbox** account only ever pays for what is bought inside the app, and is signed in at
-> Settings → Developer → Sandbox Apple Account. A sandbox tester's email **cannot be an existing
-> Apple Account** — a `+alias` works — and a tester's email and password cannot be edited afterwards.
->
-> **Why the order matters.** A purchase made with the real Apple ID grants the entitlement to _this
-> install's_ RevenueCat customer, and signing a sandbox account in afterwards does not take it away:
-> the app keeps showing Club until that subscription lapses on its own. Signing out **before the
-> app's first launch** is what stops the old receipt re-attaching.
->
-> 1. App Store Connect → Users and Access → **Sandbox**: create a tester, and set its **Subscription
->    Renewal Rate** to **every 3 minutes**.
-> 2. Delete the app. Reinstall it from TestFlight, then close TestFlight **without opening the app**.
-> 3. Settings → your name → **Media & Purchases** → **Sign Out**.
-> 4. Settings → **Developer** → **Sandbox Apple Account** → sign in as the tester. No Developer menu
->    means Developer Mode is off (Settings → Privacy & Security), and turning it on restarts the
->    phone.
-> 5. Open the app **from the home screen**. Club and Pro must both be locked. If Club is unlocked
->    here, the old receipt re-attached and this device cannot run the test.
-> 6. Buy Club. **A sandbox tester has never bought Pro**, so the leaderboard opening is what proves
->    Club grants Pro — the row a personal account can never show once it owns Pro.
-> 7. **A sandbox subscription renews, it does not expire.** At 3 minutes it renews every 3 minutes,
->    **up to 12 times**, so leaving it alone takes about 36 minutes. Cancel instead: Settings →
->    Developer → **Sandbox Apple Account → Manage** (older iOS: Settings → App Store → Sandbox
->    Account → Manage), then wait out the current period.
-> 8. **Force-quit and reopen** before judging: entitlements are cached for a few minutes, so a
->    foreground refresh is what shows the lapse.
-> 9. Afterwards: sign the sandbox account out, sign back in under Media & Purchases, and reinstall
->    from TestFlight for a normal build.
->
-> **A plain TestFlight purchase is the slow path**, and this note used to describe a faster one that
-> does not exist: since late 2024 a TestFlight subscription renews **every 24 hours, up to 6 times**,
-> lapsing around day 8. Signing out of Media & Purchases costs nothing permanent — iCloud, Find My
-> and backups are a different account slot — but Apple Music and App Store downloads stop until you
-> sign back in, and nothing is cancelled or refunded.
->
+> reinstall; these rows are what prove it.
+
+#### The iOS life cycle, in half an hour — with a Sandbox Apple Account
+
+**Subscribing, cancelling and lapsing are all reachable in one sitting, but only in this order.**
+
+**What the two accounts do.** TestFlight installs the build and needs a **real** Apple Account. The
+**sandbox** account only ever pays for what is bought inside the app, and is signed in at
+Settings → Developer → Sandbox Apple Account. A sandbox tester's email **cannot be an existing Apple
+Account** — a `+alias` works — and its email and password cannot be edited afterwards.
+
+**Why the order matters.** A purchase made with the real Apple ID grants the entitlement to _this
+install's_ RevenueCat customer, and signing a sandbox account in afterwards does not take it away:
+the app keeps showing Club until that subscription lapses on its own. Signing out **before the app's
+first launch** is what stops the old receipt re-attaching.
+
+1. App Store Connect → Users and Access → **Sandbox**: create a tester, and set its **Subscription
+   Renewal Rate** to **every 3 minutes**.
+2. Delete the app. Reinstall it from TestFlight, then close TestFlight **without opening the app**.
+3. Settings → your name → **Media & Purchases** → **Sign Out**.
+4. Settings → **Developer** → **Sandbox Apple Account** → sign in as the tester. No Developer menu
+   means Developer Mode is off (Settings → Privacy & Security), and turning it on restarts the phone.
+5. Open the app **from the home screen**. Club and Pro must both be locked. If Club is unlocked here,
+   the old receipt re-attached and this device cannot run the test.
+6. Buy Club. **A sandbox tester has never bought Pro**, so the leaderboard opening is what proves
+   Club grants Pro — the row a personal account can never show once it owns Pro.
+7. **A sandbox subscription renews, it does not expire.** At 3 minutes it renews every 3 minutes, up
+   to **12 times**, so leaving it alone takes about 36 minutes. Cancel instead: Settings → Developer
+   → **Sandbox Apple Account → Manage** (older iOS: Settings → App Store → Sandbox Account → Manage),
+   then wait out the current period.
+8. **Force-quit and reopen** before judging: entitlements are cached for a few minutes, so a
+   foreground refresh is what shows the lapse.
+9. Afterwards: sign the sandbox account out, sign back in under Media & Purchases, and reinstall from
+   TestFlight for a normal build.
+
+**A plain TestFlight purchase is the slow path.** Since late 2024 a TestFlight subscription renews
+**every 24 hours, up to 6 times**, lapsing around day 8 — so the expiry row is not reachable that way
+in a sitting. Signing out of Media & Purchases costs nothing permanent (iCloud, Find My and backups
+are a different account slot), but Apple Music and App Store downloads stop until you sign back in,
+and nothing is cancelled or refunded.
+
+#### The Android life cycle — a licence tester on the internal track
+
+**Play accelerates the same clock, and harder.** A licence tester's subscription renews on the
+timings below and then **ends after 6 renewals** (free trials and introductory periods don't count),
+so a lapse is something you can sit and wait for rather than schedule around:
+
+| Real period      | Test period     |
+| ---------------- | --------------- |
+| Weekly / monthly | ~5 minutes      |
+| 3 months         | ~10 minutes     |
+| 6 months         | ~15 minutes     |
+| **Yearly**       | ~**30 minutes** |
+
+Others worth knowing while running §1b: free trial 3 minutes, grace period 5 minutes, account hold 10
+minutes, purchase acknowledgement 5 minutes — and **an unacknowledged purchase is auto-refunded after
+3 minutes**, which looks exactly like a purchase silently reversing itself. Times are approximate.
+
+**Run the expiry row on the monthly plan**, not the annual: 6 × ~5 minutes is about half an hour to a
+lapse, against roughly three hours for the annual. Buy the annual once for its own §16b row and let it
+be.
+
+**Getting there:** the build must be on a Play track (internal testing is enough), signed with the
+same key, and the tester's Google account added to the **licence-testing list** in Play Console
+(Setup → License testing) _and_ to the track's tester list. Miss the licence list and purchases are
+charged for real; miss the track and the build is not installable.
+
 > Sources: [Testing subscriptions in TestFlight](https://developer.apple.com/help/app-store-connect/test-a-beta-version/testing-subscriptions-and-in-app-purchases-in-testflight/),
 > [Create a Sandbox Apple Account](https://developer.apple.com/help/app-store-connect/test-in-app-purchases/create-a-sandbox-apple-account/),
-> [Manage Sandbox Apple Account settings](https://developer.apple.com/help/app-store-connect/test-in-app-purchases/manage-sandbox-apple-account-settings/).
-> **Play's licence-tester timings are not checked** — Android still wants its own pass.
+> [Manage Sandbox Apple Account settings](https://developer.apple.com/help/app-store-connect/test-in-app-purchases/manage-sandbox-apple-account-settings/),
+> [Test Google Play Billing](https://developer.android.com/google/play/billing/test).
 
 > Set `FORCE_PRO_IN_DEV`/`FORCE_FREE_IN_DEV` in `PremiumContext.tsx` to exercise the _gated UI_
 > without buying — but that does **not** test billing itself. Both flags leave the **price** fetch
@@ -704,19 +713,9 @@ code, never backgrounded the phone mid-flow, and never had to find the entry poi
 must point at a real backend or they cannot work at all. If sign-up says the build cannot do it,
 that is the switch, not a bug.
 
-**Partly run on Android, 2026-09-08.** What a laptop can drive was driven; **every row that needs a
-confirmation code is 🚫, because running it needs somebody with an inbox.** Those are the rows the
-feature rests on and they are still outstanding — see the note under the table.
-
-Two defects came out of the part that could be run, and both are fixed:
-
-- **Fixed: the same error was printed twice.** `AccountScreen` keeps one `error` state and rendered
-  it in four places. The "Sign in" card and the "Email and password" card are on screen together
-  once _Use email instead_ is tapped, so a failed email sign-in also printed a red line under the
-  Apple and Google buttons — about a provider nobody had touched.
-- **Fixed: an offline sign-in red-screened a dev build.** The screen handled it in words and then
-  logged at `error`, which LogBox turns into a full-screen overlay. Ordinary auth failures now log
-  at `warn`.
+**Partly run on Android.** What a laptop can drive was driven; **every row that needs a confirmation
+code is 🚫, because running it needs somebody with an inbox.** Those are the rows the feature rests
+on and they are still outstanding — see the note under the table.
 
 |                                                                                                                                                                                                                                                                    | iOS | Android |
 | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | --- | ------- |
@@ -780,49 +779,28 @@ can be run on such a build**, not just this one. Rebuild first — see §0.
 | **Use email instead** reveals the email form, and email sign-in still works                                                                                                                                                   | ✅  | ⬜      |
 | With no network, tapping a provider opens the sheet and **Safari** reports being offline; dismissing it leaves no app error                                                                                                   | ✅  | ✅      |
 
-**Declining failed first time round**, on 2026-09-07: Apple sends `user_cancelled_authorize` and only
-`access_denied` was handled, so the screen said _"That didn't work. Try again in a moment."_ about
-something somebody had chosen to do. Fixed in #219 and re-run on the device before being marked ✅ —
-which is the only thing that makes the mark mean anything.
+**Where the ✅s came from.** The iOS column was run on the iOS Simulator on 2026-09-07 against
+`DEV_BACKEND`; Android was opened on a `Pixel_stable` API 35 emulator on 2026-09-11, which is why
+only two of its rows are ticked.
 
-**Everything ✅ on the iOS column was run on the iOS Simulator on 2026-09-07**, against
-`DEV_BACKEND`.
+**Both pools are configured correctly, and that is worth separating from the rows.** On dev and on
+**prod**, both providers reach their real sign-in page: Google's names the Cognito domain (prod says
+`pokerkit.auth.us-east-1.amazoncognito.com`, with **no `-dev`** — verified in logcat rather than by
+reading the file), and Apple's shows the app's own icon and name, which comes from the Services ID
+record. A `redirect_mismatch`, a missing identity provider or a bad client id all fail _before_ that
+page, so none of them is present on either pool — and prod has its own Services ID, Google client and
+redirect URIs, so dev passing says nothing about it.
 
-**Android was opened on 2026-09-11** on a `Pixel_stable` API 35 emulator, against `DEV_BACKEND`, and
-two rows are ✅ from it. What that run actually established is worth writing down, because it is more
-than two ticks and less than a pass:
+**What is still not proven is a completed sign-in**, on either pool or either platform. That needs
+real provider credentials, which cannot be driven from a laptop. Those rows are the highest-value
+ones left in this file: the two provider buttons are the first thing on the sign-in card, so a
+failure there is a Guideline 2.1 rejection rather than a missing feature.
 
-- **Both providers reach their real sign-in page.** Google's shows _"to continue to
-  pokerkit-dev.auth.us-east-1.amazoncognito.com"_, and Apple's shows **the app's own icon and the
-  name "Poker Timer"** — which comes from the Services ID record in the developer portal, so the
-  Services ID, Team ID, Key ID and the `.p8` that signs the client secret are all right. A
-  `redirect_mismatch`, a missing identity provider or a bad client id all fail _before_ that page,
-  so none of them is present on dev.
-- **The launch path is `BrowserProxyActivity` → Chrome Custom Tab**, confirmed in logcat. Chrome's
-  own first-run screen sits in front of it on a fresh emulator, which looks exactly like a broken
-  sign-in and is not one.
-- **The four rows that need real credentials cannot be driven from here** and stay ⬜. So does
-  _Declining at the provider_, which needs somebody to get as far as the provider's own decline
-  button — closing the tab is a different code path, and it is the one already covered.
-- **_Use email instead_ reveals the form correctly** and the provider card keeps no error while it
-  is open, which is the #219 fix holding. The row stays ⬜ because its second half needs an account.
-
-**The prod pool was then checked too, on 2026-09-11, and both providers are configured correctly
-there.** This is the part that dev passing says nothing about: the prod pool has its own Apple
-Services ID (`com.toondeboer.pokerkit.signin`, against the `.dev` one) and its own Google client id,
-each needing its own redirect URI registered, and prod is what ships.
-
-Run by pointing `backendConfig` at `PROD_BACKEND`, reloading, and tapping each button. Verified by
-logcat that the browser opened `pokerkit.auth.us-east-1.amazoncognito.com` — **the prod domain, no
-`-dev`** — rather than trusting the file. Apple's page rendered with the app's icon and name;
-Google's said _"to continue to pokerkit.auth.us-east-1.amazoncognito.com"_. So the prod Services ID,
-its redirect URI, the prod Google client and the `.p8` all check out.
-
-**What is still not proven is a completed sign-in**, on either pool or either platform's prod
-config: that needs real provider credentials, which cannot be driven from here. The four rows above
-stay ⬜ and want a human with an Apple ID and a Google account. They are the highest-value rows left
-in this file — those two buttons are the first thing on the sign-in card, so a failure there is a
-Guideline 2.1 rejection rather than a missing feature.
+**Two things that look like a broken sign-in and are not.** On a fresh emulator Chrome's own
+first-run screen sits in front of the Custom Tab (the launch path is `BrowserProxyActivity` → Chrome
+Custom Tab, confirmed in logcat). And _Declining at the provider_ is a different code path from
+closing the tab — the latter is already covered, the former needs somebody to reach the provider's
+own decline button.
 
 _On Android the offline row's browser is Chrome rather than Safari; the behaviour asked for is the
 same — the browser reports being offline and dismissing it leaves no app error._
@@ -864,46 +842,24 @@ group.canInvite` (`GroupsSheet.tsx`), and joining is gated on being signed in. S
 is blocked behind §14's sign-up rows**, which are themselves blocked on somebody with an inbox —
 budget for that before setting two phones up, because `FORCE_PRO_IN_DEV` does not help with it.
 
-Two things were confirmed without an account, and neither needs repeating: with nobody signed in the
-sheet **explains itself rather than failing** — _"Sign in to join a board. Joining is free — the
-person who shares a board is the one who pays for it."_ — and the share control is **absent rather
-than broken**, which is the shape the guest rows below are about.
+Two things were confirmed without an account and need no repeating: with nobody signed in the sheet
+**explains itself rather than failing** — _"Sign in to join a board. Joining is free — the person who
+shares a board is the one who pays for it."_ — and the share control is **absent rather than broken**,
+which is the shape the guest rows below are about.
 
-**Run on 2026-09-14** — the same Simulator + emulator pair as §18, Android hosting as one account
-and the iPhone joining as another, `FORCE_PRO_IN_DEV` on both. **Each column is the platform that
-acted.** Invite codes were read from the dev table rather than typed off a screenshot.
+**Reading the table: each column is the platform that acted**, not the platform that watched. Run on
+2026-09-14 on the §18 pair, Android hosting as one account and the iPhone joining as another. Invite
+codes were read from the dev table rather than typed off a screenshot, which is worth doing again — a
+mistyped code fails identically to a broken one.
 
-**It found that a shared board could only ever add.** Removing a player, deleting a game and
-renaming a board all changed the phone that did it and nothing else: the app never called the
-server's delete routes, so a player removed on the host stayed on the server and on every guest,
-and a guest's own delete or rename quietly diverged from everybody else's board. Fixed the same
-day — an admin's removal now goes to the server first and the phone changes only when it agrees,
-and a guest has no such controls. Renaming is still local, because no route renames a board; it is
-admin-only now, and in `ROADMAP.md`.
+**Why several rows are still ⬜ after a run that looked complete:** the game half of the offline row
+was never done (only a player added with no signal, which arrived exactly once on reconnect), and
+_Dismiss_ on the "Not saved for others" card is unverified — the tap may not have landed, and
+re-joining clears a board's refusals anyway, so it could not be confirmed after the fact.
 
-Also passed and not a row of its own: a player added **with no signal** reached the other phone once
-the host reconnected, exactly once — the game half of the offline row was not run, so that row stays
-⬜. And removing a member worked from the host's side (the membership went, the invite code rotated
-on the server).
-
-**The rest, later the same day, with `FORCE_PRO_IN_DEV` off on both.** A guest with nothing bought
-read the whole board, and its Groups sheet offered no create form and no share control — only
-Join, and a Club offer. The removed phone kept its copy, and the game it then recorded came back as
-the "Not saved for others" card; its old code, opened as a link, said the invite had been replaced;
-and pasting the entire share message with the new code joined it again. **Dismiss is unverified**:
-the tap may not have landed, and re-joining clears a board's refusals anyway, so that row stays ⬜.
-Four small things came out of it, all fixed: a guest was told to "add another group" it could not
-add, a pasted code's refusal talked about a "link", a removed member's card said "no such group",
-and the remove-member button read "who joined Joined" to a screen reader.
-
-**Re-run after #268's review fixes, 2026-09-14:** an admin added a player and removed him before the
-outbox pass could finish — his row reached the server and was tombstoned, and he never appeared on
-the guest; a plain removal and a game delete both tombstoned and left the guest on the next
-foreground.
-
-**Test data, not a defect:** Bob is still on the dev board for the guest. The host removed him before
-removals reached the server, and the host's phone has hidden him since, so nothing can take him off
-now. Only a board used before the fix can be in that state.
+> **Test data, not a defect: Bob is still on the dev board for the guest.** The host removed him
+> before removals reached the server, and the host's phone has hidden him since, so nothing can take
+> him off now. Only a board used before that fix can be in this state — don't file it.
 
 |                                                                                                                                                    | iOS | Android |
 | -------------------------------------------------------------------------------------------------------------------------------------------------- | --- | ------- |
@@ -1000,9 +956,21 @@ reaches TestFlight or Play internal testing — before submission, not after it.
 | Buying **annual** does the same                                                                                                                                                                                          | ⬜  | ⬜      |
 | **Cancelling at the store** removes hosting but **leaves Pro** — the boards stay visible. This is the promise `clubEver` exists to keep                                                                                  | ✅  | ⬜      |
 | **A subscriber is never offered the plans again** — the two plan buttons are replaced by "Club active"                                                                                                                   | ✅  | ⬜      |
-| **…but the card itself stays**, carrying the renewal terms and both legal links. Changed in 1.2.0: the whole section used to vanish, which took the cancellation terms with it — away from the one person who needs them | ✅  | ⬜      |
+| **…but the card itself stays**, carrying the renewal terms and both legal links. Changed in 1.2.0: the whole section used to vanish, which took the cancellation terms with it — away from the one person who needs them | 🔧  | ⬜      |
 | Cancelling a purchase halfway leaves the sheet usable, with no error — cancelling is not a failure                                                                                                                       | ⬜  | ⬜      |
 | **Restore brings back both entitlements** on a fresh install                                                                                                                                                             | ⬜  | ⬜      |
+
+> **Two of these need candidate 3, and one of them was marked against candidate 2 by mistake.**
+> Running §16b on build 28 is what found #272: Settings collapsed the active Club card to a line and
+> a badge, and every other way into the paywall is a _locked_ feature — so a subscriber could not
+> open it at all, and the renewal terms, where to cancel, and both legal links went with it. The
+> _…but the card itself stays_ row was ticked anyway and is now 🔧, because on that build it was
+> false. _A subscriber is never offered the plans again_ keeps its ✅ — the plan buttons really were
+> gone; that was the same collapse seen from the other side.
+>
+> On candidate 3 the active card carries a **Subscription details** button opening the same sheet
+> (`ClubCard.tsx`). Re-run that row **as a subscriber**, and open **Terms of Use** and **Privacy
+> Policy** from there — those two rows are still ⬜ and a subscriber had no route to them before.
 
 ### 16c. Telling the two purchases apart · **new in 1.2.0**
 
@@ -1069,31 +1037,18 @@ used to promise** — every device's heartbeat rewrites the one stored row, so a
 overwritten before the other phone reads it, and arrives on a later beat. A pause that shows up
 fifteen seconds later is a pass; one that never arrives is not. See `ROADMAP.md`.
 
-**Run on 2026-09-13** — iPhone 17 Pro Simulator (iOS 26.5) and `Pixel_stable` (API 35), both dev
-clients against `DEV_BACKEND` with `FORCE_PRO_IN_DEV`, signed in as two accounts. **Where a row
-involves both devices, each column is the platform that pressed.** It found three defects, all
-fixed on the release branch the same day, and nothing here passed before they were:
+**Reading the table: where a row involves both devices, each column is the platform that pressed.**
+Run on 2026-09-13 and re-run on 2026-09-14 after #268, on an iPhone 17 Pro Simulator (iOS 26.5) and
+`Pixel_stable` (API 35), both dev clients against `DEV_BACKEND` with `FORCE_PRO_IN_DEV`, signed in as
+two accounts. The first run found three defects — hosting and joining refused for everyone, no press
+ever leaving the phone, and heartbeats dropped on arrival — all fixed the same day, and nothing here
+passed before they were.
 
-- **Hosting and joining were refused for everyone** — a callback kept the signed-out answer from
-  launch.
-- **No press ever left the phone.** `useSessionSync` marked a reload from storage and never cleared
-  the mark, so its publishing effect returned on every run; the table moved only on heartbeats,
-  which repeat a version everyone already holds. Found when Next on Android left the iPhone at
-  Level 1 for 46 seconds, and confirmed by reading the stored row: the new level, under version 1.
-- **Heartbeats were dropped on arrival.** The HTTP transport skipped any message whose version it
-  had seen, so a host showed "Waiting for another phone to join…" forever and a joiner went "Out of
-  touch" fifteen seconds after joining, with a working connection.
-
-One thing seen and not explained: shortly after a resume, the iPhone's countdown stood still for
-about seven seconds while Android's ran, then caught up. Worth watching for on real phones.
-
-**Re-run on 2026-09-14 after #268's review fixes.** A joiner sent to the background for 45 seconds
-came back showing **exactly** the host's time (03:55 on both) — before the fix it re-applied the
-table's last message as if it had just arrived and wound the countdown back by however long ago
-that was. A reset on the host reached the joiner too. **Seen once and not reproduced:** in one
-session the host stopped sending heartbeats altogether, so the joiner read "Out of touch" while the
-host read "In step"; a fresh session on the same builds behaved, and nothing in the logs from the
-bad one says why. If a phone shows that asymmetry, note which one is hosting.
+**Two things seen once and never explained — watch for them on real phones.** Shortly after a resume,
+the iPhone's countdown stood still for about seven seconds while Android's ran, then caught up. And
+in one session the host stopped sending heartbeats altogether, so the joiner read "Out of touch"
+while the host read "In step"; a fresh session on the same builds behaved, and the logs say nothing.
+If a phone shows that asymmetry, note which one is hosting.
 
 |                                                                                                                                              | iOS | Android |
 | -------------------------------------------------------------------------------------------------------------------------------------------- | --- | ------- |
@@ -1124,29 +1079,26 @@ every poll means the token, not the code.
 ## 19. Push notifications · **new in 1.2.0, needs two accounts**
 
 **It needs credentials, and in practice a store build.** An APNs key for iOS and an FCM v1 service
-account for Android, both held by EAS. This section used to promise that the rows run on the iOS
-Simulator and an Android emulator; the 2026-09-14 run says otherwise for delivery — see the run
-notes below. **Registration can be checked anywhere**: a device that registered has a
-`PUSH#<token>` row under `ACCOUNT#<its sub>` in the table.
+account for Android, both held by EAS. **Registration can be checked anywhere** — a device that
+registered has a `PUSH#<token>` row under `ACCOUNT#<its sub>` in the table. **Delivery did not run on
+the Mac**, whatever this used to promise: on 2026-09-14 APNs refused the iOS Simulator's token with
+`BadDeviceToken`, and FCM accepted the emulator's message without it ever appearing. Production
+APNs/FCM are a different set of credentials again, so every row that ends in a notification on screen
+wants the phones and a store build — see §20.
 
-**Run on 2026-09-14** — the §15 pair, against dev.
+**The server bug is fixed and on prod.** `POST /me/push-token` answered 400 "no group" to every
+device until #268 — the groups handler's group-id guard ran before the push routes — so no row here
+could ever have passed. Prod has carried the fix since the 1.2.0 deploy, and dev additionally carries
+extra push-ticket logging. If registration still fails, it is not this.
 
-- **Nobody had ever been registered.** `POST /me/push-token` answered 400 "no group" to every
-  device; fixed in #268 and deployed to dev, after which both devices wrote a token row. Prod still
-  has the bug until it is deployed.
-- **Registration needs the notification permission and never asks for it.** The Android emulator
-  had it denied, and so registered nothing — silently, as designed. Granted with
+**Two quiet failures to rule out before suspecting the token:**
+
+- **Registration rides on the notification permission and never asks for it.** A device that never
+  allowed notifications simply never registers, silently and correctly. On the emulator:
   `adb shell pm grant com.toondeboer.pokerkit android.permission.POST_NOTIFICATIONS`.
-- **Recording a game on the host reached the sender and Expo accepted the send**, but no
-  notification was seen on either device. iOS: Expo's receipt says APNs `BadDeviceToken`. Android:
-  the receipt is `ok` and nothing appeared, with the app foregrounded or not. Neither says the
-  feature is broken, and neither proves it works.
-- **The sender used to log nothing for a refused ticket**; it now logs the error code (not the
-  token). Delivery errors like `BadDeviceToken` only arrive in receipts, which nothing on the server
-  fetches — see `ROADMAP.md`.
-
-The **production** APNs/FCM path is a different set of credentials, and is worth one round-trip on a
-store build — see §20.
+- **A refused send only surfaces in a receipt**, fetched separately and later. The sender logs a
+  ticket's error code now (not the token), but nothing fetches receipts at all, so a bad token or a
+  revoked key leaves no trace on the server — see `ROADMAP.md`.
 
 **It also needs two accounts**, because the sender never notifies whoever recorded the game.
 
@@ -1162,18 +1114,6 @@ store build — see §20.
 | **The outbox replaying a queued game sends no second notification.** Only a write that actually landed notifies                        | ⬜  | ⬜      |
 | **A failed push never fails the write.** Break it deliberately (sign out on the receiver, delete the app) and recording still succeeds | ⬜  | ⬜      |
 | Uninstalling the receiving app and recording again does not error on the sender — the token is forgotten on `DeviceNotRegistered`      | ⬜  | ⬜      |
-
-**Blocked on 2026-09-14 by a server bug, now fixed:** `POST /me/push-token` answered 400 "no group"
-to every device, because the groups handler's group-id guard ran before the push routes. Both
-simulators obtained an Expo push token and were refused, so no row in this section could ever have
-passed. The fix is on dev; **prod needs the same deploy before this section means anything on a
-store build.** Check registration with the dev table rather than by waiting for a notification: a
-device that registered has a `PUSH#<token>` row under `ACCOUNT#<its sub>`.
-
-**The quiet failure to watch for**: registration rides on the notification permission the timer
-already asked for and never prompts on its own. So a device that never allowed notifications simply
-never registers, silently and correctly. If nothing arrives, check the permission before suspecting
-the token.
 
 ---
 
