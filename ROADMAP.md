@@ -143,6 +143,16 @@ to be built before anything is submitted for review.** What remains, in order:
   credentials problem that stops every notification in production would leave no trace. A scheduled
   Lambda that stores ticket ids briefly and reads their receipts fifteen minutes later is the
   standard shape. Found when the 2026-09-14 §19 run got `ok` from Expo and no notification.
+
+  **1.2.0 raised the priority of this from "nice" to "the only safety net".** Delivery was proven on
+  candidate 3 — a game recorded on one phone notified the other, naming the board — but the five
+  rows _around_ delivery were deliberately not run and accepted as risk: the cold-start tap, the
+  offline receiver, the outbox replaying without re-notifying, a failed push not failing the write,
+  and an uninstalled receiver not erroring the sender. **The stated mitigation for accepting them is
+  this item**, so until it exists the release has no signal of any kind: a regression in any of the
+  five produces no error, no log and no alert, and surfaces only when somebody reports it. Build the
+  receipt reader before assuming push is healthy in production.
+
 - ⬜ **One Lambda still runs on `nodejs20.x`, which AWS has deprecated** — `LinkAccounts`, the
   Cognito `PreSignUp` trigger in `pokerStack.ts`. The other four functions are already on
   `nodejs22.x`; this entry claimed _every_ Lambda until 2026-09-18, which made the job look far
