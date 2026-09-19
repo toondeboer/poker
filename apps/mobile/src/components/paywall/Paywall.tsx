@@ -52,10 +52,33 @@ const PRO_FEATURES = [
 /**
  * What Club adds, which is the part with a cost that keeps arriving.
  *
- * Each of these is a row on a server other people poll for as long as the table
- * runs — see `clubPolicy.ts`, which is where the line between the two lives.
+ * The last three are each a row on a server other people poll for as long as
+ * the table runs — see `clubPolicy.ts`, which is where the line between the two
+ * lives.
+ *
+ * **The first line is there because the sheet never said it.** Club grants Pro
+ * (`isPremium` is true for `club`), and it *keeps* granting it after the
+ * subscription lapses (`clubEver`) — but a reader of this list had no way to
+ * know either. Both omissions made Club look worse than it is: the obvious
+ * reading of a subscription is that everything it unlocks stops when it stops,
+ * which is the opposite of what happens.
+ *
+ * **Saying so costs nothing, and that is a pricing decision rather than a kind
+ * one.** One month of Club is a permanent Pro, so advertising it invites
+ * subscribe-and-cancel — except Pro and the Club monthly are deliberately the
+ * same price, so that route costs exactly what buying Pro costs and there is no
+ * arbitrage to invite. `ROADMAP.md` carries that reasoning next to the prices.
+ *
+ * **Worded "stays unlocked even if you cancel", never "Pro for life"** — the
+ * second reads as a lifetime-licence claim, which is a different promise and a
+ * worse one to make beside an auto-renewing subscription.
+ *
+ * **Deliberately not in the renewal-terms block.** Guideline 3.1.2 wants the
+ * title, period, price and cancellation terms legible and unqualified; this
+ * belongs with the features, not among them.
  */
 const CLUB_FEATURES = [
+  "Everything in Pro — and Pro stays unlocked even if you cancel",
   "Share a leaderboard with the people you play with",
   "Put one clock on every phone at the table",
   "Invite by code — and remove anybody you invited",

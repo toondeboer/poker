@@ -275,10 +275,15 @@ export const entitlementsFrom = (bought: {
   isPremium: bought.pro || bought.club || bought.clubEver,
   hasClub: bought.club,
   /**
-   * Kept separately from `isPremium`, which now blurs two different promises:
-   * Pro that was bought is permanent, and Pro that comes with Club goes when
-   * the subscription does. Anything *telling* somebody what they have needs to
-   * know which.
+   * Kept separately from `isPremium`, which blurs two different *routes* to the
+   * same permanence: Pro that was bought outright, and Pro that arrived with
+   * Club. Anything *telling* somebody what they have needs to know which.
+   *
+   * **It is not the difference between keeping Pro and losing it.** This comment
+   * used to say Club's Pro "goes when the subscription does", which contradicts
+   * `isPremium` sixteen lines above — `clubEver` is in that expression precisely
+   * so it does not. Nothing read the wrong version, but `RELEASE_TESTING.md`
+   * §16 justified a copy rule with it, so the mistake had already travelled.
    */
   ownsProOutright: bought.pro,
 });
