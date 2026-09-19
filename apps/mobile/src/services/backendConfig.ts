@@ -125,4 +125,4 @@ export const PROD_BACKEND: BackendConfig = {
  * stack. Never commit that — see `README.md`'s release process, and note that
  * the ids above were read off prod's own stack outputs rather than trusted.
  */
-export const backendConfig: BackendConfig | null = DEV_BACKEND;
+export const backendConfig: BackendConfig | null = PROD_BACKEND;
