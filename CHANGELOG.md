@@ -1169,6 +1169,24 @@ platform-tagged heading (e.g. `## [1.1.3] - 2026-07-20 — Android`) when you cu
   The redirect now lands on a route that sends you straight to the account screen — where every
   provider sign-in starts from — by then signed in.
 
+- **The app no longer puts a notification badge on its own icon (Android).** The timer's foreground
+  service created both of its notification channels with `setShowBadge(true)`, so the launcher icon
+  carried a dot for as long as the timer ran — and an ongoing status notification is not an unread
+  message. Both channels now set it `false`.
+
+  **The channel ids had to change for that to have any effect.** An Android notification channel is
+  immutable once created: importance, vibration and `setShowBadge` are read when it is first
+  registered and ignored on every later call for the same id, because from then on the user's own
+  settings own it. Flipping the flag under the original ids would have changed nothing for anybody
+  who had already run the app. `PokerTimerChannel` and `PokerTimerAlertChannel` become
+  `…V2`, and the originals are deleted so they do not sit in the system settings list forever with
+  nothing posting to them.
+
+  **Push notifications are a separate channel and are not covered by this.** The sender posts no
+  `channelId`, so Android falls back to a default channel whose badge setting the app does not
+  control — fixing that needs the server to name a channel and the app to create it. Tracked in
+  `ROADMAP.md`; the delivery rows have never been run either.
+
 - **A signed-in subscriber can actually start or join a shared clock.** Both actions checked the
   sign-in and Club refusal as it stood when the app launched — signed out, entitlements unknown —
   and never looked again, so every attempt came back "not allowed" however long ago the person had
