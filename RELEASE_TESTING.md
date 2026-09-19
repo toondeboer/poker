@@ -545,9 +545,9 @@ expected, not a bug.
 
 |                                                                                                                                       | iOS | Android |
 | ------------------------------------------------------------------------------------------------------------------------------------- | --- | ------- |
-| Timer fits with no scrolling, nothing clipped                                                                                         | ✅  | ⬜      |
-| Settings cards readable, no overlap                                                                                                   | ✅  | ⬜      |
-| Blind rows: level chip, LIVE badge and both buttons all fit                                                                           | ✅  | ⬜      |
+| Timer fits with no scrolling, nothing clipped                                                                                         | ✅  | ✅      |
+| Settings cards readable, no overlap                                                                                                   | ✅  | ✅      |
+| Blind rows: level chip, LIVE badge and both buttons all fit                                                                           | ✅  | ✅      |
 | Payouts: "Paid places" segments wrap rather than breaking a label mid-word — check at **25+ players**, which offers the most segments | ⬜  | ⬜      |
 
 ---
@@ -1014,7 +1014,7 @@ is about whether a person can tell, before they tap, which of the two they are b
 | That offer is **absent on a cold launch until the store answers** — never shown while entitlements are still the default                         | ⬜  | ✅      |
 | **Start a clock → "See Club"** opens the sheet on Club, and the refusal sentence above it still reads the same                                   | ⬜  | ✅      |
 | Club is **absent everywhere** with `featureSharing=off` — the Settings card, the paywall's Club card, the groups offer and the clock's button    | ⬜  | ⬜      |
-| Club is **absent everywhere** in a build whose subscriptions are not live — no empty card, no dead button                                        | ✅  | ⬜      |
+| Club is **absent everywhere** in a build whose subscriptions are not live — no empty card, no dead button                                        | ✅  | ✅      |
 | **The annual plan comes first and is the filled button**; the monthly sits below it, outlined                                                    | ⬜  | ✅      |
 | The annual carries **"Save N% vs monthly"**, and N is right for the two prices **actually on screen** — work it out by hand and compare          | ⬜  | ⬜      |
 | **The claim is absent rather than wrong** when it cannot be made: only one plan returned by the store, or an annual that is not cheaper          | ⬜  | ⬜      |
