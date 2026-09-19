@@ -529,15 +529,15 @@ or a number field is touched.
 `isTablet` is `width > 768`. **iPad mini (744pt) deliberately gets the phone layout** — that's
 expected, not a bug.
 
-|                                                                                                                   | iPad | Android tablet |
-| ----------------------------------------------------------------------------------------------------------------- | ---- | -------------- |
-| Settings: Tournament + Presets **side by side**, capped and centred                                               | ⬜   | ⬜             |
-| Blind editor list + sticky footer capped at 900 and centred                                                       | ⬜   | ⬜             |
-| Timer card centred, not full-bleed                                                                                | ⬜   | ⬜             |
-| Generator and Pro sheets capped at 640 and centred, **not** full-bleed (the 1.2.0 fix — was 🟡 accepted in 1.1.4) | ⬜   | ⬜             |
-| Payouts: cards capped and centred, payout rows readable                                                           | ⬜   | ⬜             |
-| Leaderboard: standings and the record sheet capped and centred                                                    | ⬜   | ⬜             |
-| iPad **mini** still gets the phone layout                                                                         | ⬜   | ➖             |
+|                                                                                                                                     | iPad | Android tablet |
+| ----------------------------------------------------------------------------------------------------------------------------------- | ---- | -------------- |
+| Settings: Tournament + Presets **side by side**, capped and centred                                                                 | ✅   | ⬜             |
+| Blind editor list + sticky footer capped at 900 and centred — **centred, but it does not reach 900: [see D5](#d5-ipad-list-width)** | ❌   | ⬜             |
+| Timer card centred, not full-bleed                                                                                                  | ✅   | ⬜             |
+| Generator and Pro sheets capped at 640 and centred, **not** full-bleed (the 1.2.0 fix — was 🟡 accepted in 1.1.4)                   | ⬜   | ⬜             |
+| Payouts: cards capped and centred, payout rows readable                                                                             | ⬜   | ⬜             |
+| Leaderboard: standings and the record sheet capped and centred                                                                      | ⬜   | ⬜             |
+| iPad **mini** still gets the phone layout                                                                                           | ⬜   | ➖             |
 
 ---
 
@@ -1184,12 +1184,13 @@ anchor so the rows above can link to it. Keep an entry after it's fixed so the r
 release; the whole section is cleared when the release ships, since by then the fix is in the
 changelog and the reasoning is in the commit.
 
-|                                                                                      | Found in                   | State                               |
-| ------------------------------------------------------------------------------------ | -------------------------- | ----------------------------------- |
-| **[D1](#d1-auth-redirect)** — a provider sign-in ends on "Unmatched Route"           | §14b, Android, candidate 3 | 🔧 fixed in #277, wants candidate 4 |
-| **[D2](#d2-rtdn)** — a refund never revokes the entitlement                          | §1, Android, candidate 3   | 🟡 accepted for 1.2.0               |
-| **[D3](#d3-session-not-persisted)** — a restarted host silently leaves its own clock | §18, Android, candidate 3  | 🔧 fixed in #283, wants candidate 4 |
-| **[D4](#d4-prod-alerting)** — prod had no alarm delivery at all                      | §15b/§20, prod, 2026-09-19 | 🔧 re-subscribed, wants confirming  |
+|                                                                                            | Found in                   | State                               |
+| ------------------------------------------------------------------------------------------ | -------------------------- | ----------------------------------- |
+| **[D1](#d1-auth-redirect)** — a provider sign-in ends on "Unmatched Route"                 | §14b, Android, candidate 3 | 🔧 fixed in #277, wants candidate 4 |
+| **[D2](#d2-rtdn)** — a refund never revokes the entitlement                                | §1, Android, candidate 3   | 🟡 accepted for 1.2.0               |
+| **[D3](#d3-session-not-persisted)** — a restarted host silently leaves its own clock       | §18, Android, candidate 3  | 🔧 fixed in #283, wants candidate 4 |
+| **[D5](#d5-ipad-list-width)** — the blind editor's iPad layout never reaches its 900pt cap | §7, iPad simulator         | ❌ open                             |
+| **[D4](#d4-prod-alerting)** — prod had no alarm delivery at all                            | §15b/§20, prod, 2026-09-19 | 🔧 re-subscribed, wants confirming  |
 
 <a id="d1-auth-redirect"></a>
 
@@ -1350,6 +1351,33 @@ somebody clicks the link. **Two things to know:** an unconfirmed email subscript
 after 3 days**, silently; and this one lives _outside_ CloudFormation, which is acceptable only
 because the CFN-managed one is already a phantom. 🔧 until a report has been filed and the email
 seen to arrive — the row is about the mail landing, not about the subscription existing.
+
+<a id="d5-ipad-list-width"></a>
+
+### D5 — the blind editor's iPad layout never reaches its 900pt cap (§7)
+
+**Found** running §7 on an **iPad Pro 13-inch (M5) simulator**, app served by Metro from
+`release/1.2.0`.
+
+**What it should be.** `BlindStructureScreen` applies `centred` —
+`{ maxWidth: TABLET_MAX_WIDTH_LIST, alignSelf: "center" }`, with the constant at **900** — to the
+list's `contentContainerStyle`. §7's row asks for _"capped at 900 and centred"_.
+
+**What it is.** Centred, but roughly **342pt wide on a 1032pt screen** — a phone-width column
+floating in the middle of a 13-inch display, with about a third of the screen empty on each side.
+Settings on the same device is correct: `TABLET_MAX_WIDTH_SETTINGS` is 1000, and it fills the width
+as intended.
+
+**Likely mechanism, stated as a hypothesis rather than a finding.** `alignSelf: "center"` makes a
+flex child size to its own content instead of stretching, so the container shrinks to the intrinsic
+width of the rows rather than expanding to the 900 cap. `maxWidth` then never binds. The rows have
+no width of their own, so they collapse to their content. That would also explain why Settings is
+fine — its cards are laid out differently.
+
+**Not a regression, and not yet judged.** §7 has never been run — every cell in it was ⬜ before
+today — so this is a first observation, not something that broke. Whether a 342pt column on a
+13-inch iPad is worth holding 1.2.0 for is a design call, not a testing one. The sticky footer half
+of the row was not reached and is not judged here.
 
 ---
 
