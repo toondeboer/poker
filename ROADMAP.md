@@ -43,6 +43,22 @@ to be built before anything is submitted for review.** What remains, in order:
 
 ## Carried into 1.2.1 — from the 1.2.0 release review
 
+- ⬜ **A player on a board is not tied to an account, and removing a member does not remove their
+  player.** Found on the 1.2.0 candidate-3 pass. The members sheet (#256) removes an **account's**
+  access to a board; the leaderboard's player rows are separate records that stay exactly where they
+  were. So removing somebody revokes their access and leaves their name on the standings, which
+  reads as the removal half-failing.
+
+  **The shape it wants:** every account on a board links to one player, but **not** every player
+  links to an account — adding people who do not have the app is the common case and must keep
+  working. That asymmetry is the whole design; a scheme that requires an account per player breaks
+  the kitchen-table use it exists for.
+
+  **Deferred out of 1.2.0 deliberately.** It changes what a player record _is_, which reaches the
+  board schema, the merge, and `visibleTo`'s stripping of other people's `accountId` before a board
+  leaves the server — and that stripping is why the members sheet identifies people by role and join
+  date rather than by name in the first place. Not a change to make against a release candidate.
+
 - ⬜ **A refund never revokes the entitlement — Google Play RTDN has never been configured.**
   Found on the 1.2.0 candidate-3 pass (D2 in [RELEASE_TESTING.md](./RELEASE_TESTING.md)). Refunding
   a Pro order in Play Console with _revoke access_ ticked leaves RevenueCat showing the entitlement

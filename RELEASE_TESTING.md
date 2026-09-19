@@ -1233,6 +1233,15 @@ Store Server Notifications have not been checked either.
 
 ## Known-and-accepted — do not file these
 
+- **Renaming a shared board only renames it on the phone that did it.** There is no
+  `PATCH /groups/{groupId}`, so the server's name is whatever the board was created with and can
+  never be anything else. `mergeBoard` therefore keeps the **local** name — taking the server's
+  would revert somebody's rename on the very next foreground, permanently — and the consequence is
+  that two members can see different names for the same board. Deliberate, documented in
+  `mergeBoard.ts`, `apps/infra/SYNC.md` under known gaps, and carried in `ROADMAP.md` with the fix.
+  **§15's rename row is about the rename not _reverting_, which is a different thing**; it was
+  re-discovered from scratch on the 1.2.0 pass because nothing here said so.
+
 - **iPad mini uses the phone layout** — 744pt is under the 768 threshold, deliberate.
 - **`uuid` advisory (moderate)** — `xcode@3.0.1` hard-requires `^7.0.3`; no in-range fix exists.
   Build tooling only, unreachable from app code.
