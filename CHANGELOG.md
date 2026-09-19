@@ -1153,6 +1153,21 @@ platform-tagged heading (e.g. `## [1.1.3] - 2026-07-20 — Android`) when you cu
 
 ### Fixed
 
+- **There is now a way to join a board that says "Join a board".** The paste field lives in the
+  Groups sheet, and for anybody entitled the only routes into that sheet were a row showing their
+  **own** board's name and a button saying **Share this board** — the opposite errand. A guest
+  without Pro was the single person the app ever offered a labelled "Join a board" control to, which
+  is precisely backwards: the people being invited to boards are usually the ones who already have
+  one.
+
+  Groups now carries a **Join a board** row of its own, and the sheet leads with whichever half was
+  asked for — your boards and the share control when you came to share, the paste field when you
+  came to join. Same idea as the paywall opening on Pro or Club depending on which was tapped, and
+  for the same reason: one surface, two intents, and the caller knows which.
+
+  Both halves stay reachable either way, and the invite message still directs people to
+  Leaderboard → Groups → Join a board, which is now a control with that name on it.
+
 - **Signing in with Apple or Google no longer ends on "Page could not be found" (Android).** The
   provider redirect goes to `pokerkit://auth`, and no `auth` route existed — so Cognito's redirect
   opened the app through the scheme's intent filter and expo-router answered with its

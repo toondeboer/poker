@@ -42,7 +42,7 @@ import { IconButton } from "@/src/components/ui/IconButton";
 import { ListRow } from "@/src/components/ui/ListRow";
 import { NavRow } from "@/src/components/ui/NavRow";
 import { TextField } from "@/src/components/ui/TextField";
-import { GroupsSheet } from "./GroupsSheet";
+import { GroupsSheet, type GroupsFocus } from "./GroupsSheet";
 import { RecordResultSheet } from "./RecordResultSheet";
 
 /** Rendered as "8 games · 3 wins", skipping what is zero. */
@@ -91,6 +91,19 @@ export function LeaderboardScreen() {
   const [paywallFocus, setPaywallFocus] = useState<PaywallFocus>("pro");
   const [showRecord, setShowRecord] = useState(record === "1");
   const [showGroups, setShowGroups] = useState(false);
+  /**
+   * Which half of `GroupsSheet` to lead with — see `GroupsFocus`.
+   *
+   * Every route into that sheet goes through `openGroups` so the intent is
+   * stated at the call site. Before this, an entitled person had no labelled
+   * way to join at all: the sheet's only entitled entry points were a row
+   * showing their *own* board's name and a button saying **Share this board**.
+   */
+  const [groupsFocus, setGroupsFocus] = useState<GroupsFocus>("boards");
+  const openGroups = (focus: GroupsFocus = "boards") => {
+    setGroupsFocus(focus);
+    setShowGroups(true);
+  };
   const [claimError, setClaimError] = useState<string | null>(null);
   const [name, setName] = useState("");
 
@@ -314,8 +327,21 @@ export function LeaderboardScreen() {
           <NavRow
             title={activeGroupName || "Your first group"}
             summary={groupSummary}
-            onPress={() => setShowGroups(true)}
+            onPress={() => openGroups()}
           />
+          {/* **A labelled way to join, for somebody who already has a board.**
+              The locked card below carries one, so a guest without Pro was the
+              only person the app ever offered this to. Anybody entitled had to
+              guess that the paste field lives inside a sheet reached either by
+              tapping their *own* board's name or by a button that says
+              "Share this board" — which is the opposite errand. */}
+          {accountsAreReal ? (
+            <NavRow
+              title="Join a board"
+              summary="Paste an invite somebody sent you. Joining is free."
+              onPress={() => openGroups("join")}
+            />
+          ) : null}
           {standings.length === 0 ? (
             <Text style={styles.empty}>
               Add the people you play with, then record a game to start the
@@ -374,7 +400,7 @@ export function LeaderboardScreen() {
                   // alert and a fallback for when the share sheet fails, and
                   // two implementations of minting an invite is how one of them
                   // silently revokes the other's link.
-                  setShowGroups(true);
+                  openGroups("boards");
                   return;
                 }
                 setPaywallFocus("club");
@@ -546,7 +572,7 @@ export function LeaderboardScreen() {
             label="Join a board"
             icon="enter-outline"
             variant="secondary"
-            onPress={() => setShowGroups(true)}
+            onPress={() => openGroups("join")}
           />
         ) : null}
       </CardContent>
@@ -597,6 +623,7 @@ export function LeaderboardScreen() {
           is Pro, sharing is Club, joining is neither. */}
       {!isLoading && (
         <GroupsSheet
+          focus={groupsFocus}
           visible={showGroups}
           onClose={() => setShowGroups(false)}
         />

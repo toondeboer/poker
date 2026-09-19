@@ -47,12 +47,31 @@ const describeGroup = (playerCount: number, gameCount: number) => {
  * prompt. `Alert.prompt` is iOS-only, and a second sheet on top of this one is
  * more machinery than a rename deserves.
  */
+/**
+ * Which half of the sheet the caller asked for.
+ *
+ * The sheet does two unrelated jobs — **managing boards you own** and
+ * **joining somebody else's** — and until 1.2.0 it always led with the boards
+ * list regardless of which one you came for. Tapping **Share this board**
+ * therefore opened on your own boards, correctly, while somebody who had been
+ * sent an invite had no labelled way in at all: the only entitled route to this
+ * sheet was a row showing their *own* board's name. The paste field was below
+ * the fold of a sheet they had no reason to open.
+ *
+ * Same idea as `PaywallFocus`, and for the same reason: one surface, two
+ * intents, and the caller knows which one it is.
+ */
+export type GroupsFocus = "boards" | "join";
+
 export function GroupsSheet({
   visible,
   onClose,
+  focus = "boards",
 }: {
   visible: boolean;
   onClose: () => void;
+  /** Which half to lead with. See {@link GroupsFocus}. */
+  focus?: GroupsFocus;
 }) {
   const {
     groups,
@@ -379,12 +398,84 @@ export function GroupsSheet({
     );
   };
 
+  /**
+   * Joining, as one block so it can lead or follow.
+   *
+   * Rendered **above** the boards list when the caller asked to join and
+   * in its original place otherwise, so the first thing on screen is the
+   * thing that was asked for. Identical markup either way — two copies is
+   * how the signed-out branch and the paste field drift apart.
+   */
+  const joinSection = (
+    <>
+      {/* **Joining needs nothing bought — the host pays**, so this sits
+          outside the Pro block above and asks for no entitlement of its own.
+          Requiring anything here would be asking a guest to buy something
+          before they can see a board somebody sent them, which is how the
+          feature ends up unused. See `joinRefusal`.
+
+          Still hidden with no backend or no account: in a shipped build
+          `backendConfig` is `null`, and a field that can only answer "this
+          build cannot join boards" is a dead feature in the app store. */}
+      {/* **Signed out is a state with a way out of it, not a hidden field.**
+          The invited guest this whole feature exists for arrives here having
+          never made an account, and hiding the section left them looking at a
+          sheet with nothing in it — `joinRefusal`'s "Sign in to join a board."
+          was unreachable from the one screen a guest ever sees. */}
+      {accountsAreReal && !account ? (
+        <>
+          <Text style={styles.blurb}>
+            {joinRefusal({ signedIn: false })} Joining is free — the person who
+            shares a board is the one who pays for it.
+          </Text>
+          <Button
+            label="Sign in"
+            icon="log-in-outline"
+            variant="secondary"
+            onPress={() => {
+              onClose();
+              router.push("/account");
+            }}
+          />
+        </>
+      ) : null}
+
+      {accountsAreReal && account && features.sharing ? (
+        <>
+          <TextField
+            label="Join a board"
+            value={joinCode}
+            onChangeText={setJoinCode}
+            placeholder="Paste an invite code"
+            returnKeyType="go"
+            onSubmitEditing={handleJoin}
+            autoCapitalize="none"
+            autoCorrect={false}
+            helper={
+              joinProblem ??
+              "Somebody on the board can send you one from their Groups list. Joining is free."
+            }
+          />
+          <Button
+            label={joining ? "Joining…" : "Join board"}
+            icon="enter-outline"
+            variant="secondary"
+            onPress={() => void handleJoin()}
+            disabled={joining || joinCode.trim().length === 0}
+          />
+        </>
+      ) : null}
+    </>
+  );
+
   return (
     <Sheet visible={visible} onClose={handleClose} title="Groups">
       <Text style={styles.blurb}>
         A separate board for each set of people you play with. Players and games
         belong to the group they were added to.
       </Text>
+
+      {focus === "join" ? joinSection : null}
 
       <View style={styles.list}>
         {groups.map((group) =>
@@ -534,63 +625,7 @@ export function GroupsSheet({
         </>
       ) : null}
 
-      {/* **Joining needs nothing bought — the host pays**, so this sits
-          outside the Pro block above and asks for no entitlement of its own.
-          Requiring anything here would be asking a guest to buy something
-          before they can see a board somebody sent them, which is how the
-          feature ends up unused. See `joinRefusal`.
-
-          Still hidden with no backend or no account: in a shipped build
-          `backendConfig` is `null`, and a field that can only answer "this
-          build cannot join boards" is a dead feature in the app store. */}
-      {/* **Signed out is a state with a way out of it, not a hidden field.**
-          The invited guest this whole feature exists for arrives here having
-          never made an account, and hiding the section left them looking at a
-          sheet with nothing in it — `joinRefusal`'s "Sign in to join a board."
-          was unreachable from the one screen a guest ever sees. */}
-      {accountsAreReal && !account ? (
-        <>
-          <Text style={styles.blurb}>
-            {joinRefusal({ signedIn: false })} Joining is free — the person who
-            shares a board is the one who pays for it.
-          </Text>
-          <Button
-            label="Sign in"
-            icon="log-in-outline"
-            variant="secondary"
-            onPress={() => {
-              onClose();
-              router.push("/account");
-            }}
-          />
-        </>
-      ) : null}
-
-      {accountsAreReal && account && features.sharing ? (
-        <>
-          <TextField
-            label="Join a board"
-            value={joinCode}
-            onChangeText={setJoinCode}
-            placeholder="Paste an invite code"
-            returnKeyType="go"
-            onSubmitEditing={handleJoin}
-            autoCapitalize="none"
-            autoCorrect={false}
-            helper={
-              joinProblem ??
-              "Somebody on the board can send you one from their Groups list. Joining is free."
-            }
-          />
-          <Button
-            label={joining ? "Joining…" : "Join board"}
-            icon="enter-outline"
-            variant="secondary"
-            onPress={() => void handleJoin()}
-            disabled={joining || joinCode.trim().length === 0}
-          />
-        </>
-      ) : null}
+      {focus === "boards" ? joinSection : null}
 
       {clubWouldUnlockSharing ? (
         <View style={styles.clubPrompt}>
