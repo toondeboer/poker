@@ -281,13 +281,14 @@ Nothing in development can exercise this fully: the Android emulator has no Play
 (`BILLING_UNAVAILABLE`) and the Simulator has no StoreKit configured. Needs a real device with a
 sandbox/test account, and for Android, a build uploaded to a Play track.
 
-|                                                                                                      | iOS | Android                          |
-| ---------------------------------------------------------------------------------------------------- | --- | -------------------------------- |
-| Paywall opens from all five entry points (Pro card, Presets, Sound Pack, Payouts, Leaderboard)       | ⬜  | ⬜                               |
-| Price string renders (not blank, not `one-time` alone)                                               | ✅  | ⬜                               |
-| **Purchase completes** and Pro unlocks (ads gone, Presets, Sound Pack, Payouts + Leaderboard usable) | ✅  | 🚫 [see below](#android-billing) |
-| **Restore purchases** works on a fresh install of the same account                                   | ✅  | 🚫 [see below](#android-billing) |
-| Cancelling a purchase leaves the app in a sane state, no error toast                                 | ✅  | 🚫 [see below](#android-billing) |
+|                                                                                                                                | iOS | Android                          |
+| ------------------------------------------------------------------------------------------------------------------------------ | --- | -------------------------------- |
+| Paywall opens from all five entry points (Pro card, Presets, Sound Pack, Payouts, Leaderboard)                                 | ⬜  | ⬜                               |
+| Price string renders (not blank, not `one-time` alone)                                                                         | ✅  | ⬜                               |
+| **Purchase completes** and Pro unlocks (ads gone, Presets, Sound Pack, Payouts + Leaderboard usable)                           | ✅  | 🚫 [see below](#android-billing) |
+| **Restore purchases** works on a fresh install of the same account                                                             | ✅  | 🚫 [see below](#android-billing) |
+| Cancelling a purchase leaves the app in a sane state, no error toast                                                           | ✅  | 🚫 [see below](#android-billing) |
+| **A refund revokes the entitlement.** Refund with _revoke access_ in the store console → the app loses Pro. [See D2](#d2-rtdn) | ⬜  | ❌                               |
 
 ### 1b. The Club subscription · **new in 1.2.0**
 
@@ -1145,9 +1146,10 @@ anchor so the rows above can link to it. Keep an entry after it's fixed so the r
 release; the whole section is cleared when the release ships, since by then the fix is in the
 changelog and the reasoning is in the commit.
 
-|                                                                            | Found in                   | State                 |
-| -------------------------------------------------------------------------- | -------------------------- | --------------------- |
-| **[D1](#d1-auth-redirect)** — a provider sign-in ends on "Unmatched Route" | §14b, Android, candidate 3 | ❌ open, Android-only |
+|                                                                            | Found in                   | State                     |
+| -------------------------------------------------------------------------- | -------------------------- | ------------------------- |
+| **[D1](#d1-auth-redirect)** — a provider sign-in ends on "Unmatched Route" | §14b, Android, candidate 3 | ❌ open, Android-only     |
+| **[D2](#d2-rtdn)** — a refund never revokes the entitlement                | §1, Android, candidate 3   | ❌ open, console-only fix |
 
 <a id="d1-auth-redirect"></a>
 
@@ -1177,6 +1179,38 @@ handled by the router (hence the error screen). §14b's iOS column was ticked on
 **Not the Metro staleness trap.** [CLAUDE.md](./CLAUDE.md) describes a route file added while Metro is
 running reading as "Unmatched Route" until Metro restarts. That is a dev-client condition. This is a
 Play Store build with the route table compiled in, and the route genuinely does not exist.
+
+<a id="d2-rtdn"></a>
+
+### D2 — a refund never revokes the entitlement (Play → RevenueCat)
+
+**Found** while trying to return a licence-tester account to a free state for §1's purchase rows.
+
+**What happens.** Play Console → Order management → refund the Pro order **with _revoke access_
+ticked**. Play records the refund and the revocation. Several minutes later RevenueCat still shows
+the entitlement as active, the app still has Pro, and **Restore purchases** re-affirms it.
+
+**Cause.** Play Console → **Monetization setup → Real-time developer notifications** had **no
+Pub/Sub topic configured**. RevenueCat learns about a revoked one-time product from Google's
+`ONE_TIME_PRODUCT_CANCELED` notification on that topic. With the field empty the notification is
+never sent, so RevenueCat is never told and holds the entitlement indefinitely.
+
+**Why this is not only a testing problem.** The same channel carries every refund and revocation in
+**production**. As shipped, a customer who is refunded for Pro — by Google, or by us — keeps Pro.
+Nothing in the app or the backend re-checks it, because entitlements are read from RevenueCat and
+RevenueCat is waiting on a notification that no one sends.
+
+**It needs no new binary.** This is console configuration in Play and RevenueCat only, so it can be
+fixed without a candidate 4 and without invalidating any row already ticked against candidate 3.
+
+**Wiring it up won't retroactively revoke the order already refunded** — RTDN fires at the time of
+the event and does not replay. Expect the stale entitlement to persist until RevenueCat next
+re-validates that purchase against Google, which is why the free-state rows may need a second
+licence-tester account rather than this one.
+
+**No row covered this.** §1 gained one, above. Cancelling a _purchase flow_ was tested; a refund
+_after_ the fact never was, on either platform — the iOS column is ⬜ rather than ✅ because App
+Store Server Notifications have not been checked either.
 
 ---
 
