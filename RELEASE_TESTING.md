@@ -86,9 +86,28 @@ in the section it was found in, not here; this list is cleared when the release 
 | 7   | **Android phone, Play internal versionCode 18** (candidate 3, from `96361a2`), factory-reset, one licence-tester Google account | 2026-09-19 — §20's prod check and update row, the whole free-state Guideline 3.1.2 block with no purchase made, then Club monthly bought, cancelled and lapsed, the annual, §3, §5 and §9's deep link. Found **D1** and **D2** |
 | 8   | **Android (host, Club) + iPhone (guest), both candidate 3** — build 29 on TestFlight, separate Cognito accounts                 | 2026-09-19 — §15's sharing loop across platforms: share, join, propagation both ways, deletion, and the offline outbox. The iPhone carried Club via the Apple ID, so §15's two _guest pays nothing_ rows could not run         |
 
-**What no pass has touched:** anything from an **Android store build** — so Android billing (§1, §1b,
-§16b) has never been exercised at all — a completed provider sign-in against prod, and a push
-notification arriving on a phone.
+**What no pass has touched:** as of 2026-09-19, very little of the above is still true — Android
+billing, sharing across two platforms, push delivery and the shared clock have all now been
+exercised on candidate 3. What remains unrun is listed per section.
+
+<a id="play-verification"></a>
+
+> 🛑 **Android submission is blocked outside this repo, and it blocks the Android pass with it.**
+> `eas submit -p android` fails before uploading:
+>
+> > _Invalid request — To meet Play Console requirements, your app's package name must be registered
+> > to your verified developer identity. Go to the Android developer verification page to complete
+> > the registration process for this app._
+>
+> Google's **developer verification**, not anything about the binary, the signing key or the track.
+> **It is new today**: versionCode 18 reached the internal track normally at 07:30 on 2026-09-19 and
+> versionCode 19 was refused the same evening, so enforcement arrived or a grace period lapsed in
+> between.
+>
+> **Every remaining Android row that needs a store build is stuck behind it** — §1's purchase rows,
+> §13's locked state, §16's Pro-only rows, and re-testing the four 🔧 rows on candidate 4. Identity
+> checks can take days, so this is a schedule risk rather than a technical one, and it is worth
+> starting before anything else. Tracked on the release PR's gates.
 
 > **TestFlight shows a build only to members of a tester group.** Build 28's upload was fine and
 > invisible until the tester was added to one. If a build is "missing" from TestFlight, check the
