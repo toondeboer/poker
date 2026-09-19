@@ -1153,6 +1153,12 @@ platform-tagged heading (e.g. `## [1.1.3] - 2026-07-20 — Android`) when you cu
 
 ### Fixed
 
+- **The local testing toggle is off the release branch again.** `backendConfig` was committed as
+  `DEV_BACKEND` by #283, which would have pointed a shipped build at the throwaway development
+  stack — a different Cognito pool, so every account created against it lives somewhere built to be
+  deleted. Restored to `PROD_BACKEND`. No build was taken while it was wrong; the clean-tree gate in
+  the release process caught it, which is the one thing that reliably does.
+
 - **A shared clock survives the host's app being restarted.** Force-quitting the hosting phone and
   reopening it used to leave that phone no longer in the session it had started. The session itself
   was fine — it is a row on the server with a six-hour life — but `status` and `code` were ordinary
