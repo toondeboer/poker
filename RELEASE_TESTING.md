@@ -902,10 +902,10 @@ in §15.
 
 |                                                                                                                                                                   | iOS | Android |
 | ----------------------------------------------------------------------------------------------------------------------------------------------------------------- | --- | ------- |
-| **The filter refuses a name as it is typed** — try an obvious slur as a board name and as a player name: the reason appears under the field, and nothing is saved | ⬜  | ⬜      |
-| **Reporting a board you joined** — the flag icon, a reason, optional detail, and a confirmation that says a person will read it                                   | ⬜  | ⬜      |
-| A report that **cannot be sent says so** (airplane mode), rather than thanking somebody for a report that never left the phone                                    | ⬜  | ⬜      |
-| **Leaving takes every name on that board off the phone**, and it does not come back on the next foreground or the next sign-in                                    | ⬜  | ⬜      |
+| **The filter refuses a name as it is typed** — try an obvious slur as a board name and as a player name: the reason appears under the field, and nothing is saved | ✅  | ⬜      |
+| **Reporting a board you joined** — the flag icon, a reason, optional detail, and a confirmation that says a person will read it                                   | ✅  | ⬜      |
+| A report that **cannot be sent says so** (airplane mode), rather than thanking somebody for a report that never left the phone                                    | ✅  | ⬜      |
+| **Leaving takes every name on that board off the phone**, and it does not come back on the next foreground or the next sign-in                                    | ✅  | ⬜      |
 
 > **The other half of a report is on the server**, and it is checked once against prod in §20: a
 > report raises the `ContentReports` alarm, which emails `alertEmail`. An SNS email subscription
@@ -1142,11 +1142,11 @@ and the only one of the five that annoys every member of the board at once.
 Three things nothing else in this file covers, each of which can only be asked of a build that came
 out of EAS and went to TestFlight or Play internal testing.
 
-|                                                                                                                                                                                                                  | iOS | Android |
-| ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --- | ------- |
-| **It talks to prod.** Account → Continue with Google: the page must name `pokerkit.auth.us-east-1.amazoncognito.com`, with no `-dev`. This is what proves the local testing toggles did not ship                 | ✅  | ✅      |
-| **Updating from the live version keeps everything.** Install 1.1.4 from the store, set a round length, edit a structure, save a preset — then update to the candidate and check all of it survived, Pro included | ✅  | ✅      |
-| **A report reaches a person.** File one against prod and confirm the alarm email arrives at `alertEmail` — `/support` promises an answer within two business days                                                | ⬜  | ⬜      |
+|                                                                                                                                                                                                                                                | iOS | Android |
+| ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --- | ------- |
+| **It talks to prod.** Account → Continue with Google: the page must name `pokerkit.auth.us-east-1.amazoncognito.com`, with no `-dev`. This is what proves the local testing toggles did not ship                                               | ✅  | ✅      |
+| **Updating from the live version keeps everything.** Install 1.1.4 from the store, set a round length, edit a structure, save a preset — then update to the candidate and check all of it survived, Pro included                               | ✅  | ✅      |
+| **A report reaches a person.** File one against prod and confirm the alarm email arrives at `alertEmail` — `/support` promises an answer within two business days. **The alarm fired and nobody was subscribed — [see D4](#d4-prod-alerting)** | 🔧  | ⬜      |
 
 **Run the update row before anything else touches that phone.** It needs the live version installed
 with data on it, and installing the candidate is the step being tested — there is no way back except
@@ -1170,6 +1170,7 @@ changelog and the reasoning is in the commit.
 | **[D1](#d1-auth-redirect)** — a provider sign-in ends on "Unmatched Route"           | §14b, Android, candidate 3 | 🔧 fixed in #277, wants candidate 4 |
 | **[D2](#d2-rtdn)** — a refund never revokes the entitlement                          | §1, Android, candidate 3   | 🟡 accepted for 1.2.0               |
 | **[D3](#d3-session-not-persisted)** — a restarted host silently leaves its own clock | §18, Android, candidate 3  | 🔧 fixed in #283, wants candidate 4 |
+| **[D4](#d4-prod-alerting)** — prod had no alarm delivery at all                      | §15b/§20, prod, 2026-09-19 | 🔧 re-subscribed, wants confirming  |
 
 <a id="d1-auth-redirect"></a>
 
@@ -1290,6 +1291,46 @@ both readiness flags before deciding anything. It stores the membership and neve
 re-checks the refusal so a subscription that lapsed between launches does not keep hosting. 🔧 until
 §18's host-restart rows are re-run on candidate 4 — **and worth running a _joiner_ restart at the
 same time**, which this defect never covered.
+
+<a id="d4-prod-alerting"></a>
+
+### D4 — production had no alarm delivery at all
+
+**Found** filing a report from the app for §15b, and noticing no email arrived at `alertEmail`.
+
+**Everything worked except the last hop.** Verified against prod, in order:
+
+| Step                                                     | Result                                |
+| -------------------------------------------------------- | ------------------------------------- |
+| The app posts the report                                 | ✅                                    |
+| The Groups λ logs `content reported`                     | ✅                                    |
+| The metric filter raises `Poker/prod` → `ContentReports` | ✅ `Sum 1.0` at 18:27                 |
+| The alarm fires                                          | ✅ `OK → ALARM` at 18:30              |
+| The alarm publishes to the SNS topic                     | ✅                                    |
+| **SNS delivers the email**                               | ❌ **the topic had zero subscribers** |
+
+**Cause.** `PokerBackend-prod-ObservabilityAlarms` had **no subscriptions**. CloudFormation still
+records one as `CREATE_COMPLETE` with a real subscription ARN — not `PendingConfirmation`, so it
+_was_ confirmed when prod deployed on 2026-09-04 — and that ARN now answers
+`Subscription does not exist`. **Dev's identical subscription is live**, which is what makes this
+look like it works from anywhere except prod.
+
+**The likely route is the unsubscribe link at the bottom of an SNS alarm email.** One click, no
+confirmation step, permanent, and **CloudFormation never notices** — every deploy since has reported
+success on a subscription that is not there.
+
+**It is not only about reports.** That topic is the destination for _every_ prod alarm, API 5xx
+included. Production has had **no alerting of any kind** since the subscription went.
+
+**Why it matters for this release.** §20's _A report reaches a person_ row genuinely fails.
+Guideline 1.2 requires reports to be **handled**, not collected, and `/support` promises an answer
+within two business days — both untrue while nothing says a report exists.
+
+**Re-subscribed on 2026-09-19** with `aws sns subscribe`, and it sits at `PendingConfirmation` until
+somebody clicks the link. **Two things to know:** an unconfirmed email subscription is **discarded
+after 3 days**, silently; and this one lives _outside_ CloudFormation, which is acceptable only
+because the CFN-managed one is already a phantom. 🔧 until a report has been filed and the email
+seen to arrive — the row is about the mail landing, not about the subscription existing.
 
 ---
 
