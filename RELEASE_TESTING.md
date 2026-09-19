@@ -1067,7 +1067,7 @@ If a phone shows that asymmetry, note which one is hosting.
 | **Two people pause at the same moment** and both phones settle on the same answer rather than splitting                                      | ✅  | ✅      |
 | A level jump travels too — `blindIndex` is in the message                                                                                    | ✅  | ✅      |
 | **Killing the host app leaves the joiner counting down**, and it reads `stale` after ~15s rather than freezing or lying                      | ⬜  | ✅      |
-| Reopening the host **rejoins and the two agree again** within a poll — **[see D3](#d3-session-not-persisted)**                               | ⬜  | ❌      |
+| Reopening the host **rejoins and the two agree again** within a poll — **[see D3](#d3-session-not-persisted)**                               | ⬜  | 🔧      |
 | **Airplane mode on the joiner** for 30s, then back: it catches up rather than needing a rejoin                                               | ✅  | ⬜      |
 | Leaving stops the polling — the clock keeps running locally and nothing further is sent                                                      | ✅  | ⬜      |
 | 🚫 **A session expires six hours after its last message.** Cannot be run in a sitting; the TTL is asserted in the store's unit tests instead | ⬜  | ⬜      |
@@ -1169,7 +1169,7 @@ changelog and the reasoning is in the commit.
 | ------------------------------------------------------------------------------------ | -------------------------- | ----------------------------------- |
 | **[D1](#d1-auth-redirect)** — a provider sign-in ends on "Unmatched Route"           | §14b, Android, candidate 3 | 🔧 fixed in #277, wants candidate 4 |
 | **[D2](#d2-rtdn)** — a refund never revokes the entitlement                          | §1, Android, candidate 3   | 🟡 accepted for 1.2.0               |
-| **[D3](#d3-session-not-persisted)** — a restarted host silently leaves its own clock | §18, Android, candidate 3  | ❌ open                             |
+| **[D3](#d3-session-not-persisted)** — a restarted host silently leaves its own clock | §18, Android, candidate 3  | 🔧 fixed in #283, wants candidate 4 |
 
 <a id="d1-auth-redirect"></a>
 
@@ -1284,6 +1284,12 @@ re-attach on launch:
   kept the first render's answer — signed out — refusing every subscriber. A naive re-attach on
   mount walks into the same race and would fail silently, which is indistinguishable from the bug it
   is meant to fix.
+
+**Fixed in #283** — `createSessionStorage` in `@poker/core` plus a re-attach on launch that waits on
+both readiness flags before deciding anything. It stores the membership and never the clock, and
+re-checks the refusal so a subscription that lapsed between launches does not keep hosting. 🔧 until
+§18's host-restart rows are re-run on candidate 4 — **and worth running a _joiner_ restart at the
+same time**, which this defect never covered.
 
 ---
 
