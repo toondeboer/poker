@@ -770,7 +770,7 @@ can be run on such a build**, not just this one. Rebuild first — see §0.
 | Row                                                                                                                                                                                                                           | iOS | Android |
 | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --- | ------- |
 | **Continue with Apple** on a fresh install creates an account and signs in                                                                                                                                                    | ✅  | ⬜      |
-| **Continue with Google** on a fresh install creates an account and signs in                                                                                                                                                   | ✅  | ⬜      |
+| **Continue with Google** on a fresh install creates an account and signs in. **Signs in, but ends on an error screen — [see D1](#d1-auth-redirect)**                                                                          | ✅  | ❌      |
 | Signing out and back in with the same provider returns to the **same** account, not a new one                                                                                                                                 | ✅  | ⬜      |
 | **The linking case.** Sign up with email+password, sign out, then sign in with a provider on the _same address_ — the boards and season are still there. This is the one that fails silently and looks exactly like data loss | ✅  | ⬜      |
 | 🚫 **Hide My Email** — needs a **second Apple ID**, and cannot be run with one. See below                                                                                                                                     | ⬜  | ⬜      |
@@ -1124,8 +1124,8 @@ out of EAS and went to TestFlight or Play internal testing.
 
 |                                                                                                                                                                                                                  | iOS | Android |
 | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --- | ------- |
-| **It talks to prod.** Account → Continue with Google: the page must name `pokerkit.auth.us-east-1.amazoncognito.com`, with no `-dev`. This is what proves the local testing toggles did not ship                 | ✅  | ⬜      |
-| **Updating from the live version keeps everything.** Install 1.1.4 from the store, set a round length, edit a structure, save a preset — then update to the candidate and check all of it survived, Pro included | ✅  | ⬜      |
+| **It talks to prod.** Account → Continue with Google: the page must name `pokerkit.auth.us-east-1.amazoncognito.com`, with no `-dev`. This is what proves the local testing toggles did not ship                 | ✅  | ✅      |
+| **Updating from the live version keeps everything.** Install 1.1.4 from the store, set a round length, edit a structure, save a preset — then update to the candidate and check all of it survived, Pro included | ✅  | ✅      |
 | **A report reaches a person.** File one against prod and confirm the alarm email arrives at `alertEmail` — `/support` promises an answer within two business days                                                | ⬜  | ⬜      |
 
 **Run the update row before anything else touches that phone.** It needs the live version installed
@@ -1145,9 +1145,38 @@ anchor so the rows above can link to it. Keep an entry after it's fixed so the r
 release; the whole section is cleared when the release ships, since by then the fix is in the
 changelog and the reasoning is in the commit.
 
-|               | Found in | State |
-| ------------- | -------- | ----- |
-| _(none open)_ |          |       |
+|                                                                            | Found in                   | State                 |
+| -------------------------------------------------------------------------- | -------------------------- | --------------------- |
+| **[D1](#d1-auth-redirect)** — a provider sign-in ends on "Unmatched Route" | §14b, Android, candidate 3 | ❌ open, Android-only |
+
+<a id="d1-auth-redirect"></a>
+
+### D1 — a provider sign-in ends on "Page could not be found" (Android)
+
+**Found** on candidate 3 (versionCode 18, from `96361a2`) off the Play internal track, while running
+§20's prod check.
+
+**What happens.** Settings → Account → Sign in → **Continue with Google** → pick an account → the app
+shows expo-router's **"Unmatched Route — Page could not be found"**. Backing out and reopening the
+app shows you _are_ signed in. So the sign-in succeeds, and the last thing the user sees is a
+full-screen error on the first control of the release's headline feature.
+
+**Cause.** `AUTH_REDIRECT_URI` is `pokerkit://auth` (`src/services/socialSignIn.ts`), and there is no
+`auth` route. `src/app/` holds `index`, `settings`, `blinds`, `payouts`, `account`, `join/[token]`,
+`session`, `game` and `leaderboard` — nothing else — and `_layout.tsx` declares no `Stack.Screen` for
+one either. Cognito redirects to `pokerkit://auth`, the scheme's intent filter opens the app, and
+expo-router cannot resolve `/auth`.
+
+**Why it is Android-only, and why the iOS ✅ proved nothing.** On iOS `ASWebAuthenticationSession`
+intercepts the callback URL inside the session, so the OS never dispatches a deep link and the router
+never sees `/auth`. On Android `openAuthSessionAsync` uses a Custom Tab and the redirect arrives as a
+**real deep-link intent** — which both resolves the promise (hence the successful sign-in) _and_ is
+handled by the router (hence the error screen). §14b's iOS column was ticked on the Simulator on
+2026-09-07 and could not have caught this.
+
+**Not the Metro staleness trap.** [CLAUDE.md](./CLAUDE.md) describes a route file added while Metro is
+running reading as "Unmatched Route" until Metro restarts. That is a dev-client condition. This is a
+Play Store build with the route table compiled in, and the route genuinely does not exist.
 
 ---
 
