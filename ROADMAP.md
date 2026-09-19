@@ -43,6 +43,27 @@ to be built before anything is submitted for review.** What remains, in order:
 
 ## Carried into 1.2.1 — from the 1.2.0 release review
 
+- ⬜ **Nothing notices when prod's alarm topic has no subscribers.** Found on 2026-09-19 filing a
+  report for §15b: the report landed, the metric filter raised `ContentReports`, the alarm went
+  `OK → ALARM` — and SNS delivered to **nobody**, because
+  `PokerBackend-prod-ObservabilityAlarms` had zero subscriptions. Production had **no alerting of
+  any kind**, API 5xx included, and had not had since the subscription went.
+
+  **CloudFormation reported success throughout.** It still records the subscription as
+  `CREATE_COMPLETE` against a real ARN that answers `Subscription does not exist`, so every deploy
+  since has been green over a phantom. The likely route out is the **unsubscribe link in an SNS
+  alarm email** — one click, no confirmation, permanent, and invisible to the stack.
+
+  Re-subscribed by hand, which fixes today and not tomorrow: the new subscription lives outside
+  CloudFormation, and an email subscription that is never confirmed is **discarded after 3 days,
+  silently**. So the same hole can reopen with nothing reporting it.
+
+  **What would actually close it:** something that checks the topic has a confirmed subscriber and
+  complains when it does not — a scheduled check, or a deploy-time assertion. An alerting channel
+  whose only failure signal is the absence of alerts is not one. Worth pairing with the push-receipt
+  reader above; both are the same shape of problem, which is that silence is indistinguishable from
+  health.
+
 - ⬜ **A player on a board is not tied to an account, and removing a member does not remove their
   player.** Found on the 1.2.0 candidate-3 pass. The members sheet (#256) removes an **account's**
   access to a board; the leaderboard's player rows are separate records that stay exactly where they
