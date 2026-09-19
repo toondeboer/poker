@@ -15,7 +15,14 @@ import {
   View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { colors, radius, space, text } from "@/src/theme";
+import {
+  colors,
+  isTabletWidth,
+  radius,
+  space,
+  TABLET_MAX_WIDTH_SHEET,
+  text,
+} from "@/src/theme";
 import { InsideSheetContext } from "./SheetContext";
 
 /** Drag far enough, or flick fast enough, and the sheet closes. */
@@ -75,11 +82,18 @@ export function Sheet({
    * be dismissed is a product decision rather than a styling one.
    */
   gestureDismissible?: boolean;
-  /** Share of the screen the scrollable region may occupy. */
+  /**
+   * Share of the screen the scrollable region may occupy.
+   *
+   * **A request, not a guarantee** — it is clamped to what actually fits below
+   * the status bar, so asking for more than the screen can give yields a sheet
+   * that stops at the top rather than one whose header is behind the clock.
+   * Pass a deliberately high value to mean "as tall as it can safely be".
+   */
   maxContentHeightRatio?: number;
 }) {
   const insets = useSafeAreaInsets();
-  const { height } = useWindowDimensions();
+  const { height, width } = useWindowDimensions();
 
   // Both platforms track the keyboard themselves rather than delegating to
   // `KeyboardAvoidingView`.
@@ -133,6 +147,17 @@ export function Sheet({
       ? keyboardHeight + (Platform.OS === "android" ? insets.bottom : 0)
       : 0;
 
+  /**
+   * The room the home indicator needs, and **where it is spent depends on what
+   * is at the bottom of the sheet.**
+   *
+   * Zero while the keyboard is up, for the reason the container style below
+   * already gives: the keyboard covers the indicator outright on iOS, and on
+   * Android it is inside `coveredByKeyboard`, so counting it again leaves a dead
+   * band.
+   */
+  const safeBottom = coveredByKeyboard > 0 ? 0 : insets.bottom;
+
   // Everything in the sheet that isn't the scroll region — grabber, title,
   // footer, padding, the gaps between them. Derived from one layout pass
   // (sheet height minus scroll height) rather than estimated from the styles,
@@ -149,10 +174,38 @@ export function Sheet({
   // scroll region takes the space left after the chrome — which is what makes
   // it overflow and therefore actually scroll. MIN_SCROLL keeps a usable
   // window on a small phone whose keyboard leaves almost nothing.
+  //
+  // `insets.top` comes off the top as well, or the sheet is allowed to grow to
+  // exactly the full window height: the region takes everything above the
+  // keyboard, the chrome sits on top of that, and the sheet's own top edge
+  // lands at y=0 — underneath the status bar and, on a notched phone, the
+  // Dynamic Island. The title and its Done button are the first things in the
+  // sheet, so they're what ends up behind the clock. Without this the sheet is
+  // still *usable* (it scrolls, the footer clears the keypad), which is why it
+  // survived 1.1.4's keyboard pass — it just renders its header underneath the
+  // system furniture.
+  /**
+   * The tallest the scroll region may be without the sheet's own top edge
+   * climbing past the status bar.
+   *
+   * **The keyboard branch below has always subtracted `insets.top` for exactly
+   * this reason** — the comment above it spells out what happens otherwise: the
+   * region takes everything available, the chrome sits on top, and the sheet's
+   * header lands behind the clock and the Dynamic Island. The *other* branch had
+   * no ceiling at all, only a share of the full window, so the same defect was
+   * one large `maxContentHeightRatio` away from any caller. Nothing hit it while
+   * the only values in use were 0.6 and 0.72; the paywall asking for the full
+   * remaining height is what made the gap reachable.
+   */
+  const maxWithoutClippingTop = height - insets.top - chromeHeight;
+
   const scrollMaxHeight =
     coveredByKeyboard > 0
-      ? Math.max(MIN_SCROLL_HEIGHT, height - coveredByKeyboard - chromeHeight)
-      : height * maxContentHeightRatio;
+      ? Math.max(
+          MIN_SCROLL_HEIGHT,
+          height - coveredByKeyboard - chromeHeight - insets.top,
+        )
+      : Math.min(height * maxContentHeightRatio, maxWithoutClippingTop);
 
   // Lazy useState rather than useRef: the value has to be created once and stay
   // stable, but reading a ref during render is a lint error here.
@@ -275,14 +328,46 @@ export function Sheet({
               onLayout={(e) => setSheetHeight(e.nativeEvent.layout.height)}
               style={[
                 styles.sheet,
+                // A phone sheet is full-bleed because the phone *is* the sheet's
+                // width. On a tablet that leaves a form's fields stretched the
+                // whole way across a 1024pt screen, which is why every other
+                // tablet surface here (Settings, the blind editor) caps and
+                // centres its content. A native `formSheet` would have given us
+                // this for free — it can't be used (see CLAUDE.md), so the cap
+                // is applied by hand to match.
+                // `maxWidth`, never `width`: the cap has to be able to lose to
+                // the device. An 11" iPad is 834pt, so a fixed width above that
+                // makes the sheet wider than the screen and centring then pushes
+                // its left edge off — the header clipped mid-word.
+                isTabletWidth(width) && {
+                  maxWidth: TABLET_MAX_WIDTH_SHEET,
+                  alignSelf: "center" as const,
+                  width: "100%" as const,
+                },
                 {
-                  // The bottom inset is dropped from the padding while the keyboard
-                  // is up because it's already in the offset below — on Android via
-                  // `coveredByKeyboard`, on iOS because the keyboard covers the home
-                  // indicator outright. Counting it twice leaves a dead band under
-                  // the footer.
-                  paddingBottom:
-                    space.xl + (coveredByKeyboard > 0 ? 0 : insets.bottom),
+                  /**
+                   * **Only a footer gets this padding; a scroller pays for the
+                   * home indicator out of its own content instead.**
+                   *
+                   * A footer has to sit above the indicator, so the space has to
+                   * be reserved on the container — take it away and the
+                   * generator sheet's buttons go under it, which is a regression
+                   * this file has already had once.
+                   *
+                   * A scroll region is the opposite case. Reserving the space
+                   * here stops the region short of the screen edge and leaves a
+                   * band of empty sheet below the last content — visible on the
+                   * paywall as a clipped card with dead space under it, and not
+                   * fixable by raising `maxContentHeightRatio`, because the band
+                   * is outside the region the ratio sizes. Moving the same
+                   * padding into `contentContainerStyle` lets the content scroll
+                   * the whole way down while still ending clear of the
+                   * indicator.
+                   *
+                   * The keyboard case drops the inset either way — see
+                   * `safeBottom`.
+                   */
+                  paddingBottom: footer ? space.xl + safeBottom : 0,
                   marginBottom: coveredByKeyboard,
                   transform: [{ translateY }],
                 },
@@ -330,7 +415,12 @@ export function Sheet({
               <ScrollView
                 onLayout={(e) => setScrollHeight(e.nativeEvent.layout.height)}
                 style={{ maxHeight: scrollMaxHeight }}
-                contentContainerStyle={styles.scrollContent}
+                contentContainerStyle={[
+                  styles.scrollContent,
+                  // Where the home indicator's room is spent when there is no
+                  // footer to spend it on — see the container's padding above.
+                  !footer && { paddingBottom: space.xl + safeBottom },
+                ]}
                 keyboardShouldPersistTaps="handled"
                 // "none", not "on-drag". A sheet like this is a *form*: the fields
                 // above and below the one you're typing in are the reason you'd
@@ -401,6 +491,9 @@ const styles = StyleSheet.create({
     fontWeight: "600",
     fontSize: 16,
   },
+  // The trailing `space.xs` is the gap a footer-bearing sheet wants between its
+  // last field and the footer. Sheets without a footer override it above with
+  // the home indicator's room instead.
   scrollContent: { gap: space.lg, paddingBottom: space.xs },
   footer: { flexDirection: "row", gap: space.md },
 });
