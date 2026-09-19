@@ -1058,18 +1058,18 @@ If a phone shows that asymmetry, note which one is hosting.
 | **Settings → Tournament shows "Shared clock"**, and it opens this screen. Absent with `featureSharing=off`, and on a build with no backend   | ⬜  | ✅      |
 | **Without Club**, Start is disabled and says sharing is part of Club — and that **joining is free**                                          | ⬜  | ⬜      |
 | **Signed out**, both Start and Join are disabled and each says to sign in — not "subscribe"                                                  | ✅  | ✅      |
-| While entitlements are still loading, it says so rather than refusing — a subscriber must never be told they have not paid                   | ⬜  | ⬜      |
+| While entitlements are still loading, it says so rather than refusing — a subscriber must never be told they have not paid                   | ✅  | ✅      |
 | **Hosting produces a six-character code** from the alphabet that drops what gets misheard — no I, O, S, Z                                    | ✅  | ✅      |
 | **A second device joins by typing it**, and sees the same round, level and countdown within ~4s                                              | ✅  | ✅      |
-| Lower case and spaces work — the code is normalised on the way in                                                                            | ⬜  | ✅      |
-| **A wrong code says no clock is running under it**, and leaves the screen usable                                                             | ⬜  | ✅      |
+| Lower case and spaces work — the code is normalised on the way in                                                                            | ✅  | ✅      |
+| **A wrong code says no clock is running under it**, and leaves the screen usable                                                             | ✅  | ✅      |
 | **Pausing on either device pauses both.** This is the row the feature exists for — and either device, not just the host                      | ✅  | ✅      |
-| **Two people pause at the same moment** and both phones settle on the same answer rather than splitting                                      | ⬜  | ⬜      |
-| A level jump travels too — `blindIndex` is in the message                                                                                    | ✅  | ⬜      |
-| **Killing the host app leaves the joiner counting down**, and it reads `stale` after ~15s rather than freezing or lying                      | ⬜  | ⬜      |
-| Reopening the host **rejoins and the two agree again** within a poll                                                                         | ⬜  | ⬜      |
-| **Airplane mode on the joiner** for 30s, then back: it catches up rather than needing a rejoin                                               | ⬜  | ⬜      |
-| Leaving stops the polling — the clock keeps running locally and nothing further is sent                                                      | ⬜  | ⬜      |
+| **Two people pause at the same moment** and both phones settle on the same answer rather than splitting                                      | ✅  | ✅      |
+| A level jump travels too — `blindIndex` is in the message                                                                                    | ✅  | ✅      |
+| **Killing the host app leaves the joiner counting down**, and it reads `stale` after ~15s rather than freezing or lying                      | ⬜  | ✅      |
+| Reopening the host **rejoins and the two agree again** within a poll — **[see D3](#d3-session-not-persisted)**                               | ⬜  | 🔧      |
+| **Airplane mode on the joiner** for 30s, then back: it catches up rather than needing a rejoin                                               | ✅  | ⬜      |
+| Leaving stops the polling — the clock keeps running locally and nothing further is sent                                                      | ✅  | ⬜      |
 | 🚫 **A session expires six hours after its last message.** Cannot be run in a sitting; the TTL is asserted in the store's unit tests instead | ⬜  | ⬜      |
 
 **Where to look if it does not work.** `sessionTransport` is `null` on any build with no
@@ -1165,10 +1165,11 @@ anchor so the rows above can link to it. Keep an entry after it's fixed so the r
 release; the whole section is cleared when the release ships, since by then the fix is in the
 changelog and the reasoning is in the commit.
 
-|                                                                            | Found in                   | State                               |
-| -------------------------------------------------------------------------- | -------------------------- | ----------------------------------- |
-| **[D1](#d1-auth-redirect)** — a provider sign-in ends on "Unmatched Route" | §14b, Android, candidate 3 | 🔧 fixed in #277, wants candidate 4 |
-| **[D2](#d2-rtdn)** — a refund never revokes the entitlement                | §1, Android, candidate 3   | 🟡 accepted for 1.2.0               |
+|                                                                                      | Found in                   | State                               |
+| ------------------------------------------------------------------------------------ | -------------------------- | ----------------------------------- |
+| **[D1](#d1-auth-redirect)** — a provider sign-in ends on "Unmatched Route"           | §14b, Android, candidate 3 | 🔧 fixed in #277, wants candidate 4 |
+| **[D2](#d2-rtdn)** — a refund never revokes the entitlement                          | §1, Android, candidate 3   | 🟡 accepted for 1.2.0               |
+| **[D3](#d3-session-not-persisted)** — a restarted host silently leaves its own clock | §18, Android, candidate 3  | 🔧 fixed in #283, wants candidate 4 |
 
 <a id="d1-auth-redirect"></a>
 
@@ -1247,6 +1248,48 @@ licence-tester account rather than this one.
 **No row covered this.** §1 gained one, above. Cancelling a _purchase flow_ was tested; a refund
 _after_ the fact never was, on either platform — the iOS column is ⬜ rather than ✅ because App
 Store Server Notifications have not been checked either.
+
+<a id="d3-session-not-persisted"></a>
+
+### D3 — a restarted host silently leaves its own shared clock (§18)
+
+**Found** on candidate 3, Android hosting and iPhone joined, running §18's host-restart rows.
+
+**What happens.** Force-quit the host app and reopen it: the host is **no longer in the session it
+started**. Killing it behaves correctly from the joiner's side — the joiner keeps counting down and
+reads `stale` after ~15s, which is its own row and passes — but the host comes back to a clock
+screen that has forgotten everything.
+
+**Cause.** `status` and `code` in `SharedSessionContext` are plain `useState` with **no persistence
+anywhere in the file**. A cold start resets them to `"off"` and `null`. The session itself is fine —
+it is a `SESSION#<code>` row on the server with a six-hour TTL — so only the phone's memory of
+belonging to it is lost.
+
+**Why it matters more than it looks.** The feature's promise is one clock on every phone at the
+table. When the host's phone comes back, every other phone has already gone `stale`, and the only
+way out is starting a **new** session with a **new** code that everybody re-enters — mid-tournament.
+Nothing tells the host any of this happened; from their side the screen is simply blank.
+
+**Mitigating it slightly:** the Android timer runs behind a foreground service, which makes an OOM
+kill much less likely than for an ordinary backgrounded app. The realistic triggers are a user
+swiping the app away and a crash, not routine memory pressure.
+
+**Two traps in the fix**, which is a `SessionStorage` on the existing `storageAdapter` pattern plus a
+re-attach on launch:
+
+- **The session may have expired.** Six-hour TTL, so a re-attach has to treat a 404 from
+  `GET /sessions/{code}` as "clear it and show `off`", not as an error.
+- **Entitlements are not known at mount, and this exact file has been bitten by that before.**
+  `startHosting`/`join` once left the Club and sign-in refusals out of their `useCallback` deps and
+  kept the first render's answer — signed out — refusing every subscriber. A naive re-attach on
+  mount walks into the same race and would fail silently, which is indistinguishable from the bug it
+  is meant to fix.
+
+**Fixed in #283** — `createSessionStorage` in `@poker/core` plus a re-attach on launch that waits on
+both readiness flags before deciding anything. It stores the membership and never the clock, and
+re-checks the refusal so a subscription that lapsed between launches does not keep hosting. 🔧 until
+§18's host-restart rows are re-run on candidate 4 — **and worth running a _joiner_ restart at the
+same time**, which this defect never covered.
 
 ---
 
