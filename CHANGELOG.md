@@ -1132,6 +1132,22 @@ platform-tagged heading (e.g. `## [1.1.3] - 2026-07-20 — Android`) when you cu
 
 ### Fixed
 
+- **Signing in with Apple or Google no longer ends on "Page could not be found" (Android).** The
+  provider redirect goes to `pokerkit://auth`, and no `auth` route existed — so Cognito's redirect
+  opened the app through the scheme's intent filter and expo-router answered with its
+  **Unmatched Route** screen. The sign-in itself always succeeded, which is what made it easy to
+  miss: the person was signed in behind the error, and had to back out and reopen the app to find
+  that out. On the first control of the release's headline feature.
+
+  **It could only ever have been seen on Android, on a device.** On iOS
+  `ASWebAuthenticationSession` intercepts the callback inside the session, so the OS never dispatches
+  a deep link and the router never sees the path; the iOS rows were ticked on the Simulator and were
+  never going to catch it. It also needs a real provider round-trip, so nothing short of a build on a
+  store track with real credentials would have shown it.
+
+  The redirect now lands on a route that sends you straight to the account screen — where every
+  provider sign-in starts from — by then signed in.
+
 - **A signed-in subscriber can actually start or join a shared clock.** Both actions checked the
   sign-in and Club refusal as it stood when the app launched — signed out, entitlements unknown —
   and never looked again, so every attempt came back "not allowed" however long ago the person had
