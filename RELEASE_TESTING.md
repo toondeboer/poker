@@ -425,18 +425,18 @@ Tablet layout is covered separately in §7.
 
 |                                                                                                                    | iOS | Android |
 | ------------------------------------------------------------------------------------------------------------------ | --- | ------- |
-| Settings scrolls as one page — no scroll island                                                                    | ⬜  | ⬜      |
-| Blind structure row shows correct count + range, opens the editor                                                  | ⬜  | ⬜      |
-| 30 rows scroll smoothly; inputs editable                                                                           | ⬜  | ⬜      |
-| Clearing a blind field shows **empty**, not `0`; blur restores the old value                                       | ⬜  | ⬜      |
+| Settings scrolls as one page — no scroll island                                                                    | ⬜  | ✅      |
+| Blind structure row shows correct count + range, opens the editor                                                  | ⬜  | ✅      |
+| 30 rows scroll smoothly; inputs editable                                                                           | ⬜  | ✅      |
+| Clearing a blind field shows **empty**, not `0`; blur restores the old value                                       | ⬜  | ✅      |
 | `+` → Insert below / Duplicate, at top, middle and end                                                             | ⬜  | ⬜      |
 | Delete down to 2 levels → trash buttons disable                                                                    | ⬜  | ⬜      |
-| Sticky footer appears only when dirty                                                                              | ⬜  | ⬜      |
-| **Discard** restores the active values                                                                             | ⬜  | ⬜      |
+| Sticky footer appears only when dirty                                                                              | ⬜  | ✅      |
+| **Discard** restores the active values                                                                             | ⬜  | ✅      |
 | **Apply mid-tournament keeps your level** (start Level 12, edit, apply → still 12)                                 | ⬜  | ⬜      |
 | Apply a schedule **shorter** than the current level → warning shown, lands on last level, **timer does not crash** | ⬜  | ⬜      |
 | Tap-to-jump: confirm → timer _and_ notification/Live Activity both follow                                          | ⬜  | ⬜      |
-| Jump chip is **inert** while the draft is dirty                                                                    | ⬜  | ⬜      |
+| Jump chip is **inert** while the draft is dirty                                                                    | ⬜  | ✅      |
 | Back with unapplied edits → Apply / Discard / Keep editing                                                         | ⬜  | ⬜      |
 | …via **hardware back** (Android) and **swipe-back** (iOS)                                                          | ⬜  | ⬜      |
 | Kill the app with a dirty draft → relaunch → draft and footer still there                                          | ⬜  | ⬜      |
