@@ -532,7 +532,7 @@ expected, not a bug.
 |                                                                                                                                                                   | iPad | Android tablet |
 | ----------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---- | -------------- |
 | Settings: Tournament + Presets **side by side**, capped and centred                                                                                               | ✅   | ⬜             |
-| Blind editor list + sticky footer capped at 900 and centred — **centred, but it does not reach 900: [see D5](#d5-ipad-list-width)**                               | ❌   | ⬜             |
+| Blind editor list + sticky footer capped at 900 and centred — fixed and re-verified, [see D5](#d5-ipad-list-width). **The sticky footer half was not triggered**  | ✅   | ⬜             |
 | Timer card centred, not full-bleed                                                                                                                                | ✅   | ⬜             |
 | Generator and Pro sheets capped at 640 and centred, **not** full-bleed (the 1.2.0 fix — was 🟡 accepted in 1.1.4)                                                 | ⬜   | ⬜             |
 | Payouts: cards capped and centred, payout rows readable                                                                                                           | ✅   | ⬜             |
@@ -1189,7 +1189,7 @@ changelog and the reasoning is in the commit.
 | **[D1](#d1-auth-redirect)** — a provider sign-in ends on "Unmatched Route"                 | §14b, Android, candidate 3 | 🔧 fixed in #277, wants candidate 4 |
 | **[D2](#d2-rtdn)** — a refund never revokes the entitlement                                | §1, Android, candidate 3   | 🟡 accepted for 1.2.0               |
 | **[D3](#d3-session-not-persisted)** — a restarted host silently leaves its own clock       | §18, Android, candidate 3  | 🔧 fixed in #283, wants candidate 4 |
-| **[D5](#d5-ipad-list-width)** — the blind editor's iPad layout never reaches its 900pt cap | §7, iPad simulator         | ❌ open                             |
+| **[D5](#d5-ipad-list-width)** — the blind editor's iPad layout never reaches its 900pt cap | §7, iPad simulator         | ✅ fixed and re-verified            |
 | **[D4](#d4-prod-alerting)** — prod had no alarm delivery at all                            | §15b/§20, prod, 2026-09-19 | 🔧 re-subscribed, wants confirming  |
 
 <a id="d1-auth-redirect"></a>
@@ -1374,10 +1374,18 @@ width of the rows rather than expanding to the 900 cap. `maxWidth` then never bi
 no width of their own, so they collapse to their content. That would also explain why Settings is
 fine — its cards are laid out differently.
 
-**Not a regression, and not yet judged.** §7 has never been run — every cell in it was ⬜ before
-today — so this is a first observation, not something that broke. Whether a 342pt column on a
-13-inch iPad is worth holding 1.2.0 for is a design call, not a testing one. The sticky footer half
-of the row was not reached and is not judged here.
+**Not a regression.** §7 has never been run — every cell in it was ⬜ before today — so this is a
+first observation rather than something that broke.
+
+**Confirmed, then fixed.** The hypothesis was right, and the repo answered it itself: `SettingsScreen`,
+`GameScreen`, `PayoutScreen`, `SharedSessionScreen`, `LeaderboardScreen`, `AccountScreen` and
+`Sheet` **all** pair `maxWidth` with `alignSelf: "center"` **and `width: "100%"`**.
+`BlindStructureScreen` carried only the first two, which is why it was the only surface that looked
+wrong. Adding `width: "100%"` takes the list from ~342pt to the 900 cap, centred — re-shot on the
+same iPad Pro simulator immediately after the change, so this is measured rather than argued.
+
+**The sticky footer half was not triggered** — it appears only with an unapplied draft. The same
+style object feeds both call sites, so the fix reaches it, but that is inference and the row says so.
 
 ---
 

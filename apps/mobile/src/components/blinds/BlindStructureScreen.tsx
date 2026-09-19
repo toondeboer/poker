@@ -261,5 +261,21 @@ const styles = StyleSheet.create({
   centred: {
     maxWidth: TABLET_MAX_WIDTH_LIST,
     alignSelf: "center",
+    /**
+     * **`width` is what makes `maxWidth` mean anything here.**
+     *
+     * `alignSelf: "center"` sizes a flex child to its own content instead of
+     * stretching, so without this the container collapsed to however wide the
+     * rows happened to be — measured at roughly 342pt on a 1032pt iPad — and
+     * `maxWidth` never bound. The list read as a phone-width column adrift in
+     * the middle of a 13-inch screen.
+     *
+     * Every other capped surface already had it: `SettingsScreen`,
+     * `GameScreen`, `PayoutScreen`, `SharedSessionScreen`, `LeaderboardScreen`,
+     * `AccountScreen` and `Sheet` all pair the three properties. This file was
+     * the only one carrying two of them, which is why it was the only one that
+     * looked wrong.
+     */
+    width: "100%",
   },
 });
