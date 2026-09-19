@@ -1105,18 +1105,35 @@ extra push-ticket logging. If registration still fails, it is not this.
 
 **It also needs two accounts**, because the sender never notifies whoever recorded the game.
 
-|                                                                                                                                        | iOS | Android |
-| -------------------------------------------------------------------------------------------------------------------------------------- | --- | ------- |
-| **A member records a game; the other member's phone shows a notification** within a few seconds                                        | ⬜  | ⬜      |
-| **The person who recorded it is not notified** — they are holding the phone                                                            | ⬜  | ⬜      |
-| **It names the board, not the player.** No player name appears on the lock screen                                                      | ⬜  | ⬜      |
-| Tapping it opens the app — and does not crash from a cold start                                                                        | ⬜  | ⬜      |
-| **Declining the notification permission means no push, and no error.** Somebody who said no should not be asked again by this feature  | ⬜  | ✅      |
-| **Signed in on two devices, both are notified** — a token is a row per device, and the second sign-in must not unregister the first    | ⬜  | ⬜      |
-| **Recording while the other phone is offline**: it arrives when that phone comes back, or not at all — never as a duplicate            | ⬜  | ⬜      |
-| **The outbox replaying a queued game sends no second notification.** Only a write that actually landed notifies                        | ⬜  | ⬜      |
-| **A failed push never fails the write.** Break it deliberately (sign out on the receiver, delete the app) and recording still succeeds | ⬜  | ⬜      |
-| Uninstalling the receiving app and recording again does not error on the sender — the token is forgotten on `DeviceNotRegistered`      | ⬜  | ⬜      |
+**🟡 Delivery is proven; every behaviour _around_ delivery is accepted untested.** On 2026-09-19 a
+game recorded on the Android raised a notification on the iPhone within seconds, naming the board and
+not the player, with the recording device correctly silent — the first time push has been seen to
+work at all. The rest of the section was **deliberately not run**: the cold-start tap, the offline
+receiver, the outbox replaying without re-notifying, a failed push not failing the write, and an
+uninstalled receiver not erroring the sender.
+
+**The accepted risk, stated plainly:** the mitigation is error logging and monitoring, to be added
+after 1.2.0, and **it does not exist yet**. Until it does there is no signal at all — nothing fetches
+push receipts, so a bad token, a revoked key or a duplicate notification produces no error, no log
+and no alert. A regression here is invisible until somebody reports it. Carried in
+[ROADMAP.md](./ROADMAP.md).
+
+**The duplicate-notification row is the one to run first when this is revisited.** A replayed outbox
+item re-notifying is the failure most likely to reach a person, hardest to notice from the server,
+and the only one of the five that annoys every member of the board at once.
+
+|                                                                                                                                                                                                                                    | iOS | Android |
+| ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --- | ------- |
+| **A member records a game; the other member's phone shows a notification** within a few seconds                                                                                                                                    | ✅  | ⬜      |
+| **The person who recorded it is not notified** — they are holding the phone                                                                                                                                                        | ⬜  | ✅      |
+| **It names the board, not the player.** No player name appears on the lock screen                                                                                                                                                  | ✅  | ⬜      |
+| Tapping it opens the app — and does not crash from a cold start                                                                                                                                                                    | 🟡  | 🟡      |
+| **Declining the notification permission means no push, and no error.** Somebody who said no should not be asked again by this feature                                                                                              | ⬜  | ✅      |
+| 🚫 **Signed in on two devices, both are notified** — needs the _receiving_ account on two devices plus a separate sender, so **three devices** — a token is a row per device, and the second sign-in must not unregister the first | 🚫  | 🚫      |
+| **Recording while the other phone is offline**: it arrives when that phone comes back, or not at all — never as a duplicate                                                                                                        | 🟡  | 🟡      |
+| **The outbox replaying a queued game sends no second notification.** Only a write that actually landed notifies                                                                                                                    | 🟡  | 🟡      |
+| **A failed push never fails the write.** Break it deliberately (sign out on the receiver, delete the app) and recording still succeeds                                                                                             | 🟡  | 🟡      |
+| Uninstalling the receiving app and recording again does not error on the sender — the token is forgotten on `DeviceNotRegistered`                                                                                                  | 🟡  | 🟡      |
 
 ---
 
