@@ -281,14 +281,14 @@ Nothing in development can exercise this fully: the Android emulator has no Play
 (`BILLING_UNAVAILABLE`) and the Simulator has no StoreKit configured. Needs a real device with a
 sandbox/test account, and for Android, a build uploaded to a Play track.
 
-|                                                                                                                                | iOS | Android                          |
-| ------------------------------------------------------------------------------------------------------------------------------ | --- | -------------------------------- |
-| Paywall opens from all five entry points (Pro card, Presets, Sound Pack, Payouts, Leaderboard)                                 | ⬜  | ⬜                               |
-| Price string renders (not blank, not `one-time` alone)                                                                         | ✅  | ⬜                               |
-| **Purchase completes** and Pro unlocks (ads gone, Presets, Sound Pack, Payouts + Leaderboard usable)                           | ✅  | 🚫 [see below](#android-billing) |
-| **Restore purchases** works on a fresh install of the same account                                                             | ✅  | 🚫 [see below](#android-billing) |
-| Cancelling a purchase leaves the app in a sane state, no error toast                                                           | ✅  | 🚫 [see below](#android-billing) |
-| **A refund revokes the entitlement.** Refund with _revoke access_ in the store console → the app loses Pro. [See D2](#d2-rtdn) | ⬜  | ❌                               |
+|                                                                                                                                                          | iOS | Android                          |
+| -------------------------------------------------------------------------------------------------------------------------------------------------------- | --- | -------------------------------- |
+| Paywall opens from all five entry points (Pro card, Presets, Sound Pack, Payouts, Leaderboard)                                                           | ⬜  | ⬜                               |
+| Price string renders (not blank, not `one-time` alone)                                                                                                   | ✅  | ⬜                               |
+| **Purchase completes** and Pro unlocks (ads gone, Presets, Sound Pack, Payouts + Leaderboard usable)                                                     | ✅  | 🚫 [see below](#android-billing) |
+| **Restore purchases** works on a fresh install of the same account                                                                                       | ✅  | 🚫 [see below](#android-billing) |
+| Cancelling a purchase leaves the app in a sane state, no error toast                                                                                     | ✅  | 🚫 [see below](#android-billing) |
+| **A refund revokes the entitlement.** Refund with _revoke access_ in the store console → the app loses Pro. **Known gap, accepted — [see D2](#d2-rtdn)** | 🟡  | 🟡                               |
 
 ### 1b. The Club subscription · **new in 1.2.0**
 
@@ -1146,10 +1146,10 @@ anchor so the rows above can link to it. Keep an entry after it's fixed so the r
 release; the whole section is cleared when the release ships, since by then the fix is in the
 changelog and the reasoning is in the commit.
 
-|                                                                            | Found in                   | State                     |
-| -------------------------------------------------------------------------- | -------------------------- | ------------------------- |
-| **[D1](#d1-auth-redirect)** — a provider sign-in ends on "Unmatched Route" | §14b, Android, candidate 3 | ❌ open, Android-only     |
-| **[D2](#d2-rtdn)** — a refund never revokes the entitlement                | §1, Android, candidate 3   | ❌ open, console-only fix |
+|                                                                            | Found in                   | State                 |
+| -------------------------------------------------------------------------- | -------------------------- | --------------------- |
+| **[D1](#d1-auth-redirect)** — a provider sign-in ends on "Unmatched Route" | §14b, Android, candidate 3 | ❌ open, Android-only |
+| **[D2](#d2-rtdn)** — a refund never revokes the entitlement                | §1, Android, candidate 3   | 🟡 accepted for 1.2.0 |
 
 <a id="d1-auth-redirect"></a>
 
@@ -1200,8 +1200,20 @@ never sent, so RevenueCat is never told and holds the entitlement indefinitely.
 Nothing in the app or the backend re-checks it, because entitlements are read from RevenueCat and
 RevenueCat is waiting on a notification that no one sends.
 
-**It needs no new binary.** This is console configuration in Play and RevenueCat only, so it can be
-fixed without a candidate 4 and without invalidating any row already ticked against candidate 3.
+**Accepted for 1.2.0, and not held for.** RTDN has **never** been configured on this app, so 1.1.4
+behaves identically for a refunded Pro purchase — this is a pre-existing condition found by the pass,
+not something this release introduces. The genuinely new surface is Club, and a subscription's normal
+lapse is driven by the expiry timestamp RevenueCat already holds rather than by a notification, so
+§1b's expiry rows are unaffected. Holding 1.2.0 for a defect it does not contain would be the wrong
+trade. Carried in [ROADMAP.md](./ROADMAP.md).
+
+**It needs no new binary** whenever it is fixed — console configuration in Play and RevenueCat only,
+so it can land without a candidate and without invalidating any row ticked against candidate 3.
+
+**The attempt to wire it was reverted.** A Pub/Sub topic was created and pointed at from Play
+Console, then removed again: RevenueCat's _Connect to Google_ listed no topics to attach to, and
+chasing that was costing more than the defect was worth mid-pass. The app is back in the state
+described above.
 
 **Wiring it up won't retroactively revoke the order already refunded** — RTDN fires at the time of
 the event and does not replay. Expect the stale entitlement to persist until RevenueCat next

@@ -43,6 +43,32 @@ to be built before anything is submitted for review.** What remains, in order:
 
 ## Carried into 1.2.1 — from the 1.2.0 release review
 
+- ⬜ **A refund never revokes the entitlement — Google Play RTDN has never been configured.**
+  Found on the 1.2.0 candidate-3 pass (D2 in [RELEASE_TESTING.md](./RELEASE_TESTING.md)). Refunding
+  a Pro order in Play Console with _revoke access_ ticked leaves RevenueCat showing the entitlement
+  active and the app still holding Pro. Play Console → Monetization setup →
+  **Real-time developer notifications** has no Pub/Sub topic, so Google's
+  `ONE_TIME_PRODUCT_CANCELED` never reaches RevenueCat and it is never told.
+
+  **Accepted for 1.2.0 because it is not this release's defect** — the channel has never existed, so
+  1.1.4 behaves the same way, and a subscription's normal lapse runs off the expiry timestamp
+  RevenueCat already holds rather than off a notification. What it costs in the meantime is real
+  though: **a customer who is refunded keeps the paid features**, and nothing re-checks, because
+  entitlements are read from RevenueCat and RevenueCat is waiting on a message nobody sends.
+
+  **The fix is console-only — no binary.** Create a Pub/Sub topic in the Google Cloud project linked
+  under Play Console → Setup → API access, grant
+  `google-play-developer-notifications@system.gserviceaccount.com` the **Pub/Sub Publisher** role on
+  it, point Play Console's RTDN field at it, and attach RevenueCat. **The blocker last time was
+  RevenueCat's _Connect to Google_ listing no topics** even after the topic existed — likely the
+  OAuth'd identity lacking permission to list them on that project. That attempt was reverted; start
+  from RevenueCat's own RTDN docs rather than repeating it blind.
+
+  Verify with the behaviour, not the configuration: refund a test purchase with revoke, and watch
+  the entitlement drop. That is §1's `A refund revokes the entitlement` row, currently 🟡 on both
+  platforms — **iOS is unchecked too**, since App Store Server Notifications have never been
+  confirmed either.
+
 - 🔍 **Purchases follow the app account — built, then deferred out of 1.2.0.** #262 handed
   RevenueCat the Cognito `sub` on sign-in and, on sign-out, called `logOut()` then
   `restorePurchases()`. Read against RevenueCat's docs that cannot keep its own promises:
