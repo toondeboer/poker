@@ -439,7 +439,7 @@ Tablet layout is covered separately in §7.
 | Jump chip is **inert** while the draft is dirty                                                                    | ⬜  | ✅      |
 | Back with unapplied edits → Apply / Discard / Keep editing                                                         | ⬜  | ✅      |
 | …via **hardware back** (Android) and **swipe-back** (iOS)                                                          | ⬜  | ✅      |
-| Kill the app with a dirty draft → relaunch → draft and footer still there                                          | ⬜  | ⬜      |
+| Kill the app with a dirty draft → relaunch → draft and footer still there                                          | ⬜  | ✅      |
 
 ---
 
@@ -461,11 +461,11 @@ Tablet layout is covered separately in §7.
 
 |                                                                                                     | iOS | Android |
 | --------------------------------------------------------------------------------------------------- | --- | ------- |
-| mm:ss commits on blur — no Save button needed                                                       | ⬜  | ⬜      |
-| Type `12`/`30`, back out → next round is 12:30                                                      | ⬜  | ⬜      |
+| mm:ss commits on blur — no Save button needed                                                       | ⬜  | ✅      |
+| Type `12`/`30`, back out → next round is 12:30                                                      | ⬜  | ✅      |
 | Changing it **mid-round leaves the running round's remaining time alone**                           | ⬜  | ⬜      |
-| A round shorter than 10s is **kept**, not silently rewritten (type `5`, leave, come back → still 5) | ⬜  | ⬜      |
-| Seconds field caps at 59, and the field shows the clamped value after blur                          | ⬜  | ⬜      |
+| A round shorter than 10s is **kept**, not silently rewritten (type `5`, leave, come back → still 5) | ⬜  | ✅      |
+| Seconds field caps at 59, and the field shows the clamped value after blur                          | ⬜  | ✅      |
 
 ---
 
