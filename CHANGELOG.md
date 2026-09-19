@@ -1153,6 +1153,26 @@ platform-tagged heading (e.g. `## [1.1.3] - 2026-07-20 — Android`) when you cu
 
 ### Fixed
 
+- **A shared clock survives the host's app being restarted.** Force-quitting the hosting phone and
+  reopening it used to leave that phone no longer in the session it had started. The session itself
+  was fine — it is a row on the server with a six-hour life — but `status` and `code` were ordinary
+  state, so a cold start simply dropped the phone's memory of belonging to it.
+
+  **It read worse at a table than in a test.** By the time the host's app was back, every other
+  phone had gone "out of touch", and the only way out was starting a new session with a new code for
+  everybody to re-enter, mid-tournament — with nothing on screen saying any of that had happened.
+
+  The phone now remembers which session it was in and rejoins on launch. Two things it deliberately
+  does not do: it **does not** store the clock itself, because a stale time on a tournament clock
+  gets read and acted on where a blank one does not, so the round and countdown arrive from the
+  server on the next poll; and it **re-checks** the subscription rather than assuming it, so a
+  membership that lapsed between launches does not quietly keep hosting.
+
+  The rejoin waits for the sign-in and subscription answers to actually arrive before deciding.
+  Acting on the not-yet-known values reads them as a refusal and silently declines to rejoin, which
+  is indistinguishable from the bug being fixed — the same trap that once made this file's host
+  button turn away every subscriber.
+
 - **There is now a way to join a board that says "Join a board".** The paste field lives in the
   Groups sheet, and for anybody entitled the only routes into that sheet were a row showing their
   **own** board's name and a button saying **Share this board** — the opposite errand. A guest

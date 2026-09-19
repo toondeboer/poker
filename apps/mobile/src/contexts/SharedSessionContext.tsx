@@ -26,6 +26,7 @@ import {
 import { useAuth } from "@/src/contexts/AuthContext";
 import { usePremium } from "@/src/contexts/PremiumContext";
 import { sessionTransport } from "@/src/services/loopbackSessionTransport";
+import { SessionStorage } from "@/src/services/SessionStorage";
 import { generateId } from "@/src/utils/id";
 import { logger } from "@/src/utils/logger";
 
@@ -121,7 +122,7 @@ export function SharedSessionProvider({
    * oversight — see the web-board note in `ROADMAP.md`.
    */
   const { hasClub, isPremium, entitlementsKnown } = usePremium();
-  const { account } = useAuth();
+  const { account, isLoading: authLoading } = useAuth();
   const hostRefusalText = clockHostRefusal({
     signedIn: account !== null,
     entitlementsKnown,
@@ -154,6 +155,7 @@ export function SharedSessionProvider({
     sentVersionRef.current = 0;
     setCode(null);
     setStatus("off");
+    void SessionStorage.clearSharedSession();
   }, []);
 
   // Leaving on unmount, not just on the button: an orphaned subscription keeps
@@ -184,6 +186,65 @@ export function SharedSessionProvider({
     );
   }, []);
 
+  /**
+   * Rejoin the session this phone was already in, once per launch.
+   *
+   * **The bug this fixes is silent.** `status` and `code` are ordinary state, so
+   * a cold start used to drop them while the `SESSION#<code>` row carried on
+   * for its six hours. The host came back to an empty clock screen having been
+   * told nothing, and by then every other phone at the table had gone `stale` —
+   * with no way out but a new session and a new code, read out mid-tournament.
+   *
+   * **Gated on both readiness flags, and that is the whole difficulty.** Hosting
+   * is refused without Club and joining without a sign-in, and neither answer
+   * exists on the first render: the provider renders signed out with
+   * entitlements unknown. Restoring before they resolve reads the *default*
+   * refusal and quietly declines to rejoin — which looks exactly like the
+   * defect it was written to fix. `startHosting` has already been bitten by
+   * this once, which is why its refusal is in its dependency list.
+   *
+   * A `ref` rather than state for the once-only guard: this must not re-run when
+   * entitlements refresh later, and writing it here is an effect, not a render.
+   */
+  const restoreAttemptedRef = useRef(false);
+  useEffect(() => {
+    if (restoreAttemptedRef.current) return;
+    if (!sessionTransport) return;
+    // Not "false means refuse" — it means *not yet*. Waiting is correct.
+    if (authLoading || !entitlementsKnown) return;
+    restoreAttemptedRef.current = true;
+    void (async () => {
+      const saved = await SessionStorage.loadSharedSession();
+      if (!saved) return;
+      // Re-checked rather than assumed: a subscription can lapse between one
+      // launch and the next, and a lapsed host must not silently keep hosting.
+      const refusal =
+        saved.status === "hosting" ? hostRefusalText : joinRefusalText;
+      if (refusal !== null) {
+        await SessionStorage.clearSharedSession();
+        return;
+      }
+      // A session dies six hours after its last message, so "gone" is an
+      // ordinary outcome here and not an error: clear it and show `off` rather
+      // than leaving somebody attached to a code the server has forgotten.
+      const sessionId = await sessionTransport.resolve(saved.code);
+      if (!sessionId) {
+        await SessionStorage.clearSharedSession();
+        return;
+      }
+      sessionIdRef.current = sessionId;
+      listen(sessionId);
+      setCode(saved.code);
+      setStatus(saved.status);
+    })();
+  }, [
+    authLoading,
+    entitlementsKnown,
+    hostRefusalText,
+    joinRefusalText,
+    listen,
+  ]);
+
   const startHosting = useCallback(async (): Promise<JoinError | null> => {
     if (!sessionTransport) return "failed";
     // **Checked here, not only where the button is drawn.** A screen can hide a
@@ -197,6 +258,10 @@ export function SharedSessionProvider({
       listen(sessionId);
       setCode(joinCode);
       setStatus("hosting");
+      void SessionStorage.saveSharedSession({
+        status: "hosting",
+        code: joinCode,
+      });
       return null;
     } catch (error) {
       logger.error("Failed to host a session:", error);
@@ -225,6 +290,10 @@ export function SharedSessionProvider({
         listen(sessionId);
         setCode(joinCode);
         setStatus("joined");
+        void SessionStorage.saveSharedSession({
+          status: "joined",
+          code: joinCode,
+        });
         return null;
       } catch (error) {
         logger.error("Failed to join a session:", error);

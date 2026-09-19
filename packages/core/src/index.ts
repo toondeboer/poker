@@ -69,6 +69,14 @@ export { createReviewStorage } from "./storage/reviewStorage";
 export type { ReviewStorage } from "./storage/reviewStorage";
 export { createPresetStorage } from "./storage/presetStorage";
 export type { PresetStorage } from "./storage/presetStorage";
+export {
+  createSessionStorage,
+  SHARED_SESSION_KEY,
+} from "./storage/sessionStorage";
+export type {
+  SessionStorage,
+  StoredSharedSession,
+} from "./storage/sessionStorage";
 export { createSoundPackStorage } from "./storage/soundPackStorage";
 export type { SoundPackStorage } from "./storage/soundPackStorage";
 export {
