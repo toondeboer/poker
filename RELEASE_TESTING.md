@@ -545,9 +545,9 @@ expected, not a bug.
 
 |                                                                                                                                       | iOS | Android |
 | ------------------------------------------------------------------------------------------------------------------------------------- | --- | ------- |
-| Timer fits with no scrolling, nothing clipped                                                                                         | ⬜  | ⬜      |
-| Settings cards readable, no overlap                                                                                                   | ⬜  | ⬜      |
-| Blind rows: level chip, LIVE badge and both buttons all fit                                                                           | ⬜  | ⬜      |
+| Timer fits with no scrolling, nothing clipped                                                                                         | ✅  | ⬜      |
+| Settings cards readable, no overlap                                                                                                   | ✅  | ⬜      |
+| Blind rows: level chip, LIVE badge and both buttons all fit                                                                           | ✅  | ⬜      |
 | Payouts: "Paid places" segments wrap rather than breaking a label mid-word — check at **25+ players**, which offers the most segments | ⬜  | ⬜      |
 
 ---
