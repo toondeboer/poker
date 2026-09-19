@@ -281,13 +281,14 @@ Nothing in development can exercise this fully: the Android emulator has no Play
 (`BILLING_UNAVAILABLE`) and the Simulator has no StoreKit configured. Needs a real device with a
 sandbox/test account, and for Android, a build uploaded to a Play track.
 
-|                                                                                                      | iOS | Android                          |
-| ---------------------------------------------------------------------------------------------------- | --- | -------------------------------- |
-| Paywall opens from all five entry points (Pro card, Presets, Sound Pack, Payouts, Leaderboard)       | ⬜  | ⬜                               |
-| Price string renders (not blank, not `one-time` alone)                                               | ✅  | ⬜                               |
-| **Purchase completes** and Pro unlocks (ads gone, Presets, Sound Pack, Payouts + Leaderboard usable) | ✅  | 🚫 [see below](#android-billing) |
-| **Restore purchases** works on a fresh install of the same account                                   | ✅  | 🚫 [see below](#android-billing) |
-| Cancelling a purchase leaves the app in a sane state, no error toast                                 | ✅  | 🚫 [see below](#android-billing) |
+|                                                                                                                                                                                                                                                                                                                                                                                 | iOS | Android                          |
+| ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --- | -------------------------------- |
+| Paywall opens from **every** entry point. Settings' **Pro**, **Club**, **Presets** and **Sound Pack** cards; **Payouts**; **Leaderboard** (both its locked card _and_ "Share this board"); the **game** screen; the **Groups** sheet; and the **shared-clock** screen. **Was written as "five" and is not** — Club, Groups, the game screen and the shared clock all came later | ⬜  | ✅                               |
+| Price string renders (not blank, not `one-time` alone)                                                                                                                                                                                                                                                                                                                          | ✅  | ✅                               |
+| **Purchase completes** and Pro unlocks (ads gone, Presets, Sound Pack, Payouts + Leaderboard usable)                                                                                                                                                                                                                                                                            | ✅  | 🚫 [see below](#android-billing) |
+| **Restore purchases** works on a fresh install of the same account                                                                                                                                                                                                                                                                                                              | ✅  | 🚫 [see below](#android-billing) |
+| Cancelling a purchase leaves the app in a sane state, no error toast                                                                                                                                                                                                                                                                                                            | ✅  | 🚫 [see below](#android-billing) |
+| **A refund revokes the entitlement.** Refund with _revoke access_ in the store console → the app loses Pro. **Known gap, accepted — [see D2](#d2-rtdn)**                                                                                                                                                                                                                        | 🟡  | 🟡                               |
 
 ### 1b. The Club subscription · **new in 1.2.0**
 
@@ -770,7 +771,7 @@ can be run on such a build**, not just this one. Rebuild first — see §0.
 | Row                                                                                                                                                                                                                           | iOS | Android |
 | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --- | ------- |
 | **Continue with Apple** on a fresh install creates an account and signs in                                                                                                                                                    | ✅  | ⬜      |
-| **Continue with Google** on a fresh install creates an account and signs in                                                                                                                                                   | ✅  | ⬜      |
+| **Continue with Google** on a fresh install creates an account and signs in. **Signs in, but ends on an error screen — [see D1](#d1-auth-redirect)**                                                                          | ✅  | 🔧      |
 | Signing out and back in with the same provider returns to the **same** account, not a new one                                                                                                                                 | ✅  | ⬜      |
 | **The linking case.** Sign up with email+password, sign out, then sign in with a provider on the _same address_ — the boards and season are still there. This is the one that fails silently and looks exactly like data loss | ✅  | ⬜      |
 | 🚫 **Hide My Email** — needs a **second Apple ID**, and cannot be run with one. See below                                                                                                                                     | ⬜  | ⬜      |
@@ -916,15 +917,15 @@ in §15.
 The rules are unit-tested in `clubPolicy`. **What a human has to check is that nobody is told to buy
 something they already own**, which is the failure that reaches a store review.
 
-|                                                                                                                                                                   | iOS | Android |
-| ----------------------------------------------------------------------------------------------------------------------------------------------------------------- | --- | ------- |
-| A **Pro-only** account (no Club) can use every local feature and **cannot** share a board — and the message names Club, not Pro                                   | ⬜  | ⬜      |
-| A **Club** subscriber gets Pro with it — the leaderboard works without buying Pro separately                                                                      | ⬜  | ⬜      |
-| A Club subscriber sees **"Pro is included with Club"**, not "Pro unlocked" — the second implies a permanence they have not got                                    | ⬜  | ⬜      |
-| **Restore purchases is offered even when the app thinks you are unlocked.** The person who needs it most is the one whose purchase this device has not recognised | ⬜  | ⬜      |
-| Buying **Pro** while subscribed does not double-charge or confuse the paywall                                                                                     | ⬜  | ⬜      |
-| Nobody is ever told to buy something they hold — check the messages for a Pro-only, a Club-only, and a signed-out account                                         | ⬜  | ⬜      |
-| A **signed-out** person tapping "Join a board" is offered a sign-in, not a paywall and not an empty sheet                                                         | ⬜  | ⬜      |
+|                                                                                                                                                                                                                                                                                                                                                    | iOS | Android |
+| -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --- | ------- |
+| A **Pro-only** account (no Club) can use every local feature and **cannot** share a board — and the message names Club, not Pro                                                                                                                                                                                                                    | ⬜  | ⬜      |
+| A **Club** subscriber gets Pro with it — the leaderboard works without buying Pro separately                                                                                                                                                                                                                                                       | ⬜  | ⬜      |
+| A Club subscriber sees **"Pro is included with Club"**, not "Pro unlocked". **The reason given here used to be wrong** — it said the second "implies a permanence they have not got", and `clubEver` means they _do_ keep Pro after a lapse. The distinction is that they did not buy Pro outright (`ownsProOutright`), not that they will lose it | ⬜  | ⬜      |
+| **Restore purchases is offered even when the app thinks you are unlocked.** The person who needs it most is the one whose purchase this device has not recognised                                                                                                                                                                                  | ⬜  | ⬜      |
+| Buying **Pro** while subscribed does not double-charge or confuse the paywall                                                                                                                                                                                                                                                                      | ⬜  | ⬜      |
+| Nobody is ever told to buy something they hold — check the messages for a Pro-only, a Club-only, and a signed-out account                                                                                                                                                                                                                          | ⬜  | ⬜      |
+| A **signed-out** person tapping "Join a board" is offered a sign-in, not a paywall and not an empty sheet                                                                                                                                                                                                                                          | ⬜  | ✅      |
 
 ### 16b. Buying Club · **the rows a subscription is rejected over**
 
@@ -945,13 +946,13 @@ reaches TestFlight or Play internal testing — before submission, not after it.
 
 |                                                                                                                                                                                                                          | iOS | Android |
 | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | --- | ------- |
-| **The Club section appears at all** once the products are live — and is absent before, rather than showing an empty box                                                                                                  | ✅  | ⬜      |
-| **Both plans show a price**, taken from the store rather than written into the app — so it is right in every currency                                                                                                    | ✅  | ⬜      |
-| **Each says its billing period** — "Monthly" and "Annual". Price without period is the 3.1.2 rejection                                                                                                                   | ✅  | ⬜      |
-| It says **renews until cancelled**, and where to cancel — App Store on iOS, Play Store on Android                                                                                                                        | ✅  | ⬜      |
-| **"Joining a board is always free" is on screen.** The misunderstanding most likely to kill the feature                                                                                                                  | ⬜  | ⬜      |
-| **Terms of Use opens `/terms`** in a browser, and the page loads                                                                                                                                                         | ⬜  | ⬜      |
-| **Privacy Policy opens `/privacy-policy`**, and the page loads                                                                                                                                                           | ⬜  | ⬜      |
+| **The Club section appears at all** once the products are live — and is absent before, rather than showing an empty box                                                                                                  | ✅  | ✅      |
+| **Both plans show a price**, taken from the store rather than written into the app — so it is right in every currency                                                                                                    | ✅  | ✅      |
+| **Each says its billing period** — "Monthly" and "Annual". Price without period is the 3.1.2 rejection                                                                                                                   | ✅  | ✅      |
+| It says **renews until cancelled**, and where to cancel — App Store on iOS, Play Store on Android                                                                                                                        | ✅  | ✅      |
+| **"Joining a board is always free" is on screen.** The misunderstanding most likely to kill the feature                                                                                                                  | ⬜  | ✅      |
+| **Terms of Use opens `/terms`** in a browser, and the page loads                                                                                                                                                         | ⬜  | ✅      |
+| **Privacy Policy opens `/privacy-policy`**, and the page loads                                                                                                                                                           | ⬜  | ✅      |
 | Buying **monthly** grants `club` **and** `pro` — the board opens straight away, with no second purchase                                                                                                                  | ✅  | ⬜      |
 | Buying **annual** does the same                                                                                                                                                                                          | ⬜  | ⬜      |
 | **Cancelling at the store** removes hosting but **leaves Pro** — the boards stay visible. This is the promise `clubEver` exists to keep                                                                                  | ✅  | ⬜      |
@@ -981,19 +982,19 @@ is about whether a person can tell, before they tap, which of the two they are b
 
 |                                                                                                                                                  | iOS | Android |
 | ------------------------------------------------------------------------------------------------------------------------------------------------ | --- | ------- |
-| Settings shows **two separate cards**, Pro badged **One-time** and Club badged **Subscription**                                                  | ⬜  | ⬜      |
-| The two are **visibly different colours** — Pro amber, Club violet — on the cards, the pills and the buttons                                     | ⬜  | ⬜      |
-| Opening the sheet from a **locked Pro feature** puts Pro first, filled; Club is below it and outlined                                            | ⬜  | ⬜      |
-| Opening it from **"See Club"** puts Club first, filled; Pro is below it and outlined                                                             | ⬜  | ⬜      |
-| **Both stay buyable either way** — the unfocused card is outlined, never hidden, and its button still works                                      | ⬜  | ⬜      |
-| Each card says its shape in words: Pro _"paid once … nothing to renew"_, Club _"renews automatically until cancelled"_                           | ⬜  | ⬜      |
-| The **shared clock** row in Settings carries a **CLUB** pill, and the Pro rows carry **PRO** pills — a subscriber sees neither on what they hold | ⬜  | ⬜      |
-| **Groups → the Club offer** appears for a signed-in non-subscriber and opens the sheet on Club                                                   | ⬜  | ⬜      |
-| That offer is **absent on a cold launch until the store answers** — never shown while entitlements are still the default                         | ⬜  | ⬜      |
-| **Start a clock → "See Club"** opens the sheet on Club, and the refusal sentence above it still reads the same                                   | ⬜  | ⬜      |
+| Settings shows **two separate cards**, Pro badged **One-time** and Club badged **Subscription**                                                  | ⬜  | ✅      |
+| The two are **visibly different colours** — Pro amber, Club violet — on the cards, the pills and the buttons                                     | ⬜  | ✅      |
+| Opening the sheet from a **locked Pro feature** puts Pro first, filled; Club is below it and outlined                                            | ⬜  | ✅      |
+| Opening it from **"See Club"** puts Club first, filled; Pro is below it and outlined                                                             | ⬜  | ✅      |
+| **Both stay buyable either way** — the unfocused card is outlined, never hidden, and its button still works                                      | ⬜  | ✅      |
+| Each card says its shape in words: Pro _"paid once … nothing to renew"_, Club _"renews automatically until cancelled"_                           | ⬜  | ✅      |
+| The **shared clock** row in Settings carries a **CLUB** pill, and the Pro rows carry **PRO** pills — a subscriber sees neither on what they hold | ⬜  | ✅      |
+| **Groups → the Club offer** appears for a signed-in non-subscriber and opens the sheet on Club                                                   | ⬜  | ✅      |
+| That offer is **absent on a cold launch until the store answers** — never shown while entitlements are still the default                         | ⬜  | ✅      |
+| **Start a clock → "See Club"** opens the sheet on Club, and the refusal sentence above it still reads the same                                   | ⬜  | ✅      |
 | Club is **absent everywhere** with `featureSharing=off` — the Settings card, the paywall's Club card, the groups offer and the clock's button    | ⬜  | ⬜      |
 | Club is **absent everywhere** in a build whose subscriptions are not live — no empty card, no dead button                                        | ✅  | ⬜      |
-| **The annual plan comes first and is the filled button**; the monthly sits below it, outlined                                                    | ⬜  | ⬜      |
+| **The annual plan comes first and is the filled button**; the monthly sits below it, outlined                                                    | ⬜  | ✅      |
 | The annual carries **"Save N% vs monthly"**, and N is right for the two prices **actually on screen** — work it out by hand and compare          | ⬜  | ⬜      |
 | **The claim is absent rather than wrong** when it cannot be made: only one plan returned by the store, or an annual that is not cheaper          | ⬜  | ⬜      |
 | In a **non-euro storefront** the saving is still correct — the whole reason it is computed from numbers instead of the formatted price strings   | ⬜  | ⬜      |
@@ -1124,8 +1125,8 @@ out of EAS and went to TestFlight or Play internal testing.
 
 |                                                                                                                                                                                                                  | iOS | Android |
 | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --- | ------- |
-| **It talks to prod.** Account → Continue with Google: the page must name `pokerkit.auth.us-east-1.amazoncognito.com`, with no `-dev`. This is what proves the local testing toggles did not ship                 | ✅  | ⬜      |
-| **Updating from the live version keeps everything.** Install 1.1.4 from the store, set a round length, edit a structure, save a preset — then update to the candidate and check all of it survived, Pro included | ✅  | ⬜      |
+| **It talks to prod.** Account → Continue with Google: the page must name `pokerkit.auth.us-east-1.amazoncognito.com`, with no `-dev`. This is what proves the local testing toggles did not ship                 | ✅  | ✅      |
+| **Updating from the live version keeps everything.** Install 1.1.4 from the store, set a round length, edit a structure, save a preset — then update to the candidate and check all of it survived, Pro included | ✅  | ✅      |
 | **A report reaches a person.** File one against prod and confirm the alarm email arrives at `alertEmail` — `/support` promises an answer within two business days                                                | ⬜  | ⬜      |
 
 **Run the update row before anything else touches that phone.** It needs the live version installed
@@ -1145,9 +1146,88 @@ anchor so the rows above can link to it. Keep an entry after it's fixed so the r
 release; the whole section is cleared when the release ships, since by then the fix is in the
 changelog and the reasoning is in the commit.
 
-|               | Found in | State |
-| ------------- | -------- | ----- |
-| _(none open)_ |          |       |
+|                                                                            | Found in                   | State                               |
+| -------------------------------------------------------------------------- | -------------------------- | ----------------------------------- |
+| **[D1](#d1-auth-redirect)** — a provider sign-in ends on "Unmatched Route" | §14b, Android, candidate 3 | 🔧 fixed in #277, wants candidate 4 |
+| **[D2](#d2-rtdn)** — a refund never revokes the entitlement                | §1, Android, candidate 3   | 🟡 accepted for 1.2.0               |
+
+<a id="d1-auth-redirect"></a>
+
+### D1 — a provider sign-in ends on "Page could not be found" (Android)
+
+**Found** on candidate 3 (versionCode 18, from `96361a2`) off the Play internal track, while running
+§20's prod check.
+
+**What happens.** Settings → Account → Sign in → **Continue with Google** → pick an account → the app
+shows expo-router's **"Unmatched Route — Page could not be found"**. Backing out and reopening the
+app shows you _are_ signed in. So the sign-in succeeds, and the last thing the user sees is a
+full-screen error on the first control of the release's headline feature.
+
+**Cause.** `AUTH_REDIRECT_URI` is `pokerkit://auth` (`src/services/socialSignIn.ts`), and there is no
+`auth` route. `src/app/` holds `index`, `settings`, `blinds`, `payouts`, `account`, `join/[token]`,
+`session`, `game` and `leaderboard` — nothing else — and `_layout.tsx` declares no `Stack.Screen` for
+one either. Cognito redirects to `pokerkit://auth`, the scheme's intent filter opens the app, and
+expo-router cannot resolve `/auth`.
+
+**Why it is Android-only, and why the iOS ✅ proved nothing.** On iOS `ASWebAuthenticationSession`
+intercepts the callback URL inside the session, so the OS never dispatches a deep link and the router
+never sees `/auth`. On Android `openAuthSessionAsync` uses a Custom Tab and the redirect arrives as a
+**real deep-link intent** — which both resolves the promise (hence the successful sign-in) _and_ is
+handled by the router (hence the error screen). §14b's iOS column was ticked on the Simulator on
+2026-09-07 and could not have caught this.
+
+**Not the Metro staleness trap.** [CLAUDE.md](./CLAUDE.md) describes a route file added while Metro is
+running reading as "Unmatched Route" until Metro restarts. That is a dev-client condition. This is a
+Play Store build with the route table compiled in, and the route genuinely does not exist.
+
+**Fixed in #277**, which adds `src/app/auth.tsx` redirecting to `/account` — where every provider
+sign-in starts from — and declares it with `headerShown: false` so nothing flashes on the way
+through. 🔧 until it is re-run on candidate 4 against a real provider; a fix landing never ticks a
+row on its own.
+
+<a id="d2-rtdn"></a>
+
+### D2 — a refund never revokes the entitlement (Play → RevenueCat)
+
+**Found** while trying to return a licence-tester account to a free state for §1's purchase rows.
+
+**What happens.** Play Console → Order management → refund the Pro order **with _revoke access_
+ticked**. Play records the refund and the revocation. Several minutes later RevenueCat still shows
+the entitlement as active, the app still has Pro, and **Restore purchases** re-affirms it.
+
+**Cause.** Play Console → **Monetization setup → Real-time developer notifications** had **no
+Pub/Sub topic configured**. RevenueCat learns about a revoked one-time product from Google's
+`ONE_TIME_PRODUCT_CANCELED` notification on that topic. With the field empty the notification is
+never sent, so RevenueCat is never told and holds the entitlement indefinitely.
+
+**Why this is not only a testing problem.** The same channel carries every refund and revocation in
+**production**. As shipped, a customer who is refunded for Pro — by Google, or by us — keeps Pro.
+Nothing in the app or the backend re-checks it, because entitlements are read from RevenueCat and
+RevenueCat is waiting on a notification that no one sends.
+
+**Accepted for 1.2.0, and not held for.** RTDN has **never** been configured on this app, so 1.1.4
+behaves identically for a refunded Pro purchase — this is a pre-existing condition found by the pass,
+not something this release introduces. The genuinely new surface is Club, and a subscription's normal
+lapse is driven by the expiry timestamp RevenueCat already holds rather than by a notification, so
+§1b's expiry rows are unaffected. Holding 1.2.0 for a defect it does not contain would be the wrong
+trade. Carried in [ROADMAP.md](./ROADMAP.md).
+
+**It needs no new binary** whenever it is fixed — console configuration in Play and RevenueCat only,
+so it can land without a candidate and without invalidating any row ticked against candidate 3.
+
+**The attempt to wire it was reverted.** A Pub/Sub topic was created and pointed at from Play
+Console, then removed again: RevenueCat's _Connect to Google_ listed no topics to attach to, and
+chasing that was costing more than the defect was worth mid-pass. The app is back in the state
+described above.
+
+**Wiring it up won't retroactively revoke the order already refunded** — RTDN fires at the time of
+the event and does not replay. Expect the stale entitlement to persist until RevenueCat next
+re-validates that purchase against Google, which is why the free-state rows may need a second
+licence-tester account rather than this one.
+
+**No row covered this.** §1 gained one, above. Cancelling a _purchase flow_ was tested; a refund
+_after_ the fact never was, on either platform — the iOS column is ⬜ rather than ✅ because App
+Store Server Notifications have not been checked either.
 
 ---
 
