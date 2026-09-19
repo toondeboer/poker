@@ -1153,6 +1153,17 @@ platform-tagged heading (e.g. `## [1.1.3] - 2026-07-20 — Android`) when you cu
 
 ### Fixed
 
+- **The blind editor uses the width of an iPad.** It was drawing its levels in a phone-width column
+  adrift in the middle of the screen — about a third of a 13-inch display, with the rest empty
+  either side — instead of the capped, centred layout every other screen already had. The levels now
+  use the space, so the small and big blind fields are readable at arm's length rather than
+  squeezed.
+
+  One missing property. The layout capped its width and centred itself, but never claimed the space
+  to cap in the first place, so the cap had nothing to act on and the column collapsed to whatever
+  its rows happened to need. Every other capped screen in the app already set all three; this one
+  set two.
+
 - **The local testing toggle is off the release branch again.** `backendConfig` was committed as
   `DEV_BACKEND` by #283, which would have pointed a shipped build at the throwaway development
   stack — a different Cognito pool, so every account created against it lives somewhere built to be
