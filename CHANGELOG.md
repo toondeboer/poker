@@ -654,6 +654,27 @@ platform-tagged heading (e.g. `## [1.1.3] - 2026-07-20 — Android`) when you cu
 
 ### Changed
 
+- **The paywall says that Club includes Pro, and that Pro stays.** Club's feature list named three
+  things, all of them sharing — so nothing on the sheet said a subscription unlocks Pro as well, and
+  nothing said Pro is still there after the subscription stops. Both are true: `clubEver` is read
+  from the receipt rather than remembered on the device precisely so it survives a lapse and a
+  reinstall. The obvious reading of a subscription is that everything it unlocks stops when it stops,
+  which made Club look worse than it is to the one person who had gone looking.
+
+  **Saying it out loud is a pricing decision, not a generous one.** One month of Club is a permanent
+  Pro, so advertising that invites subscribing and cancelling — except Pro and the Club monthly are
+  deliberately the same €2.99, so that route costs exactly what buying Pro costs and there is no
+  arbitrage to invite.
+
+  Worded _"Pro stays unlocked even if you cancel"_ rather than _"Pro for life"_, which reads as a
+  lifetime-licence claim and is a different and worse promise to make beside an auto-renewing
+  subscription. It sits with the features and **not** in the renewal-terms block, which Guideline
+  3.1.2 wants legible and unqualified.
+
+  A code comment in `clubPolicy.ts` claimed the opposite of the line beside it — that Club's Pro
+  "goes when the subscription does" — and `RELEASE_TESTING.md` §16 had already borrowed that
+  reasoning to justify a copy rule. Both corrected.
+
 - **The release docs were checked against the binary before shipping.** `RELEASE_TESTING.md` stops
   carrying hand-written counts — `npm run testing:status` measures them — gains the shortest pass a
   release should not ship without, and puts §14 and §16 back in order; `ROADMAP.md` loses the
