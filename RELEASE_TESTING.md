@@ -437,8 +437,8 @@ Tablet layout is covered separately in §7.
 | Apply a schedule **shorter** than the current level → warning shown, lands on last level, **timer does not crash** | ⬜  | ⬜      |
 | Tap-to-jump: confirm → timer _and_ notification/Live Activity both follow                                          | ⬜  | ⬜      |
 | Jump chip is **inert** while the draft is dirty                                                                    | ⬜  | ✅      |
-| Back with unapplied edits → Apply / Discard / Keep editing                                                         | ⬜  | ⬜      |
-| …via **hardware back** (Android) and **swipe-back** (iOS)                                                          | ⬜  | ⬜      |
+| Back with unapplied edits → Apply / Discard / Keep editing                                                         | ⬜  | ✅      |
+| …via **hardware back** (Android) and **swipe-back** (iOS)                                                          | ⬜  | ✅      |
 | Kill the app with a dirty draft → relaunch → draft and footer still there                                          | ⬜  | ⬜      |
 
 ---
@@ -636,7 +636,7 @@ it**.
 
 |                                                                                                                                                                                          | iOS | Android |
 | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --- | ------- |
-| Locked state: Pro pill on the Settings row, screen opens and offers the unlock                                                                                                           | ✅  | ⬜      |
+| Locked state: Pro pill on the Settings row, screen opens and offers the unlock                                                                                                           | ✅  | ✅      |
 | Adding a player: duplicate and empty names keep the button disabled                                                                                                                      | ⬜  | ⬜      |
 | Name field isn't covered by the keypad, and dismisses on return                                                                                                                          | ⬜  | ⬜      |
 | Record a game: tapping who played, then tapping them in finishing order, gives 1st/2nd/3rd                                                                                               | ⬜  | ⬜      |
