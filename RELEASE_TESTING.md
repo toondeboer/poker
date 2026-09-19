@@ -75,14 +75,16 @@ build. Only the first row of that table is what it means.
 **Passes run** — what hardware the ✅s came from, one line each. Detail that outlives a pass belongs
 in the section it was found in, not here; this list is cleared when the release ships.
 
-| #   | Where                                                                                                                        | What it covered                                                                                                                                                                                             |
-| --- | ---------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 1   | iPhone 17 Pro Simulator, iOS 26.5, dev client                                                                                | **Locked / non-Pro states only** — both Pro pills, the locked Payouts and Leaderboard cards, the paywall's six features, the banner ad, and the end-of-game prompt staying silent without Pro               |
-| 2   | `Android_small` emulator, API 35, 30s screen timeout                                                                         | §10 keep-awake, read off the window flag and `mWakefulness`. iOS still wants a real device — the Simulator has no auto-lock                                                                                 |
-| 3   | iPhone 17 Pro Simulator **+** `Pixel_stable` API 35, dev clients on `DEV_BACKEND`, `FORCE_PRO_IN_DEV`, two dev-pool accounts | 2026-09-13/14 — §15 boards, §18 clock, §19 registration, §14's email sign-in. Found the shared-clock and shared-board defects fixed in #268 and before it; nothing in those sections passed until they were |
-| 4   | iPhone, **TestFlight build 28** (candidate 2, from `8b03ac5`)                                                                | 2026-09-15 — §20 in full, and §1's Pro rows: price, purchase, restore on a fresh install, cancelled purchase                                                                                                |
-| 5   | iPhone, TestFlight build 28, ordinary Apple ID                                                                               | 2026-09-16 — §1b's pricing and purchase rows, and §16b — **which is where #272 was found**                                                                                                                  |
-| 6   | iPhone, TestFlight build 28 **+ a Sandbox Apple Account**                                                                    | 2026-09-16 — the whole subscription life cycle, including §1b's expiry row on a device for the first time: hosting went, Pro stayed. The recipe is under §1b                                                |
+| #   | Where                                                                                                                           | What it covered                                                                                                                                                                                                                |
+| --- | ------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| 1   | iPhone 17 Pro Simulator, iOS 26.5, dev client                                                                                   | **Locked / non-Pro states only** — both Pro pills, the locked Payouts and Leaderboard cards, the paywall's six features, the banner ad, and the end-of-game prompt staying silent without Pro                                  |
+| 2   | `Android_small` emulator, API 35, 30s screen timeout                                                                            | §10 keep-awake, read off the window flag and `mWakefulness`. iOS still wants a real device — the Simulator has no auto-lock                                                                                                    |
+| 3   | iPhone 17 Pro Simulator **+** `Pixel_stable` API 35, dev clients on `DEV_BACKEND`, `FORCE_PRO_IN_DEV`, two dev-pool accounts    | 2026-09-13/14 — §15 boards, §18 clock, §19 registration, §14's email sign-in. Found the shared-clock and shared-board defects fixed in #268 and before it; nothing in those sections passed until they were                    |
+| 4   | iPhone, **TestFlight build 28** (candidate 2, from `8b03ac5`)                                                                   | 2026-09-15 — §20 in full, and §1's Pro rows: price, purchase, restore on a fresh install, cancelled purchase                                                                                                                   |
+| 5   | iPhone, TestFlight build 28, ordinary Apple ID                                                                                  | 2026-09-16 — §1b's pricing and purchase rows, and §16b — **which is where #272 was found**                                                                                                                                     |
+| 6   | iPhone, TestFlight build 28 **+ a Sandbox Apple Account**                                                                       | 2026-09-16 — the whole subscription life cycle, including §1b's expiry row on a device for the first time: hosting went, Pro stayed. The recipe is under §1b                                                                   |
+| 7   | **Android phone, Play internal versionCode 18** (candidate 3, from `96361a2`), factory-reset, one licence-tester Google account | 2026-09-19 — §20's prod check and update row, the whole free-state Guideline 3.1.2 block with no purchase made, then Club monthly bought, cancelled and lapsed, the annual, §3, §5 and §9's deep link. Found **D1** and **D2** |
+| 8   | **Android (host, Club) + iPhone (guest), both candidate 3** — build 29 on TestFlight, separate Cognito accounts                 | 2026-09-19 — §15's sharing loop across platforms: share, join, propagation both ways, deletion, and the offline outbox. The iPhone carried Club via the Apple ID, so §15's two _guest pays nothing_ rows could not run         |
 
 **What no pass has touched:** anything from an **Android store build** — so Android billing (§1, §1b,
 §16b) has never been exercised at all — a completed provider sign-in against prod, and a push
@@ -298,12 +300,12 @@ to handle something a person bought stopping working — every row below is a fi
 |                                                                                                                                                                                                                      | iOS | Android                          |
 | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --- | -------------------------------- |
 | Both SKUs appear and are priced — monthly **and** annual. One store having only one of them is a half-shipped product                                                                                                | ✅  | 🚫 [see below](#android-billing) |
-| **Subscribing grants Pro as well.** A subscriber who never bought Pro can open the leaderboard — otherwise they are hosting a board they cannot see                                                                  | ✅  | 🚫                               |
+| **Subscribing grants Pro as well.** A subscriber who never bought Pro can open the leaderboard — otherwise they are hosting a board they cannot see                                                                  | ✅  | ✅                               |
 | **Restore brings back both**, on a fresh install on the same store account — Pro and Club, not one                                                                                                                   | ⬜  | 🚫                               |
-| Cancelling in the store leaves the app sane, and access continues to the end of the paid period                                                                                                                      | ✅  | 🚫                               |
-| **After it expires: sharing stops, and Pro does not.** Once a subscription has granted Pro it keeps it, so the boards stay visible and only hosting goes. Getting this wrong takes the sight of every board they own | ✅  | 🚫                               |
+| Cancelling in the store leaves the app sane, and access continues to the end of the paid period                                                                                                                      | ✅  | ✅                               |
+| **After it expires: sharing stops, and Pro does not.** Once a subscription has granted Pro it keeps it, so the boards stay visible and only hosting goes. Getting this wrong takes the sight of every board they own | ✅  | ✅                               |
 | An expired subscriber's **existing shared boards keep working for the other members** — they are still on the server, and stranding them is worse than the cost it saves                                             | ⬜  | 🚫                               |
-| Resubscribing restores hosting without anything being lost                                                                                                                                                           | ⬜  | 🚫                               |
+| Resubscribing restores hosting without anything being lost                                                                                                                                                           | ⬜  | ✅                               |
 | A Pro-only buyer is **never** told to buy Pro again by any Club message                                                                                                                                              | ⬜  | 🚫                               |
 
 > **Expiry is the row most likely to be skipped and most likely to hurt.** `entitlementsFrom` reads
@@ -426,13 +428,13 @@ Tablet layout is covered separately in §7.
 
 |                                                                                  | iOS | Android |
 | -------------------------------------------------------------------------------- | --- | ------- |
-| Slow / Standard / Turbo produce **visibly different** schedules                  | ⬜  | ⬜      |
-| Smallest chip 5, start 5 → `5/10 10/20 15/30 20/40…`, **never 6/12**             | ⬜  | ⬜      |
-| Chip 25, start 25 → matches a real casino sheet (`25/50 50/100 75/150 100/200…`) | ⬜  | ⬜      |
-| Chip seeds itself from the structure you're editing                              | ⬜  | ⬜      |
-| Sheet reaches the bottom edge — **no see-through strip** below it                | ⬜  | ⬜      |
-| "Replace structure" fits on **one line** with its icon                           | ⬜  | ⬜      |
-| Replace writes the draft only; active schedule unchanged until Apply             | ⬜  | ⬜      |
+| Slow / Standard / Turbo produce **visibly different** schedules                  | ⬜  | ✅      |
+| Smallest chip 5, start 5 → `5/10 10/20 15/30 20/40…`, **never 6/12**             | ⬜  | ✅      |
+| Chip 25, start 25 → matches a real casino sheet (`25/50 50/100 75/150 100/200…`) | ⬜  | ✅      |
+| Chip seeds itself from the structure you're editing                              | ⬜  | ✅      |
+| Sheet reaches the bottom edge — **no see-through strip** below it                | ⬜  | ✅      |
+| "Replace structure" fits on **one line** with its icon                           | ⬜  | ✅      |
+| Replace writes the draft only; active schedule unchanged until Apply             | ⬜  | ✅      |
 
 ---
 
@@ -456,19 +458,19 @@ or a number field is touched.
 
 |                                                                                                                                  | iOS | Android                                                                                                                                                                                    |
 | -------------------------------------------------------------------------------------------------------------------------------- | --- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| Focus the preset-name field → **Save Preset is fully visible** above the keyboard                                                | ⬜  | ⬜                                                                                                                                                                                         |
-| No dead space / over-scroll after the nudge — clearance matches `BREATHING_ROOM = 24`                                            | ⬜  | ⬜                                                                                                                                                                                         |
-| Same on a **small** phone (iPhone SE class / 720×1280)                                                                           | ⬜  | ⬜                                                                                                                                                                                         |
-| **Any** focused field stays visible when the keypad opens — Settings, blind editor, sheet                                        | ⬜  | ⬜                                                                                                                                                                                         |
+| Focus the preset-name field → **Save Preset is fully visible** above the keyboard                                                | ⬜  | ✅                                                                                                                                                                                         |
+| No dead space / over-scroll after the nudge — clearance matches `BREATHING_ROOM = 24`                                            | ⬜  | ✅                                                                                                                                                                                         |
+| Same on a **small** phone (iPhone SE class / 720×1280)                                                                           | ⬜  | ✅                                                                                                                                                                                         |
+| **Any** focused field stays visible when the keypad opens — Settings, blind editor, sheet                                        | ⬜  | ✅                                                                                                                                                                                         |
 | Number fields show a **Done** bar above the keypad (iOS), on the **first** open                                                  | ⬜  | ➖                                                                                                                                                                                         |
 | …and it doesn't look bolted on next to the keyboard's rounded edge                                                               | ⬜  | ➖                                                                                                                                                                                         |
-| In a **sheet**, the Done control belongs to the sheet — nothing floating in the gap above the keypad                             | ⬜  | ⬜                                                                                                                                                                                         |
-| A sheet's **footer buttons stay tappable** with the keypad up (generator: Cancel + Replace structure)                            | ⬜  | ⬜ — check on **3-button navigation** if you have it; its nav bar is roughly twice a gesture bar's, and Android reports the IME height _excluding_ it, so a shortfall shows up worst there |
-| Scrolling **keeps the keypad up** — generator sheet                                                                              | ⬜  | ⬜                                                                                                                                                                                         |
-| Scrolling **keeps the keypad up** — blind structure editor                                                                       | ⬜  | ⬜                                                                                                                                                                                         |
-| Generator sheet fields usable with the keyboard up — sheet resizes _and_ scrolls, top not pushed off-screen                      | ⬜  | ⬜                                                                                                                                                                                         |
-| Payouts: focus the **Bounty** field — now the lowest of six, so it's the one Android's edge-to-edge would leave under the keypad | ⬜  | ⬜                                                                                                                                                                                         |
-| Leaderboard: focus **Add a player** with the roster long enough to scroll — field stays visible                                  | ⬜  | ⬜                                                                                                                                                                                         |
+| In a **sheet**, the Done control belongs to the sheet — nothing floating in the gap above the keypad                             | ⬜  | ✅                                                                                                                                                                                         |
+| A sheet's **footer buttons stay tappable** with the keypad up (generator: Cancel + Replace structure)                            | ⬜  | ✅ — check on **3-button navigation** if you have it; its nav bar is roughly twice a gesture bar's, and Android reports the IME height _excluding_ it, so a shortfall shows up worst there |
+| Scrolling **keeps the keypad up** — generator sheet                                                                              | ⬜  | ✅                                                                                                                                                                                         |
+| Scrolling **keeps the keypad up** — blind structure editor                                                                       | ⬜  | ✅                                                                                                                                                                                         |
+| Generator sheet fields usable with the keyboard up — sheet resizes _and_ scrolls, top not pushed off-screen                      | ⬜  | ✅                                                                                                                                                                                         |
+| Payouts: focus the **Bounty** field — now the lowest of six, so it's the one Android's edge-to-edge would leave under the keypad | ⬜  | ✅                                                                                                                                                                                         |
+| Leaderboard: focus **Add a player** with the roster long enough to scroll — field stays visible                                  | ⬜  | ✅                                                                                                                                                                                         |
 
 ---
 
@@ -538,7 +540,7 @@ expected, not a bug.
 | Launch → no visible resize before the timer appears                                                              | ⬜  | ⬜      |
 | Leaderboard survives a force-stop: players, games and standings all still there                                  | ⬜  | ⬜      |
 | Payout settings survive a force-stop (buy-in, bounty, denomination, pinned places)                               | ⬜  | ⬜      |
-| Deep link straight to `pokerkit://settings` and `pokerkit://blinds` → splash lifts **immediately**, not after 4s | 🚫  | 🚫      |
+| Deep link straight to `pokerkit://settings` and `pokerkit://blinds` → splash lifts **immediately**, not after 4s | 🚫  | ✅      |
 
 > **Why the deep-link row is 🚫:** same root cause as §6's blocker. `adb shell am start -W -a
 android.intent.action.VIEW -d "pokerkit://blinds" com.toondeboer.pokerkit` on a fully force-stopped
@@ -867,12 +869,12 @@ re-joining clears a board's refusals anyway, so it could not be confirmed after 
 | **The host shares a board** — the code arrives in the share sheet with a message naming the app                                                    | ⬜  | ✅      |
 | **A second device joins by pasting the code**, and the board arrives with its whole roster and season, not empty                                   | ✅  | ⬜      |
 | Pasting **the entire shared message** works, not just the bare code                                                                                | ✅  | ⬜      |
-| A **wrong or expired code** says so and leaves the app usable                                                                                      | ⬜  | ✅      |
+| A **wrong or expired code** says so and leaves the app usable                                                                                      | ✅  | ✅      |
 | **A guest pays nothing.** A device with neither Pro nor Club joins, and can read the board it was sent — if it hits a paywall, the feature is dead | ✅  | ⬜      |
 | That guest **cannot** create a board of their own (Pro) or share one (Club) — the create and share controls are absent, not broken                 | ✅  | ⬜      |
 | **A player added on one device appears on the other** after foregrounding it                                                                       | ⬜  | ✅      |
-| **A game recorded on one appears on the other**, with the same standings                                                                           | ✅  | ⬜      |
-| **Record with no signal, then reconnect.** Airplane mode, add a player and record a game, come back — both arrive, and nothing was lost or doubled | ⬜  | ⬜      |
+| **A game recorded on one appears on the other**, with the same standings                                                                           | ✅  | ✅      |
+| **Record with no signal, then reconnect.** Airplane mode, add a player and record a game, come back — both arrive, and nothing was lost or doubled | ⬜  | ✅      |
 | **A deletion propagates.** Remove a player on the host; the guest stops showing them                                                               | ⬜  | ✅      |
 | **Removing with no signal says so and changes nothing** — the player stays, and the alert says removing needs signal                               | ⬜  | ✅      |
 | **A guest has no remove, delete or rename** on a board somebody else shared — only an admin can, and a guest's used to change their phone alone    | ✅  | ⬜      |
@@ -881,7 +883,7 @@ re-joining clears a board's refusals anyway, so it could not be confirmed after 
 | The **share button is absent on a board you joined** — only an admin can invite, so offering it would only ever explain itself                     | ✅  | ⬜      |
 | **Sign in on a third device → the boards are there**, without anybody sharing anything                                                             | ⬜  | ⬜      |
 | A write the server refuses shows the "Not saved for others" card, and dismissing it works                                                          | ⬜  | ⬜      |
-| Renaming a board on one device does **not** revert on the next sync                                                                                | ⬜  | ⬜      |
+| Renaming a board on one device does **not** revert on the next sync                                                                                | ⬜  | ✅      |
 | **An admin sees the members button on their own board**, and a member sees none on a board they joined                                             | ✅  | ✅      |
 | **Removing a member stops that phone syncing the board.** They keep the local copy, and their next write comes back refused rather than vanishing  | ✅  | ⬜      |
 | **The code they were sent stops working afterwards** — rejoining needs a fresh one, and the sheet says the code was replaced                       | ✅  | ⬜      |
@@ -920,9 +922,9 @@ something they already own**, which is the failure that reaches a store review.
 |                                                                                                                                                                                                                                                                                                                                                    | iOS | Android |
 | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --- | ------- |
 | A **Pro-only** account (no Club) can use every local feature and **cannot** share a board — and the message names Club, not Pro                                                                                                                                                                                                                    | ⬜  | ⬜      |
-| A **Club** subscriber gets Pro with it — the leaderboard works without buying Pro separately                                                                                                                                                                                                                                                       | ⬜  | ⬜      |
-| A Club subscriber sees **"Pro is included with Club"**, not "Pro unlocked". **The reason given here used to be wrong** — it said the second "implies a permanence they have not got", and `clubEver` means they _do_ keep Pro after a lapse. The distinction is that they did not buy Pro outright (`ownsProOutright`), not that they will lose it | ⬜  | ⬜      |
-| **Restore purchases is offered even when the app thinks you are unlocked.** The person who needs it most is the one whose purchase this device has not recognised                                                                                                                                                                                  | ⬜  | ⬜      |
+| A **Club** subscriber gets Pro with it — the leaderboard works without buying Pro separately                                                                                                                                                                                                                                                       | ⬜  | ✅      |
+| A Club subscriber sees **"Pro is included with Club"**, not "Pro unlocked". **The reason given here used to be wrong** — it said the second "implies a permanence they have not got", and `clubEver` means they _do_ keep Pro after a lapse. The distinction is that they did not buy Pro outright (`ownsProOutright`), not that they will lose it | ⬜  | ✅      |
+| **Restore purchases is offered even when the app thinks you are unlocked.** The person who needs it most is the one whose purchase this device has not recognised                                                                                                                                                                                  | ⬜  | ✅      |
 | Buying **Pro** while subscribed does not double-charge or confuse the paywall                                                                                                                                                                                                                                                                      | ⬜  | ⬜      |
 | Nobody is ever told to buy something they hold — check the messages for a Pro-only, a Club-only, and a signed-out account                                                                                                                                                                                                                          | ⬜  | ⬜      |
 | A **signed-out** person tapping "Join a board" is offered a sign-in, not a paywall and not an empty sheet                                                                                                                                                                                                                                          | ⬜  | ✅      |
@@ -953,11 +955,11 @@ reaches TestFlight or Play internal testing — before submission, not after it.
 | **"Joining a board is always free" is on screen.** The misunderstanding most likely to kill the feature                                                                                                                  | ⬜  | ✅      |
 | **Terms of Use opens `/terms`** in a browser, and the page loads                                                                                                                                                         | ⬜  | ✅      |
 | **Privacy Policy opens `/privacy-policy`**, and the page loads                                                                                                                                                           | ⬜  | ✅      |
-| Buying **monthly** grants `club` **and** `pro` — the board opens straight away, with no second purchase                                                                                                                  | ✅  | ⬜      |
-| Buying **annual** does the same                                                                                                                                                                                          | ⬜  | ⬜      |
-| **Cancelling at the store** removes hosting but **leaves Pro** — the boards stay visible. This is the promise `clubEver` exists to keep                                                                                  | ✅  | ⬜      |
-| **A subscriber is never offered the plans again** — the two plan buttons are replaced by "Club active"                                                                                                                   | ✅  | ⬜      |
-| **…but the card itself stays**, carrying the renewal terms and both legal links. Changed in 1.2.0: the whole section used to vanish, which took the cancellation terms with it — away from the one person who needs them | 🔧  | ⬜      |
+| Buying **monthly** grants `club` **and** `pro` — the board opens straight away, with no second purchase                                                                                                                  | ✅  | ✅      |
+| Buying **annual** does the same                                                                                                                                                                                          | ⬜  | ✅      |
+| **Cancelling at the store** removes hosting but **leaves Pro** — the boards stay visible. This is the promise `clubEver` exists to keep                                                                                  | ✅  | ✅      |
+| **A subscriber is never offered the plans again** — the two plan buttons are replaced by "Club active"                                                                                                                   | ✅  | ✅      |
+| **…but the card itself stays**, carrying the renewal terms and both legal links. Changed in 1.2.0: the whole section used to vanish, which took the cancellation terms with it — away from the one person who needs them | 🔧  | ✅      |
 | Cancelling a purchase halfway leaves the sheet usable, with no error — cancelling is not a failure                                                                                                                       | ⬜  | ⬜      |
 | **Restore brings back both entitlements** on a fresh install                                                                                                                                                             | ⬜  | ⬜      |
 
@@ -1000,7 +1002,7 @@ is about whether a person can tell, before they tap, which of the two they are b
 | In a **non-euro storefront** the saving is still correct — the whole reason it is computed from numbers instead of the formatted price strings   | ⬜  | ⬜      |
 | The leaderboard's free text share now reads **"Send a text summary"** and still produces exactly that — a text blob in the system share sheet    | ⬜  | ⬜      |
 | **"Share this board" sits beside it**, violet, for a signed-in non-subscriber, and opens the sheet on Club                                       | ⬜  | ⬜      |
-| For a **Club subscriber** the same button is grey and opens Groups — not the paywall, and not a second invite-minting path                       | ⬜  | ⬜      |
+| For a **Club subscriber** the same button is grey and opens Groups — not the paywall, and not a second invite-minting path                       | ⬜  | ✅      |
 | It is **absent on a board somebody else hosts.** Inviting to one you are only a member of is refused on role, so selling Club for it is a lie    | ⬜  | ⬜      |
 | It is **absent** with `featureSharing=off`, in a no-backend build, and while signed out                                                          | ⬜  | ⬜      |
 | It is **absent on a cold launch until the store answers** — same rule as the Groups offer                                                        | ⬜  | ⬜      |
@@ -1232,6 +1234,15 @@ Store Server Notifications have not been checked either.
 ---
 
 ## Known-and-accepted — do not file these
+
+- **Renaming a shared board only renames it on the phone that did it.** There is no
+  `PATCH /groups/{groupId}`, so the server's name is whatever the board was created with and can
+  never be anything else. `mergeBoard` therefore keeps the **local** name — taking the server's
+  would revert somebody's rename on the very next foreground, permanently — and the consequence is
+  that two members can see different names for the same board. Deliberate, documented in
+  `mergeBoard.ts`, `apps/infra/SYNC.md` under known gaps, and carried in `ROADMAP.md` with the fix.
+  **§15's rename row is about the rename not _reverting_, which is a different thing**; it was
+  re-discovered from scratch on the 1.2.0 pass because nothing here said so.
 
 - **iPad mini uses the phone layout** — 744pt is under the 768 threshold, deliberate.
 - **`uuid` advisory (moderate)** — `xcode@3.0.1` hard-requires `^7.0.3`; no in-range fix exists.
