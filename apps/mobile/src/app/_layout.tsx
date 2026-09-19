@@ -102,6 +102,17 @@ export default function RootLayout() {
                                     headerBackTitle: "Settings",
                                   }}
                                 />
+                                {/* Not a screen anybody navigates to: it is
+                            where `pokerkit://auth` lands when Cognito redirects
+                            out of a provider sign-in, and it redirects straight
+                            to `account`. Declared only to keep the header off,
+                            so the redirect does not flash a titled bar on its
+                            way through. Without the route at all, expo-router
+                            answers the redirect with "Unmatched Route". */}
+                                <Stack.Screen
+                                  name="auth"
+                                  options={{ headerShown: false }}
+                                />
                                 {/* Reached by tapping a shared link, never from
                             inside the app — which is why it has no entry point
                             and a back title pointing at the board. */}
