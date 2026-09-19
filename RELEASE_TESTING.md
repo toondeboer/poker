@@ -425,20 +425,20 @@ Tablet layout is covered separately in §7.
 
 |                                                                                                                    | iOS | Android |
 | ------------------------------------------------------------------------------------------------------------------ | --- | ------- |
-| Settings scrolls as one page — no scroll island                                                                    | ⬜  | ⬜      |
-| Blind structure row shows correct count + range, opens the editor                                                  | ⬜  | ⬜      |
-| 30 rows scroll smoothly; inputs editable                                                                           | ⬜  | ⬜      |
-| Clearing a blind field shows **empty**, not `0`; blur restores the old value                                       | ⬜  | ⬜      |
+| Settings scrolls as one page — no scroll island                                                                    | ⬜  | ✅      |
+| Blind structure row shows correct count + range, opens the editor                                                  | ⬜  | ✅      |
+| 30 rows scroll smoothly; inputs editable                                                                           | ⬜  | ✅      |
+| Clearing a blind field shows **empty**, not `0`; blur restores the old value                                       | ⬜  | ✅      |
 | `+` → Insert below / Duplicate, at top, middle and end                                                             | ⬜  | ⬜      |
 | Delete down to 2 levels → trash buttons disable                                                                    | ⬜  | ⬜      |
-| Sticky footer appears only when dirty                                                                              | ⬜  | ⬜      |
-| **Discard** restores the active values                                                                             | ⬜  | ⬜      |
+| Sticky footer appears only when dirty                                                                              | ⬜  | ✅      |
+| **Discard** restores the active values                                                                             | ⬜  | ✅      |
 | **Apply mid-tournament keeps your level** (start Level 12, edit, apply → still 12)                                 | ⬜  | ⬜      |
 | Apply a schedule **shorter** than the current level → warning shown, lands on last level, **timer does not crash** | ⬜  | ⬜      |
 | Tap-to-jump: confirm → timer _and_ notification/Live Activity both follow                                          | ⬜  | ⬜      |
-| Jump chip is **inert** while the draft is dirty                                                                    | ⬜  | ⬜      |
-| Back with unapplied edits → Apply / Discard / Keep editing                                                         | ⬜  | ⬜      |
-| …via **hardware back** (Android) and **swipe-back** (iOS)                                                          | ⬜  | ⬜      |
+| Jump chip is **inert** while the draft is dirty                                                                    | ⬜  | ✅      |
+| Back with unapplied edits → Apply / Discard / Keep editing                                                         | ⬜  | ✅      |
+| …via **hardware back** (Android) and **swipe-back** (iOS)                                                          | ⬜  | ✅      |
 | Kill the app with a dirty draft → relaunch → draft and footer still there                                          | ⬜  | ⬜      |
 
 ---
@@ -545,9 +545,9 @@ expected, not a bug.
 
 |                                                                                                                                       | iOS | Android |
 | ------------------------------------------------------------------------------------------------------------------------------------- | --- | ------- |
-| Timer fits with no scrolling, nothing clipped                                                                                         | ✅  | ⬜      |
-| Settings cards readable, no overlap                                                                                                   | ✅  | ⬜      |
-| Blind rows: level chip, LIVE badge and both buttons all fit                                                                           | ✅  | ⬜      |
+| Timer fits with no scrolling, nothing clipped                                                                                         | ✅  | ✅      |
+| Settings cards readable, no overlap                                                                                                   | ✅  | ✅      |
+| Blind rows: level chip, LIVE badge and both buttons all fit                                                                           | ✅  | ✅      |
 | Payouts: "Paid places" segments wrap rather than breaking a label mid-word — check at **25+ players**, which offers the most segments | ⬜  | ⬜      |
 
 ---
@@ -636,7 +636,7 @@ it**.
 
 |                                                                                                                                                                                          | iOS | Android |
 | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --- | ------- |
-| Locked state: Pro pill on the Settings row, screen opens and offers the unlock                                                                                                           | ✅  | ⬜      |
+| Locked state: Pro pill on the Settings row, screen opens and offers the unlock                                                                                                           | ✅  | ✅      |
 | Adding a player: duplicate and empty names keep the button disabled                                                                                                                      | ⬜  | ⬜      |
 | Name field isn't covered by the keypad, and dismisses on return                                                                                                                          | ⬜  | ⬜      |
 | Record a game: tapping who played, then tapping them in finishing order, gives 1st/2nd/3rd                                                                                               | ⬜  | ⬜      |
@@ -1014,7 +1014,7 @@ is about whether a person can tell, before they tap, which of the two they are b
 | That offer is **absent on a cold launch until the store answers** — never shown while entitlements are still the default                         | ⬜  | ✅      |
 | **Start a clock → "See Club"** opens the sheet on Club, and the refusal sentence above it still reads the same                                   | ⬜  | ✅      |
 | Club is **absent everywhere** with `featureSharing=off` — the Settings card, the paywall's Club card, the groups offer and the clock's button    | ⬜  | ⬜      |
-| Club is **absent everywhere** in a build whose subscriptions are not live — no empty card, no dead button                                        | ✅  | ⬜      |
+| Club is **absent everywhere** in a build whose subscriptions are not live — no empty card, no dead button                                        | ✅  | ✅      |
 | **The annual plan comes first and is the filled button**; the monthly sits below it, outlined                                                    | ⬜  | ✅      |
 | The annual carries **"Save N% vs monthly"**, and N is right for the two prices **actually on screen** — work it out by hand and compare          | ⬜  | ⬜      |
 | **The claim is absent rather than wrong** when it cannot be made: only one plan returned by the store, or an annual that is not cheaper          | ⬜  | ⬜      |
