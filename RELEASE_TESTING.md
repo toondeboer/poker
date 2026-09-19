@@ -529,15 +529,15 @@ or a number field is touched.
 `isTablet` is `width > 768`. **iPad mini (744pt) deliberately gets the phone layout** — that's
 expected, not a bug.
 
-|                                                                                                                                     | iPad | Android tablet |
-| ----------------------------------------------------------------------------------------------------------------------------------- | ---- | -------------- |
-| Settings: Tournament + Presets **side by side**, capped and centred                                                                 | ✅   | ⬜             |
-| Blind editor list + sticky footer capped at 900 and centred — **centred, but it does not reach 900: [see D5](#d5-ipad-list-width)** | ❌   | ⬜             |
-| Timer card centred, not full-bleed                                                                                                  | ✅   | ⬜             |
-| Generator and Pro sheets capped at 640 and centred, **not** full-bleed (the 1.2.0 fix — was 🟡 accepted in 1.1.4)                   | ⬜   | ⬜             |
-| Payouts: cards capped and centred, payout rows readable                                                                             | ⬜   | ⬜             |
-| Leaderboard: standings and the record sheet capped and centred                                                                      | ⬜   | ⬜             |
-| iPad **mini** still gets the phone layout                                                                                           | ⬜   | ➖             |
+|                                                                                                                                                                   | iPad | Android tablet |
+| ----------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---- | -------------- |
+| Settings: Tournament + Presets **side by side**, capped and centred                                                                                               | ✅   | ⬜             |
+| Blind editor list + sticky footer capped at 900 and centred — **centred, but it does not reach 900: [see D5](#d5-ipad-list-width)**                               | ❌   | ⬜             |
+| Timer card centred, not full-bleed                                                                                                                                | ✅   | ⬜             |
+| Generator and Pro sheets capped at 640 and centred, **not** full-bleed (the 1.2.0 fix — was 🟡 accepted in 1.1.4)                                                 | ⬜   | ⬜             |
+| Payouts: cards capped and centred, payout rows readable                                                                                                           | ✅   | ⬜             |
+| Leaderboard: standings and the record sheet capped and centred — **standings verified on an iPad Pro simulator; the record sheet needs a tap and was not opened** | ⬜   | ⬜             |
+| iPad **mini** still gets the phone layout                                                                                                                         | ✅   | ➖             |
 
 ---
 
@@ -691,7 +691,7 @@ to a unit test, obvious in a screenshot.
 
 |                                                                                                                                                    | iOS | Android |
 | -------------------------------------------------------------------------------------------------------------------------------------------------- | --- | ------- |
-| Locked state: Pro pill on the Settings row, the screen still opens and offers the unlock                                                           | ⬜  | 🚫      |
+| Locked state: Pro pill on the Settings row, the screen still opens and offers the unlock                                                           | ✅  | 🚫      |
 | Seating: tapping a player seats them, tapping again unseats; Deal stays disabled below two                                                         | ⬜  | ✅      |
 | **Tapping a seat shows only that seat's two cards**, and tapping it again hides them                                                               | ⬜  | ✅      |
 | **Tapping a second seat hides the first.** Never two hands visible at once — this is the one that matters when the phone is going round            | ⬜  | ✅      |
