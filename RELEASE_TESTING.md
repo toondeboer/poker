@@ -303,7 +303,7 @@ to handle something a person bought stopping working — every row below is a fi
 | Cancelling in the store leaves the app sane, and access continues to the end of the paid period                                                                                                                      | ✅  | ✅                               |
 | **After it expires: sharing stops, and Pro does not.** Once a subscription has granted Pro it keeps it, so the boards stay visible and only hosting goes. Getting this wrong takes the sight of every board they own | ✅  | ✅                               |
 | An expired subscriber's **existing shared boards keep working for the other members** — they are still on the server, and stranding them is worse than the cost it saves                                             | ⬜  | 🚫                               |
-| Resubscribing restores hosting without anything being lost                                                                                                                                                           | ⬜  | 🚫                               |
+| Resubscribing restores hosting without anything being lost                                                                                                                                                           | ⬜  | ✅                               |
 | A Pro-only buyer is **never** told to buy Pro again by any Club message                                                                                                                                              | ⬜  | 🚫                               |
 
 > **Expiry is the row most likely to be skipped and most likely to hurt.** `entitlementsFrom` reads
@@ -426,13 +426,13 @@ Tablet layout is covered separately in §7.
 
 |                                                                                  | iOS | Android |
 | -------------------------------------------------------------------------------- | --- | ------- |
-| Slow / Standard / Turbo produce **visibly different** schedules                  | ⬜  | ⬜      |
-| Smallest chip 5, start 5 → `5/10 10/20 15/30 20/40…`, **never 6/12**             | ⬜  | ⬜      |
-| Chip 25, start 25 → matches a real casino sheet (`25/50 50/100 75/150 100/200…`) | ⬜  | ⬜      |
-| Chip seeds itself from the structure you're editing                              | ⬜  | ⬜      |
-| Sheet reaches the bottom edge — **no see-through strip** below it                | ⬜  | ⬜      |
-| "Replace structure" fits on **one line** with its icon                           | ⬜  | ⬜      |
-| Replace writes the draft only; active schedule unchanged until Apply             | ⬜  | ⬜      |
+| Slow / Standard / Turbo produce **visibly different** schedules                  | ⬜  | ✅      |
+| Smallest chip 5, start 5 → `5/10 10/20 15/30 20/40…`, **never 6/12**             | ⬜  | ✅      |
+| Chip 25, start 25 → matches a real casino sheet (`25/50 50/100 75/150 100/200…`) | ⬜  | ✅      |
+| Chip seeds itself from the structure you're editing                              | ⬜  | ✅      |
+| Sheet reaches the bottom edge — **no see-through strip** below it                | ⬜  | ✅      |
+| "Replace structure" fits on **one line** with its icon                           | ⬜  | ✅      |
+| Replace writes the draft only; active schedule unchanged until Apply             | ⬜  | ✅      |
 
 ---
 
@@ -456,19 +456,19 @@ or a number field is touched.
 
 |                                                                                                                                  | iOS | Android                                                                                                                                                                                    |
 | -------------------------------------------------------------------------------------------------------------------------------- | --- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| Focus the preset-name field → **Save Preset is fully visible** above the keyboard                                                | ⬜  | ⬜                                                                                                                                                                                         |
-| No dead space / over-scroll after the nudge — clearance matches `BREATHING_ROOM = 24`                                            | ⬜  | ⬜                                                                                                                                                                                         |
-| Same on a **small** phone (iPhone SE class / 720×1280)                                                                           | ⬜  | ⬜                                                                                                                                                                                         |
-| **Any** focused field stays visible when the keypad opens — Settings, blind editor, sheet                                        | ⬜  | ⬜                                                                                                                                                                                         |
+| Focus the preset-name field → **Save Preset is fully visible** above the keyboard                                                | ⬜  | ✅                                                                                                                                                                                         |
+| No dead space / over-scroll after the nudge — clearance matches `BREATHING_ROOM = 24`                                            | ⬜  | ✅                                                                                                                                                                                         |
+| Same on a **small** phone (iPhone SE class / 720×1280)                                                                           | ⬜  | ✅                                                                                                                                                                                         |
+| **Any** focused field stays visible when the keypad opens — Settings, blind editor, sheet                                        | ⬜  | ✅                                                                                                                                                                                         |
 | Number fields show a **Done** bar above the keypad (iOS), on the **first** open                                                  | ⬜  | ➖                                                                                                                                                                                         |
 | …and it doesn't look bolted on next to the keyboard's rounded edge                                                               | ⬜  | ➖                                                                                                                                                                                         |
-| In a **sheet**, the Done control belongs to the sheet — nothing floating in the gap above the keypad                             | ⬜  | ⬜                                                                                                                                                                                         |
-| A sheet's **footer buttons stay tappable** with the keypad up (generator: Cancel + Replace structure)                            | ⬜  | ⬜ — check on **3-button navigation** if you have it; its nav bar is roughly twice a gesture bar's, and Android reports the IME height _excluding_ it, so a shortfall shows up worst there |
-| Scrolling **keeps the keypad up** — generator sheet                                                                              | ⬜  | ⬜                                                                                                                                                                                         |
-| Scrolling **keeps the keypad up** — blind structure editor                                                                       | ⬜  | ⬜                                                                                                                                                                                         |
-| Generator sheet fields usable with the keyboard up — sheet resizes _and_ scrolls, top not pushed off-screen                      | ⬜  | ⬜                                                                                                                                                                                         |
-| Payouts: focus the **Bounty** field — now the lowest of six, so it's the one Android's edge-to-edge would leave under the keypad | ⬜  | ⬜                                                                                                                                                                                         |
-| Leaderboard: focus **Add a player** with the roster long enough to scroll — field stays visible                                  | ⬜  | ⬜                                                                                                                                                                                         |
+| In a **sheet**, the Done control belongs to the sheet — nothing floating in the gap above the keypad                             | ⬜  | ✅                                                                                                                                                                                         |
+| A sheet's **footer buttons stay tappable** with the keypad up (generator: Cancel + Replace structure)                            | ⬜  | ✅ — check on **3-button navigation** if you have it; its nav bar is roughly twice a gesture bar's, and Android reports the IME height _excluding_ it, so a shortfall shows up worst there |
+| Scrolling **keeps the keypad up** — generator sheet                                                                              | ⬜  | ✅                                                                                                                                                                                         |
+| Scrolling **keeps the keypad up** — blind structure editor                                                                       | ⬜  | ✅                                                                                                                                                                                         |
+| Generator sheet fields usable with the keyboard up — sheet resizes _and_ scrolls, top not pushed off-screen                      | ⬜  | ✅                                                                                                                                                                                         |
+| Payouts: focus the **Bounty** field — now the lowest of six, so it's the one Android's edge-to-edge would leave under the keypad | ⬜  | ✅                                                                                                                                                                                         |
+| Leaderboard: focus **Add a player** with the roster long enough to scroll — field stays visible                                  | ⬜  | ✅                                                                                                                                                                                         |
 
 ---
 
@@ -538,7 +538,7 @@ expected, not a bug.
 | Launch → no visible resize before the timer appears                                                              | ⬜  | ⬜      |
 | Leaderboard survives a force-stop: players, games and standings all still there                                  | ⬜  | ⬜      |
 | Payout settings survive a force-stop (buy-in, bounty, denomination, pinned places)                               | ⬜  | ⬜      |
-| Deep link straight to `pokerkit://settings` and `pokerkit://blinds` → splash lifts **immediately**, not after 4s | 🚫  | 🚫      |
+| Deep link straight to `pokerkit://settings` and `pokerkit://blinds` → splash lifts **immediately**, not after 4s | 🚫  | ✅      |
 
 > **Why the deep-link row is 🚫:** same root cause as §6's blocker. `adb shell am start -W -a
 android.intent.action.VIEW -d "pokerkit://blinds" com.toondeboer.pokerkit` on a fully force-stopped
@@ -954,7 +954,7 @@ reaches TestFlight or Play internal testing — before submission, not after it.
 | **Terms of Use opens `/terms`** in a browser, and the page loads                                                                                                                                                         | ⬜  | ✅      |
 | **Privacy Policy opens `/privacy-policy`**, and the page loads                                                                                                                                                           | ⬜  | ✅      |
 | Buying **monthly** grants `club` **and** `pro` — the board opens straight away, with no second purchase                                                                                                                  | ✅  | ✅      |
-| Buying **annual** does the same                                                                                                                                                                                          | ⬜  | ⬜      |
+| Buying **annual** does the same                                                                                                                                                                                          | ⬜  | ✅      |
 | **Cancelling at the store** removes hosting but **leaves Pro** — the boards stay visible. This is the promise `clubEver` exists to keep                                                                                  | ✅  | ✅      |
 | **A subscriber is never offered the plans again** — the two plan buttons are replaced by "Club active"                                                                                                                   | ✅  | ✅      |
 | **…but the card itself stays**, carrying the renewal terms and both legal links. Changed in 1.2.0: the whole section used to vanish, which took the cancellation terms with it — away from the one person who needs them | 🔧  | ✅      |
