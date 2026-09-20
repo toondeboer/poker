@@ -478,7 +478,7 @@ Tablet layout is covered separately in §7.
 | Tap-to-jump: confirm → timer _and_ notification/Live Activity both follow                                                                                                                                                                                                                    | ✅  | ✅      |
 | Jump chip is **inert** while the draft is dirty                                                                                                                                                                                                                                              | ✅  | ✅      |
 | Back with unapplied edits → Apply / Discard / Keep editing                                                                                                                                                                                                                                   | ✅  | ✅      |
-| …via **hardware back** (Android), which raises the dialog. **On iOS the swipe gesture is now disabled while a draft is unapplied** — the header back button is the way out, so a draft cannot be swiped away and the navigator cannot be left inconsistent. [See D6](#d6-blinds-unreachable) | 🔧  | ✅      |
+| …via **hardware back** (Android), which raises the dialog. **On iOS the swipe gesture is now disabled while a draft is unapplied** — the header back button is the way out, so a draft cannot be swiped away and the navigator cannot be left inconsistent. [See D6](#d6-blinds-unreachable) | ✅  | ✅      |
 | Kill the app with a dirty draft → relaunch → draft and footer still there                                                                                                                                                                                                                    | ✅  | ✅      |
 
 ---
@@ -537,23 +537,23 @@ or a number field is touched.
 
 |                                                                                                                                                                                                                                                                         | iOS | Android                                                |
 | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --- | ------------------------------------------------------ |
-| Round expiry fires the alert + alarm with the app **foregrounded**                                                                                                                                                                                                      | ✅  | ⬜                                                     |
-| Expiry while **backgrounded** advances **exactly one** level, and says so if more time passed                                                                                                                                                                           | ✅  | ⬜ (automation blocked, see below — needs a hand pass) |
-| Live Activity / notification show the right level + time, and the "open the app" caption                                                                                                                                                                                | ✅  | ⬜                                                     |
-| Blinds are the most prominent thing on it, after the countdown                                                                                                                                                                                                          | ✅  | ⬜                                                     |
+| Round expiry fires the alert + alarm with the app **foregrounded**                                                                                                                                                                                                      | ✅  | ✅                                                     |
+| Expiry while **backgrounded** advances **exactly one** level, and says so if more time passed                                                                                                                                                                           | ✅  | ✅ (automation blocked, see below — needs a hand pass) |
+| Live Activity / notification show the right level + time, and the "open the app" caption                                                                                                                                                                                | ✅  | ✅                                                     |
+| Blinds are the most prominent thing on it, after the countdown                                                                                                                                                                                                          | ✅  | ✅                                                     |
 | After a level jump, the pending "time's up" notification names the **new** next blind                                                                                                                                                                                   | ✅  | ➖                                                     |
-| Notification survives swipe-away from Recents — start a round, swipe the app out of the app switcher, and the timer notification keeps counting down instead of vanishing with it                                                                                       | ➖  | ⬜                                                     |
-| First launch after install asks for notification permission **exactly once**                                                                                                                                                                                            | ➖  | ⬜                                                     |
-| **After denying once**, force-stop and relaunch → still **exactly one** dialog, and it's the system sheet ("Allow Poker Timer to send you notifications?"), not an app-drawn alert in front of it                                                                       | ➖  | ⬜                                                     |
+| Notification survives swipe-away from Recents — start a round, swipe the app out of the app switcher, and the timer notification keeps counting down instead of vanishing with it                                                                                       | ➖  | ✅                                                     |
+| First launch after install asks for notification permission **exactly once**                                                                                                                                                                                            | ➖  | ✅                                                     |
+| **After denying once**, force-stop and relaunch → still **exactly one** dialog, and it's the system sheet ("Allow Poker Timer to send you notifications?"), not an app-drawn alert in front of it                                                                       | ➖  | ✅                                                     |
 | Denying **twice** blocks the permission permanently (Android's own behaviour) — confirm the background timer degrades rather than crashes, and that Metro logs the "permanently denied" warning                                                                         | ➖  | 🟡                                                     |
-| **With notifications denied, Settings shows the "Notifications are off" card** at the top, above Pro. It is the only route back and has never run on a device                                                                                                           | ➖  | ⬜                                                     |
-| Its **"Turn on notifications"** button shows the _system_ dialog when Android will still ask, and falls through to the "Open Settings" alert when it will not — the permanently-blocked case                                                                            | ➖  | ⬜                                                     |
-| Granting the permission in system settings and **returning to the app makes the card disappear** without a relaunch                                                                                                                                                     | ➖  | ⬜                                                     |
-| The card is **absent** whenever notifications are allowed, and absent on iOS entirely                                                                                                                                                                                   | ✅  | ⬜                                                     |
+| **With notifications denied, Settings shows the "Notifications are off" card** at the top, above Pro. It is the only route back and has never run on a device                                                                                                           | ➖  | ✅                                                     |
+| Its **"Turn on notifications"** button shows the _system_ dialog when Android will still ask, and falls through to the "Open Settings" alert when it will not — the permanently-blocked case                                                                            | ➖  | ✅                                                     |
+| Granting the permission in system settings and **returning to the app makes the card disappear** without a relaunch                                                                                                                                                     | ➖  | ✅                                                     |
+| The card is **absent** whenever notifications are allowed, and absent on iOS entirely                                                                                                                                                                                   | ✅  | ✅                                                     |
 | **Force-quit mid-round, relaunch → exactly one Live Activity**, not two. Repeat three times: still one, and it's the live round rather than a stale one                                                                                                                 | ✅  | ➖                                                     |
-| Stopping/resetting the timer leaves **no** Live Activity behind — **🟡 it does not, and that is accepted for 1.2.0.** There is no Stop control at all, and Reset leaves the card up. Swiping it away by hand is the only way to clear it                                | 🟡  | ⬜                                                     |
+| Stopping/resetting the timer leaves **no** Live Activity behind — **🟡 it does not, and that is accepted for 1.2.0.** There is no Stop control at all, and Reset leaves the card up. Swiping it away by hand is the only way to clear it                                | 🟡  | ✅                                                     |
 | Swipe a Live Activity away by hand mid-round, then change level → a fresh card appears and there is still only one                                                                                                                                                      | ✅  | ➖                                                     |
-| **No notification badge on the app icon.** Start a round so the timer notification is up, then look at the launcher icon — no dot, no count. New in 1.2.0 (#278), and it had no row until it was noticed there wasn't one                                               | ➖  | ⬜                                                     |
+| **No notification badge on the app icon.** Start a round so the timer notification is up, then look at the launcher icon — no dot, no count. New in 1.2.0 (#278), and it had no row until it was noticed there wasn't one                                               | ➖  | ✅                                                     |
 | 🚫 **Upgrading from 1.1.4 clears the old notification channels.** Android channels are immutable once created, so #278 had to mint `...V2` ids and delete the originals. Needs 1.1.4 and this release installed from Play in sequence — [see below](#channel-migration) | ➖  | 🚫                                                     |
 
 <a id="channel-migration"></a>
@@ -573,13 +573,18 @@ or a number field is touched.
 > channels; nobody on a fresh install does. So the untested half is the one that covers the entire
 > existing user base, and the tested half covers nobody who is already here.
 
-> **Backgrounded-expiry automation blocker:** `adb shell input keyevent KEYCODE_HOME` reliably
-> brings Expo's own `DevLauncherActivity` back on top of the task stack on a dev-client build
-> (confirmed via `logcat` — a `DevLauncherActivity` window becomes visible right after Home is
-> pressed), so resuming afterward shows the dev-launcher picker rather than the real app state.
-> That's dev-client tooling noise, not present in a release build, so not a real app bug — but it
-> means this specific row can't be reliably automated against this build type. Needs either a
-> release-configuration build or a real device/manual pass.
+> **Backgrounded-expiry automation blocker — answered by candidate 5.** `adb shell input keyevent
+KEYCODE_HOME` reliably brings Expo's own `DevLauncherActivity` back on top of the task stack on a
+> dev-client build (confirmed via `logcat`), so resuming afterwards showed the dev-launcher picker
+> rather than the real app state. That is dev-client tooling noise and never present in a release
+> build, which is why the row was marked un-automatable rather than broken — it needed "a
+> release-configuration build or a real device/manual pass", and candidate 5 off the internal track
+> is both. Run by hand there, and it passes.
+>
+> Worth keeping as the pattern rather than the incident: when a row cannot be exercised, check
+> whether the obstacle belongs to the **build type** before concluding it belongs to the app. Three
+> separate blockers this release — this one, the deep-link cold launch, and D1's redirect — were all
+> the dev launcher owning something a release build does not give it.
 
 ---
 
@@ -683,12 +688,12 @@ Set `FORCE_PRO_IN_DEV` in `PremiumContext.tsx` to see the unlocked screen withou
 | Locked state: Settings row shows the Pro pill, the screen still opens and offers the unlock                                                                                                             | ✅  | ✅      |
 | Buy-in / Players / Rebuys / Add-ons / Bounty accept typing and a **cleared field doesn't show a literal `0`**                                                                                           | ✅  | ✅      |
 | **Add-on price** appears only once Add-ons is above 0, and disappears again at 0                                                                                                                        | ✅  | ✅      |
-| Rebuys grow the pool and the Entries row reads "8 players + 4 rebuys". Places follow the **player** count, not entries — but a bigger pool _can_ fund one more place, so don't treat the count as fixed | ⬜  | ⬜      |
+| Rebuys grow the pool and the Entries row reads "8 players + 4 rebuys". Places follow the **player** count, not entries — but a bigger pool _can_ fund one more place, so don't treat the count as fixed | ✅  | ✅      |
 | Payout rows and "Where it comes from" reconcile on screen: prize pool + bounties = collected                                                                                                            | ✅  | ✅      |
 | A bounty **equal to or above** the buy-in explains itself instead of showing an empty table                                                                                                             | ✅  | ✅      |
 | Pinning a place count overrides Auto; switching back to Auto follows the field again                                                                                                                    | ✅  | ✅      |
 | Settings' Payouts summary row updates after editing and going **back** (not just on relaunch)                                                                                                           | ✅  | ✅      |
-| **Share payouts** opens the share sheet, and the pasted text matches the table on screen                                                                                                                | ⬜  | ⬜      |
+| **Share payouts** opens the share sheet, and the pasted text matches the table on screen                                                                                                                | ✅  | ✅      |
 | **Chop sheet**: shares add up to the money still on the table, and nobody is below the guarantee                                                                                                        | ✅  | ✅      |
 | Chop sheet: the chip fields are usable with the keypad up, and the sheet header clears the status bar                                                                                                   | ✅  | ✅      |
 | Chop button is hidden when only **one** place is paid — there is nothing to split                                                                                                                       | ✅  | ✅      |
@@ -713,7 +718,7 @@ it**.
 | Saving updates the standings, and Settings' summary row, immediately                                                                                                                                                                                                                                                                                                                            | ✅  | ✅      |
 | Removing a player keeps past games — everyone else's totals unchanged                                                                                                                                                                                                                                                                                                                           | ✅  | ✅      |
 | **End-of-game prompt:** advance past level 1, then reset → "Record this game?" appears; "Record" opens the sheet with the roster in it                                                                                                                                                                                                                                                          | ✅  | ✅      |
-| Resetting on **level 1** does _not_ prompt (it's a mis-tap, not a finished game)                                                                                                                                                                                                                                                                                                                | ⬜  | ⬜      |
+| Resetting on **level 1** does _not_ prompt (it's a mis-tap, not a finished game)                                                                                                                                                                                                                                                                                                                | ✅  | ✅      |
 | No prompt with an **empty roster**, or when Pro is locked — the sheet would have nothing to offer                                                                                                                                                                                                                                                                                               | ✅  | ✅      |
 | Back from a prompt-opened leaderboard returns to the **timer**, and the header says "Back"                                                                                                                                                                                                                                                                                                      | ✅  | ✅      |
 | Record sheet: header clears the status bar and the footer clears the keypad (the §5 failure mode)                                                                                                                                                                                                                                                                                               | ✅  | ✅      |
@@ -779,11 +784,11 @@ to a unit test, obvious in a screenshot.
 | The action to take a seat out reads **Muck**, never Fold                                                                                           | ✅  | ✅      |
 | **A hand survives a force-stop.** Deal, kill the app from the switcher, reopen → the same board and the same hole cards come back                  | ✅  | ✅      |
 | A finished hand survives too: the showdown is still on screen after a relaunch                                                                     | ✅  | ✅      |
-| "Next hand" deals again and the button moves on                                                                                                    | ⬜  | 🟡      |
+| "Next hand" deals again and the button moves on                                                                                                    | ✅  | 🟡      |
 | Ending a game where **nothing has been dealt** does not ask — there is nothing to lose                                                             | ✅  | ✅      |
 | Ending a game mid-evening asks first, and cancelling keeps the cards                                                                               | ✅  | ✅      |
 | Readable across a table — card faces and whose cards are showing, at arm's length                                                                  | ⬜  | 🚫      |
-| Tablet: the table is capped and centred rather than running the full width                                                                         | ⬜  | ⬜      |
+| Tablet: the table is capped and centred rather than running the full width                                                                         | ✅  | ✅      |
 
 **Why three rows are not ✅ on Android:**
 
@@ -837,7 +842,7 @@ sign-up rows need an address Cognito has not seen.
 | An **already-taken email** says so in words, not an error code                                                                                                                                                                                                                                                                                                                                        | ✅  | 🚫      |
 | A **wrong password** on sign-in says so and does not clear the email field                                                                                                                                                                                                                                                                                                                            | ✅  | 🟡      |
 | Sign out, then sign back in — the boards are still there                                                                                                                                                                                                                                                                                                                                              | ✅  | 🚫      |
-| **Force-quit mid-sign-up, relaunch** → not signed in and not stuck; signing up again with the same address behaves sanely. **[See D8](#d8-unconfirmed-dead-end)**                                                                                                                                                                                                                                     | 🔧  | 🚫      |
+| **Force-quit mid-sign-up, relaunch** → not signed in and not stuck; signing up again with the same address behaves sanely. **[See D8](#d8-unconfirmed-dead-end)**                                                                                                                                                                                                                                     | ✅  | 🚫      |
 | **Airplane mode during sign-in** says there is no connection, and does **not** sign you out of an existing session                                                                                                                                                                                                                                                                                    | ✅  | 🟡      |
 | **Delete account removes the data, not just the login.** Delete, then sign up again with the same address: no old boards, no old claims. App Store 5.1.1(v) asks for the data as well                                                                                                                                                                                                                 | ✅  | 🚫      |
 | After deleting, the app still works — local boards intact, timer fine, no crash on next launch                                                                                                                                                                                                                                                                                                        | ✅  | 🚫      |
@@ -889,14 +894,14 @@ can be run on such a build**, not just this one. Rebuild first — see §0.
 
 | Row                                                                                                                                                                                                                           | iOS | Android |
 | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --- | ------- |
-| **Continue with Apple** on a fresh install creates an account and signs in                                                                                                                                                    | ✅  | ⬜      |
-| **Continue with Google** on a fresh install creates an account and signs in. **Signs in, but ends on an error screen — [see D1](#d1-auth-redirect)**                                                                          | ✅  | 🔧      |
-| Signing out and back in with the same provider returns to the **same** account, not a new one                                                                                                                                 | ✅  | ⬜      |
-| **The linking case.** Sign up with email+password, sign out, then sign in with a provider on the _same address_ — the boards and season are still there. This is the one that fails silently and looks exactly like data loss | ✅  | ⬜      |
+| **Continue with Apple** on a fresh install creates an account and signs in                                                                                                                                                    | ✅  | ✅      |
+| **Continue with Google** on a fresh install creates an account and signs in. **Signs in, but ends on an error screen — [see D1](#d1-auth-redirect)**                                                                          | ✅  | ✅      |
+| Signing out and back in with the same provider returns to the **same** account, not a new one                                                                                                                                 | ✅  | ✅      |
+| **The linking case.** Sign up with email+password, sign out, then sign in with a provider on the _same address_ — the boards and season are still there. This is the one that fails silently and looks exactly like data loss | ✅  | ✅      |
 | 🚫 **Hide My Email** — needs a **second Apple ID**, and cannot be run with one. See below                                                                                                                                     | ⬜  | ⬜      |
 | Closing the provider sheet halfway leaves the screen usable, with **no red error** — cancelling is not a failure                                                                                                              | ✅  | ✅      |
-| Declining at the provider does the same                                                                                                                                                                                       | ✅  | ⬜      |
-| **Use email instead** reveals the email form, and email sign-in still works                                                                                                                                                   | ✅  | ⬜      |
+| Declining at the provider does the same                                                                                                                                                                                       | ✅  | ✅      |
+| **Use email instead** reveals the email form, and email sign-in still works                                                                                                                                                   | ✅  | ✅      |
 | With no network, tapping a provider opens the sheet and **Safari** reports being offline; dismissing it leaves no app error                                                                                                   | ✅  | ✅      |
 
 **Where the ✅s came from.** The iOS column was run on the iOS Simulator on 2026-09-07 against
@@ -1038,7 +1043,7 @@ something they already own**, which is the failure that reaches a store review.
 
 |                                                                                                                                                                                                                                                                                                                                                    | iOS | Android |
 | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --- | ------- |
-| A **Pro-only** account (no Club) can use every local feature and **cannot** share a board — and the message names Club, not Pro                                                                                                                                                                                                                    | ⬜  | ⬜      |
+| A **Pro-only** account (no Club) can use every local feature and **cannot** share a board — and the message names Club, not Pro                                                                                                                                                                                                                    | ✅  | ✅      |
 | A **Club** subscriber gets Pro with it — the leaderboard works without buying Pro separately                                                                                                                                                                                                                                                       | ✅  | ✅      |
 | A Club subscriber sees **"Pro is included with Club"**, not "Pro unlocked". **The reason given here used to be wrong** — it said the second "implies a permanence they have not got", and `clubEver` means they _do_ keep Pro after a lapse. The distinction is that they did not buy Pro outright (`ownsProOutright`), not that they will lose it | ✅  | ✅      |
 | **Restore purchases is offered even when the app thinks you are unlocked.** The person who needs it most is the one whose purchase this device has not recognised                                                                                                                                                                                  | ✅  | ✅      |
@@ -1069,18 +1074,20 @@ reaches TestFlight or Play internal testing — before submission, not after it.
 | **Both plans show a price**, taken from the store rather than written into the app — so it is right in every currency                                                                                                    | ✅  | ✅      |
 | **Each says its billing period** — "Monthly" and "Annual". Price without period is the 3.1.2 rejection                                                                                                                   | ✅  | ✅      |
 | It says **renews until cancelled**, and where to cancel — App Store on iOS, Play Store on Android                                                                                                                        | ✅  | ✅      |
-| **"Joining a board is always free" is on screen.** The misunderstanding most likely to kill the feature                                                                                                                  | ⬜  | ✅      |
-| **Terms of Use opens `/terms`** in a browser, and the page loads                                                                                                                                                         | ⬜  | ✅      |
-| **Privacy Policy opens `/privacy-policy`**, and the page loads                                                                                                                                                           | ⬜  | ✅      |
+| **"Joining a board is always free" is on screen.** The misunderstanding most likely to kill the feature                                                                                                                  | ✅  | ✅      |
+| **Terms of Use opens `/terms`** in a browser, and the page loads                                                                                                                                                         | ✅  | ✅      |
+| **Privacy Policy opens `/privacy-policy`**, and the page loads                                                                                                                                                           | ✅  | ✅      |
 | Buying **monthly** grants `club` **and** `pro` — the board opens straight away, with no second purchase                                                                                                                  | ✅  | ✅      |
-| Buying **annual** does the same                                                                                                                                                                                          | ⬜  | ✅      |
+| Buying **annual** does the same                                                                                                                                                                                          | ✅  | ✅      |
 | **Cancelling at the store** removes hosting but **leaves Pro** — the boards stay visible. This is the promise `clubEver` exists to keep                                                                                  | ✅  | ✅      |
 | **A subscriber is never offered the plans again** — the two plan buttons are replaced by "Club active"                                                                                                                   | ✅  | ✅      |
-| **…but the card itself stays**, carrying the renewal terms and both legal links. Changed in 1.2.0: the whole section used to vanish, which took the cancellation terms with it — away from the one person who needs them | 🔧  | ✅      |
-| Cancelling a purchase halfway leaves the sheet usable, with no error — cancelling is not a failure                                                                                                                       | ⬜  | ⬜      |
-| **Restore brings back both entitlements** on a fresh install                                                                                                                                                             | ⬜  | ⬜      |
+| **…but the card itself stays**, carrying the renewal terms and both legal links. Changed in 1.2.0: the whole section used to vanish, which took the cancellation terms with it — away from the one person who needs them | ✅  | ✅      |
+| Cancelling a purchase halfway leaves the sheet usable, with no error — cancelling is not a failure                                                                                                                       | ✅  | ✅      |
+| **Restore brings back both entitlements** on a fresh install                                                                                                                                                             | ✅  | ⬜      |
 
-> **Two of these need candidate 3, and one of them was marked against candidate 2 by mistake.**
+> **Verified on candidate 5, including the row that had been ticked against the wrong build.**
+>
+> **Two of these needed candidate 3, and one of them was marked against candidate 2 by mistake.**
 > Running §16b on build 28 is what found #272: Settings collapsed the active Club card to a line and
 > a badge, and every other way into the paywall is a _locked_ feature — so a subscriber could not
 > open it at all, and the renewal terms, where to cancel, and both legal links went with it. The
@@ -1114,15 +1121,26 @@ is about whether a person can tell, before they tap, which of the two they are b
 | Club is **absent everywhere** with `featureSharing=off` — the Settings card, the paywall's Club card, the groups offer and the clock's button    | ⬜  | ⬜      |
 | Club is **absent everywhere** in a build whose subscriptions are not live — no empty card, no dead button                                        | ✅  | ✅      |
 | **The annual plan comes first and is the filled button**; the monthly sits below it, outlined                                                    | ✅  | ✅      |
-| The annual carries **"Save N% vs monthly"**, and N is right for the two prices **actually on screen** — work it out by hand and compare          | ⬜  | ⬜      |
+| The annual carries **"Save N% vs monthly"**, and N is right for the two prices **actually on screen** — work it out by hand and compare          | ⬜  | ✅      |
 | **The claim is absent rather than wrong** when it cannot be made: only one plan returned by the store, or an annual that is not cheaper          | ⬜  | ⬜      |
 | In a **non-euro storefront** the saving is still correct — the whole reason it is computed from numbers instead of the formatted price strings   | ⬜  | ⬜      |
-| The leaderboard's free text share now reads **"Send a text summary"** and still produces exactly that — a text blob in the system share sheet    | ⬜  | ⬜      |
-| **"Share this board" sits beside it**, violet, for a signed-in non-subscriber, and opens the sheet on Club                                       | ⬜  | ⬜      |
+| The leaderboard's free text share now reads **"Send a text summary"** and still produces exactly that — a text blob in the system share sheet    | ✅  | ✅      |
+| **"Share this board" sits beside it**, violet, for a signed-in non-subscriber, and opens the sheet on Club                                       | ✅  | ✅      |
 | For a **Club subscriber** the same button is grey and opens Groups — not the paywall, and not a second invite-minting path                       | ✅  | ✅      |
-| It is **absent on a board somebody else hosts.** Inviting to one you are only a member of is refused on role, so selling Club for it is a lie    | ⬜  | ⬜      |
+| It is **absent on a board somebody else hosts.** Inviting to one you are only a member of is refused on role, so selling Club for it is a lie    | ✅  | ✅      |
 | It is **absent** with `featureSharing=off`, in a no-backend build, and while signed out                                                          | ⬜  | ⬜      |
-| It is **absent on a cold launch until the store answers** — same rule as the Groups offer                                                        | ⬜  | ⬜      |
+| It is **absent on a cold launch until the store answers** — same rule as the Groups offer                                                        | ✅  | ✅      |
+
+> **"Save N%" is the one row in this section that is not mirrored**, and the exception is
+> deliberate. Everything else here is logic, so one platform proves it. A price claim is not: the
+> two numbers come from the storefront, Apple and Google are priced independently, and the whole
+> reason `annualSavingPercent` takes RevenueCat's numeric `price` rather than the formatted string
+> is that the inputs differ per store. An Android ✅ therefore says nothing about what an iPhone
+> displays.
+>
+> Verified on Android against €2.99 monthly and €19.99 annual: 2.99 x 12 = 35.88, and
+> 1 - 19.99/35.88 = 0.4429, which `Math.round` renders as the **44%** on screen. Do the same
+> arithmetic against whatever the iPhone actually shows rather than assuming these two prices.
 
 ---
 
@@ -1184,7 +1202,7 @@ If a phone shows that asymmetry, note which one is hosting.
 | **Two people pause at the same moment** and both phones settle on the same answer rather than splitting                                      | ✅  | ✅      |
 | A level jump travels too — `blindIndex` is in the message                                                                                    | ✅  | ✅      |
 | **Killing the host app leaves the joiner counting down**, and it reads `stale` after ~15s rather than freezing or lying                      | ⬜  | ✅      |
-| Reopening the host **rejoins and the two agree again** within a poll — **[see D3](#d3-session-not-persisted)**                               | ⬜  | 🔧      |
+| Reopening the host **rejoins and the two agree again** within a poll — **[see D3](#d3-session-not-persisted)**                               | ⬜  | ✅      |
 | **Airplane mode on the joiner** for 30s, then back: it catches up rather than needing a rejoin                                               | ✅  | ⬜      |
 | Leaving stops the polling — the clock keeps running locally and nothing further is sent                                                      | ✅  | ⬜      |
 | 🚫 **A session expires six hours after its last message.** Cannot be run in a sitting; the TTL is asserted in the store's unit tests instead | ⬜  | ⬜      |
@@ -1282,16 +1300,16 @@ anchor so the rows above can link to it. Keep an entry after it's fixed so the r
 release; the whole section is cleared when the release ships, since by then the fix is in the
 changelog and the reasoning is in the commit.
 
-|                                                                                                       | Found in                      | State                                           |
-| ----------------------------------------------------------------------------------------------------- | ----------------------------- | ----------------------------------------------- |
-| **[D1](#d1-auth-redirect)** — a provider sign-in ends on "Unmatched Route"                            | §14b, Android, candidate 3    | 🔧 fixed in #277, wants **Android candidate 5** |
-| **[D7](#d7-no-password-reset)** — there is no password reset, and the roadmap assumed there was       | §14, iOS, TestFlight build 30 | 🟡 accepted for 1.2.0, carried to 1.2.1         |
-| **[D8](#d8-unconfirmed-dead-end)** — an interrupted sign-up bricks the email address                  | §14, iOS, TestFlight build 30 | 🔧 fixed in #300, wants candidate 5             |
-| **[D2](#d2-rtdn)** — a refund never revokes the entitlement                                           | §1, Android, candidate 3      | 🟡 accepted for 1.2.0                           |
-| **[D3](#d3-session-not-persisted)** — a restarted host silently leaves its own clock                  | §18, Android, candidate 3     | 🔧 fixed in #283, wants **Android candidate 5** |
-| **[D5](#d5-ipad-list-width)** — the blind editor's iPad layout never reaches its 900pt cap            | §7, iPad simulator            | ✅ fixed and re-verified                        |
-| **[D6](#d6-blinds-unreachable)** — Blind structure is unreachable after leaving it with a dirty draft | §2, iOS, TestFlight build 30  | 🔧 fixed in #296, wants candidate 5             |
-| **[D4](#d4-prod-alerting)** — prod had no alarm delivery at all                                       | §15b/§20, prod, 2026-09-19    | ✅ fixed and confirmed                          |
+|                                                                                                       | Found in                      | State                                     |
+| ----------------------------------------------------------------------------------------------------- | ----------------------------- | ----------------------------------------- |
+| **[D1](#d1-auth-redirect)** — a provider sign-in ends on "Unmatched Route"                            | §14b, Android, candidate 3    | ✅ fixed in #277, verified on candidate 5 |
+| **[D7](#d7-no-password-reset)** — there is no password reset, and the roadmap assumed there was       | §14, iOS, TestFlight build 30 | 🟡 accepted for 1.2.0, carried to 1.2.1   |
+| **[D8](#d8-unconfirmed-dead-end)** — an interrupted sign-up bricks the email address                  | §14, iOS, TestFlight build 30 | ✅ fixed in #300, verified on candidate 5 |
+| **[D2](#d2-rtdn)** — a refund never revokes the entitlement                                           | §1, Android, candidate 3      | 🟡 accepted for 1.2.0                     |
+| **[D3](#d3-session-not-persisted)** — a restarted host silently leaves its own clock                  | §18, Android, candidate 3     | ✅ fixed in #283, verified on candidate 5 |
+| **[D5](#d5-ipad-list-width)** — the blind editor's iPad layout never reaches its 900pt cap            | §7, iPad simulator            | ✅ fixed and re-verified                  |
+| **[D6](#d6-blinds-unreachable)** — Blind structure is unreachable after leaving it with a dirty draft | §2, iOS, TestFlight build 30  | ✅ fixed in #296, verified on candidate 5 |
+| **[D4](#d4-prod-alerting)** — prod had no alarm delivery at all                                       | §15b/§20, prod, 2026-09-19    | ✅ fixed and confirmed                    |
 
 > **All five 🔧 rows are answered by candidate 5**, built from `62b9d27` on both platforms: iOS
 > build 31 and Android versionCode 20, the same commit either way. D1 and D3 were never waiting on
@@ -1567,6 +1585,17 @@ first observation rather than something that broke.
 `BlindStructureScreen` carried only the first two, which is why it was the only surface that looked
 wrong. Adding `width: "100%"` takes the list from ~342pt to the 900 cap, centred — re-shot on the
 same iPad Pro simulator immediately after the change, so this is measured rather than argued.
+
+**Verified by measurement on candidate 5**, rather than by eye. Same iPad Pro 13-inch (M5)
+simulator, screen 1032pt wide, blind editor reached by `pokerkit://blinds`. Sampling three rows of
+the screenshot for the card edges against the page background gives the content spanning
+**868pt with exactly equal 82pt margins** on both sides — which is the 900 cap, less 16pt of list
+padding each side, centred. The number to compare it against is the one this entry recorded when it
+was broken: **342pt**.
+
+That is also the answer to _how_ you check a row like this without a device. The layout defect the
+project keeps as its standing example passed an `assertVisible` while sitting outside the sheet
+frame entirely, so "the element is there" proves nothing. Measuring pixel spans does.
 
 **The sticky footer half was not triggered** — it appears only with an unapplied draft. The same
 style object feeds both call sites, so the fix reaches it, but that is inference and the row says so.

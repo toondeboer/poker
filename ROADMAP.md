@@ -83,6 +83,28 @@ to be built before anything is submitted for review.** What remains, in order:
   is built, mind that an account confirmed administratively is `email_verified: false` and Cognito
   will refuse to send to it at all — a failure that reads exactly like broken mail.
 
+- ⬜ **Swipe-back does nothing in the blind editor while a draft is unapplied (iOS).** The 1.2.0 fix
+  for D6 turns the gesture off rather than making it work: `useUnsavedChangesGuard` sets
+  `gestureEnabled: false` whenever the guard is armed, so on iOS the header back button becomes the
+  only way out. Verified on candidate 5 — the screen can always be reopened now, which is what D6
+  was about — but a gesture that silently does nothing is a stopgap, not the finished behaviour.
+
+  **Why `beforeRemove` alone was not enough.** It works cleanly for a plain back event and not for
+  an interactive gesture: by the time the listener runs the swipe has already begun committing, and
+  re-dispatching its action after the screen springs back leaves the navigator's current route out
+  of step with what is on screen. That is what made the editor unreachable — pushing it read as
+  already-current and did nothing, with no error. Android is unaffected either way, since its back
+  is an event with no gesture in flight.
+
+  **What "working" should mean in 1.2.1:** swiping back with unapplied changes raises the same
+  Apply / Discard / Keep editing dialog the header button does, and the screen springs back intact
+  if the choice is to keep editing. The likely route is `usePreventRemove` from React Navigation,
+  which is the supported replacement for the `beforeRemove` + `preventDefault` pattern and is meant
+  to handle the interactive case — it ships inside
+  `expo-router/build/react-navigation/core` and is not re-exported publicly, so reaching it needs
+  care. Worth confirming against the gesture on a device before believing it; this is exactly the
+  class of thing that looks right in a simulator.
+
 - 🟡 **A Live Activity outlives the round that started it, and there is no Stop control.** Found on
   the 1.2.0 TestFlight pass of §6. Reset leaves the card on the Lock Screen, and there is no Stop
   button anywhere to clear it — swiping it away by hand is the only way. **Accepted for 1.2.0**: a
