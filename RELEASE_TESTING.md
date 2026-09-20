@@ -458,23 +458,23 @@ charged for real; miss the track and the build is not installable.
 
 Tablet layout is covered separately in §7.
 
-|                                                                                                                    | iOS | Android |
-| ------------------------------------------------------------------------------------------------------------------ | --- | ------- |
-| Settings scrolls as one page — no scroll island                                                                    | ✅  | ✅      |
-| Blind structure row shows correct count + range, opens the editor                                                  | ✅  | ✅      |
-| 30 rows scroll smoothly; inputs editable                                                                           | ✅  | ✅      |
-| Clearing a blind field shows **empty**, not `0`; blur restores the old value                                       | ✅  | ✅      |
-| `+` → Insert below / Duplicate, at top, middle and end                                                             | ⬜  | ⬜      |
-| Delete down to 2 levels → trash buttons disable                                                                    | ⬜  | ⬜      |
-| Sticky footer appears only when dirty                                                                              | ✅  | ✅      |
-| **Discard** restores the active values                                                                             | ✅  | ✅      |
-| **Apply mid-tournament keeps your level** (start Level 12, edit, apply → still 12)                                 | ⬜  | ⬜      |
-| Apply a schedule **shorter** than the current level → warning shown, lands on last level, **timer does not crash** | ⬜  | ⬜      |
-| Tap-to-jump: confirm → timer _and_ notification/Live Activity both follow                                          | ⬜  | ⬜      |
-| Jump chip is **inert** while the draft is dirty                                                                    | ✅  | ✅      |
-| Back with unapplied edits → Apply / Discard / Keep editing                                                         | ✅  | ✅      |
-| …via **hardware back** (Android) and **swipe-back** (iOS)                                                          | ⬜  | ✅      |
-| Kill the app with a dirty draft → relaunch → draft and footer still there                                          | ✅  | ✅      |
+|                                                                                                                                                                                | iOS | Android |
+| ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | --- | ------- |
+| Settings scrolls as one page — no scroll island                                                                                                                                | ✅  | ✅      |
+| Blind structure row shows correct count + range, opens the editor                                                                                                              | ✅  | ✅      |
+| 30 rows scroll smoothly; inputs editable                                                                                                                                       | ✅  | ✅      |
+| Clearing a blind field shows **empty**, not `0`; blur restores the old value                                                                                                   | ✅  | ✅      |
+| `+` → Insert below / Duplicate, at top, middle and end                                                                                                                         | ✅  | ✅      |
+| Delete down to 2 levels → trash buttons disable                                                                                                                                | ✅  | ✅      |
+| Sticky footer appears only when dirty                                                                                                                                          | ✅  | ✅      |
+| **Discard** restores the active values                                                                                                                                         | ✅  | ✅      |
+| **Apply mid-tournament keeps your level** (start Level 12, edit, apply → still 12)                                                                                             | ✅  | ✅      |
+| Apply a schedule **shorter** than the current level → warning shown, lands on last level, **timer does not crash**                                                             | ✅  | ✅      |
+| Tap-to-jump: confirm → timer _and_ notification/Live Activity both follow                                                                                                      | ✅  | ✅      |
+| Jump chip is **inert** while the draft is dirty                                                                                                                                | ✅  | ✅      |
+| Back with unapplied edits → Apply / Discard / Keep editing                                                                                                                     | ✅  | ✅      |
+| …via **hardware back** (Android) and **swipe-back** (iOS) — the dialog appears both ways. **But the screen cannot be re-entered afterwards: [see D6](#d6-blinds-unreachable)** | ✅  | ✅      |
+| Kill the app with a dirty draft → relaunch → draft and footer still there                                                                                                      | ✅  | ✅      |
 
 ---
 
@@ -498,7 +498,7 @@ Tablet layout is covered separately in §7.
 | --------------------------------------------------------------------------------------------------- | --- | ------- |
 | mm:ss commits on blur — no Save button needed                                                       | ✅  | ✅      |
 | Type `12`/`30`, back out → next round is 12:30                                                      | ✅  | ✅      |
-| Changing it **mid-round leaves the running round's remaining time alone**                           | ⬜  | ⬜      |
+| Changing it **mid-round leaves the running round's remaining time alone**                           | ✅  | ✅      |
 | A round shorter than 10s is **kept**, not silently rewritten (type `5`, leave, come back → still 5) | ✅  | ✅      |
 | Seconds field caps at 59, and the field shows the clamped value after blur                          | ✅  | ✅      |
 
@@ -1219,13 +1219,14 @@ anchor so the rows above can link to it. Keep an entry after it's fixed so the r
 release; the whole section is cleared when the release ships, since by then the fix is in the
 changelog and the reasoning is in the commit.
 
-|                                                                                            | Found in                   | State                               |
-| ------------------------------------------------------------------------------------------ | -------------------------- | ----------------------------------- |
-| **[D1](#d1-auth-redirect)** — a provider sign-in ends on "Unmatched Route"                 | §14b, Android, candidate 3 | 🔧 fixed in #277, wants candidate 4 |
-| **[D2](#d2-rtdn)** — a refund never revokes the entitlement                                | §1, Android, candidate 3   | 🟡 accepted for 1.2.0               |
-| **[D3](#d3-session-not-persisted)** — a restarted host silently leaves its own clock       | §18, Android, candidate 3  | 🔧 fixed in #283, wants candidate 4 |
-| **[D5](#d5-ipad-list-width)** — the blind editor's iPad layout never reaches its 900pt cap | §7, iPad simulator         | ✅ fixed and re-verified            |
-| **[D4](#d4-prod-alerting)** — prod had no alarm delivery at all                            | §15b/§20, prod, 2026-09-19 | ✅ fixed and confirmed              |
+|                                                                                                       | Found in                     | State                               |
+| ----------------------------------------------------------------------------------------------------- | ---------------------------- | ----------------------------------- |
+| **[D1](#d1-auth-redirect)** — a provider sign-in ends on "Unmatched Route"                            | §14b, Android, candidate 3   | 🔧 fixed in #277, wants candidate 4 |
+| **[D2](#d2-rtdn)** — a refund never revokes the entitlement                                           | §1, Android, candidate 3     | 🟡 accepted for 1.2.0               |
+| **[D3](#d3-session-not-persisted)** — a restarted host silently leaves its own clock                  | §18, Android, candidate 3    | 🔧 fixed in #283, wants candidate 4 |
+| **[D5](#d5-ipad-list-width)** — the blind editor's iPad layout never reaches its 900pt cap            | §7, iPad simulator           | ✅ fixed and re-verified            |
+| **[D6](#d6-blinds-unreachable)** — Blind structure is unreachable after leaving it with a dirty draft | §2, iOS, TestFlight build 30 | ❌ open                             |
+| **[D4](#d4-prod-alerting)** — prod had no alarm delivery at all                                       | §15b/§20, prod, 2026-09-19   | ✅ fixed and confirmed              |
 
 <a id="d1-auth-redirect"></a>
 
@@ -1426,6 +1427,34 @@ same iPad Pro simulator immediately after the change, so this is measured rather
 
 **The sticky footer half was not triggered** — it appears only with an unapplied draft. The same
 style object feeds both call sites, so the fix reaches it, but that is inference and the row says so.
+
+<a id="d6-blinds-unreachable"></a>
+
+### D6 — Blind structure cannot be re-entered after leaving it with a dirty draft
+
+**Found** on TestFlight build 30, running §2's back-gesture row.
+
+**What happens.** With an unapplied draft, swipe back from the blind editor. The
+"Unapplied changes" dialog appears correctly — that row passes. Choose **any** of the three
+options, Apply, Discard or Keep editing. From then on, **Settings → Blind structure does nothing**.
+Tapping the row does not open the editor. Navigating to any other route and coming back to Settings
+restores it.
+
+**Why it matters.** The trigger is ordinary — a draft and a swipe-back are both things people do —
+and the symptom is a dead row in Settings with no error and no explanation. Somebody meeting it
+would reasonably conclude the editor is broken. The recovery, visiting another screen, is not
+something a user would think to try.
+
+**Where to look.** `useUnsavedChangesGuard` calls `event.preventDefault()` on **every**
+`beforeRemove` and then re-dispatches `event.data.action` from the alert. On iOS the swipe-back
+gesture has already begun committing when that fires, so the screen springs back while an action
+created for a gesture-initiated removal is dispatched afterwards. That is the shape that leaves the
+navigator's current route out of step with what is on screen — `/blinds` then reads as already
+current, so pushing it again is a no-op, and any other navigation resets it.
+
+**Stated as the place to look, not as the diagnosis.** It was not reproduced against the code, and
+the header back button and Android's hardware back were not re-checked for the same symptom — only
+the dialog appearing was, which is a different claim.
 
 ---
 
