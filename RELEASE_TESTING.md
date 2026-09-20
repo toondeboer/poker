@@ -787,20 +787,25 @@ code, never backgrounded the phone mid-flow, and never had to find the entry poi
 must point at a real backend or they cannot work at all. If sign-up says the build cannot do it,
 that is the switch, not a bug.
 
-**Partly run on Android.** What a laptop can drive was driven; **every row that needs a confirmation
-code is 🚫, because running it needs somebody with an inbox.** Those are the rows the feature rests
-on and they are still outstanding — see the note under the table.
+**The email flow has now been completed from inside the app, on iOS** — sign-up, a real code
+arriving in the inbox from `Poker Blinds Timer`, a wrong code retried, and confirmation signing in.
+That happened against **prod**, which is the pool that matters: it is prod SES's deliverability that
+would bite on launch day, and a dev-pool pass cannot prove it.
+
+**Android is still partly run.** What a laptop can drive was driven; **every row that needs a
+confirmation code is 🚫, because running it needs somebody with an inbox.** These rows are never
+mirrored, so iOS clearing them says nothing about Android — see the note under the table.
 
 |                                                                                                                                                                                                                                                                    | iOS | Android |
 | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | --- | ------- |
-| After signing in **with email**, only the signed-in card shows — no second Sign in or Create-an-account form beneath it                                                                                                                                            | ⬜  | ✅      |
-| Settings shows the account row, and it opens the account screen                                                                                                                                                                                                    | ⬜  | ✅      |
-| **Sign up with a real address → the code arrives.** This is the row the whole feature rests on: Cognito's own sender was capped and landed in spam, which is why it now goes through SES                                                                           | ⬜  | 🚫      |
-| The code arrives **in the inbox, not spam**, and is from `Poker Blinds Timer`                                                                                                                                                                                      | ⬜  | 🚫      |
-| Confirming with the emailed code signs you in                                                                                                                                                                                                                      | ⬜  | 🚫      |
+| After signing in **with email**, only the signed-in card shows — no second Sign in or Create-an-account form beneath it                                                                                                                                            | ✅  | ✅      |
+| Settings shows the account row, and it opens the account screen                                                                                                                                                                                                    | ✅  | ✅      |
+| **Sign up with a real address → the code arrives.** This is the row the whole feature rests on: Cognito's own sender was capped and landed in spam, which is why it now goes through SES                                                                           | ✅  | 🚫      |
+| The code arrives **in the inbox, not spam**, and is from `Poker Blinds Timer`                                                                                                                                                                                      | ✅  | 🚫      |
+| Confirming with the emailed code signs you in                                                                                                                                                                                                                      | ✅  | 🚫      |
 | **After confirming, the account can reset its password.** A user confirmed without the emailed code ends up `email_verified: false` and Cognito refuses to send to them at all — it reads as a mail failure and is not one. [See D-note](#accounts-email-verified) | ⬜  | 🚫      |
-| A **wrong code** says so and lets you try again, rather than dead-ending                                                                                                                                                                                           | ⬜  | 🚫      |
-| An **already-taken email** says so in words, not an error code                                                                                                                                                                                                     | ⬜  | 🚫      |
+| A **wrong code** says so and lets you try again, rather than dead-ending                                                                                                                                                                                           | ✅  | 🚫      |
+| An **already-taken email** says so in words, not an error code                                                                                                                                                                                                     | ✅  | 🚫      |
 | A **wrong password** on sign-in says so and does not clear the email field                                                                                                                                                                                         | ⬜  | 🟡      |
 | Sign out, then sign back in — the boards are still there                                                                                                                                                                                                           | ⬜  | 🚫      |
 | **Force-quit mid-sign-up, relaunch** → not signed in and not stuck; signing up again with the same address behaves sanely                                                                                                                                          | ⬜  | 🚫      |
@@ -808,11 +813,23 @@ on and they are still outstanding — see the note under the table.
 | **Delete account removes the data, not just the login.** Delete, then sign up again with the same address: no old boards, no old claims. App Store 5.1.1(v) asks for the data as well                                                                              | ⬜  | 🚫      |
 | After deleting, the app still works — local boards intact, timer fine, no crash on next launch                                                                                                                                                                     | ⬜  | 🚫      |
 
-**These 🚫 are a different blocker from the billing rows.** They are not blocked on a store build —
-`DEV_BACKEND` reaches a real Cognito pool and SES has production access, so the flow works. They are
-blocked on **somebody with an inbox**: every one of them turns on receiving a confirmation code, and
-that is the one step no script can do honestly. Run them by hand against `DEV_BACKEND` with a real
-address. They remain the largest untested surface in 1.2.0.
+**These 🚫 are a different blocker from the billing rows.** They are not blocked on a store build
+— `DEV_BACKEND` reaches a real Cognito pool and SES has production access, so the flow works. They
+are blocked on **somebody with an inbox**: every one of them turns on receiving a confirmation code,
+and that is the one step no script can do honestly.
+
+**They do not need `DEV_BACKEND`, and reaching for it is the worse option.** That instruction dates
+from when a dev client was the only way to open these screens. It is not any more: TestFlight and a
+`preview`-profile APK both carry `PROD_BACKEND` and have the native modules compiled in. Running
+against prod therefore needs **no `backendConfig` edit at all** — which removes the single line that
+has been committed by mistake twice in this repo (#283, caught by the clean-tree gate and fixed in
+#286; `dc786d1` before it) — and it exercises prod SES rather than dev's. Accounts are new in 1.2.0
+and 1.2.0 has not shipped, so there are no real users in that pool to endanger, and the delete row
+cleans up after itself by design.
+
+**Use a real address you control, with `+aliases`.** Cognito treats every distinct address string as
+a distinct user while Gmail delivers the lot to one inbox, so one mailbox supplies as many accounts
+as the ordering needs.
 
 **What the two 🟡 mean:**
 
