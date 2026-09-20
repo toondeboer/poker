@@ -591,9 +591,9 @@ expected, not a bug.
 
 |                                                                                                                  | iOS | Android |
 | ---------------------------------------------------------------------------------------------------------------- | --- | ------- |
-| Launch → no visible resize before the timer appears                                                              | ⬜  | ⬜      |
-| Leaderboard survives a force-stop: players, games and standings all still there                                  | ⬜  | ⬜      |
-| Payout settings survive a force-stop (buy-in, bounty, denomination, pinned places)                               | ⬜  | ⬜      |
+| Launch → no visible resize before the timer appears                                                              | ✅  | ✅      |
+| Leaderboard survives a force-stop: players, games and standings all still there                                  | ✅  | ✅      |
+| Payout settings survive a force-stop (buy-in, bounty, denomination, pinned places)                               | ✅  | ✅      |
 | Deep link straight to `pokerkit://settings` and `pokerkit://blinds` → splash lifts **immediately**, not after 4s | 🚫  | ✅      |
 
 > **Why the deep-link row is 🚫:** same root cause as §6's blocker. `adb shell am start -W -a
@@ -629,10 +629,10 @@ land the opposite way round and reads exactly like a broken release.
 
 |                                                                                                                                                                                   | iOS                   | Android |
 | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------- | ------- |
-| Screen doesn't sleep while a round is running, left untouched past the OS timeout                                                                                                 | ⬜                    | ✅      |
+| Screen doesn't sleep while a round is running, left untouched past the OS timeout                                                                                                 | ✅                    | ✅      |
 | Pausing releases it — the screen sleeps normally again                                                                                                                            | ⬜ **never verified** | ✅      |
 | Stopping/resetting releases it too                                                                                                                                                | ⬜ **never verified** | ✅      |
-| With a round **running**, leave the timer screen for Settings — the screen should still stay awake (the round is still going), and start sleeping again once you pause from there | ⬜                    | ⬜      |
+| With a round **running**, leave the timer screen for Settings — the screen should still stay awake (the round is still going), and start sleeping again once you pause from there | ✅                    | ✅      |
 
 ---
 
@@ -642,6 +642,15 @@ Almost all of the _arithmetic_ here is unit-tested in `@poker/core` — the tabl
 the prize pool is asserted across the whole realistic input range, so a row that just re-adds the
 numbers is wasted effort. **What's left for a human is the screen**: that the controls fit, the
 keypad doesn't cover them, and the figures land where you can read them.
+
+**Not a bug: the top payout can break the rounding.** With buy-in 35, bounty 4, 8 players and
+"Round payouts to" 5, first place gets **98**. The pool is 8 x 35 - 8 x 4 = 248, which is 49 fives
+with **3 left over that cannot be expressed in fives at all**. `distribute()` in
+`packages/core/src/payouts/payoutStructure.ts` gives that remainder to the largest weight rather
+than dropping it, deliberately -- "money that vanishes from a payout table is a bug the host
+discovers with cash in hand". So every place is a multiple of the denomination **except** the top
+one, which absorbs the indivisible part. The percentages are derived from the actual amounts, so
+they legitimately read as non-round numbers too.
 
 Set `FORCE_PRO_IN_DEV` in `PremiumContext.tsx` to see the unlocked screen without buying.
 
@@ -691,7 +700,7 @@ it**.
 | Reopening the sheet after a rename doesn't come back mid-edit with the keyboard up                                                                                                                                                                                                                                                                                                              | ⬜  | ⬜      |
 | Deleting a group warns how many games go with it, and the board falls back to another group rather than showing nothing                                                                                                                                                                                                                                                                         | ⬜  | ⬜      |
 | Groups sheet: the rename field isn't covered by the keypad, and the sheet header clears the status bar (the §5 failure mode)                                                                                                                                                                                                                                                                    | ✅  | ✅      |
-| **Upgrading keeps an existing leaderboard.** Record a game on the _previous_ build, update, reopen → the same players, games and standings, unchanged                                                                                                                                                                                                                                           | ⬜  | ⬜      |
+| **Upgrading keeps an existing leaderboard.** Record a game on the _previous_ build, update, reopen → the same players, games and standings, unchanged                                                                                                                                                                                                                                           | ✅  | ✅      |
 | **Share standings** is disabled with nothing to report, and enabled once a game is recorded — including after **removing every player**, which keeps the games but leaves nothing to say                                                                                                                                                                                                        | ✅  | ✅      |
 | Shared standings text lists only players who have played, ranked, with no markdown characters                                                                                                                                                                                                                                                                                                   | ⬜  | ⬜      |
 | **Signed out, no "that's me" affordance appears** on any player row — this is the state every user is in until accounts ship                                                                                                                                                                                                                                                                    | ✅  | ✅      |
