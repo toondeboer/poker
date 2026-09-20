@@ -2,6 +2,7 @@
 import { useRef, useState } from "react";
 import {
   Alert,
+  Platform,
   ScrollView,
   StyleSheet,
   Text,
@@ -185,6 +186,40 @@ export function AccountScreen() {
    * expired, and the card this lands on says "We sent a code to …", which
    * should be true when they read it.
    */
+  /**
+   * **Which provider leads, by platform.**
+   *
+   * On iOS Apple has to. Guideline 4.8 and the HIG ask for Sign in with Apple
+   * to be offered wherever another third-party sign-in is, and displayed **no
+   * less prominently** — so making Google the highlighted one there is a review
+   * risk rather than a design choice.
+   *
+   * On Android no such rule applies and the device's own account is Google's,
+   * so leading with Apple offers the wrong default to everybody — which is what
+   * it did on both platforms until the 1.2.0 pass looked at the Android phone.
+   *
+   * **Deliberately not brand-coloured buttons.** Apple and Google both publish
+   * strict specs for those — official assets, exact padding, approved fonts and
+   * colour variants — and approximating them with a themed `Button` and an
+   * Ionicon glyph is more likely to breach the guidelines than a neutral
+   * treatment that does not imply it is their artwork. It would also mean
+   * hardcoded brand hex in a codebase whose styling goes through the theme.
+   */
+  const appleLeads = Platform.OS === "ios";
+  const apple = {
+    key: "apple",
+    label: "Continue with Apple",
+    icon: "logo-apple",
+    provider: "SignInWithApple",
+  } as const;
+  const google = {
+    key: "google",
+    label: "Continue with Google",
+    icon: "logo-google",
+    provider: "Google",
+  } as const;
+  const providerButtons = appleLeads ? [apple, google] : [google, apple];
+
   const attemptSignIn = async () => {
     const failure = await signIn(email, password);
     if (failure === "not-confirmed") {
@@ -340,19 +375,16 @@ export function AccountScreen() {
           Google have already checked the address. Signing in either way lands
           on the same account — see the linking trigger in `apps/infra`.
         */}
-        <Button
-          label="Continue with Apple"
-          icon="logo-apple"
-          onPress={() => void attemptProvider("SignInWithApple")}
-          disabled={busy}
-        />
-        <Button
-          label="Continue with Google"
-          icon="logo-google"
-          variant="secondary"
-          onPress={() => void attemptProvider("Google")}
-          disabled={busy}
-        />
+        {providerButtons.map(({ key, label, icon, provider }, index) => (
+          <Button
+            key={key}
+            label={label}
+            icon={icon}
+            variant={index === 0 ? undefined : "secondary"}
+            onPress={() => void attemptProvider(provider)}
+            disabled={busy}
+          />
+        ))}
         {!showEmail ? (
           <Button
             label="Use email instead"
