@@ -590,15 +590,35 @@ KEYCODE_HOME` reliably brings Expo's own `DevLauncherActivity` back on top of th
 
 ## 7. Tablets
 
-`isTablet` is `width > 768`. **iPad mini (744pt) deliberately gets the phone layout** — that's
-expected, not a bug.
+**The Android tablet column was measured, not eyeballed** — `Android_tablet` emulator, 2560x1600 at
+density 320, so **1280x800dp**, running the release-configuration `preview` APK. Screens reached by
+`pokerkit://` deep links, which a release build answers directly; sheets by tapping through `adb`.
+Each figure below is the span of the content against the page background, sampled across several
+rows of the screenshot:
+
+| Surface                    | Measured                            | Against                     |
+| -------------------------- | ----------------------------------- | --------------------------- |
+| Settings                   | **968dp**, equal 156dp margins      | 1000 cap, less 2x16 padding |
+| Blind editor               | **868dp**, equal 206dp margins      | 900 cap, less 2x16 padding  |
+| Timer card                 | **500dp**, equal 390dp margins      | centred, not full-bleed     |
+| Generator sheet, Pro sheet | **640dp** each, equal 320dp margins | 640 cap, exactly            |
+
+**Why pixels rather than "it looks right".** The standing example in this repo is a form sheet that
+satisfied an `assertVisible` while its content sat outside the sheet frame entirely — visible to the
+test, invisible to a person. A span is the cheapest thing that cannot be fooled that way, and it is
+also how D5 was both found (342dp where 868 was wanted) and confirmed.
+
+**Two rows could not be cleared this way**, and the reason is worth keeping: payouts and the
+leaderboard's record sheet both need **Pro**, and Play Billing does not exist on an emulator
+(`BILLING_UNAVAILABLE`) — the same constraint that keeps §1's Android column off local builds. A
+layout row can hide behind an entitlement.
 
 |                                                                                                                                                                   | iPad | Android tablet |
 | ----------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---- | -------------- |
-| Settings: Tournament + Presets **side by side**, capped and centred                                                                                               | ✅   | ⬜             |
-| Blind editor list + sticky footer capped at 900 and centred — fixed and re-verified, [see D5](#d5-ipad-list-width). **The sticky footer half was not triggered**  | ✅   | ⬜             |
-| Timer card centred, not full-bleed                                                                                                                                | ✅   | ⬜             |
-| Generator and Pro sheets capped at 640 and centred, **not** full-bleed (the 1.2.0 fix — was 🟡 accepted in 1.1.4)                                                 | ⬜   | ⬜             |
+| Settings: Tournament + Presets **side by side**, capped and centred                                                                                               | ✅   | ✅             |
+| Blind editor list + sticky footer capped at 900 and centred — fixed and re-verified, [see D5](#d5-ipad-list-width). **The sticky footer half was not triggered**  | ✅   | ✅             |
+| Timer card centred, not full-bleed                                                                                                                                | ✅   | ✅             |
+| Generator and Pro sheets capped at 640 and centred, **not** full-bleed (the 1.2.0 fix — was 🟡 accepted in 1.1.4)                                                 | ⬜   | ✅             |
 | Payouts: cards capped and centred, payout rows readable                                                                                                           | ✅   | ⬜             |
 | Leaderboard: standings and the record sheet capped and centred — **standings verified on an iPad Pro simulator; the record sheet needs a tap and was not opened** | ⬜   | ⬜             |
 | iPad **mini** still gets the phone layout                                                                                                                         | ✅   | ➖             |
