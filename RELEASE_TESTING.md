@@ -808,7 +808,7 @@ mirrored, so iOS clearing them says nothing about Android — see the note under
 | An **already-taken email** says so in words, not an error code                                                                                                                                                                                                                                                                                                                                        | ✅  | 🚫      |
 | A **wrong password** on sign-in says so and does not clear the email field                                                                                                                                                                                                                                                                                                                            | ✅  | 🟡      |
 | Sign out, then sign back in — the boards are still there                                                                                                                                                                                                                                                                                                                                              | ✅  | 🚫      |
-| **Force-quit mid-sign-up, relaunch** → not signed in and not stuck; signing up again with the same address behaves sanely                                                                                                                                                                                                                                                                             | ❌  | 🚫      |
+| **Force-quit mid-sign-up, relaunch** → not signed in and not stuck; signing up again with the same address behaves sanely. **[See D8](#d8-unconfirmed-dead-end)**                                                                                                                                                                                                                                     | 🔧  | 🚫      |
 | **Airplane mode during sign-in** says there is no connection, and does **not** sign you out of an existing session                                                                                                                                                                                                                                                                                    | ✅  | 🟡      |
 | **Delete account removes the data, not just the login.** Delete, then sign up again with the same address: no old boards, no old claims. App Store 5.1.1(v) asks for the data as well                                                                                                                                                                                                                 | ⬜  | 🚫      |
 | After deleting, the app still works — local boards intact, timer fine, no crash on next launch                                                                                                                                                                                                                                                                                                        | ⬜  | 🚫      |
@@ -1257,6 +1257,7 @@ changelog and the reasoning is in the commit.
 | ----------------------------------------------------------------------------------------------------- | ----------------------------- | -------------------------------------------------- |
 | **[D1](#d1-auth-redirect)** — a provider sign-in ends on "Unmatched Route"                            | §14b, Android, candidate 3    | 🔧 fixed in #277, wants an **Android** candidate 4 |
 | **[D7](#d7-no-password-reset)** — there is no password reset, and the roadmap assumed there was       | §14, iOS, TestFlight build 30 | 🟡 accepted for 1.2.0, carried to 1.2.1            |
+| **[D8](#d8-unconfirmed-dead-end)** — an interrupted sign-up bricks the email address                  | §14, iOS, TestFlight build 30 | 🔧 fixed in #300, wants candidate 5                |
 | **[D2](#d2-rtdn)** — a refund never revokes the entitlement                                           | §1, Android, candidate 3      | 🟡 accepted for 1.2.0                              |
 | **[D3](#d3-session-not-persisted)** — a restarted host silently leaves its own clock                  | §18, Android, candidate 3     | 🔧 fixed in #283, wants an **Android** candidate 4 |
 | **[D5](#d5-ipad-list-width)** — the blind editor's iPad layout never reaches its 900pt cap            | §7, iPad simulator            | ✅ fixed and re-verified                           |
@@ -1274,6 +1275,42 @@ changelog and the reasoning is in the commit.
 > Two things to know before installing one: it will **not** install over a Play build (same
 > versionCode, different signing key — uninstall first), and it carries `PROD_BACKEND`, so **do not
 > run §14's account rows on it** — those want the dev client pointed at `DEV_BACKEND`.
+
+<a id="d8-unconfirmed-dead-end"></a>
+
+### D8 — an interrupted sign-up bricks the email address (both platforms)
+
+**Found** on TestFlight build 30 running §14's Phase 3, by force-quitting between sign-up and the
+code.
+
+**What happens.** The account exists in Cognito but is UNCONFIRMED, and both ways back refuse:
+
+- **Sign in** → _"Confirm your email first — enter the code we sent you."_
+- **Create an account** → _"There's already an account with that address. Sign in instead."_
+
+Two instructions pointing at each other, nothing routing to the code screen, and that address is
+**permanently unusable**.
+
+**Why it is not an edge case.** The code arrives by email, so finishing sign-up means leaving the
+app for a mail client. `awaitingCode` is component state, so anything that tears the screen down
+while somebody is away loses the only route back to the code field — the OS reclaiming memory on a
+busy phone does it as readily as a force-quit. This sits on the happy path of the release's headline
+feature, under memory pressure.
+
+**Cause.** `attemptSignIn` was `setError(await signIn(email, password))` — it rendered the
+`not-confirmed` message and went no further, never setting `awaitingCode`. The code screen itself
+was complete the whole time: Confirm, **Send it again**, **Use a different address**, with
+`resendCode` already on `AuthContext` and already wired to that card. Only the way back to it was
+missing.
+
+**Fixed in #300**: signing in as an unconfirmed account opens the code screen and resends the code,
+so the card's "We sent a code to …" is true when it is read.
+
+**Worth noting for the next screen like this.** _Use a different address_ exists with the comment
+_"Somebody who typed the wrong address is otherwise stuck on a screen waiting for an email that will
+never arrive."_ The dead end **inside** the screen was anticipated; the one created by leaving it
+was not. Component state is the whole reason — a flow that spans leaving the app cannot keep its
+only exit in a `useState`.
 
 <a id="d7-no-password-reset"></a>
 
