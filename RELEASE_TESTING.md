@@ -1579,6 +1579,17 @@ first observation rather than something that broke.
 wrong. Adding `width: "100%"` takes the list from ~342pt to the 900 cap, centred — re-shot on the
 same iPad Pro simulator immediately after the change, so this is measured rather than argued.
 
+**Verified by measurement on candidate 5**, rather than by eye. Same iPad Pro 13-inch (M5)
+simulator, screen 1032pt wide, blind editor reached by `pokerkit://blinds`. Sampling three rows of
+the screenshot for the card edges against the page background gives the content spanning
+**868pt with exactly equal 82pt margins** on both sides — which is the 900 cap, less 16pt of list
+padding each side, centred. The number to compare it against is the one this entry recorded when it
+was broken: **342pt**.
+
+That is also the answer to _how_ you check a row like this without a device. The layout defect the
+project keeps as its standing example passed an `assertVisible` while sitting outside the sheet
+frame entirely, so "the element is there" proves nothing. Measuring pixel spans does.
+
 **The sticky footer half was not triggered** — it appears only with an unapplied draft. The same
 style object feeds both call sites, so the fix reaches it, but that is inference and the row says so.
 
