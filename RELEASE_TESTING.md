@@ -1131,6 +1131,11 @@ is about whether a person can tell, before they tap, which of the two they are b
 | It is **absent** with `featureSharing=off`, in a no-backend build, and while signed out                                                          | ⬜  | ⬜      |
 | It is **absent on a cold launch until the store answers** — same rule as the Groups offer                                                        | ✅  | ✅      |
 
+> **The iOS half is waiting on a lapse, not on anything being wrong.** A subscriber is never
+> offered the plans again — the buttons are replaced by "Club active", which is its own ✅ row — so
+> the claim cannot be read off the screen while Club is held. TestFlight purchases are sandbox
+> ones and lapse after six renewals, and the paywall shows both plans again afterwards.
+>
 > **"Save N%" is the one row in this section that is not mirrored**, and the exception is
 > deliberate. Everything else here is logic, so one platform proves it. A price claim is not: the
 > two numbers come from the storefront, Apple and Google are priced independently, and the whole
