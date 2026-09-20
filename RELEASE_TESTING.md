@@ -339,7 +339,7 @@ sandbox/test account, and for Android, a build uploaded to a Play track.
 
 |                                                                                                                                                                                                                                                                                                                                                                                 | iOS | Android |
 | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --- | ------- |
-| Paywall opens from **every** entry point. Settings' **Pro**, **Club**, **Presets** and **Sound Pack** cards; **Payouts**; **Leaderboard** (both its locked card _and_ "Share this board"); the **game** screen; the **Groups** sheet; and the **shared-clock** screen. **Was written as "five" and is not** — Club, Groups, the game screen and the shared clock all came later | ⬜  | ✅      |
+| Paywall opens from **every** entry point. Settings' **Pro**, **Club**, **Presets** and **Sound Pack** cards; **Payouts**; **Leaderboard** (both its locked card _and_ "Share this board"); the **game** screen; the **Groups** sheet; and the **shared-clock** screen. **Was written as "five" and is not** — Club, Groups, the game screen and the shared clock all came later | ✅  | ✅      |
 | Price string renders (not blank, not `one-time` alone)                                                                                                                                                                                                                                                                                                                          | ✅  | ✅      |
 | **Purchase completes** and Pro unlocks (ads gone, Presets, Sound Pack, Payouts + Leaderboard usable)                                                                                                                                                                                                                                                                            | ✅  | ✅      |
 | **Restore purchases** works on a fresh install of the same account                                                                                                                                                                                                                                                                                                              | ✅  | ✅      |
@@ -607,12 +607,12 @@ expected, not a bug.
 
 ## 8. Small phones
 
-|                                                                                                                                       | iOS | Android |
-| ------------------------------------------------------------------------------------------------------------------------------------- | --- | ------- |
-| Timer fits with no scrolling, nothing clipped                                                                                         | ✅  | ✅      |
-| Settings cards readable, no overlap                                                                                                   | ✅  | ✅      |
-| Blind rows: level chip, LIVE badge and both buttons all fit                                                                           | ✅  | ✅      |
-| Payouts: "Paid places" segments wrap rather than breaking a label mid-word — check at **25+ players**, which offers the most segments | ⬜  | ✅      |
+|                                                                                                                                                                                                                                                                                          | iOS | Android |
+| ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --- | ------- |
+| Timer fits with no scrolling, nothing clipped                                                                                                                                                                                                                                            | ✅  | ✅      |
+| Settings cards readable, no overlap                                                                                                                                                                                                                                                      | ✅  | ✅      |
+| Blind rows: level chip, LIVE badge and both buttons all fit                                                                                                                                                                                                                              | ✅  | ✅      |
+| Payouts: "Paid places" segments wrap rather than breaking a label mid-word. **Six players is enough** — the control is Auto + 1..6 and `MAX_PAID_PLACES` is 6, so a bigger field adds nothing. Was written as "25+ players, which offers the most segments", which is not how it behaves | ✅  | ✅      |
 
 ---
 
@@ -1083,7 +1083,7 @@ reaches TestFlight or Play internal testing — before submission, not after it.
 | **A subscriber is never offered the plans again** — the two plan buttons are replaced by "Club active"                                                                                                                   | ✅  | ✅      |
 | **…but the card itself stays**, carrying the renewal terms and both legal links. Changed in 1.2.0: the whole section used to vanish, which took the cancellation terms with it — away from the one person who needs them | ✅  | ✅      |
 | Cancelling a purchase halfway leaves the sheet usable, with no error — cancelling is not a failure                                                                                                                       | ✅  | ✅      |
-| **Restore brings back both entitlements** on a fresh install                                                                                                                                                             | ✅  | ⬜      |
+| **Restore brings back both entitlements** on a fresh install                                                                                                                                                             | ✅  | ✅      |
 
 > **Verified on candidate 5, including the row that had been ticked against the wrong build.**
 >
@@ -1281,7 +1281,7 @@ out of EAS and went to TestFlight or Play internal testing.
 | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --- | ------- |
 | **It talks to prod.** Account → Continue with Google: the page must name `pokerkit.auth.us-east-1.amazoncognito.com`, with no `-dev`. This is what proves the local testing toggles did not ship                                               | ✅  | ✅      |
 | **Updating from the live version keeps everything.** Install 1.1.4 from the store, set a round length, edit a structure, save a preset — then update to the candidate and check all of it survived, Pro included                               | ✅  | ✅      |
-| **A report reaches a person.** File one against prod and confirm the alarm email arrives at `alertEmail` — `/support` promises an answer within two business days. **The alarm fired and nobody was subscribed — [see D4](#d4-prod-alerting)** | ✅  | ⬜      |
+| **A report reaches a person.** File one against prod and confirm the alarm email arrives at `alertEmail` — `/support` promises an answer within two business days. **The alarm fired and nobody was subscribed — [see D4](#d4-prod-alerting)** | ✅  | ✅      |
 
 **Run the update row before anything else touches that phone.** It needs the live version installed
 with data on it, and installing the candidate is the step being tested — there is no way back except
