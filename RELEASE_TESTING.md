@@ -1236,14 +1236,26 @@ anchor so the rows above can link to it. Keep an entry after it's fixed so the r
 release; the whole section is cleared when the release ships, since by then the fix is in the
 changelog and the reasoning is in the commit.
 
-|                                                                                                       | Found in                     | State                               |
-| ----------------------------------------------------------------------------------------------------- | ---------------------------- | ----------------------------------- |
-| **[D1](#d1-auth-redirect)** — a provider sign-in ends on "Unmatched Route"                            | §14b, Android, candidate 3   | 🔧 fixed in #277, wants candidate 4 |
-| **[D2](#d2-rtdn)** — a refund never revokes the entitlement                                           | §1, Android, candidate 3     | 🟡 accepted for 1.2.0               |
-| **[D3](#d3-session-not-persisted)** — a restarted host silently leaves its own clock                  | §18, Android, candidate 3    | 🔧 fixed in #283, wants candidate 4 |
-| **[D5](#d5-ipad-list-width)** — the blind editor's iPad layout never reaches its 900pt cap            | §7, iPad simulator           | ✅ fixed and re-verified            |
-| **[D6](#d6-blinds-unreachable)** — Blind structure is unreachable after leaving it with a dirty draft | §2, iOS, TestFlight build 30 | ❌ open                             |
-| **[D4](#d4-prod-alerting)** — prod had no alarm delivery at all                                       | §15b/§20, prod, 2026-09-19   | ✅ fixed and confirmed              |
+|                                                                                                       | Found in                     | State                                              |
+| ----------------------------------------------------------------------------------------------------- | ---------------------------- | -------------------------------------------------- |
+| **[D1](#d1-auth-redirect)** — a provider sign-in ends on "Unmatched Route"                            | §14b, Android, candidate 3   | 🔧 fixed in #277, wants an **Android** candidate 4 |
+| **[D2](#d2-rtdn)** — a refund never revokes the entitlement                                           | §1, Android, candidate 3     | 🟡 accepted for 1.2.0                              |
+| **[D3](#d3-session-not-persisted)** — a restarted host silently leaves its own clock                  | §18, Android, candidate 3    | 🔧 fixed in #283, wants an **Android** candidate 4 |
+| **[D5](#d5-ipad-list-width)** — the blind editor's iPad layout never reaches its 900pt cap            | §7, iPad simulator           | ✅ fixed and re-verified                           |
+| **[D6](#d6-blinds-unreachable)** — Blind structure is unreachable after leaving it with a dirty draft | §2, iOS, TestFlight build 30 | 🔧 fixed in #296, wants candidate 5                |
+| **[D4](#d4-prod-alerting)** — prod had no alarm delivery at all                                       | §15b/§20, prod, 2026-09-19   | ✅ fixed and confirmed                             |
+
+> **D1 and D3 are not waiting on Play.** Both fixes are in candidate 4 (verified by ancestry
+> against `1b33049`), and candidate 4 exists on TestFlight — but they are **Android** rows, and
+> Android has no candidate-4 build because the Play submission is blocked on developer
+> verification. The way round it is `eas build --profile preview --platform android`: that profile
+> is `distribution: internal` with **no** `developmentClient`, so it produces a
+> release-configuration **APK installed from a link** — no Play track, no verification, and no dev
+> launcher owning `pokerkit://`. Only **D6** genuinely needs candidate 5.
+>
+> Two things to know before installing one: it will **not** install over a Play build (same
+> versionCode, different signing key — uninstall first), and it carries `PROD_BACKEND`, so **do not
+> run §14's account rows on it** — those want the dev client pointed at `DEV_BACKEND`.
 
 <a id="d1-auth-redirect"></a>
 
