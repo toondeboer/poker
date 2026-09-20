@@ -458,23 +458,23 @@ charged for real; miss the track and the build is not installable.
 
 Tablet layout is covered separately in §7.
 
-|                                                                                                                    | iOS | Android |
-| ------------------------------------------------------------------------------------------------------------------ | --- | ------- |
-| Settings scrolls as one page — no scroll island                                                                    | ✅  | ✅      |
-| Blind structure row shows correct count + range, opens the editor                                                  | ✅  | ✅      |
-| 30 rows scroll smoothly; inputs editable                                                                           | ✅  | ✅      |
-| Clearing a blind field shows **empty**, not `0`; blur restores the old value                                       | ✅  | ✅      |
-| `+` → Insert below / Duplicate, at top, middle and end                                                             | ⬜  | ⬜      |
-| Delete down to 2 levels → trash buttons disable                                                                    | ⬜  | ⬜      |
-| Sticky footer appears only when dirty                                                                              | ✅  | ✅      |
-| **Discard** restores the active values                                                                             | ✅  | ✅      |
-| **Apply mid-tournament keeps your level** (start Level 12, edit, apply → still 12)                                 | ⬜  | ⬜      |
-| Apply a schedule **shorter** than the current level → warning shown, lands on last level, **timer does not crash** | ⬜  | ⬜      |
-| Tap-to-jump: confirm → timer _and_ notification/Live Activity both follow                                          | ⬜  | ⬜      |
-| Jump chip is **inert** while the draft is dirty                                                                    | ✅  | ✅      |
-| Back with unapplied edits → Apply / Discard / Keep editing                                                         | ✅  | ✅      |
-| …via **hardware back** (Android) and **swipe-back** (iOS)                                                          | ⬜  | ✅      |
-| Kill the app with a dirty draft → relaunch → draft and footer still there                                          | ✅  | ✅      |
+|                                                                                                                                                                                                                                                                                              | iOS | Android |
+| -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --- | ------- |
+| Settings scrolls as one page — no scroll island                                                                                                                                                                                                                                              | ✅  | ✅      |
+| Blind structure row shows correct count + range, opens the editor                                                                                                                                                                                                                            | ✅  | ✅      |
+| 30 rows scroll smoothly; inputs editable                                                                                                                                                                                                                                                     | ✅  | ✅      |
+| Clearing a blind field shows **empty**, not `0`; blur restores the old value                                                                                                                                                                                                                 | ✅  | ✅      |
+| `+` → Insert below / Duplicate, at top, middle and end                                                                                                                                                                                                                                       | ✅  | ✅      |
+| Delete down to 2 levels → trash buttons disable                                                                                                                                                                                                                                              | ✅  | ✅      |
+| Sticky footer appears only when dirty                                                                                                                                                                                                                                                        | ✅  | ✅      |
+| **Discard** restores the active values                                                                                                                                                                                                                                                       | ✅  | ✅      |
+| **Apply mid-tournament keeps your level** (start Level 12, edit, apply → still 12)                                                                                                                                                                                                           | ✅  | ✅      |
+| Apply a schedule **shorter** than the current level → warning shown, lands on last level, **timer does not crash**                                                                                                                                                                           | ✅  | ✅      |
+| Tap-to-jump: confirm → timer _and_ notification/Live Activity both follow                                                                                                                                                                                                                    | ✅  | ✅      |
+| Jump chip is **inert** while the draft is dirty                                                                                                                                                                                                                                              | ✅  | ✅      |
+| Back with unapplied edits → Apply / Discard / Keep editing                                                                                                                                                                                                                                   | ✅  | ✅      |
+| …via **hardware back** (Android), which raises the dialog. **On iOS the swipe gesture is now disabled while a draft is unapplied** — the header back button is the way out, so a draft cannot be swiped away and the navigator cannot be left inconsistent. [See D6](#d6-blinds-unreachable) | 🔧  | ✅      |
+| Kill the app with a dirty draft → relaunch → draft and footer still there                                                                                                                                                                                                                    | ✅  | ✅      |
 
 ---
 
@@ -498,7 +498,7 @@ Tablet layout is covered separately in §7.
 | --------------------------------------------------------------------------------------------------- | --- | ------- |
 | mm:ss commits on blur — no Save button needed                                                       | ✅  | ✅      |
 | Type `12`/`30`, back out → next round is 12:30                                                      | ✅  | ✅      |
-| Changing it **mid-round leaves the running round's remaining time alone**                           | ⬜  | ⬜      |
+| Changing it **mid-round leaves the running round's remaining time alone**                           | ✅  | ✅      |
 | A round shorter than 10s is **kept**, not silently rewritten (type `5`, leave, come back → still 5) | ✅  | ✅      |
 | Seconds field caps at 59, and the field shows the clamped value after blur                          | ✅  | ✅      |
 
@@ -512,42 +512,42 @@ or a number field is touched.
 
 |                                                                                                                                  | iOS | Android                                                                                                                                                                                    |
 | -------------------------------------------------------------------------------------------------------------------------------- | --- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| Focus the preset-name field → **Save Preset is fully visible** above the keyboard                                                | ⬜  | ✅                                                                                                                                                                                         |
-| No dead space / over-scroll after the nudge — clearance matches `BREATHING_ROOM = 24`                                            | ⬜  | ✅                                                                                                                                                                                         |
-| Same on a **small** phone (iPhone SE class / 720×1280)                                                                           | ⬜  | ✅                                                                                                                                                                                         |
-| **Any** focused field stays visible when the keypad opens — Settings, blind editor, sheet                                        | ⬜  | ✅                                                                                                                                                                                         |
-| Number fields show a **Done** bar above the keypad (iOS), on the **first** open                                                  | ⬜  | ➖                                                                                                                                                                                         |
-| …and it doesn't look bolted on next to the keyboard's rounded edge                                                               | ⬜  | ➖                                                                                                                                                                                         |
-| In a **sheet**, the Done control belongs to the sheet — nothing floating in the gap above the keypad                             | ⬜  | ✅                                                                                                                                                                                         |
-| A sheet's **footer buttons stay tappable** with the keypad up (generator: Cancel + Replace structure)                            | ⬜  | ✅ — check on **3-button navigation** if you have it; its nav bar is roughly twice a gesture bar's, and Android reports the IME height _excluding_ it, so a shortfall shows up worst there |
-| Scrolling **keeps the keypad up** — generator sheet                                                                              | ⬜  | ✅                                                                                                                                                                                         |
-| Scrolling **keeps the keypad up** — blind structure editor                                                                       | ⬜  | ✅                                                                                                                                                                                         |
-| Generator sheet fields usable with the keyboard up — sheet resizes _and_ scrolls, top not pushed off-screen                      | ⬜  | ✅                                                                                                                                                                                         |
-| Payouts: focus the **Bounty** field — now the lowest of six, so it's the one Android's edge-to-edge would leave under the keypad | ⬜  | ✅                                                                                                                                                                                         |
-| Leaderboard: focus **Add a player** with the roster long enough to scroll — field stays visible                                  | ⬜  | ✅                                                                                                                                                                                         |
+| Focus the preset-name field → **Save Preset is fully visible** above the keyboard                                                | ✅  | ✅                                                                                                                                                                                         |
+| No dead space / over-scroll after the nudge — clearance matches `BREATHING_ROOM = 24`                                            | ✅  | ✅                                                                                                                                                                                         |
+| Same on a **small** phone (iPhone SE class / 720×1280)                                                                           | ✅  | ✅                                                                                                                                                                                         |
+| **Any** focused field stays visible when the keypad opens — Settings, blind editor, sheet                                        | ✅  | ✅                                                                                                                                                                                         |
+| Number fields show a **Done** bar above the keypad (iOS), on the **first** open                                                  | ✅  | ➖                                                                                                                                                                                         |
+| …and it doesn't look bolted on next to the keyboard's rounded edge                                                               | ✅  | ➖                                                                                                                                                                                         |
+| In a **sheet**, the Done control belongs to the sheet — nothing floating in the gap above the keypad                             | ✅  | ✅                                                                                                                                                                                         |
+| A sheet's **footer buttons stay tappable** with the keypad up (generator: Cancel + Replace structure)                            | ✅  | ✅ — check on **3-button navigation** if you have it; its nav bar is roughly twice a gesture bar's, and Android reports the IME height _excluding_ it, so a shortfall shows up worst there |
+| Scrolling **keeps the keypad up** — generator sheet                                                                              | ✅  | ✅                                                                                                                                                                                         |
+| Scrolling **keeps the keypad up** — blind structure editor                                                                       | ✅  | ✅                                                                                                                                                                                         |
+| Generator sheet fields usable with the keyboard up — sheet resizes _and_ scrolls, top not pushed off-screen                      | ✅  | ✅                                                                                                                                                                                         |
+| Payouts: focus the **Bounty** field — now the lowest of six, so it's the one Android's edge-to-edge would leave under the keypad | ✅  | ✅                                                                                                                                                                                         |
+| Leaderboard: focus **Add a player** with the roster long enough to scroll — field stays visible                                  | ✅  | ✅                                                                                                                                                                                         |
 
 ---
 
 ## 6. Notifications & Live Activity
 
-|                                                                                                                                                                                                   | iOS | Android                                                |
-| ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --- | ------------------------------------------------------ |
-| Round expiry fires the alert + alarm with the app **foregrounded**                                                                                                                                | ⬜  | ⬜                                                     |
-| Expiry while **backgrounded** advances **exactly one** level, and says so if more time passed                                                                                                     | ⬜  | ⬜ (automation blocked, see below — needs a hand pass) |
-| Live Activity / notification show the right level + time, and the "open the app" caption                                                                                                          | ⬜  | ⬜                                                     |
-| Blinds are the most prominent thing on it, after the countdown                                                                                                                                    | ⬜  | ⬜                                                     |
-| After a level jump, the pending "time's up" notification names the **new** next blind                                                                                                             | ⬜  | ➖                                                     |
-| Notification survives swipe-away from Recents — start a round, swipe the app out of the app switcher, and the timer notification keeps counting down instead of vanishing with it                 | ➖  | ⬜                                                     |
-| First launch after install asks for notification permission **exactly once**                                                                                                                      | ➖  | ⬜                                                     |
-| **After denying once**, force-stop and relaunch → still **exactly one** dialog, and it's the system sheet ("Allow Poker Timer to send you notifications?"), not an app-drawn alert in front of it | ➖  | ⬜                                                     |
-| Denying **twice** blocks the permission permanently (Android's own behaviour) — confirm the background timer degrades rather than crashes, and that Metro logs the "permanently denied" warning   | ➖  | 🟡                                                     |
-| **With notifications denied, Settings shows the "Notifications are off" card** at the top, above Pro. It is the only route back and has never run on a device                                     | ➖  | ⬜                                                     |
-| Its **"Turn on notifications"** button shows the _system_ dialog when Android will still ask, and falls through to the "Open Settings" alert when it will not — the permanently-blocked case      | ➖  | ⬜                                                     |
-| Granting the permission in system settings and **returning to the app makes the card disappear** without a relaunch                                                                               | ➖  | ⬜                                                     |
-| The card is **absent** whenever notifications are allowed, and absent on iOS entirely                                                                                                             | ⬜  | ⬜                                                     |
-| **Force-quit mid-round, relaunch → exactly one Live Activity**, not two. Repeat three times: still one, and it's the live round rather than a stale one                                           | ⬜  | ➖                                                     |
-| Stopping/resetting the timer leaves **no** Live Activity behind, including any stray from an earlier session                                                                                      | ⬜  | ➖                                                     |
-| Swipe a Live Activity away by hand mid-round, then change level → a fresh card appears and there is still only one                                                                                | ⬜  | ➖                                                     |
+|                                                                                                                                                                                                                                          | iOS | Android                                                |
+| ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --- | ------------------------------------------------------ |
+| Round expiry fires the alert + alarm with the app **foregrounded**                                                                                                                                                                       | ✅  | ⬜                                                     |
+| Expiry while **backgrounded** advances **exactly one** level, and says so if more time passed                                                                                                                                            | ✅  | ⬜ (automation blocked, see below — needs a hand pass) |
+| Live Activity / notification show the right level + time, and the "open the app" caption                                                                                                                                                 | ✅  | ⬜                                                     |
+| Blinds are the most prominent thing on it, after the countdown                                                                                                                                                                           | ✅  | ⬜                                                     |
+| After a level jump, the pending "time's up" notification names the **new** next blind                                                                                                                                                    | ✅  | ➖                                                     |
+| Notification survives swipe-away from Recents — start a round, swipe the app out of the app switcher, and the timer notification keeps counting down instead of vanishing with it                                                        | ➖  | ⬜                                                     |
+| First launch after install asks for notification permission **exactly once**                                                                                                                                                             | ➖  | ⬜                                                     |
+| **After denying once**, force-stop and relaunch → still **exactly one** dialog, and it's the system sheet ("Allow Poker Timer to send you notifications?"), not an app-drawn alert in front of it                                        | ➖  | ⬜                                                     |
+| Denying **twice** blocks the permission permanently (Android's own behaviour) — confirm the background timer degrades rather than crashes, and that Metro logs the "permanently denied" warning                                          | ➖  | 🟡                                                     |
+| **With notifications denied, Settings shows the "Notifications are off" card** at the top, above Pro. It is the only route back and has never run on a device                                                                            | ➖  | ⬜                                                     |
+| Its **"Turn on notifications"** button shows the _system_ dialog when Android will still ask, and falls through to the "Open Settings" alert when it will not — the permanently-blocked case                                             | ➖  | ⬜                                                     |
+| Granting the permission in system settings and **returning to the app makes the card disappear** without a relaunch                                                                                                                      | ➖  | ⬜                                                     |
+| The card is **absent** whenever notifications are allowed, and absent on iOS entirely                                                                                                                                                    | ✅  | ⬜                                                     |
+| **Force-quit mid-round, relaunch → exactly one Live Activity**, not two. Repeat three times: still one, and it's the live round rather than a stale one                                                                                  | ✅  | ➖                                                     |
+| Stopping/resetting the timer leaves **no** Live Activity behind — **🟡 it does not, and that is accepted for 1.2.0.** There is no Stop control at all, and Reset leaves the card up. Swiping it away by hand is the only way to clear it | 🟡  | ⬜                                                     |
+| Swipe a Live Activity away by hand mid-round, then change level → a fresh card appears and there is still only one                                                                                                                       | ✅  | ➖                                                     |
 
 > **Backgrounded-expiry automation blocker:** `adb shell input keyevent KEYCODE_HOME` reliably
 > brings Expo's own `DevLauncherActivity` back on top of the task stack on a dev-client build
@@ -1200,7 +1200,7 @@ out of EAS and went to TestFlight or Play internal testing.
 | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --- | ------- |
 | **It talks to prod.** Account → Continue with Google: the page must name `pokerkit.auth.us-east-1.amazoncognito.com`, with no `-dev`. This is what proves the local testing toggles did not ship                                               | ✅  | ✅      |
 | **Updating from the live version keeps everything.** Install 1.1.4 from the store, set a round length, edit a structure, save a preset — then update to the candidate and check all of it survived, Pro included                               | ✅  | ✅      |
-| **A report reaches a person.** File one against prod and confirm the alarm email arrives at `alertEmail` — `/support` promises an answer within two business days. **The alarm fired and nobody was subscribed — [see D4](#d4-prod-alerting)** | 🔧  | ⬜      |
+| **A report reaches a person.** File one against prod and confirm the alarm email arrives at `alertEmail` — `/support` promises an answer within two business days. **The alarm fired and nobody was subscribed — [see D4](#d4-prod-alerting)** | ✅  | ⬜      |
 
 **Run the update row before anything else touches that phone.** It needs the live version installed
 with data on it, and installing the candidate is the step being tested — there is no way back except
@@ -1219,13 +1219,14 @@ anchor so the rows above can link to it. Keep an entry after it's fixed so the r
 release; the whole section is cleared when the release ships, since by then the fix is in the
 changelog and the reasoning is in the commit.
 
-|                                                                                            | Found in                   | State                               |
-| ------------------------------------------------------------------------------------------ | -------------------------- | ----------------------------------- |
-| **[D1](#d1-auth-redirect)** — a provider sign-in ends on "Unmatched Route"                 | §14b, Android, candidate 3 | 🔧 fixed in #277, wants candidate 4 |
-| **[D2](#d2-rtdn)** — a refund never revokes the entitlement                                | §1, Android, candidate 3   | 🟡 accepted for 1.2.0               |
-| **[D3](#d3-session-not-persisted)** — a restarted host silently leaves its own clock       | §18, Android, candidate 3  | 🔧 fixed in #283, wants candidate 4 |
-| **[D5](#d5-ipad-list-width)** — the blind editor's iPad layout never reaches its 900pt cap | §7, iPad simulator         | ✅ fixed and re-verified            |
-| **[D4](#d4-prod-alerting)** — prod had no alarm delivery at all                            | §15b/§20, prod, 2026-09-19 | 🔧 re-subscribed, wants confirming  |
+|                                                                                                       | Found in                     | State                               |
+| ----------------------------------------------------------------------------------------------------- | ---------------------------- | ----------------------------------- |
+| **[D1](#d1-auth-redirect)** — a provider sign-in ends on "Unmatched Route"                            | §14b, Android, candidate 3   | 🔧 fixed in #277, wants candidate 4 |
+| **[D2](#d2-rtdn)** — a refund never revokes the entitlement                                           | §1, Android, candidate 3     | 🟡 accepted for 1.2.0               |
+| **[D3](#d3-session-not-persisted)** — a restarted host silently leaves its own clock                  | §18, Android, candidate 3    | 🔧 fixed in #283, wants candidate 4 |
+| **[D5](#d5-ipad-list-width)** — the blind editor's iPad layout never reaches its 900pt cap            | §7, iPad simulator           | ✅ fixed and re-verified            |
+| **[D6](#d6-blinds-unreachable)** — Blind structure is unreachable after leaving it with a dirty draft | §2, iOS, TestFlight build 30 | ❌ open                             |
+| **[D4](#d4-prod-alerting)** — prod had no alarm delivery at all                                       | §15b/§20, prod, 2026-09-19   | ✅ fixed and confirmed              |
 
 <a id="d1-auth-redirect"></a>
 
@@ -1384,8 +1385,13 @@ within two business days — both untrue while nothing says a report exists.
 **Re-subscribed on 2026-09-19** with `aws sns subscribe`, and it sits at `PendingConfirmation` until
 somebody clicks the link. **Two things to know:** an unconfirmed email subscription is **discarded
 after 3 days**, silently; and this one lives _outside_ CloudFormation, which is acceptable only
-because the CFN-managed one is already a phantom. 🔧 until a report has been filed and the email
-seen to arrive — the row is about the mail landing, not about the subscription existing.
+because the CFN-managed one is already a phantom. **Confirmed on 2026-09-20.** The subscription was accepted, a report filed from the app, and the
+alarm email arrived at `alertEmail`. The chain works end to end for the first time: app → Groups λ →
+metric filter → alarm → SNS → a person. §20's row is ✅ and this is closed.
+
+**What is not closed is the reason it broke.** The replacement subscription still lives outside
+CloudFormation, an unconfirmed one is discarded after 3 days, and nothing checks the topic has a
+subscriber — so the same hole can reopen silently. That is carried into 1.2.1.
 
 <a id="d5-ipad-list-width"></a>
 
@@ -1421,6 +1427,56 @@ same iPad Pro simulator immediately after the change, so this is measured rather
 
 **The sticky footer half was not triggered** — it appears only with an unapplied draft. The same
 style object feeds both call sites, so the fix reaches it, but that is inference and the row says so.
+
+<a id="d6-blinds-unreachable"></a>
+
+### D6 — Blind structure cannot be re-entered after leaving it with a dirty draft
+
+**Found** on TestFlight build 30, running §2's back-gesture row.
+
+**What happens.** With an unapplied draft, swipe back from the blind editor. The
+"Unapplied changes" dialog appears correctly — that row passes. Choose **any** of the three
+options, Apply, Discard or Keep editing. From then on, **Settings → Blind structure does nothing**.
+Tapping the row does not open the editor. Navigating to any other route and coming back to Settings
+restores it.
+
+**Why it matters.** The trigger is ordinary — a draft and a swipe-back are both things people do —
+and the symptom is a dead row in Settings with no error and no explanation. Somebody meeting it
+would reasonably conclude the editor is broken. The recovery, visiting another screen, is not
+something a user would think to try.
+
+**Where to look.** `useUnsavedChangesGuard` calls `event.preventDefault()` on **every**
+`beforeRemove` and then re-dispatches `event.data.action` from the alert. On iOS the swipe-back
+gesture has already begun committing when that fires, so the screen springs back while an action
+created for a gesture-initiated removal is dispatched afterwards. That is the shape that leaves the
+navigator's current route out of step with what is on screen — `/blinds` then reads as already
+current, so pushing it again is a no-op, and any other navigation resets it.
+
+**Android does not reproduce it, and that narrows the cause.** Run on the emulator on 2026-09-20:
+dirty draft, **hardware back**, Discard — and Settings → Blind structure opened again immediately,
+showing the discarded values. So this is the **iOS swipe-back gesture specifically**, not the guard
+in general. That fits: Android's back is a plain event with nothing in flight, so `preventDefault`
+and a re-dispatch work cleanly, while the iOS gesture has already begun committing.
+
+**Still unchecked:** iOS's own **header back button**. If that is fine too, the trigger is the
+gesture alone.
+
+**Nothing on this machine can verify a fix.** There is no `Simulator.app` in this Xcode install, so
+an iOS-only navigation fix cannot be exercised here — it has to be confirmed on a device against
+candidate 5.
+
+**Fixed by disabling the gesture rather than by taming it.** `useUnsavedChangesGuard` now sets
+`gestureEnabled: false` while it is armed, so on iOS the swipe does nothing at all with an
+unapplied draft and the header back button raises the dialog. The failure is removed by
+construction: the gesture never starts, so nothing can go out of step.
+
+**The trade, stated plainly.** Swipe-back no longer raises the dialog on iOS, which is what §2's row
+used to ask for — that row now describes the new behaviour. It is the better of the two failures: a
+swipe that does nothing is obvious and recoverable, and an unapplied draft can no longer be swiped
+away by accident. `gestureEnabled` is iOS-only in practice, so Android keeps exactly what it had.
+
+**🔧 and not ✅, because I could not run it.** The fix is reasoned from the Android reproduction and
+the mechanism, not observed on iOS. Candidate 5 on a device is what settles it.
 
 ---
 

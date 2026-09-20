@@ -1153,6 +1153,16 @@ platform-tagged heading (e.g. `## [1.1.3] - 2026-07-20 — Android`) when you cu
 
 ### Fixed
 
+- **The blind structure editor can always be opened again (iOS).** Leaving it with unapplied changes
+  by swiping back left the screen unreachable: Settings' **Blind structure** row simply did nothing,
+  with no error, until you visited some other screen and came back. Nobody would think to try that,
+  so the editor looked broken.
+
+  **Swiping back now does nothing while changes are unapplied**, and the back button at the top is
+  the way out — it still asks whether to apply, discard or keep editing. That also means a draft you
+  have not applied can no longer be swiped away by accident. Android is unchanged; its back button
+  never had the problem.
+
 - **The blind editor uses the width of an iPad.** It was drawing its levels in a phone-width column
   adrift in the middle of the screen — about a third of a 13-inch display, with the rest empty
   either side — instead of the capped, centred layout every other screen already had. The levels now
