@@ -1200,7 +1200,7 @@ out of EAS and went to TestFlight or Play internal testing.
 | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --- | ------- |
 | **It talks to prod.** Account → Continue with Google: the page must name `pokerkit.auth.us-east-1.amazoncognito.com`, with no `-dev`. This is what proves the local testing toggles did not ship                                               | ✅  | ✅      |
 | **Updating from the live version keeps everything.** Install 1.1.4 from the store, set a round length, edit a structure, save a preset — then update to the candidate and check all of it survived, Pro included                               | ✅  | ✅      |
-| **A report reaches a person.** File one against prod and confirm the alarm email arrives at `alertEmail` — `/support` promises an answer within two business days. **The alarm fired and nobody was subscribed — [see D4](#d4-prod-alerting)** | 🔧  | ⬜      |
+| **A report reaches a person.** File one against prod and confirm the alarm email arrives at `alertEmail` — `/support` promises an answer within two business days. **The alarm fired and nobody was subscribed — [see D4](#d4-prod-alerting)** | ✅  | ⬜      |
 
 **Run the update row before anything else touches that phone.** It needs the live version installed
 with data on it, and installing the candidate is the step being tested — there is no way back except
@@ -1225,7 +1225,7 @@ changelog and the reasoning is in the commit.
 | **[D2](#d2-rtdn)** — a refund never revokes the entitlement                                | §1, Android, candidate 3   | 🟡 accepted for 1.2.0               |
 | **[D3](#d3-session-not-persisted)** — a restarted host silently leaves its own clock       | §18, Android, candidate 3  | 🔧 fixed in #283, wants candidate 4 |
 | **[D5](#d5-ipad-list-width)** — the blind editor's iPad layout never reaches its 900pt cap | §7, iPad simulator         | ✅ fixed and re-verified            |
-| **[D4](#d4-prod-alerting)** — prod had no alarm delivery at all                            | §15b/§20, prod, 2026-09-19 | 🔧 re-subscribed, wants confirming  |
+| **[D4](#d4-prod-alerting)** — prod had no alarm delivery at all                            | §15b/§20, prod, 2026-09-19 | ✅ fixed and confirmed              |
 
 <a id="d1-auth-redirect"></a>
 
@@ -1384,8 +1384,13 @@ within two business days — both untrue while nothing says a report exists.
 **Re-subscribed on 2026-09-19** with `aws sns subscribe`, and it sits at `PendingConfirmation` until
 somebody clicks the link. **Two things to know:** an unconfirmed email subscription is **discarded
 after 3 days**, silently; and this one lives _outside_ CloudFormation, which is acceptable only
-because the CFN-managed one is already a phantom. 🔧 until a report has been filed and the email
-seen to arrive — the row is about the mail landing, not about the subscription existing.
+because the CFN-managed one is already a phantom. **Confirmed on 2026-09-20.** The subscription was accepted, a report filed from the app, and the
+alarm email arrived at `alertEmail`. The chain works end to end for the first time: app → Groups λ →
+metric filter → alarm → SNS → a person. §20's row is ✅ and this is closed.
+
+**What is not closed is the reason it broke.** The replacement subscription still lives outside
+CloudFormation, an unconfirmed one is discarded after 3 days, and nothing checks the topic has a
+subscriber — so the same hole can reopen silently. That is carried into 1.2.1.
 
 <a id="d5-ipad-list-width"></a>
 
