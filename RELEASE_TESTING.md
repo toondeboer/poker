@@ -1452,9 +1452,18 @@ created for a gesture-initiated removal is dispatched afterwards. That is the sh
 navigator's current route out of step with what is on screen — `/blinds` then reads as already
 current, so pushing it again is a no-op, and any other navigation resets it.
 
-**Stated as the place to look, not as the diagnosis.** It was not reproduced against the code, and
-the header back button and Android's hardware back were not re-checked for the same symptom — only
-the dialog appearing was, which is a different claim.
+**Android does not reproduce it, and that narrows the cause.** Run on the emulator on 2026-09-20:
+dirty draft, **hardware back**, Discard — and Settings → Blind structure opened again immediately,
+showing the discarded values. So this is the **iOS swipe-back gesture specifically**, not the guard
+in general. That fits: Android's back is a plain event with nothing in flight, so `preventDefault`
+and a re-dispatch work cleanly, while the iOS gesture has already begun committing.
+
+**Still unchecked:** iOS's own **header back button**. If that is fine too, the trigger is the
+gesture alone.
+
+**Nothing on this machine can verify a fix.** There is no `Simulator.app` in this Xcode install, so
+an iOS-only navigation fix cannot be exercised here — it has to be confirmed on a device against
+candidate 5.
 
 ---
 
