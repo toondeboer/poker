@@ -548,7 +548,7 @@ expected, not a bug.
 | Timer fits with no scrolling, nothing clipped                                                                                         | ✅  | ✅      |
 | Settings cards readable, no overlap                                                                                                   | ✅  | ✅      |
 | Blind rows: level chip, LIVE badge and both buttons all fit                                                                           | ✅  | ✅      |
-| Payouts: "Paid places" segments wrap rather than breaking a label mid-word — check at **25+ players**, which offers the most segments | ⬜  | ⬜      |
+| Payouts: "Paid places" segments wrap rather than breaking a label mid-word — check at **25+ players**, which offers the most segments | ⬜  | ✅      |
 
 ---
 
@@ -612,13 +612,13 @@ Set `FORCE_PRO_IN_DEV` in `PremiumContext.tsx` to see the unlocked screen withou
 
 |                                                                                                                                                                                                         | iOS | Android |
 | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --- | ------- |
-| Locked state: Settings row shows the Pro pill, the screen still opens and offers the unlock                                                                                                             | ✅  | ⬜      |
+| Locked state: Settings row shows the Pro pill, the screen still opens and offers the unlock                                                                                                             | ✅  | ✅      |
 | Buy-in / Players / Rebuys / Add-ons / Bounty accept typing and a **cleared field doesn't show a literal `0`**                                                                                           | ⬜  | ⬜      |
 | **Add-on price** appears only once Add-ons is above 0, and disappears again at 0                                                                                                                        | ⬜  | ⬜      |
 | Rebuys grow the pool and the Entries row reads "8 players + 4 rebuys". Places follow the **player** count, not entries — but a bigger pool _can_ fund one more place, so don't treat the count as fixed | ⬜  | ⬜      |
-| Payout rows and "Where it comes from" reconcile on screen: prize pool + bounties = collected                                                                                                            | ⬜  | ⬜      |
+| Payout rows and "Where it comes from" reconcile on screen: prize pool + bounties = collected                                                                                                            | ⬜  | ✅      |
 | A bounty **equal to or above** the buy-in explains itself instead of showing an empty table                                                                                                             | ⬜  | ⬜      |
-| Pinning a place count overrides Auto; switching back to Auto follows the field again                                                                                                                    | ⬜  | ⬜      |
+| Pinning a place count overrides Auto; switching back to Auto follows the field again                                                                                                                    | ⬜  | ✅      |
 | Settings' Payouts summary row updates after editing and going **back** (not just on relaunch)                                                                                                           | ⬜  | ⬜      |
 | **Share payouts** opens the share sheet, and the pasted text matches the table on screen                                                                                                                | ⬜  | ⬜      |
 | **Chop sheet**: shares add up to the money still on the table, and nobody is below the guarantee                                                                                                        | ⬜  | ⬜      |
