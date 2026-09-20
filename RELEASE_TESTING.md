@@ -530,24 +530,43 @@ or a number field is touched.
 
 ## 6. Notifications & Live Activity
 
-|                                                                                                                                                                                                                                          | iOS | Android                                                |
-| ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --- | ------------------------------------------------------ |
-| Round expiry fires the alert + alarm with the app **foregrounded**                                                                                                                                                                       | ✅  | ⬜                                                     |
-| Expiry while **backgrounded** advances **exactly one** level, and says so if more time passed                                                                                                                                            | ✅  | ⬜ (automation blocked, see below — needs a hand pass) |
-| Live Activity / notification show the right level + time, and the "open the app" caption                                                                                                                                                 | ✅  | ⬜                                                     |
-| Blinds are the most prominent thing on it, after the countdown                                                                                                                                                                           | ✅  | ⬜                                                     |
-| After a level jump, the pending "time's up" notification names the **new** next blind                                                                                                                                                    | ✅  | ➖                                                     |
-| Notification survives swipe-away from Recents — start a round, swipe the app out of the app switcher, and the timer notification keeps counting down instead of vanishing with it                                                        | ➖  | ⬜                                                     |
-| First launch after install asks for notification permission **exactly once**                                                                                                                                                             | ➖  | ⬜                                                     |
-| **After denying once**, force-stop and relaunch → still **exactly one** dialog, and it's the system sheet ("Allow Poker Timer to send you notifications?"), not an app-drawn alert in front of it                                        | ➖  | ⬜                                                     |
-| Denying **twice** blocks the permission permanently (Android's own behaviour) — confirm the background timer degrades rather than crashes, and that Metro logs the "permanently denied" warning                                          | ➖  | 🟡                                                     |
-| **With notifications denied, Settings shows the "Notifications are off" card** at the top, above Pro. It is the only route back and has never run on a device                                                                            | ➖  | ⬜                                                     |
-| Its **"Turn on notifications"** button shows the _system_ dialog when Android will still ask, and falls through to the "Open Settings" alert when it will not — the permanently-blocked case                                             | ➖  | ⬜                                                     |
-| Granting the permission in system settings and **returning to the app makes the card disappear** without a relaunch                                                                                                                      | ➖  | ⬜                                                     |
-| The card is **absent** whenever notifications are allowed, and absent on iOS entirely                                                                                                                                                    | ✅  | ⬜                                                     |
-| **Force-quit mid-round, relaunch → exactly one Live Activity**, not two. Repeat three times: still one, and it's the live round rather than a stale one                                                                                  | ✅  | ➖                                                     |
-| Stopping/resetting the timer leaves **no** Live Activity behind — **🟡 it does not, and that is accepted for 1.2.0.** There is no Stop control at all, and Reset leaves the card up. Swiping it away by hand is the only way to clear it | 🟡  | ⬜                                                     |
-| Swipe a Live Activity away by hand mid-round, then change level → a fresh card appears and there is still only one                                                                                                                       | ✅  | ➖                                                     |
+|                                                                                                                                                                                                                                                                         | iOS | Android                                                |
+| ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --- | ------------------------------------------------------ |
+| Round expiry fires the alert + alarm with the app **foregrounded**                                                                                                                                                                                                      | ✅  | ⬜                                                     |
+| Expiry while **backgrounded** advances **exactly one** level, and says so if more time passed                                                                                                                                                                           | ✅  | ⬜ (automation blocked, see below — needs a hand pass) |
+| Live Activity / notification show the right level + time, and the "open the app" caption                                                                                                                                                                                | ✅  | ⬜                                                     |
+| Blinds are the most prominent thing on it, after the countdown                                                                                                                                                                                                          | ✅  | ⬜                                                     |
+| After a level jump, the pending "time's up" notification names the **new** next blind                                                                                                                                                                                   | ✅  | ➖                                                     |
+| Notification survives swipe-away from Recents — start a round, swipe the app out of the app switcher, and the timer notification keeps counting down instead of vanishing with it                                                                                       | ➖  | ⬜                                                     |
+| First launch after install asks for notification permission **exactly once**                                                                                                                                                                                            | ➖  | ⬜                                                     |
+| **After denying once**, force-stop and relaunch → still **exactly one** dialog, and it's the system sheet ("Allow Poker Timer to send you notifications?"), not an app-drawn alert in front of it                                                                       | ➖  | ⬜                                                     |
+| Denying **twice** blocks the permission permanently (Android's own behaviour) — confirm the background timer degrades rather than crashes, and that Metro logs the "permanently denied" warning                                                                         | ➖  | 🟡                                                     |
+| **With notifications denied, Settings shows the "Notifications are off" card** at the top, above Pro. It is the only route back and has never run on a device                                                                                                           | ➖  | ⬜                                                     |
+| Its **"Turn on notifications"** button shows the _system_ dialog when Android will still ask, and falls through to the "Open Settings" alert when it will not — the permanently-blocked case                                                                            | ➖  | ⬜                                                     |
+| Granting the permission in system settings and **returning to the app makes the card disappear** without a relaunch                                                                                                                                                     | ➖  | ⬜                                                     |
+| The card is **absent** whenever notifications are allowed, and absent on iOS entirely                                                                                                                                                                                   | ✅  | ⬜                                                     |
+| **Force-quit mid-round, relaunch → exactly one Live Activity**, not two. Repeat three times: still one, and it's the live round rather than a stale one                                                                                                                 | ✅  | ➖                                                     |
+| Stopping/resetting the timer leaves **no** Live Activity behind — **🟡 it does not, and that is accepted for 1.2.0.** There is no Stop control at all, and Reset leaves the card up. Swiping it away by hand is the only way to clear it                                | 🟡  | ⬜                                                     |
+| Swipe a Live Activity away by hand mid-round, then change level → a fresh card appears and there is still only one                                                                                                                                                      | ✅  | ➖                                                     |
+| **No notification badge on the app icon.** Start a round so the timer notification is up, then look at the launcher icon — no dot, no count. New in 1.2.0 (#278), and it had no row until it was noticed there wasn't one                                               | ➖  | ⬜                                                     |
+| 🚫 **Upgrading from 1.1.4 clears the old notification channels.** Android channels are immutable once created, so #278 had to mint `...V2` ids and delete the originals. Needs 1.1.4 and this release installed from Play in sequence — [see below](#channel-migration) | ➖  | 🚫                                                     |
+
+<a id="channel-migration"></a>
+
+> **Why the channel-migration row is 🚫.** A notification channel cannot be changed after it is
+> created — that is the whole reason #278 mints `PokerTimerChannelV2` / `PokerTimerAlertChannelV2`
+> and deletes the originals rather than just setting `setShowBadge(false)` on them. So the fix has
+> two halves: new installs get badge-free channels, and **upgrades have to have the old ones
+> removed**. Only the first half is testable here.
+>
+> The second needs 1.1.4 and this release installed **from Play, in sequence**, and a sideloaded
+> `preview` APK cannot stand in: it is signed with the upload keystore rather than Play's app
+> signing key, so Android refuses to install it over a Play build. That path is blocked until
+> developer verification clears and a candidate reaches the internal track.
+>
+> **It matters for real users rather than testers.** Everyone updating from 1.1.4 has the old
+> channels; nobody on a fresh install does. So the untested half is the one that covers the entire
+> existing user base, and the tested half covers nobody who is already here.
 
 > **Backgrounded-expiry automation blocker:** `adb shell input keyevent KEYCODE_HOME` reliably
 > brings Expo's own `DevLauncherActivity` back on top of the task stack on a dev-client build
@@ -685,26 +704,34 @@ it**.
 | Name field isn't covered by the keypad, and dismisses on return                                                                                                                                                                                                                                                                                                                                 | ✅  | ✅      |
 | Record a game: tapping who played, then tapping them in finishing order, gives 1st/2nd/3rd                                                                                                                                                                                                                                                                                                      | ✅  | ✅      |
 | ~~Winnings shown per place match the Payouts screen **for the field that turned up**~~ — **the leaderboard carries no money as of 1.2.0.** `Placing` is a player and a place, and nothing else: a board accumulating what each player has won across sessions is a bankroll tracker, which the comparable apps are rated 18+ for. The row describes a feature this release deliberately removed | ➖  | ➖      |
-| Un-picking a player who was already ranked also clears their place                                                                                                                                                                                                                                                                                                                              | ⬜  | ⬜      |
+| Un-picking a player who was already ranked also clears their place                                                                                                                                                                                                                                                                                                                              | ✅  | ✅      |
 | Saving updates the standings, and Settings' summary row, immediately                                                                                                                                                                                                                                                                                                                            | ✅  | ✅      |
-| Removing a player keeps past games — everyone else's totals unchanged                                                                                                                                                                                                                                                                                                                           | ⬜  | ⬜      |
-| **End-of-game prompt:** advance past level 1, then reset → "Record this game?" appears; "Record" opens the sheet with the roster in it                                                                                                                                                                                                                                                          | ⬜  | ⬜      |
+| Removing a player keeps past games — everyone else's totals unchanged                                                                                                                                                                                                                                                                                                                           | ✅  | ✅      |
+| **End-of-game prompt:** advance past level 1, then reset → "Record this game?" appears; "Record" opens the sheet with the roster in it                                                                                                                                                                                                                                                          | ✅  | ✅      |
 | Resetting on **level 1** does _not_ prompt (it's a mis-tap, not a finished game)                                                                                                                                                                                                                                                                                                                | ⬜  | ⬜      |
-| No prompt with an **empty roster**, or when Pro is locked — the sheet would have nothing to offer                                                                                                                                                                                                                                                                                               | ⬜  | ⬜      |
-| Back from a prompt-opened leaderboard returns to the **timer**, and the header says "Back"                                                                                                                                                                                                                                                                                                      | ⬜  | ⬜      |
+| No prompt with an **empty roster**, or when Pro is locked — the sheet would have nothing to offer                                                                                                                                                                                                                                                                                               | ✅  | ✅      |
+| Back from a prompt-opened leaderboard returns to the **timer**, and the header says "Back"                                                                                                                                                                                                                                                                                                      | ✅  | ✅      |
 | Record sheet: header clears the status bar and the footer clears the keypad (the §5 failure mode)                                                                                                                                                                                                                                                                                               | ✅  | ✅      |
 | Group row shows the current board and opens the sheet; switching groups swaps the standings **and** the roster                                                                                                                                                                                                                                                                                  | ✅  | ✅      |
 | Creating a group makes it active and empty; the previous group's players and games are untouched when you switch back                                                                                                                                                                                                                                                                           | ✅  | ✅      |
-| Renaming a group in place commits on return **and** when you tap away — a row, another group's buttons, the backdrop, Done — rather than being discarded                                                                                                                                                                                                                                        | ⬜  | ⬜      |
+| Renaming a group in place commits on return **and** when you tap away — a row, another group's buttons, the backdrop, Done — rather than being discarded                                                                                                                                                                                                                                        | ✅  | ✅      |
 | An empty or duplicate rename shows the reason under the field **while typing**, and leaves the group's name as it was                                                                                                                                                                                                                                                                           | ✅  | ✅      |
-| Reopening the sheet after a rename doesn't come back mid-edit with the keyboard up                                                                                                                                                                                                                                                                                                              | ⬜  | ⬜      |
-| Deleting a group warns how many games go with it, and the board falls back to another group rather than showing nothing                                                                                                                                                                                                                                                                         | ⬜  | ⬜      |
+| Reopening the sheet after a rename doesn't come back mid-edit with the keyboard up                                                                                                                                                                                                                                                                                                              | ✅  | ✅      |
+| Deleting a group warns how many games go with it, and the board falls back to another group rather than showing nothing                                                                                                                                                                                                                                                                         | ✅  | ✅      |
 | Groups sheet: the rename field isn't covered by the keypad, and the sheet header clears the status bar (the §5 failure mode)                                                                                                                                                                                                                                                                    | ✅  | ✅      |
 | **Upgrading keeps an existing leaderboard.** Record a game on the _previous_ build, update, reopen → the same players, games and standings, unchanged                                                                                                                                                                                                                                           | ✅  | ✅      |
 | **Share standings** is disabled with nothing to report, and enabled once a game is recorded — including after **removing every player**, which keeps the games but leaves nothing to say                                                                                                                                                                                                        | ✅  | ✅      |
-| Shared standings text lists only players who have played, ranked, with no markdown characters                                                                                                                                                                                                                                                                                                   | ⬜  | ⬜      |
+| Shared standings text lists only players who have played, ranked, with no markdown characters                                                                                                                                                                                                                                                                                                   | ✅  | ✅      |
 | **Signed out, no "that's me" affordance appears** on any player row — this is the state every user is in until accounts ship                                                                                                                                                                                                                                                                    | ✅  | ✅      |
-| A player left linked to an account that no longer exists can still be **unlinked**, so they aren't stuck                                                                                                                                                                                                                                                                                        | ⬜  | ⬜      |
+| A player left linked to an account that no longer exists can still be **unlinked**, so they aren't stuck                                                                                                                                                                                                                                                                                        | ✅  | ✅      |
+
+> **Reset does not return you to level 1, and that is deliberate** — it re-clocks the _round_ and
+> leaves the blind level alone, because a blinds timer has no "tournament over" button and a host
+> who resets to re-clock a level after an interruption must not lose their place in the structure.
+> See `useEndOfGamePrompt.ts` and the `CHANGELOG.md` entry for the prompt. **The practical
+> consequence for testing:** to run the "resetting on level 1 does not prompt" row you have to get
+> back to level 1 yourself — use tap-to-jump in the blind structure screen — since reset will not
+> take you there.
 
 ---
 
@@ -779,32 +806,54 @@ code, never backgrounded the phone mid-flow, and never had to find the entry poi
 must point at a real backend or they cannot work at all. If sign-up says the build cannot do it,
 that is the switch, not a bug.
 
-**Partly run on Android.** What a laptop can drive was driven; **every row that needs a confirmation
-code is 🚫, because running it needs somebody with an inbox.** Those are the rows the feature rests
-on and they are still outstanding — see the note under the table.
+**The email flow has now been completed from inside the app, on iOS** — sign-up, a real code
+arriving in the inbox from `Poker Blinds Timer`, a wrong code retried, and confirmation signing in.
+That happened against **prod**, which is the pool that matters: it is prod SES's deliverability that
+would bite on launch day, and a dev-pool pass cannot prove it.
 
-|                                                                                                                                                                                                                                                                    | iOS | Android |
-| ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | --- | ------- |
-| After signing in **with email**, only the signed-in card shows — no second Sign in or Create-an-account form beneath it                                                                                                                                            | ⬜  | ✅      |
-| Settings shows the account row, and it opens the account screen                                                                                                                                                                                                    | ⬜  | ✅      |
-| **Sign up with a real address → the code arrives.** This is the row the whole feature rests on: Cognito's own sender was capped and landed in spam, which is why it now goes through SES                                                                           | ⬜  | 🚫      |
-| The code arrives **in the inbox, not spam**, and is from `Poker Blinds Timer`                                                                                                                                                                                      | ⬜  | 🚫      |
-| Confirming with the emailed code signs you in                                                                                                                                                                                                                      | ⬜  | 🚫      |
-| **After confirming, the account can reset its password.** A user confirmed without the emailed code ends up `email_verified: false` and Cognito refuses to send to them at all — it reads as a mail failure and is not one. [See D-note](#accounts-email-verified) | ⬜  | 🚫      |
-| A **wrong code** says so and lets you try again, rather than dead-ending                                                                                                                                                                                           | ⬜  | 🚫      |
-| An **already-taken email** says so in words, not an error code                                                                                                                                                                                                     | ⬜  | 🚫      |
-| A **wrong password** on sign-in says so and does not clear the email field                                                                                                                                                                                         | ⬜  | 🟡      |
-| Sign out, then sign back in — the boards are still there                                                                                                                                                                                                           | ⬜  | 🚫      |
-| **Force-quit mid-sign-up, relaunch** → not signed in and not stuck; signing up again with the same address behaves sanely                                                                                                                                          | ⬜  | 🚫      |
-| **Airplane mode during sign-in** says there is no connection, and does **not** sign you out of an existing session                                                                                                                                                 | ⬜  | 🟡      |
-| **Delete account removes the data, not just the login.** Delete, then sign up again with the same address: no old boards, no old claims. App Store 5.1.1(v) asks for the data as well                                                                              | ⬜  | 🚫      |
-| After deleting, the app still works — local boards intact, timer fine, no crash on next launch                                                                                                                                                                     | ⬜  | 🚫      |
+**Android is still partly run.** What a laptop can drive was driven; **every row that needs a
+confirmation code is 🚫, because running it needs somebody with an inbox.** These rows are never
+mirrored, so iOS clearing them says nothing about Android — see the note under the table.
 
-**These 🚫 are a different blocker from the billing rows.** They are not blocked on a store build —
-`DEV_BACKEND` reaches a real Cognito pool and SES has production access, so the flow works. They are
-blocked on **somebody with an inbox**: every one of them turns on receiving a confirmation code, and
-that is the one step no script can do honestly. Run them by hand against `DEV_BACKEND` with a real
-address. They remain the largest untested surface in 1.2.0.
+**Those 🚫 are now runnable.** The blocker was an inbox and a build that could reach these screens;
+the `preview`-profile APK is both — release configuration, `PROD_BACKEND`, `expo-crypto` compiled
+in. Repeat the iOS pass on Android with fresh `+aliases`: the ones used on iOS are spent, and
+sign-up rows need an address Cognito has not seen.
+
+|                                                                                                                                                                                                                                                                                                                                                                                                       | iOS | Android |
+| ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --- | ------- |
+| After signing in **with email**, only the signed-in card shows — no second Sign in or Create-an-account form beneath it                                                                                                                                                                                                                                                                               | ✅  | ✅      |
+| Settings shows the account row, and it opens the account screen                                                                                                                                                                                                                                                                                                                                       | ✅  | ✅      |
+| **Sign up with a real address → the code arrives.** This is the row the whole feature rests on: Cognito's own sender was capped and landed in spam, which is why it now goes through SES                                                                                                                                                                                                              | ✅  | 🚫      |
+| The code arrives **in the inbox, not spam**, and is from `Poker Blinds Timer`                                                                                                                                                                                                                                                                                                                         | ✅  | 🚫      |
+| Confirming with the emailed code signs you in                                                                                                                                                                                                                                                                                                                                                         | ✅  | 🚫      |
+| 🚫 **After confirming, the account can reset its password.** **There is no password reset in 1.2.0 — [see D7](#d7-no-password-reset).** The original note stands for whenever it is built: a user confirmed without the emailed code ends up `email_verified: false` and Cognito refuses to send to them at all, which reads as a mail failure and is not one. [See D-note](#accounts-email-verified) | 🚫  | 🚫      |
+| A **wrong code** says so and lets you try again, rather than dead-ending                                                                                                                                                                                                                                                                                                                              | ✅  | 🚫      |
+| An **already-taken email** says so in words, not an error code                                                                                                                                                                                                                                                                                                                                        | ✅  | 🚫      |
+| A **wrong password** on sign-in says so and does not clear the email field                                                                                                                                                                                                                                                                                                                            | ✅  | 🟡      |
+| Sign out, then sign back in — the boards are still there                                                                                                                                                                                                                                                                                                                                              | ✅  | 🚫      |
+| **Force-quit mid-sign-up, relaunch** → not signed in and not stuck; signing up again with the same address behaves sanely. **[See D8](#d8-unconfirmed-dead-end)**                                                                                                                                                                                                                                     | 🔧  | 🚫      |
+| **Airplane mode during sign-in** says there is no connection, and does **not** sign you out of an existing session                                                                                                                                                                                                                                                                                    | ✅  | 🟡      |
+| **Delete account removes the data, not just the login.** Delete, then sign up again with the same address: no old boards, no old claims. App Store 5.1.1(v) asks for the data as well                                                                                                                                                                                                                 | ✅  | 🚫      |
+| After deleting, the app still works — local boards intact, timer fine, no crash on next launch                                                                                                                                                                                                                                                                                                        | ✅  | 🚫      |
+
+**These 🚫 are a different blocker from the billing rows.** They are not blocked on a store build
+— `DEV_BACKEND` reaches a real Cognito pool and SES has production access, so the flow works. They
+are blocked on **somebody with an inbox**: every one of them turns on receiving a confirmation code,
+and that is the one step no script can do honestly.
+
+**They do not need `DEV_BACKEND`, and reaching for it is the worse option.** That instruction dates
+from when a dev client was the only way to open these screens. It is not any more: TestFlight and a
+`preview`-profile APK both carry `PROD_BACKEND` and have the native modules compiled in. Running
+against prod therefore needs **no `backendConfig` edit at all** — which removes the single line that
+has been committed by mistake twice in this repo (#283, caught by the clean-tree gate and fixed in
+#286; `dc786d1` before it) — and it exercises prod SES rather than dev's. Accounts are new in 1.2.0
+and 1.2.0 has not shipped, so there are no real users in that pool to endanger, and the delete row
+cleans up after itself by design.
+
+**Use a real address you control, with `+aliases`.** Cognito treats every distinct address string as
+a distinct user while Gmail delivers the lot to one inbox, so one mailbox supplies as many accounts
+as the ordering needs.
 
 **What the two 🟡 mean:**
 
@@ -1228,14 +1277,94 @@ anchor so the rows above can link to it. Keep an entry after it's fixed so the r
 release; the whole section is cleared when the release ships, since by then the fix is in the
 changelog and the reasoning is in the commit.
 
-|                                                                                                       | Found in                     | State                               |
-| ----------------------------------------------------------------------------------------------------- | ---------------------------- | ----------------------------------- |
-| **[D1](#d1-auth-redirect)** — a provider sign-in ends on "Unmatched Route"                            | §14b, Android, candidate 3   | 🔧 fixed in #277, wants candidate 4 |
-| **[D2](#d2-rtdn)** — a refund never revokes the entitlement                                           | §1, Android, candidate 3     | 🟡 accepted for 1.2.0               |
-| **[D3](#d3-session-not-persisted)** — a restarted host silently leaves its own clock                  | §18, Android, candidate 3    | 🔧 fixed in #283, wants candidate 4 |
-| **[D5](#d5-ipad-list-width)** — the blind editor's iPad layout never reaches its 900pt cap            | §7, iPad simulator           | ✅ fixed and re-verified            |
-| **[D6](#d6-blinds-unreachable)** — Blind structure is unreachable after leaving it with a dirty draft | §2, iOS, TestFlight build 30 | ❌ open                             |
-| **[D4](#d4-prod-alerting)** — prod had no alarm delivery at all                                       | §15b/§20, prod, 2026-09-19   | ✅ fixed and confirmed              |
+|                                                                                                       | Found in                      | State                                              |
+| ----------------------------------------------------------------------------------------------------- | ----------------------------- | -------------------------------------------------- |
+| **[D1](#d1-auth-redirect)** — a provider sign-in ends on "Unmatched Route"                            | §14b, Android, candidate 3    | 🔧 fixed in #277, wants an **Android** candidate 4 |
+| **[D7](#d7-no-password-reset)** — there is no password reset, and the roadmap assumed there was       | §14, iOS, TestFlight build 30 | 🟡 accepted for 1.2.0, carried to 1.2.1            |
+| **[D8](#d8-unconfirmed-dead-end)** — an interrupted sign-up bricks the email address                  | §14, iOS, TestFlight build 30 | 🔧 fixed in #300, wants candidate 5                |
+| **[D2](#d2-rtdn)** — a refund never revokes the entitlement                                           | §1, Android, candidate 3      | 🟡 accepted for 1.2.0                              |
+| **[D3](#d3-session-not-persisted)** — a restarted host silently leaves its own clock                  | §18, Android, candidate 3     | 🔧 fixed in #283, wants an **Android** candidate 4 |
+| **[D5](#d5-ipad-list-width)** — the blind editor's iPad layout never reaches its 900pt cap            | §7, iPad simulator            | ✅ fixed and re-verified                           |
+| **[D6](#d6-blinds-unreachable)** — Blind structure is unreachable after leaving it with a dirty draft | §2, iOS, TestFlight build 30  | 🔧 fixed in #296, wants candidate 5                |
+| **[D4](#d4-prod-alerting)** — prod had no alarm delivery at all                                       | §15b/§20, prod, 2026-09-19    | ✅ fixed and confirmed                             |
+
+> **D1 and D3 are not waiting on Play.** Both fixes are in candidate 4 (verified by ancestry
+> against `1b33049`), and candidate 4 exists on TestFlight — but they are **Android** rows, and
+> Android has no candidate-4 build because the Play submission is blocked on developer
+> verification. The way round it is `eas build --profile preview --platform android`: that profile
+> is `distribution: internal` with **no** `developmentClient`, so it produces a
+> release-configuration **APK installed from a link** — no Play track, no verification, and no dev
+> launcher owning `pokerkit://`. Only **D6** genuinely needs candidate 5.
+>
+> Two things to know before installing one: it will **not** install over a Play build (same
+> versionCode, different signing key — uninstall first), and it carries `PROD_BACKEND`, so **do not
+> run §14's account rows on it** — those want the dev client pointed at `DEV_BACKEND`.
+
+<a id="d8-unconfirmed-dead-end"></a>
+
+### D8 — an interrupted sign-up bricks the email address (both platforms)
+
+**Found** on TestFlight build 30 running §14's Phase 3, by force-quitting between sign-up and the
+code.
+
+**What happens.** The account exists in Cognito but is UNCONFIRMED, and both ways back refuse:
+
+- **Sign in** → _"Confirm your email first — enter the code we sent you."_
+- **Create an account** → _"There's already an account with that address. Sign in instead."_
+
+Two instructions pointing at each other, nothing routing to the code screen, and that address is
+**permanently unusable**.
+
+**Why it is not an edge case.** The code arrives by email, so finishing sign-up means leaving the
+app for a mail client. `awaitingCode` is component state, so anything that tears the screen down
+while somebody is away loses the only route back to the code field — the OS reclaiming memory on a
+busy phone does it as readily as a force-quit. This sits on the happy path of the release's headline
+feature, under memory pressure.
+
+**Cause.** `attemptSignIn` was `setError(await signIn(email, password))` — it rendered the
+`not-confirmed` message and went no further, never setting `awaitingCode`. The code screen itself
+was complete the whole time: Confirm, **Send it again**, **Use a different address**, with
+`resendCode` already on `AuthContext` and already wired to that card. Only the way back to it was
+missing.
+
+**Fixed in #300**: signing in as an unconfirmed account opens the code screen and resends the code,
+so the card's "We sent a code to …" is true when it is read.
+
+**Worth noting for the next screen like this.** _Use a different address_ exists with the comment
+_"Somebody who typed the wrong address is otherwise stuck on a screen waiting for an email that will
+never arrive."_ The dead end **inside** the screen was anticipated; the one created by leaving it
+was not. Component state is the whole reason — a flow that spans leaving the app cannot keep its
+only exit in a `useState`.
+
+<a id="d7-no-password-reset"></a>
+
+### D7 — there is no password reset (both platforms)
+
+**Found** on TestFlight build 30 running §14's Phase 2, by looking for the button and not finding
+one.
+
+**What is missing.** Nothing. `cognitoAuthProvider` exposes `signUp`, `confirmSignUp`, `resendCode`,
+`signIn`, `signInWithProvider`, `signOut` and `deleteAccount`; there is no `forgotPassword`, no
+`confirmForgotPassword`, nothing in `AuthContext`, and no control on any screen. The row was not
+stale — `ROADMAP.md` says "**Password reset stays SES's job**" in the sign-in decision record, so it
+was intended and simply never built.
+
+**Who is actually affected, and why it is bounded.** Someone who signs up with email + password and
+loses it has no recovery path in the app, and none on the website either, since accounts have not
+reached it. But §14b's **linking case** means signing in with a provider on the _same address_
+returns you to the _same_ account — so anyone whose address is a Google or Apple account recovers by
+tapping the provider button instead. The genuinely locked-out case is an address that is neither,
+with a forgotten password. Email/password is also the deliberate **fallback** path: the roadmap
+makes social primary precisely because the emailed code is the highest-drop-off step in any sign-up.
+
+**Accepted for 1.2.0.** The population at risk is zero on the day it ships and grows slowly;
+provider linking covers most of it; and `ForgotPassword`/`ConfirmForgotPassword` plus a screen and
+its error states is real new surface in a candidate whose testing pass is nearly done. Carried to
+1.2.1.
+
+**When it is built**, the `email_verified` note below applies to it: an account confirmed
+administratively rather than through the emailed code cannot be sent to at all, and that failure
+looks exactly like broken mail.
 
 <a id="d1-auth-redirect"></a>
 
