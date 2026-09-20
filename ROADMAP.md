@@ -43,6 +43,30 @@ to be built before anything is submitted for review.** What remains, in order:
 
 ## Carried into 1.2.1 — from the 1.2.0 release review
 
+- ⬜ **Recording a game does not start a new one — the blinds stay where they were.** Raised while
+  running §12 on TestFlight build 30, as a question: reset only re-clocks the round, so after a
+  tournament ends on level 12 the next one starts on level 12.
+
+  **Reset's behaviour is right and should not change.** A blinds timer has no "tournament over"
+  button, and a host who resets to re-clock a level after an interruption must not lose their place
+  in the structure — that would be destructive with no undo. `useEndOfGamePrompt.ts` says as much,
+  and the end-of-game prompt is built on exactly that reasoning: resetting _after progressing_ is
+  the closest honest proxy for a finished game.
+
+  **The seam is one step later.** Tapping **Record** and completing the sheet is the only
+  unambiguous "this game is over" signal the app has — the host has just said so in as many words.
+  That is the moment where returning the blinds to level 1 is both safe and expected, and nothing
+  does it. So the app asks whether the game finished, is told yes, and then leaves the next game
+  starting mid-structure.
+
+  Not changed in 1.2.0: it is timer behaviour reached through the leaderboard, so it would reopen
+  rows in both §2 and §12 that the pass has already closed. Worth deciding properly rather than
+  late.
+
+  A side effect worth keeping in mind for the next pass: §12's _"resetting on level 1 does not
+  prompt"_ row cannot be reached by resetting at all — you have to navigate back to level 1 by hand
+  first.
+
 - 🟡 **A Live Activity outlives the round that started it, and there is no Stop control.** Found on
   the 1.2.0 TestFlight pass of §6. Reset leaves the card on the Lock Screen, and there is no Stop
   button anywhere to clear it — swiping it away by hand is the only way. **Accepted for 1.2.0**: a
