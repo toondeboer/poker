@@ -165,8 +165,35 @@ export function AccountScreen() {
     setError(await signInWithProvider(result));
   };
 
+  /**
+   * Sign in, which has to handle an account that exists but was never
+   * confirmed.
+   *
+   * **That state is reached by ordinary use, not by misuse.** The code arrives
+   * by email, so finishing sign-up means leaving the app for a mail client —
+   * and `awaitingCode` is component state, so anything that tears the screen
+   * down while somebody is away (the OS reclaiming memory on a busy phone, a
+   * force-quit, a crash) loses the only route back to the code field.
+   *
+   * Without this branch the address is then **permanently unusable**: signing
+   * in answers "confirm your email first" and creating an account answers
+   * "there's already an account with that address", and neither offers a way
+   * to confirm. Two instructions that contradict each other and a dead end
+   * between them.
+   *
+   * The code is resent rather than assumed — whatever was sent before may have
+   * expired, and the card this lands on says "We sent a code to …", which
+   * should be true when they read it.
+   */
   const attemptSignIn = async () => {
-    setError(await signIn(email, password));
+    const failure = await signIn(email, password);
+    if (failure === "not-confirmed") {
+      setError(null);
+      setAwaitingCode(true);
+      void resendCode(email);
+      return;
+    }
+    setError(failure);
   };
 
   /**
