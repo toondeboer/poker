@@ -237,7 +237,9 @@ export function PayoutScreen() {
           />
           <Text style={styles.hint}>
             The smallest note or chip you want to hand out. Everything is
-            rounded to a multiple of it, and the pool still pays out in full.
+            rounded to a multiple of it, and the pool still pays out in full —
+            so when it doesn&apos;t divide evenly, first place takes the few
+            left over.
           </Text>
         </CardContent>
       </Card>
