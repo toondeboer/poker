@@ -654,6 +654,15 @@ platform-tagged heading (e.g. `## [1.1.3] - 2026-07-20 — Android`) when you cu
 
 ### Changed
 
+- **The sign-in card leads with the provider that belongs to the device.** Continue with Apple was
+  the highlighted option on both platforms, so an Android phone offered Apple as the obvious way in
+  and put Google — the account already on the device — underneath it as the secondary choice. Apple
+  still leads on iOS, where Sign in with Apple has to be displayed no less prominently than any
+  other third-party sign-in; Android now leads with Google. Neither button is brand-coloured: Apple
+  and Google both publish strict specs for those, and approximating them with a themed button and a
+  glyph is more likely to breach the guidelines than a neutral treatment that does not imply it is
+  their artwork.
+
 - **The payout rounding hint no longer promises something it cannot deliver.** "Everything is
   rounded to a multiple of it, and the pool still pays out in full" claims both halves at once, and
   when the pool is not a whole number of denominations they cannot both hold — with buy-in 35,
