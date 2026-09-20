@@ -43,6 +43,30 @@ to be built before anything is submitted for review.** What remains, in order:
 
 ## Carried into 1.2.1 — from the 1.2.0 release review
 
+- 🟡 **A Live Activity outlives the round that started it, and there is no Stop control.** Found on
+  the 1.2.0 TestFlight pass of §6. Reset leaves the card on the Lock Screen, and there is no Stop
+  button anywhere to clear it — swiping it away by hand is the only way. **Accepted for 1.2.0**: a
+  stale card is untidy rather than misleading, since it stops counting, and the cost of dismissing
+  it is one swipe.
+
+  Worth pairing with the existing decision that the Live Activity carries **no Pause/Resume/Stop
+  buttons** — that was built and then pulled, and this is the other half of the same gap: nothing on
+  the card controls the timer, and nothing in the app clears the card.
+
+- ⬜ **There is no "notifications are off" card on iOS, and `hasPermission` is hard-coded `true`
+  there.** Raised while running §6 on TestFlight, where the card's absence is _correct_ and the row
+  passes — `NotificationsBlockedCard` returns `null` off Android by design.
+
+  **Android's version exists because denial there is catastrophic and silent**: a second denial
+  blocks `POST_NOTIFICATIONS` permanently, the foreground service then refuses to start, and the
+  background timer stops with no dialog and no way back. iOS does not have that failure — the Live
+  Activity path does not depend on the permission, so a denied user still gets the clock on screen.
+
+  What a denied iOS user _does_ lose is the expiry alert while backgrounded, which is not nothing.
+  Adding a card would mean first making `hasPermission` a real check on iOS rather than a constant,
+  so it is not a UI-only change. Deliberately not done in 1.2.0: new behaviour in a release
+  candidate, for a smaller failure than the one the Android card answers.
+
 - ⬜ **Nothing notices when prod's alarm topic has no subscribers.** Found on 2026-09-19 filing a
   report for §15b: the report landed, the metric filter raised `ContentReports`, the alarm went
   `OK → ALARM` — and SNS delivered to **nobody**, because
