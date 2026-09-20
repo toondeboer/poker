@@ -1162,6 +1162,16 @@ platform-tagged heading (e.g. `## [1.1.3] - 2026-07-20 — Android`) when you cu
 
 ### Fixed
 
+- **An interrupted sign-up no longer bricks the email address.** The confirmation code arrives by
+  email, so finishing sign-up means leaving the app to fetch it — and the code screen's state lived
+  only in the component, so anything that tore it down while you were away (the OS reclaiming memory
+  on a busy phone, a force-quit, a crash) lost the only route back to the code field. After that the
+  address was unusable: signing in answered "confirm your email first — enter the code we sent you"
+  and creating an account answered "there's already an account with that address", two instructions
+  that contradict each other with no way to act on either. Signing in as an unconfirmed account now
+  opens the code screen and sends a fresh code, so the way out is the thing the message was already
+  telling you to do.
+
 - **The blind structure editor can always be opened again (iOS).** Leaving it with unapplied changes
   by swiping back left the screen unreachable: Settings' **Blind structure** row simply did nothing,
   with no error, until you visited some other screen and came back. Nobody would think to try that,
