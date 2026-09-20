@@ -355,12 +355,12 @@ to handle something a person bought stopping working — every row below is a fi
 | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --- | ------- |
 | Both SKUs appear and are priced — monthly **and** annual. One store having only one of them is a half-shipped product                                                                                                | ✅  | ✅      |
 | **Subscribing grants Pro as well.** A subscriber who never bought Pro can open the leaderboard — otherwise they are hosting a board they cannot see                                                                  | ✅  | ✅      |
-| **Restore brings back both**, on a fresh install on the same store account — Pro and Club, not one                                                                                                                   | ⬜  | ✅      |
+| **Restore brings back both**, on a fresh install on the same store account — Pro and Club, not one                                                                                                                   | ✅  | ✅      |
 | Cancelling in the store leaves the app sane, and access continues to the end of the paid period                                                                                                                      | ✅  | ✅      |
 | **After it expires: sharing stops, and Pro does not.** Once a subscription has granted Pro it keeps it, so the boards stay visible and only hosting goes. Getting this wrong takes the sight of every board they own | ✅  | ✅      |
-| An expired subscriber's **existing shared boards keep working for the other members** — they are still on the server, and stranding them is worse than the cost it saves                                             | ⬜  | 🚫      |
-| Resubscribing restores hosting without anything being lost                                                                                                                                                           | ⬜  | ✅      |
-| A Pro-only buyer is **never** told to buy Pro again by any Club message                                                                                                                                              | ⬜  | 🚫      |
+| An expired subscriber's **existing shared boards keep working for the other members** — they are still on the server, and stranding them is worse than the cost it saves                                             | ✅  | ✅      |
+| Resubscribing restores hosting without anything being lost                                                                                                                                                           | ✅  | ✅      |
+| A Pro-only buyer is **never** told to buy Pro again by any Club message                                                                                                                                              | ✅  | ✅      |
 
 > **Expiry is the row most likely to be skipped and most likely to hurt.** `entitlementsFrom` reads
 > `entitlements.all` rather than `active` precisely so a lapsed subscriber keeps Pro through a
