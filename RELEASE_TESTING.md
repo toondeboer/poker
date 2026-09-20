@@ -458,23 +458,23 @@ charged for real; miss the track and the build is not installable.
 
 Tablet layout is covered separately in §7.
 
-|                                                                                                                                                                                | iOS | Android |
-| ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | --- | ------- |
-| Settings scrolls as one page — no scroll island                                                                                                                                | ✅  | ✅      |
-| Blind structure row shows correct count + range, opens the editor                                                                                                              | ✅  | ✅      |
-| 30 rows scroll smoothly; inputs editable                                                                                                                                       | ✅  | ✅      |
-| Clearing a blind field shows **empty**, not `0`; blur restores the old value                                                                                                   | ✅  | ✅      |
-| `+` → Insert below / Duplicate, at top, middle and end                                                                                                                         | ✅  | ✅      |
-| Delete down to 2 levels → trash buttons disable                                                                                                                                | ✅  | ✅      |
-| Sticky footer appears only when dirty                                                                                                                                          | ✅  | ✅      |
-| **Discard** restores the active values                                                                                                                                         | ✅  | ✅      |
-| **Apply mid-tournament keeps your level** (start Level 12, edit, apply → still 12)                                                                                             | ✅  | ✅      |
-| Apply a schedule **shorter** than the current level → warning shown, lands on last level, **timer does not crash**                                                             | ✅  | ✅      |
-| Tap-to-jump: confirm → timer _and_ notification/Live Activity both follow                                                                                                      | ✅  | ✅      |
-| Jump chip is **inert** while the draft is dirty                                                                                                                                | ✅  | ✅      |
-| Back with unapplied edits → Apply / Discard / Keep editing                                                                                                                     | ✅  | ✅      |
-| …via **hardware back** (Android) and **swipe-back** (iOS) — the dialog appears both ways. **But the screen cannot be re-entered afterwards: [see D6](#d6-blinds-unreachable)** | ✅  | ✅      |
-| Kill the app with a dirty draft → relaunch → draft and footer still there                                                                                                      | ✅  | ✅      |
+|                                                                                                                                                                                                                                                                                              | iOS | Android |
+| -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --- | ------- |
+| Settings scrolls as one page — no scroll island                                                                                                                                                                                                                                              | ✅  | ✅      |
+| Blind structure row shows correct count + range, opens the editor                                                                                                                                                                                                                            | ✅  | ✅      |
+| 30 rows scroll smoothly; inputs editable                                                                                                                                                                                                                                                     | ✅  | ✅      |
+| Clearing a blind field shows **empty**, not `0`; blur restores the old value                                                                                                                                                                                                                 | ✅  | ✅      |
+| `+` → Insert below / Duplicate, at top, middle and end                                                                                                                                                                                                                                       | ✅  | ✅      |
+| Delete down to 2 levels → trash buttons disable                                                                                                                                                                                                                                              | ✅  | ✅      |
+| Sticky footer appears only when dirty                                                                                                                                                                                                                                                        | ✅  | ✅      |
+| **Discard** restores the active values                                                                                                                                                                                                                                                       | ✅  | ✅      |
+| **Apply mid-tournament keeps your level** (start Level 12, edit, apply → still 12)                                                                                                                                                                                                           | ✅  | ✅      |
+| Apply a schedule **shorter** than the current level → warning shown, lands on last level, **timer does not crash**                                                                                                                                                                           | ✅  | ✅      |
+| Tap-to-jump: confirm → timer _and_ notification/Live Activity both follow                                                                                                                                                                                                                    | ✅  | ✅      |
+| Jump chip is **inert** while the draft is dirty                                                                                                                                                                                                                                              | ✅  | ✅      |
+| Back with unapplied edits → Apply / Discard / Keep editing                                                                                                                                                                                                                                   | ✅  | ✅      |
+| …via **hardware back** (Android), which raises the dialog. **On iOS the swipe gesture is now disabled while a draft is unapplied** — the header back button is the way out, so a draft cannot be swiped away and the navigator cannot be left inconsistent. [See D6](#d6-blinds-unreachable) | 🔧  | ✅      |
+| Kill the app with a dirty draft → relaunch → draft and footer still there                                                                                                                                                                                                                    | ✅  | ✅      |
 
 ---
 
@@ -1464,6 +1464,19 @@ gesture alone.
 **Nothing on this machine can verify a fix.** There is no `Simulator.app` in this Xcode install, so
 an iOS-only navigation fix cannot be exercised here — it has to be confirmed on a device against
 candidate 5.
+
+**Fixed by disabling the gesture rather than by taming it.** `useUnsavedChangesGuard` now sets
+`gestureEnabled: false` while it is armed, so on iOS the swipe does nothing at all with an
+unapplied draft and the header back button raises the dialog. The failure is removed by
+construction: the gesture never starts, so nothing can go out of step.
+
+**The trade, stated plainly.** Swipe-back no longer raises the dialog on iOS, which is what §2's row
+used to ask for — that row now describes the new behaviour. It is the better of the two failures: a
+swipe that does nothing is obvious and recoverable, and an unapplied draft can no longer be swiped
+away by accident. `gestureEnabled` is iOS-only in practice, so Android keeps exactly what it had.
+
+**🔧 and not ✅, because I could not run it.** The fix is reasoned from the Android reproduction and
+the mechanism, not observed on iOS. Candidate 5 on a device is what settles it.
 
 ---
 
