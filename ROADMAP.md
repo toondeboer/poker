@@ -67,6 +67,22 @@ to be built before anything is submitted for review.** What remains, in order:
   prompt"_ row cannot be reached by resetting at all — you have to navigate back to level 1 by hand
   first.
 
+- ⬜ **There is no password reset, and this file assumed there was.** Found on the 1.2.0 TestFlight
+  pass of §14, by looking for the button. `cognitoAuthProvider` has no `forgotPassword` or
+  `confirmForgotPassword`, `AuthContext` does not expose one, and no screen offers it — while the
+  sign-in decision record below says "Password reset stays SES's job". It was intended and never
+  built, which is why the checklist row expected it.
+
+  **Bounded by the linking case.** Signing in with a provider on the _same address_ returns you to
+  the _same_ account, so anyone whose address is a Google or Apple account already has a way back
+  in. The genuinely locked-out case is an address that is neither, with a forgotten password — and
+  email/password is the deliberate fallback path, not the primary one.
+
+  **Accepted for 1.2.0**: nobody is at risk on the day it ships, and two new Cognito calls plus a
+  screen and its error states is new surface in a candidate whose pass is nearly finished. When it
+  is built, mind that an account confirmed administratively is `email_verified: false` and Cognito
+  will refuse to send to it at all — a failure that reads exactly like broken mail.
+
 - 🟡 **A Live Activity outlives the round that started it, and there is no Stop control.** Found on
   the 1.2.0 TestFlight pass of §6. Reset leaves the card on the Lock Screen, and there is no Stop
   button anywhere to clear it — swiping it away by hand is the only way. **Accepted for 1.2.0**: a

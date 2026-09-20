@@ -796,22 +796,22 @@ would bite on launch day, and a dev-pool pass cannot prove it.
 confirmation code is 🚫, because running it needs somebody with an inbox.** These rows are never
 mirrored, so iOS clearing them says nothing about Android — see the note under the table.
 
-|                                                                                                                                                                                                                                                                    | iOS | Android |
-| ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | --- | ------- |
-| After signing in **with email**, only the signed-in card shows — no second Sign in or Create-an-account form beneath it                                                                                                                                            | ✅  | ✅      |
-| Settings shows the account row, and it opens the account screen                                                                                                                                                                                                    | ✅  | ✅      |
-| **Sign up with a real address → the code arrives.** This is the row the whole feature rests on: Cognito's own sender was capped and landed in spam, which is why it now goes through SES                                                                           | ✅  | 🚫      |
-| The code arrives **in the inbox, not spam**, and is from `Poker Blinds Timer`                                                                                                                                                                                      | ✅  | 🚫      |
-| Confirming with the emailed code signs you in                                                                                                                                                                                                                      | ✅  | 🚫      |
-| **After confirming, the account can reset its password.** A user confirmed without the emailed code ends up `email_verified: false` and Cognito refuses to send to them at all — it reads as a mail failure and is not one. [See D-note](#accounts-email-verified) | ⬜  | 🚫      |
-| A **wrong code** says so and lets you try again, rather than dead-ending                                                                                                                                                                                           | ✅  | 🚫      |
-| An **already-taken email** says so in words, not an error code                                                                                                                                                                                                     | ✅  | 🚫      |
-| A **wrong password** on sign-in says so and does not clear the email field                                                                                                                                                                                         | ⬜  | 🟡      |
-| Sign out, then sign back in — the boards are still there                                                                                                                                                                                                           | ⬜  | 🚫      |
-| **Force-quit mid-sign-up, relaunch** → not signed in and not stuck; signing up again with the same address behaves sanely                                                                                                                                          | ⬜  | 🚫      |
-| **Airplane mode during sign-in** says there is no connection, and does **not** sign you out of an existing session                                                                                                                                                 | ⬜  | 🟡      |
-| **Delete account removes the data, not just the login.** Delete, then sign up again with the same address: no old boards, no old claims. App Store 5.1.1(v) asks for the data as well                                                                              | ⬜  | 🚫      |
-| After deleting, the app still works — local boards intact, timer fine, no crash on next launch                                                                                                                                                                     | ⬜  | 🚫      |
+|                                                                                                                                                                                                                                                                                                                                                                                                       | iOS | Android |
+| ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --- | ------- |
+| After signing in **with email**, only the signed-in card shows — no second Sign in or Create-an-account form beneath it                                                                                                                                                                                                                                                                               | ✅  | ✅      |
+| Settings shows the account row, and it opens the account screen                                                                                                                                                                                                                                                                                                                                       | ✅  | ✅      |
+| **Sign up with a real address → the code arrives.** This is the row the whole feature rests on: Cognito's own sender was capped and landed in spam, which is why it now goes through SES                                                                                                                                                                                                              | ✅  | 🚫      |
+| The code arrives **in the inbox, not spam**, and is from `Poker Blinds Timer`                                                                                                                                                                                                                                                                                                                         | ✅  | 🚫      |
+| Confirming with the emailed code signs you in                                                                                                                                                                                                                                                                                                                                                         | ✅  | 🚫      |
+| 🚫 **After confirming, the account can reset its password.** **There is no password reset in 1.2.0 — [see D7](#d7-no-password-reset).** The original note stands for whenever it is built: a user confirmed without the emailed code ends up `email_verified: false` and Cognito refuses to send to them at all, which reads as a mail failure and is not one. [See D-note](#accounts-email-verified) | 🚫  | 🚫      |
+| A **wrong code** says so and lets you try again, rather than dead-ending                                                                                                                                                                                                                                                                                                                              | ✅  | 🚫      |
+| An **already-taken email** says so in words, not an error code                                                                                                                                                                                                                                                                                                                                        | ✅  | 🚫      |
+| A **wrong password** on sign-in says so and does not clear the email field                                                                                                                                                                                                                                                                                                                            | ✅  | 🟡      |
+| Sign out, then sign back in — the boards are still there                                                                                                                                                                                                                                                                                                                                              | ✅  | 🚫      |
+| **Force-quit mid-sign-up, relaunch** → not signed in and not stuck; signing up again with the same address behaves sanely                                                                                                                                                                                                                                                                             | ⬜  | 🚫      |
+| **Airplane mode during sign-in** says there is no connection, and does **not** sign you out of an existing session                                                                                                                                                                                                                                                                                    | ⬜  | 🟡      |
+| **Delete account removes the data, not just the login.** Delete, then sign up again with the same address: no old boards, no old claims. App Store 5.1.1(v) asks for the data as well                                                                                                                                                                                                                 | ⬜  | 🚫      |
+| After deleting, the app still works — local boards intact, timer fine, no crash on next launch                                                                                                                                                                                                                                                                                                        | ⬜  | 🚫      |
 
 **These 🚫 are a different blocker from the billing rows.** They are not blocked on a store build
 — `DEV_BACKEND` reaches a real Cognito pool and SES has production access, so the flow works. They
@@ -1253,14 +1253,15 @@ anchor so the rows above can link to it. Keep an entry after it's fixed so the r
 release; the whole section is cleared when the release ships, since by then the fix is in the
 changelog and the reasoning is in the commit.
 
-|                                                                                                       | Found in                     | State                                              |
-| ----------------------------------------------------------------------------------------------------- | ---------------------------- | -------------------------------------------------- |
-| **[D1](#d1-auth-redirect)** — a provider sign-in ends on "Unmatched Route"                            | §14b, Android, candidate 3   | 🔧 fixed in #277, wants an **Android** candidate 4 |
-| **[D2](#d2-rtdn)** — a refund never revokes the entitlement                                           | §1, Android, candidate 3     | 🟡 accepted for 1.2.0                              |
-| **[D3](#d3-session-not-persisted)** — a restarted host silently leaves its own clock                  | §18, Android, candidate 3    | 🔧 fixed in #283, wants an **Android** candidate 4 |
-| **[D5](#d5-ipad-list-width)** — the blind editor's iPad layout never reaches its 900pt cap            | §7, iPad simulator           | ✅ fixed and re-verified                           |
-| **[D6](#d6-blinds-unreachable)** — Blind structure is unreachable after leaving it with a dirty draft | §2, iOS, TestFlight build 30 | 🔧 fixed in #296, wants candidate 5                |
-| **[D4](#d4-prod-alerting)** — prod had no alarm delivery at all                                       | §15b/§20, prod, 2026-09-19   | ✅ fixed and confirmed                             |
+|                                                                                                       | Found in                      | State                                              |
+| ----------------------------------------------------------------------------------------------------- | ----------------------------- | -------------------------------------------------- |
+| **[D1](#d1-auth-redirect)** — a provider sign-in ends on "Unmatched Route"                            | §14b, Android, candidate 3    | 🔧 fixed in #277, wants an **Android** candidate 4 |
+| **[D7](#d7-no-password-reset)** — there is no password reset, and the roadmap assumed there was       | §14, iOS, TestFlight build 30 | 🟡 accepted for 1.2.0, carried to 1.2.1            |
+| **[D2](#d2-rtdn)** — a refund never revokes the entitlement                                           | §1, Android, candidate 3      | 🟡 accepted for 1.2.0                              |
+| **[D3](#d3-session-not-persisted)** — a restarted host silently leaves its own clock                  | §18, Android, candidate 3     | 🔧 fixed in #283, wants an **Android** candidate 4 |
+| **[D5](#d5-ipad-list-width)** — the blind editor's iPad layout never reaches its 900pt cap            | §7, iPad simulator            | ✅ fixed and re-verified                           |
+| **[D6](#d6-blinds-unreachable)** — Blind structure is unreachable after leaving it with a dirty draft | §2, iOS, TestFlight build 30  | 🔧 fixed in #296, wants candidate 5                |
+| **[D4](#d4-prod-alerting)** — prod had no alarm delivery at all                                       | §15b/§20, prod, 2026-09-19    | ✅ fixed and confirmed                             |
 
 > **D1 and D3 are not waiting on Play.** Both fixes are in candidate 4 (verified by ancestry
 > against `1b33049`), and candidate 4 exists on TestFlight — but they are **Android** rows, and
@@ -1273,6 +1274,36 @@ changelog and the reasoning is in the commit.
 > Two things to know before installing one: it will **not** install over a Play build (same
 > versionCode, different signing key — uninstall first), and it carries `PROD_BACKEND`, so **do not
 > run §14's account rows on it** — those want the dev client pointed at `DEV_BACKEND`.
+
+<a id="d7-no-password-reset"></a>
+
+### D7 — there is no password reset (both platforms)
+
+**Found** on TestFlight build 30 running §14's Phase 2, by looking for the button and not finding
+one.
+
+**What is missing.** Nothing. `cognitoAuthProvider` exposes `signUp`, `confirmSignUp`, `resendCode`,
+`signIn`, `signInWithProvider`, `signOut` and `deleteAccount`; there is no `forgotPassword`, no
+`confirmForgotPassword`, nothing in `AuthContext`, and no control on any screen. The row was not
+stale — `ROADMAP.md` says "**Password reset stays SES's job**" in the sign-in decision record, so it
+was intended and simply never built.
+
+**Who is actually affected, and why it is bounded.** Someone who signs up with email + password and
+loses it has no recovery path in the app, and none on the website either, since accounts have not
+reached it. But §14b's **linking case** means signing in with a provider on the _same address_
+returns you to the _same_ account — so anyone whose address is a Google or Apple account recovers by
+tapping the provider button instead. The genuinely locked-out case is an address that is neither,
+with a forgotten password. Email/password is also the deliberate **fallback** path: the roadmap
+makes social primary precisely because the emailed code is the highest-drop-off step in any sign-up.
+
+**Accepted for 1.2.0.** The population at risk is zero on the day it ships and grows slowly;
+provider linking covers most of it; and `ForgotPassword`/`ConfirmForgotPassword` plus a screen and
+its error states is real new surface in a candidate whose testing pass is nearly done. Carried to
+1.2.1.
+
+**When it is built**, the `email_verified` note below applies to it: an account confirmed
+administratively rather than through the emailed code cannot be sent to at all, and that failure
+looks exactly like broken mail.
 
 <a id="d1-auth-redirect"></a>
 
