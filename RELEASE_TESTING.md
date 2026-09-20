@@ -1074,18 +1074,20 @@ reaches TestFlight or Play internal testing — before submission, not after it.
 | **Both plans show a price**, taken from the store rather than written into the app — so it is right in every currency                                                                                                    | ✅  | ✅      |
 | **Each says its billing period** — "Monthly" and "Annual". Price without period is the 3.1.2 rejection                                                                                                                   | ✅  | ✅      |
 | It says **renews until cancelled**, and where to cancel — App Store on iOS, Play Store on Android                                                                                                                        | ✅  | ✅      |
-| **"Joining a board is always free" is on screen.** The misunderstanding most likely to kill the feature                                                                                                                  | ⬜  | ✅      |
-| **Terms of Use opens `/terms`** in a browser, and the page loads                                                                                                                                                         | ⬜  | ✅      |
-| **Privacy Policy opens `/privacy-policy`**, and the page loads                                                                                                                                                           | ⬜  | ✅      |
+| **"Joining a board is always free" is on screen.** The misunderstanding most likely to kill the feature                                                                                                                  | ✅  | ✅      |
+| **Terms of Use opens `/terms`** in a browser, and the page loads                                                                                                                                                         | ✅  | ✅      |
+| **Privacy Policy opens `/privacy-policy`**, and the page loads                                                                                                                                                           | ✅  | ✅      |
 | Buying **monthly** grants `club` **and** `pro` — the board opens straight away, with no second purchase                                                                                                                  | ✅  | ✅      |
-| Buying **annual** does the same                                                                                                                                                                                          | ⬜  | ✅      |
+| Buying **annual** does the same                                                                                                                                                                                          | ✅  | ✅      |
 | **Cancelling at the store** removes hosting but **leaves Pro** — the boards stay visible. This is the promise `clubEver` exists to keep                                                                                  | ✅  | ✅      |
 | **A subscriber is never offered the plans again** — the two plan buttons are replaced by "Club active"                                                                                                                   | ✅  | ✅      |
-| **…but the card itself stays**, carrying the renewal terms and both legal links. Changed in 1.2.0: the whole section used to vanish, which took the cancellation terms with it — away from the one person who needs them | 🔧  | ✅      |
-| Cancelling a purchase halfway leaves the sheet usable, with no error — cancelling is not a failure                                                                                                                       | ⬜  | ✅      |
-| **Restore brings back both entitlements** on a fresh install                                                                                                                                                             | ⬜  | ⬜      |
+| **…but the card itself stays**, carrying the renewal terms and both legal links. Changed in 1.2.0: the whole section used to vanish, which took the cancellation terms with it — away from the one person who needs them | ✅  | ✅      |
+| Cancelling a purchase halfway leaves the sheet usable, with no error — cancelling is not a failure                                                                                                                       | ✅  | ✅      |
+| **Restore brings back both entitlements** on a fresh install                                                                                                                                                             | ✅  | ⬜      |
 
-> **Two of these need candidate 3, and one of them was marked against candidate 2 by mistake.**
+> **Verified on candidate 5, including the row that had been ticked against the wrong build.**
+>
+> **Two of these needed candidate 3, and one of them was marked against candidate 2 by mistake.**
 > Running §16b on build 28 is what found #272: Settings collapsed the active Club card to a line and
 > a badge, and every other way into the paywall is a _locked_ feature — so a subscriber could not
 > open it at all, and the renewal terms, where to cancel, and both legal links went with it. The
