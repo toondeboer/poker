@@ -1215,8 +1215,8 @@ If a phone shows that asymmetry, note which one is hosting.
 
 |                                                                                                                                              | iOS | Android |
 | -------------------------------------------------------------------------------------------------------------------------------------------- | --- | ------- |
-| **Settings → Tournament shows "Shared clock"**, and it opens this screen. Absent with `featureSharing=off`, and on a build with no backend   | ⬜  | ✅      |
-| **Without Club**, Start is disabled and says sharing is part of Club — and that **joining is free**                                          | ⬜  | ⬜      |
+| **Settings → Tournament shows "Shared clock"**, and it opens this screen. Absent with `featureSharing=off`, and on a build with no backend   | ✅  | ✅      |
+| **Without Club**, Start is disabled and says sharing is part of Club — and that **joining is free**                                          | ⬜  | ✅      |
 | **Signed out**, both Start and Join are disabled and each says to sign in — not "subscribe"                                                  | ✅  | ✅      |
 | While entitlements are still loading, it says so rather than refusing — a subscriber must never be told they have not paid                   | ✅  | ✅      |
 | **Hosting produces a six-character code** from the alphabet that drops what gets misheard — no I, O, S, Z                                    | ✅  | ✅      |
@@ -1226,10 +1226,10 @@ If a phone shows that asymmetry, note which one is hosting.
 | **Pausing on either device pauses both.** This is the row the feature exists for — and either device, not just the host                      | ✅  | ✅      |
 | **Two people pause at the same moment** and both phones settle on the same answer rather than splitting                                      | ✅  | ✅      |
 | A level jump travels too — `blindIndex` is in the message                                                                                    | ✅  | ✅      |
-| **Killing the host app leaves the joiner counting down**, and it reads `stale` after ~15s rather than freezing or lying                      | ⬜  | ✅      |
-| Reopening the host **rejoins and the two agree again** within a poll — **[see D3](#d3-session-not-persisted)**                               | ⬜  | ✅      |
-| **Airplane mode on the joiner** for 30s, then back: it catches up rather than needing a rejoin                                               | ✅  | ⬜      |
-| Leaving stops the polling — the clock keeps running locally and nothing further is sent                                                      | ✅  | ⬜      |
+| **Killing the host app leaves the joiner counting down**, and it reads `stale` after ~15s rather than freezing or lying                      | ✅  | ✅      |
+| Reopening the host **rejoins and the two agree again** within a poll — **[see D3](#d3-session-not-persisted)**                               | ✅  | ✅      |
+| **Airplane mode on the joiner** for 30s, then back: it catches up rather than needing a rejoin                                               | ✅  | ✅      |
+| Leaving stops the polling — the clock keeps running locally and nothing further is sent                                                      | ✅  | ✅      |
 | 🚫 **A session expires six hours after its last message.** Cannot be run in a sitting; the TTL is asserted in the store's unit tests instead | ⬜  | ⬜      |
 
 **Where to look if it does not work.** `sessionTransport` is `null` on any build with no
@@ -1282,13 +1282,25 @@ and no alert. A regression here is invisible until somebody reports it. Carried 
 item re-notifying is the failure most likely to reach a person, hardest to notice from the server,
 and the only one of the five that annoys every member of the board at once.
 
+**Delivery has now been observed, for the first time in this project.** Every previous pass could
+verify _registration_ — a `PUSH#<token>` row under `ACCOUNT#<sub>` — and never delivery: APNs
+refused the Simulator's token with `BadDeviceToken` and FCM accepted the emulator's message without
+it ever appearing. Two real devices on candidate 5, signed into different accounts on the same
+board, settled it: the other phone is notified within seconds, the recorder is not, and the text
+names the board rather than the player.
+
+**The two things that look like a broken token and are not**, kept because they cost a session once:
+a device that never allowed notifications **never registers**, silently and correctly; and a refused
+send surfaces only in a **receipt**, which nothing fetches — so a bad token or a revoked key leaves
+no trace on the server at all.
+
 |                                                                                                                                                                                                                                    | iOS | Android |
 | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --- | ------- |
-| **A member records a game; the other member's phone shows a notification** within a few seconds                                                                                                                                    | ✅  | ⬜      |
-| **The person who recorded it is not notified** — they are holding the phone                                                                                                                                                        | ⬜  | ✅      |
-| **It names the board, not the player.** No player name appears on the lock screen                                                                                                                                                  | ✅  | ⬜      |
+| **A member records a game; the other member's phone shows a notification** within a few seconds                                                                                                                                    | ✅  | ✅      |
+| **The person who recorded it is not notified** — they are holding the phone                                                                                                                                                        | ✅  | ✅      |
+| **It names the board, not the player.** No player name appears on the lock screen                                                                                                                                                  | ✅  | ✅      |
 | Tapping it opens the app — and does not crash from a cold start                                                                                                                                                                    | 🟡  | 🟡      |
-| **Declining the notification permission means no push, and no error.** Somebody who said no should not be asked again by this feature                                                                                              | ⬜  | ✅      |
+| **Declining the notification permission means no push, and no error.** Somebody who said no should not be asked again by this feature                                                                                              | ✅  | ✅      |
 | 🚫 **Signed in on two devices, both are notified** — needs the _receiving_ account on two devices plus a separate sender, so **three devices** — a token is a row per device, and the second sign-in must not unregister the first | 🚫  | 🚫      |
 | **Recording while the other phone is offline**: it arrives when that phone comes back, or not at all — never as a duplicate                                                                                                        | 🟡  | 🟡      |
 | **The outbox replaying a queued game sends no second notification.** Only a write that actually landed notifies                                                                                                                    | 🟡  | 🟡      |
