@@ -337,30 +337,30 @@ Nothing in development can exercise this fully: the Android emulator has no Play
 (`BILLING_UNAVAILABLE`) and the Simulator has no StoreKit configured. Needs a real device with a
 sandbox/test account, and for Android, a build uploaded to a Play track.
 
-|                                                                                                                                                                                                                                                                                                                                                                                 | iOS | Android                          |
-| ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --- | -------------------------------- |
-| Paywall opens from **every** entry point. Settings' **Pro**, **Club**, **Presets** and **Sound Pack** cards; **Payouts**; **Leaderboard** (both its locked card _and_ "Share this board"); the **game** screen; the **Groups** sheet; and the **shared-clock** screen. **Was written as "five" and is not** — Club, Groups, the game screen and the shared clock all came later | ⬜  | ✅                               |
-| Price string renders (not blank, not `one-time` alone)                                                                                                                                                                                                                                                                                                                          | ✅  | ✅                               |
-| **Purchase completes** and Pro unlocks (ads gone, Presets, Sound Pack, Payouts + Leaderboard usable)                                                                                                                                                                                                                                                                            | ✅  | 🚫 [see below](#android-billing) |
-| **Restore purchases** works on a fresh install of the same account                                                                                                                                                                                                                                                                                                              | ✅  | 🚫 [see below](#android-billing) |
-| Cancelling a purchase leaves the app in a sane state, no error toast                                                                                                                                                                                                                                                                                                            | ✅  | 🚫 [see below](#android-billing) |
-| **A refund revokes the entitlement.** Refund with _revoke access_ in the store console → the app loses Pro. **Known gap, accepted — [see D2](#d2-rtdn)**                                                                                                                                                                                                                        | 🟡  | 🟡                               |
+|                                                                                                                                                                                                                                                                                                                                                                                 | iOS | Android |
+| ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --- | ------- |
+| Paywall opens from **every** entry point. Settings' **Pro**, **Club**, **Presets** and **Sound Pack** cards; **Payouts**; **Leaderboard** (both its locked card _and_ "Share this board"); the **game** screen; the **Groups** sheet; and the **shared-clock** screen. **Was written as "five" and is not** — Club, Groups, the game screen and the shared clock all came later | ⬜  | ✅      |
+| Price string renders (not blank, not `one-time` alone)                                                                                                                                                                                                                                                                                                                          | ✅  | ✅      |
+| **Purchase completes** and Pro unlocks (ads gone, Presets, Sound Pack, Payouts + Leaderboard usable)                                                                                                                                                                                                                                                                            | ✅  | ✅      |
+| **Restore purchases** works on a fresh install of the same account                                                                                                                                                                                                                                                                                                              | ✅  | ✅      |
+| Cancelling a purchase leaves the app in a sane state, no error toast                                                                                                                                                                                                                                                                                                            | ✅  | ✅      |
+| **A refund revokes the entitlement.** Refund with _revoke access_ in the store console → the app loses Pro. **Known gap, accepted — [see D2](#d2-rtdn)**                                                                                                                                                                                                                        | 🟡  | 🟡      |
 
 ### 1b. The Club subscription · **new in 1.2.0**
 
 A subscription is not a second one-time purchase. **It ends**, and nothing in this app has ever had
 to handle something a person bought stopping working — every row below is a first.
 
-|                                                                                                                                                                                                                      | iOS | Android                          |
-| -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --- | -------------------------------- |
-| Both SKUs appear and are priced — monthly **and** annual. One store having only one of them is a half-shipped product                                                                                                | ✅  | 🚫 [see below](#android-billing) |
-| **Subscribing grants Pro as well.** A subscriber who never bought Pro can open the leaderboard — otherwise they are hosting a board they cannot see                                                                  | ✅  | ✅                               |
-| **Restore brings back both**, on a fresh install on the same store account — Pro and Club, not one                                                                                                                   | ⬜  | 🚫                               |
-| Cancelling in the store leaves the app sane, and access continues to the end of the paid period                                                                                                                      | ✅  | ✅                               |
-| **After it expires: sharing stops, and Pro does not.** Once a subscription has granted Pro it keeps it, so the boards stay visible and only hosting goes. Getting this wrong takes the sight of every board they own | ✅  | ✅                               |
-| An expired subscriber's **existing shared boards keep working for the other members** — they are still on the server, and stranding them is worse than the cost it saves                                             | ⬜  | 🚫                               |
-| Resubscribing restores hosting without anything being lost                                                                                                                                                           | ⬜  | ✅                               |
-| A Pro-only buyer is **never** told to buy Pro again by any Club message                                                                                                                                              | ⬜  | 🚫                               |
+|                                                                                                                                                                                                                      | iOS | Android |
+| -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --- | ------- |
+| Both SKUs appear and are priced — monthly **and** annual. One store having only one of them is a half-shipped product                                                                                                | ✅  | ✅      |
+| **Subscribing grants Pro as well.** A subscriber who never bought Pro can open the leaderboard — otherwise they are hosting a board they cannot see                                                                  | ✅  | ✅      |
+| **Restore brings back both**, on a fresh install on the same store account — Pro and Club, not one                                                                                                                   | ⬜  | ✅      |
+| Cancelling in the store leaves the app sane, and access continues to the end of the paid period                                                                                                                      | ✅  | ✅      |
+| **After it expires: sharing stops, and Pro does not.** Once a subscription has granted Pro it keeps it, so the boards stay visible and only hosting goes. Getting this wrong takes the sight of every board they own | ✅  | ✅      |
+| An expired subscriber's **existing shared boards keep working for the other members** — they are still on the server, and stranding them is worse than the cost it saves                                             | ⬜  | 🚫      |
+| Resubscribing restores hosting without anything being lost                                                                                                                                                           | ⬜  | ✅      |
+| A Pro-only buyer is **never** told to buy Pro again by any Club message                                                                                                                                              | ⬜  | 🚫      |
 
 > **Expiry is the row most likely to be skipped and most likely to hurt.** `entitlementsFrom` reads
 > `entitlements.all` rather than `active` precisely so a lapsed subscriber keeps Pro through a
@@ -448,9 +448,14 @@ charged for real; miss the track and the build is not installable.
 > Store itself recognises: the package must be uploaded to a Play Console track (internal testing is
 > enough), signed with the same key, and the tester's account added to the licence-testing list. A
 > locally-built debug APK fails all three, which is why it returns `BILLING_UNAVAILABLE` rather than
-> a purchase sheet. **These three rows therefore move to the internal-testing pass, after the build
-> is uploaded** — they are not blocked on any code change. iOS is the mirror image: StoreKit sandbox
-> works against a local device build, which is why its column can be cleared earlier.
+> a purchase sheet. **These rows therefore belong to the internal-testing pass, after the build is
+> uploaded** — they are never blocked on a code change, which is worth remembering when one of them
+> is red. iOS is the mirror image: StoreKit sandbox works against a local device build, which is why
+> its column clears earlier and why its ✅ says nothing about Android.
+>
+> Run on candidate 5 (versionCode 20) off the internal track, once developer verification cleared.
+> **Android billing had never been exercised at all before that** — every ✅ in that column is a
+> first.
 
 ---
 
