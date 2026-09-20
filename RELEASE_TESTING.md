@@ -790,25 +790,25 @@ directly above it. `showdownFor` was right; `TableView` keyed the reveal on reac
 rather than on anybody having to show. Exactly the defect class this section exists for — invisible
 to a unit test, obvious in a screenshot.
 
-|                                                                                                                                                    | iOS | Android |
-| -------------------------------------------------------------------------------------------------------------------------------------------------- | --- | ------- |
-| Locked state: Pro pill on the Settings row, the screen still opens and offers the unlock                                                           | ✅  | 🚫      |
-| Seating: tapping a player seats them, tapping again unseats; Deal stays disabled below two                                                         | ✅  | ✅      |
-| **Tapping a seat shows only that seat's two cards**, and tapping it again hides them                                                               | ✅  | ✅      |
-| **Tapping a second seat hides the first.** Never two hands visible at once — this is the one that matters when the phone is going round            | ✅  | ✅      |
-| **Turning a street hides whatever was showing.** Deal the flop with a hand revealed and it must close, or the next player inherits it              | ✅  | ✅      |
-| Muck takes a seat out: the row dims, they are left out of the showdown, and the "in" count drops                                                   | ✅  | ✅      |
-| Mucking down to one player leaves **no cards shown** at the showdown — an uncontested hand is not revealed                                         | ✅  | ✅      |
-| The showdown reveals every hand still in, ranked best first, with the winner starred and each hand named                                           | ✅  | ✅      |
-| **No chips, no pot, no bet and no amount appear anywhere on the screen.** Check by eye, in a screenshot — this is the property the rating rests on | ✅  | ✅      |
-| The action to take a seat out reads **Muck**, never Fold                                                                                           | ✅  | ✅      |
-| **A hand survives a force-stop.** Deal, kill the app from the switcher, reopen → the same board and the same hole cards come back                  | ✅  | ✅      |
-| A finished hand survives too: the showdown is still on screen after a relaunch                                                                     | ✅  | ✅      |
-| "Next hand" deals again and the button moves on                                                                                                    | ✅  | 🟡      |
-| Ending a game where **nothing has been dealt** does not ask — there is nothing to lose                                                             | ✅  | ✅      |
-| Ending a game mid-evening asks first, and cancelling keeps the cards                                                                               | ✅  | ✅      |
-| Readable across a table — card faces and whose cards are showing, at arm's length                                                                  | ⬜  | 🚫      |
-| Tablet: the table is capped and centred rather than running the full width                                                                         | ✅  | ✅      |
+|                                                                                                                                                              | iOS | Android |
+| ------------------------------------------------------------------------------------------------------------------------------------------------------------ | --- | ------- |
+| Locked state: Pro pill on the Settings row, the screen still opens and offers the unlock                                                                     | ✅  | 🚫      |
+| Seating: tapping a player seats them, tapping again unseats; Deal stays disabled below two                                                                   | ✅  | ✅      |
+| **Tapping a seat shows only that seat's two cards**, and tapping it again hides them                                                                         | ✅  | ✅      |
+| **Tapping a second seat hides the first.** Never two hands visible at once — this is the one that matters when the phone is going round                      | ✅  | ✅      |
+| **Turning a street hides whatever was showing.** Deal the flop with a hand revealed and it must close, or the next player inherits it                        | ✅  | ✅      |
+| Muck takes a seat out: the row dims, they are left out of the showdown, and the "in" count drops                                                             | ✅  | ✅      |
+| Mucking down to one player leaves **no cards shown** at the showdown — an uncontested hand is not revealed                                                   | ✅  | ✅      |
+| The showdown reveals every hand still in, ranked best first, with the winner starred and each hand named                                                     | ✅  | ✅      |
+| **No chips, no pot, no bet and no amount appear anywhere on the screen.** Check by eye, in a screenshot — this is the property the rating rests on           | ✅  | ✅      |
+| The action to take a seat out reads **Muck**, never Fold                                                                                                     | ✅  | ✅      |
+| **A hand survives a force-stop.** Deal, kill the app from the switcher, reopen → the same board and the same hole cards come back                            | ✅  | ✅      |
+| A finished hand survives too: the showdown is still on screen after a relaunch                                                                               | ✅  | ✅      |
+| "Next hand" deals again and the button moves on                                                                                                              | ✅  | 🟡      |
+| Ending a game where **nothing has been dealt** does not ask — there is nothing to lose                                                                       | ✅  | ✅      |
+| Ending a game mid-evening asks first, and cancelling keeps the cards                                                                                         | ✅  | ✅      |
+| 🚫 Readable across a table — card faces and whose cards are showing, at arm's length. **Needs a real table**, and no screenshot substitutes for the distance | 🚫  | 🚫      |
+| Tablet: the table is capped and centred rather than running the full width                                                                                   | ✅  | ✅      |
 
 **Why three rows are not ✅ on Android:**
 
@@ -918,7 +918,7 @@ can be run on such a build**, not just this one. Rebuild first — see §0.
 | **Continue with Google** on a fresh install creates an account and signs in. **Signs in, but ends on an error screen — [see D1](#d1-auth-redirect)**                                                                          | ✅  | ✅      |
 | Signing out and back in with the same provider returns to the **same** account, not a new one                                                                                                                                 | ✅  | ✅      |
 | **The linking case.** Sign up with email+password, sign out, then sign in with a provider on the _same address_ — the boards and season are still there. This is the one that fails silently and looks exactly like data loss | ✅  | ✅      |
-| 🚫 **Hide My Email** — needs a **second Apple ID**, and cannot be run with one. See below                                                                                                                                     | ⬜  | ⬜      |
+| 🚫 **Hide My Email** — needs a **second Apple ID**, and cannot be run with one. See below                                                                                                                                     | 🚫  | 🚫      |
 | Closing the provider sheet halfway leaves the screen usable, with **no red error** — cancelling is not a failure                                                                                                              | ✅  | ✅      |
 | Declining at the provider does the same                                                                                                                                                                                       | ✅  | ✅      |
 | **Use email instead** reveals the email form, and email sign-in still works                                                                                                                                                   | ✅  | ✅      |
@@ -1006,31 +1006,31 @@ re-joining clears a board's refusals anyway, so it could not be confirmed after 
 > before removals reached the server, and the host's phone has hidden him since, so nothing can take
 > him off now. Only a board used before that fix can be in this state — don't file it.
 
-|                                                                                                                                                    | iOS | Android |
-| -------------------------------------------------------------------------------------------------------------------------------------------------- | --- | ------- |
-| **The host shares a board** — the code arrives in the share sheet with a message naming the app                                                    | ✅  | ✅      |
-| **A second device joins by pasting the code**, and the board arrives with its whole roster and season, not empty                                   | ✅  | ✅      |
-| Pasting **the entire shared message** works, not just the bare code                                                                                | ✅  | ✅      |
-| A **wrong or expired code** says so and leaves the app usable                                                                                      | ✅  | ✅      |
-| **A guest pays nothing.** A device with neither Pro nor Club joins, and can read the board it was sent — if it hits a paywall, the feature is dead | ✅  | ✅      |
-| That guest **cannot** create a board of their own (Pro) or share one (Club) — the create and share controls are absent, not broken                 | ✅  | ✅      |
-| **A player added on one device appears on the other** after foregrounding it                                                                       | ✅  | ✅      |
-| **A game recorded on one appears on the other**, with the same standings                                                                           | ✅  | ✅      |
-| **Record with no signal, then reconnect.** Airplane mode, add a player and record a game, come back — both arrive, and nothing was lost or doubled | ✅  | ✅      |
-| **A deletion propagates.** Remove a player on the host; the guest stops showing them                                                               | ✅  | ✅      |
-| **Removing with no signal says so and changes nothing** — the player stays, and the alert says removing needs signal                               | ✅  | ✅      |
-| **A guest has no remove, delete or rename** on a board somebody else shared — only an admin can, and a guest's used to change their phone alone    | ✅  | ✅      |
-| **A game the admin deletes stays gone on the guest** — foreground the guest twice and it does not come back                                        | ✅  | ✅      |
-| **A board deleted locally stays deleted**, and is not re-added by the next sync                                                                    | ⬜  | ⬜      |
-| The **share button is absent on a board you joined** — only an admin can invite, so offering it would only ever explain itself                     | ✅  | ✅      |
-| **Sign in on a third device → the boards are there**, without anybody sharing anything                                                             | ⬜  | ⬜      |
-| A write the server refuses shows the "Not saved for others" card, and dismissing it works                                                          | ⬜  | ⬜      |
-| Renaming a board on one device does **not** revert on the next sync                                                                                | ✅  | ✅      |
-| **An admin sees the members button on their own board**, and a member sees none on a board they joined                                             | ✅  | ✅      |
-| **Removing a member stops that phone syncing the board.** They keep the local copy, and their next write comes back refused rather than vanishing  | ✅  | ✅      |
-| **The code they were sent stops working afterwards** — rejoining needs a fresh one, and the sheet says the code was replaced                       | ✅  | ✅      |
-| Your own row says **"you"** and offers no remove; leaving is still on the boards list                                                              | ✅  | ✅      |
-| The **only admin cannot be removed**, and the sheet says why rather than failing                                                                   | ⬜  | ⬜      |
+|                                                                                                                                                                                                             | iOS | Android |
+| ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --- | ------- |
+| **The host shares a board** — the code arrives in the share sheet with a message naming the app                                                                                                             | ✅  | ✅      |
+| **A second device joins by pasting the code**, and the board arrives with its whole roster and season, not empty                                                                                            | ✅  | ✅      |
+| Pasting **the entire shared message** works, not just the bare code                                                                                                                                         | ✅  | ✅      |
+| A **wrong or expired code** says so and leaves the app usable                                                                                                                                               | ✅  | ✅      |
+| **A guest pays nothing.** A device with neither Pro nor Club joins, and can read the board it was sent — if it hits a paywall, the feature is dead                                                          | ✅  | ✅      |
+| That guest **cannot** create a board of their own (Pro) or share one (Club) — the create and share controls are absent, not broken                                                                          | ✅  | ✅      |
+| **A player added on one device appears on the other** after foregrounding it                                                                                                                                | ✅  | ✅      |
+| **A game recorded on one appears on the other**, with the same standings                                                                                                                                    | ✅  | ✅      |
+| **Record with no signal, then reconnect.** Airplane mode, add a player and record a game, come back — both arrive, and nothing was lost or doubled                                                          | ✅  | ✅      |
+| **A deletion propagates.** Remove a player on the host; the guest stops showing them                                                                                                                        | ✅  | ✅      |
+| **Removing with no signal says so and changes nothing** — the player stays, and the alert says removing needs signal                                                                                        | ✅  | ✅      |
+| **A guest has no remove, delete or rename** on a board somebody else shared — only an admin can, and a guest's used to change their phone alone                                                             | ✅  | ✅      |
+| **A game the admin deletes stays gone on the guest** — foreground the guest twice and it does not come back                                                                                                 | ✅  | ✅      |
+| **A board deleted locally stays deleted**, and is not re-added by the next sync                                                                                                                             | ✅  | ✅      |
+| The **share button is absent on a board you joined** — only an admin can invite, so offering it would only ever explain itself                                                                              | ✅  | ✅      |
+| 🚫 **Sign in on a third device → the boards are there**, without anybody sharing anything. **Needs a genuine third device** — two phones cannot show that boards follow the account rather than the pairing | 🚫  | 🚫      |
+| A write the server refuses shows the "Not saved for others" card, and dismissing it works                                                                                                                   | ✅  | ✅      |
+| Renaming a board on one device does **not** revert on the next sync                                                                                                                                         | ✅  | ✅      |
+| **An admin sees the members button on their own board**, and a member sees none on a board they joined                                                                                                      | ✅  | ✅      |
+| **Removing a member stops that phone syncing the board.** They keep the local copy, and their next write comes back refused rather than vanishing                                                           | ✅  | ✅      |
+| **The code they were sent stops working afterwards** — rejoining needs a fresh one, and the sheet says the code was replaced                                                                                | ✅  | ✅      |
+| Your own row says **"you"** and offers no remove; leaving is still on the boards list                                                                                                                       | ✅  | ✅      |
+| The **only admin cannot be removed**, and the sheet says why rather than failing                                                                                                                            | ✅  | ✅      |
 
 ---
 
@@ -1126,30 +1126,30 @@ this release both were sold in one amber sheet headed "Pro", behind buttons that
 Pro", so nothing on screen distinguished a one-time purchase from a recurring one. Everything below
 is about whether a person can tell, before they tap, which of the two they are buying.
 
-|                                                                                                                                                  | iOS | Android |
-| ------------------------------------------------------------------------------------------------------------------------------------------------ | --- | ------- |
-| Settings shows **two separate cards**, Pro badged **One-time** and Club badged **Subscription**                                                  | ✅  | ✅      |
-| The two are **visibly different colours** — Pro amber, Club violet — on the cards, the pills and the buttons                                     | ✅  | ✅      |
-| Opening the sheet from a **locked Pro feature** puts Pro first, filled; Club is below it and outlined                                            | ✅  | ✅      |
-| Opening it from **"See Club"** puts Club first, filled; Pro is below it and outlined                                                             | ✅  | ✅      |
-| **Both stay buyable either way** — the unfocused card is outlined, never hidden, and its button still works                                      | ✅  | ✅      |
-| Each card says its shape in words: Pro _"paid once … nothing to renew"_, Club _"renews automatically until cancelled"_                           | ✅  | ✅      |
-| The **shared clock** row in Settings carries a **CLUB** pill, and the Pro rows carry **PRO** pills — a subscriber sees neither on what they hold | ✅  | ✅      |
-| **Groups → the Club offer** appears for a signed-in non-subscriber and opens the sheet on Club                                                   | ✅  | ✅      |
-| That offer is **absent on a cold launch until the store answers** — never shown while entitlements are still the default                         | ✅  | ✅      |
-| **Start a clock → "See Club"** opens the sheet on Club, and the refusal sentence above it still reads the same                                   | ✅  | ✅      |
-| Club is **absent everywhere** with `featureSharing=off` — the Settings card, the paywall's Club card, the groups offer and the clock's button    | ⬜  | ⬜      |
-| Club is **absent everywhere** in a build whose subscriptions are not live — no empty card, no dead button                                        | ✅  | ✅      |
-| **The annual plan comes first and is the filled button**; the monthly sits below it, outlined                                                    | ✅  | ✅      |
-| The annual carries **"Save N% vs monthly"**, and N is right for the two prices **actually on screen** — work it out by hand and compare          | ⬜  | ✅      |
-| **The claim is absent rather than wrong** when it cannot be made: only one plan returned by the store, or an annual that is not cheaper          | ⬜  | ⬜      |
-| In a **non-euro storefront** the saving is still correct — the whole reason it is computed from numbers instead of the formatted price strings   | ⬜  | ⬜      |
-| The leaderboard's free text share now reads **"Send a text summary"** and still produces exactly that — a text blob in the system share sheet    | ✅  | ✅      |
-| **"Share this board" sits beside it**, violet, for a signed-in non-subscriber, and opens the sheet on Club                                       | ✅  | ✅      |
-| For a **Club subscriber** the same button is grey and opens Groups — not the paywall, and not a second invite-minting path                       | ✅  | ✅      |
-| It is **absent on a board somebody else hosts.** Inviting to one you are only a member of is refused on role, so selling Club for it is a lie    | ✅  | ✅      |
-| It is **absent** with `featureSharing=off`, in a no-backend build, and while signed out                                                          | ⬜  | ⬜      |
-| It is **absent on a cold launch until the store answers** — same rule as the Groups offer                                                        | ✅  | ✅      |
+|                                                                                                                                                                                                                                                                                                                                                  | iOS | Android |
+| ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | --- | ------- |
+| Settings shows **two separate cards**, Pro badged **One-time** and Club badged **Subscription**                                                                                                                                                                                                                                                  | ✅  | ✅      |
+| The two are **visibly different colours** — Pro amber, Club violet — on the cards, the pills and the buttons                                                                                                                                                                                                                                     | ✅  | ✅      |
+| Opening the sheet from a **locked Pro feature** puts Pro first, filled; Club is below it and outlined                                                                                                                                                                                                                                            | ✅  | ✅      |
+| Opening it from **"See Club"** puts Club first, filled; Pro is below it and outlined                                                                                                                                                                                                                                                             | ✅  | ✅      |
+| **Both stay buyable either way** — the unfocused card is outlined, never hidden, and its button still works                                                                                                                                                                                                                                      | ✅  | ✅      |
+| Each card says its shape in words: Pro _"paid once … nothing to renew"_, Club _"renews automatically until cancelled"_                                                                                                                                                                                                                           | ✅  | ✅      |
+| The **shared clock** row in Settings carries a **CLUB** pill, and the Pro rows carry **PRO** pills — a subscriber sees neither on what they hold                                                                                                                                                                                                 | ✅  | ✅      |
+| **Groups → the Club offer** appears for a signed-in non-subscriber and opens the sheet on Club                                                                                                                                                                                                                                                   | ✅  | ✅      |
+| That offer is **absent on a cold launch until the store answers** — never shown while entitlements are still the default                                                                                                                                                                                                                         | ✅  | ✅      |
+| **Start a clock → "See Club"** opens the sheet on Club, and the refusal sentence above it still reads the same                                                                                                                                                                                                                                   | ✅  | ✅      |
+| Club is **absent everywhere** with `featureSharing=off` — the Settings card, the paywall's Club card, the groups offer and the clock's button                                                                                                                                                                                                    | ⬜  | ⬜      |
+| Club is **absent everywhere** in a build whose subscriptions are not live — no empty card, no dead button                                                                                                                                                                                                                                        | ✅  | ✅      |
+| **The annual plan comes first and is the filled button**; the monthly sits below it, outlined                                                                                                                                                                                                                                                    | ✅  | ✅      |
+| The annual carries **"Save N% vs monthly"**, and N is right for the two prices **actually on screen** — work it out by hand and compare                                                                                                                                                                                                          | ⬜  | ✅      |
+| 🚫 **The claim is absent rather than wrong** when it cannot be made: only one plan returned by the store, or an annual that is not cheaper. **Needs a base plan deactivated in the store**, which is a live product change and not worth making to test a negative — `annualSavingPercent` returns `null` for both cases and that is unit-tested | 🚫  | 🚫      |
+| 🚫 In a **non-euro storefront** the saving is still correct — the whole reason it is computed from numbers instead of the formatted price strings. **Needs a store account in another currency**; the arithmetic itself is unit-tested in `clubSaving.ts`                                                                                        | 🚫  | 🚫      |
+| The leaderboard's free text share now reads **"Send a text summary"** and still produces exactly that — a text blob in the system share sheet                                                                                                                                                                                                    | ✅  | ✅      |
+| **"Share this board" sits beside it**, violet, for a signed-in non-subscriber, and opens the sheet on Club                                                                                                                                                                                                                                       | ✅  | ✅      |
+| For a **Club subscriber** the same button is grey and opens Groups — not the paywall, and not a second invite-minting path                                                                                                                                                                                                                       | ✅  | ✅      |
+| It is **absent on a board somebody else hosts.** Inviting to one you are only a member of is refused on role, so selling Club for it is a lie                                                                                                                                                                                                    | ✅  | ✅      |
+| It is **absent** with `featureSharing=off`, in a no-backend build, and while signed out                                                                                                                                                                                                                                                          | ⬜  | ⬜      |
+| It is **absent on a cold launch until the store answers** — same rule as the Groups offer                                                                                                                                                                                                                                                        | ✅  | ✅      |
 
 > **The iOS half is waiting on a lapse, not on anything being wrong.** A subscriber is never
 > offered the plans again — the buttons are replaced by "Club active", which is its own ✅ row — so
@@ -1230,7 +1230,7 @@ If a phone shows that asymmetry, note which one is hosting.
 | Reopening the host **rejoins and the two agree again** within a poll — **[see D3](#d3-session-not-persisted)**                               | ✅  | ✅      |
 | **Airplane mode on the joiner** for 30s, then back: it catches up rather than needing a rejoin                                               | ✅  | ✅      |
 | Leaving stops the polling — the clock keeps running locally and nothing further is sent                                                      | ✅  | ✅      |
-| 🚫 **A session expires six hours after its last message.** Cannot be run in a sitting; the TTL is asserted in the store's unit tests instead | ⬜  | ⬜      |
+| 🚫 **A session expires six hours after its last message.** Cannot be run in a sitting; the TTL is asserted in the store's unit tests instead | 🚫  | 🚫      |
 
 **Where to look if it does not work.** `sessionTransport` is `null` on any build with no
 `backendConfig`, and the Settings row is then absent rather than leading somewhere broken — check
