@@ -654,6 +654,15 @@ platform-tagged heading (e.g. `## [1.1.3] - 2026-07-20 — Android`) when you cu
 
 ### Changed
 
+- **The payout rounding hint no longer promises something it cannot deliver.** "Everything is
+  rounded to a multiple of it, and the pool still pays out in full" claims both halves at once, and
+  when the pool is not a whole number of denominations they cannot both hold — with buy-in 35,
+  bounty 4, 8 players and a denomination of 5, the pool is 248, which is 49 fives with 3 left over
+  that no multiple of 5 can express. `distribute()` gives that remainder to the largest weight
+  rather than dropping it, deliberately, so first place shows 98 and the hint reads as if the screen
+  has miscalculated. It now says where the leftover goes. The arithmetic is unchanged; only the
+  sentence explaining it is.
+
 - **The paywall says that Club includes Pro, and that Pro stays.** Club's feature list named three
   things, all of them sharing — so nothing on the sheet said a subscription unlocks Pro as well, and
   nothing said Pro is still there after the subscription stops. Both are true: `clubEver` is read
