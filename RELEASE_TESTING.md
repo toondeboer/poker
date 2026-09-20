@@ -127,22 +127,22 @@ exercised on candidate 3. What remains unrun is listed per section.
 
 <a id="play-verification"></a>
 
-> 🛑 **Android submission is blocked outside this repo, and it blocks the Android pass with it.**
-> `eas submit -p android` fails before uploading:
+> ✅ **Android submission was blocked outside this repo, and is not any more.** `eas submit -p
+android` failed before uploading:
 >
 > > _Invalid request — To meet Play Console requirements, your app's package name must be registered
 > > to your verified developer identity. Go to the Android developer verification page to complete
 > > the registration process for this app._
 >
 > Google's **developer verification**, not anything about the binary, the signing key or the track.
-> **It is new today**: versionCode 18 reached the internal track normally at 07:30 on 2026-09-19 and
-> versionCode 19 was refused the same evening, so enforcement arrived or a grace period lapsed in
-> between.
+> It arrived mid-release: versionCode 18 reached the internal track normally at 07:30 on
+> 2026-09-19 and versionCode 19 was refused the same evening. Verification was completed on
+> 2026-09-20 and versionCode 20 submitted to the internal track.
 >
-> **Every remaining Android row that needs a store build is stuck behind it** — §1's purchase rows,
-> §13's locked state, §16's Pro-only rows, and re-testing the four 🔧 rows on candidate 4. Identity
-> checks can take days, so this is a schedule risk rather than a technical one, and it is worth
-> starting before anything else. Tracked on the release PR's gates.
+> **What it held up while it lasted**, for the next time something outside the repo blocks a track:
+> §1's purchase rows, §13's locked state, §16's Pro-only rows, and re-testing D1 and D3 — none of
+> which had anything wrong with them. A `preview`-profile APK was the workaround that kept the pass
+> moving; see the note in the defects section for its two traps.
 
 > **TestFlight shows a build only to members of a tester group.** Build 28's upload was fine and
 > invisible until the tester was added to one. If a build is "missing" from TestFlight, check the
@@ -337,30 +337,30 @@ Nothing in development can exercise this fully: the Android emulator has no Play
 (`BILLING_UNAVAILABLE`) and the Simulator has no StoreKit configured. Needs a real device with a
 sandbox/test account, and for Android, a build uploaded to a Play track.
 
-|                                                                                                                                                                                                                                                                                                                                                                                 | iOS | Android                          |
-| ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --- | -------------------------------- |
-| Paywall opens from **every** entry point. Settings' **Pro**, **Club**, **Presets** and **Sound Pack** cards; **Payouts**; **Leaderboard** (both its locked card _and_ "Share this board"); the **game** screen; the **Groups** sheet; and the **shared-clock** screen. **Was written as "five" and is not** — Club, Groups, the game screen and the shared clock all came later | ⬜  | ✅                               |
-| Price string renders (not blank, not `one-time` alone)                                                                                                                                                                                                                                                                                                                          | ✅  | ✅                               |
-| **Purchase completes** and Pro unlocks (ads gone, Presets, Sound Pack, Payouts + Leaderboard usable)                                                                                                                                                                                                                                                                            | ✅  | 🚫 [see below](#android-billing) |
-| **Restore purchases** works on a fresh install of the same account                                                                                                                                                                                                                                                                                                              | ✅  | 🚫 [see below](#android-billing) |
-| Cancelling a purchase leaves the app in a sane state, no error toast                                                                                                                                                                                                                                                                                                            | ✅  | 🚫 [see below](#android-billing) |
-| **A refund revokes the entitlement.** Refund with _revoke access_ in the store console → the app loses Pro. **Known gap, accepted — [see D2](#d2-rtdn)**                                                                                                                                                                                                                        | 🟡  | 🟡                               |
+|                                                                                                                                                                                                                                                                                                                                                                                 | iOS | Android |
+| ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --- | ------- |
+| Paywall opens from **every** entry point. Settings' **Pro**, **Club**, **Presets** and **Sound Pack** cards; **Payouts**; **Leaderboard** (both its locked card _and_ "Share this board"); the **game** screen; the **Groups** sheet; and the **shared-clock** screen. **Was written as "five" and is not** — Club, Groups, the game screen and the shared clock all came later | ⬜  | ✅      |
+| Price string renders (not blank, not `one-time` alone)                                                                                                                                                                                                                                                                                                                          | ✅  | ✅      |
+| **Purchase completes** and Pro unlocks (ads gone, Presets, Sound Pack, Payouts + Leaderboard usable)                                                                                                                                                                                                                                                                            | ✅  | ✅      |
+| **Restore purchases** works on a fresh install of the same account                                                                                                                                                                                                                                                                                                              | ✅  | ✅      |
+| Cancelling a purchase leaves the app in a sane state, no error toast                                                                                                                                                                                                                                                                                                            | ✅  | ✅      |
+| **A refund revokes the entitlement.** Refund with _revoke access_ in the store console → the app loses Pro. **Known gap, accepted — [see D2](#d2-rtdn)**                                                                                                                                                                                                                        | 🟡  | 🟡      |
 
 ### 1b. The Club subscription · **new in 1.2.0**
 
 A subscription is not a second one-time purchase. **It ends**, and nothing in this app has ever had
 to handle something a person bought stopping working — every row below is a first.
 
-|                                                                                                                                                                                                                      | iOS | Android                          |
-| -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --- | -------------------------------- |
-| Both SKUs appear and are priced — monthly **and** annual. One store having only one of them is a half-shipped product                                                                                                | ✅  | 🚫 [see below](#android-billing) |
-| **Subscribing grants Pro as well.** A subscriber who never bought Pro can open the leaderboard — otherwise they are hosting a board they cannot see                                                                  | ✅  | ✅                               |
-| **Restore brings back both**, on a fresh install on the same store account — Pro and Club, not one                                                                                                                   | ⬜  | 🚫                               |
-| Cancelling in the store leaves the app sane, and access continues to the end of the paid period                                                                                                                      | ✅  | ✅                               |
-| **After it expires: sharing stops, and Pro does not.** Once a subscription has granted Pro it keeps it, so the boards stay visible and only hosting goes. Getting this wrong takes the sight of every board they own | ✅  | ✅                               |
-| An expired subscriber's **existing shared boards keep working for the other members** — they are still on the server, and stranding them is worse than the cost it saves                                             | ⬜  | 🚫                               |
-| Resubscribing restores hosting without anything being lost                                                                                                                                                           | ⬜  | ✅                               |
-| A Pro-only buyer is **never** told to buy Pro again by any Club message                                                                                                                                              | ⬜  | 🚫                               |
+|                                                                                                                                                                                                                      | iOS | Android |
+| -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --- | ------- |
+| Both SKUs appear and are priced — monthly **and** annual. One store having only one of them is a half-shipped product                                                                                                | ✅  | ✅      |
+| **Subscribing grants Pro as well.** A subscriber who never bought Pro can open the leaderboard — otherwise they are hosting a board they cannot see                                                                  | ✅  | ✅      |
+| **Restore brings back both**, on a fresh install on the same store account — Pro and Club, not one                                                                                                                   | ✅  | ✅      |
+| Cancelling in the store leaves the app sane, and access continues to the end of the paid period                                                                                                                      | ✅  | ✅      |
+| **After it expires: sharing stops, and Pro does not.** Once a subscription has granted Pro it keeps it, so the boards stay visible and only hosting goes. Getting this wrong takes the sight of every board they own | ✅  | ✅      |
+| An expired subscriber's **existing shared boards keep working for the other members** — they are still on the server, and stranding them is worse than the cost it saves                                             | ✅  | ✅      |
+| Resubscribing restores hosting without anything being lost                                                                                                                                                           | ✅  | ✅      |
+| A Pro-only buyer is **never** told to buy Pro again by any Club message                                                                                                                                              | ✅  | ✅      |
 
 > **Expiry is the row most likely to be skipped and most likely to hurt.** `entitlementsFrom` reads
 > `entitlements.all` rather than `active` precisely so a lapsed subscriber keeps Pro through a
@@ -448,9 +448,14 @@ charged for real; miss the track and the build is not installable.
 > Store itself recognises: the package must be uploaded to a Play Console track (internal testing is
 > enough), signed with the same key, and the tester's account added to the licence-testing list. A
 > locally-built debug APK fails all three, which is why it returns `BILLING_UNAVAILABLE` rather than
-> a purchase sheet. **These three rows therefore move to the internal-testing pass, after the build
-> is uploaded** — they are not blocked on any code change. iOS is the mirror image: StoreKit sandbox
-> works against a local device build, which is why its column can be cleared earlier.
+> a purchase sheet. **These rows therefore belong to the internal-testing pass, after the build is
+> uploaded** — they are never blocked on a code change, which is worth remembering when one of them
+> is red. iOS is the mirror image: StoreKit sandbox works against a local device build, which is why
+> its column clears earlier and why its ✅ says nothing about Android.
+>
+> Run on candidate 5 (versionCode 20) off the internal track, once developer verification cleared.
+> **Android billing had never been exercised at all before that** — every ✅ in that column is a
+> first.
 
 ---
 
@@ -1277,28 +1282,28 @@ anchor so the rows above can link to it. Keep an entry after it's fixed so the r
 release; the whole section is cleared when the release ships, since by then the fix is in the
 changelog and the reasoning is in the commit.
 
-|                                                                                                       | Found in                      | State                                              |
-| ----------------------------------------------------------------------------------------------------- | ----------------------------- | -------------------------------------------------- |
-| **[D1](#d1-auth-redirect)** — a provider sign-in ends on "Unmatched Route"                            | §14b, Android, candidate 3    | 🔧 fixed in #277, wants an **Android** candidate 4 |
-| **[D7](#d7-no-password-reset)** — there is no password reset, and the roadmap assumed there was       | §14, iOS, TestFlight build 30 | 🟡 accepted for 1.2.0, carried to 1.2.1            |
-| **[D8](#d8-unconfirmed-dead-end)** — an interrupted sign-up bricks the email address                  | §14, iOS, TestFlight build 30 | 🔧 fixed in #300, wants candidate 5                |
-| **[D2](#d2-rtdn)** — a refund never revokes the entitlement                                           | §1, Android, candidate 3      | 🟡 accepted for 1.2.0                              |
-| **[D3](#d3-session-not-persisted)** — a restarted host silently leaves its own clock                  | §18, Android, candidate 3     | 🔧 fixed in #283, wants an **Android** candidate 4 |
-| **[D5](#d5-ipad-list-width)** — the blind editor's iPad layout never reaches its 900pt cap            | §7, iPad simulator            | ✅ fixed and re-verified                           |
-| **[D6](#d6-blinds-unreachable)** — Blind structure is unreachable after leaving it with a dirty draft | §2, iOS, TestFlight build 30  | 🔧 fixed in #296, wants candidate 5                |
-| **[D4](#d4-prod-alerting)** — prod had no alarm delivery at all                                       | §15b/§20, prod, 2026-09-19    | ✅ fixed and confirmed                             |
+|                                                                                                       | Found in                      | State                                           |
+| ----------------------------------------------------------------------------------------------------- | ----------------------------- | ----------------------------------------------- |
+| **[D1](#d1-auth-redirect)** — a provider sign-in ends on "Unmatched Route"                            | §14b, Android, candidate 3    | 🔧 fixed in #277, wants **Android candidate 5** |
+| **[D7](#d7-no-password-reset)** — there is no password reset, and the roadmap assumed there was       | §14, iOS, TestFlight build 30 | 🟡 accepted for 1.2.0, carried to 1.2.1         |
+| **[D8](#d8-unconfirmed-dead-end)** — an interrupted sign-up bricks the email address                  | §14, iOS, TestFlight build 30 | 🔧 fixed in #300, wants candidate 5             |
+| **[D2](#d2-rtdn)** — a refund never revokes the entitlement                                           | §1, Android, candidate 3      | 🟡 accepted for 1.2.0                           |
+| **[D3](#d3-session-not-persisted)** — a restarted host silently leaves its own clock                  | §18, Android, candidate 3     | 🔧 fixed in #283, wants **Android candidate 5** |
+| **[D5](#d5-ipad-list-width)** — the blind editor's iPad layout never reaches its 900pt cap            | §7, iPad simulator            | ✅ fixed and re-verified                        |
+| **[D6](#d6-blinds-unreachable)** — Blind structure is unreachable after leaving it with a dirty draft | §2, iOS, TestFlight build 30  | 🔧 fixed in #296, wants candidate 5             |
+| **[D4](#d4-prod-alerting)** — prod had no alarm delivery at all                                       | §15b/§20, prod, 2026-09-19    | ✅ fixed and confirmed                          |
 
-> **D1 and D3 are not waiting on Play.** Both fixes are in candidate 4 (verified by ancestry
-> against `1b33049`), and candidate 4 exists on TestFlight — but they are **Android** rows, and
-> Android has no candidate-4 build because the Play submission is blocked on developer
-> verification. The way round it is `eas build --profile preview --platform android`: that profile
-> is `distribution: internal` with **no** `developmentClient`, so it produces a
-> release-configuration **APK installed from a link** — no Play track, no verification, and no dev
-> launcher owning `pokerkit://`. Only **D6** genuinely needs candidate 5.
+> **All five 🔧 rows are answered by candidate 5**, built from `62b9d27` on both platforms: iOS
+> build 31 and Android versionCode 20, the same commit either way. D1 and D3 were never waiting on
+> code — both fixes have been in since candidate 4 — only on an **Android** build to run them
+> against, which developer verification was withholding.
 >
-> Two things to know before installing one: it will **not** install over a Play build (same
-> versionCode, different signing key — uninstall first), and it carries `PROD_BACKEND`, so **do not
-> run §14's account rows on it** — those want the dev client pointed at `DEV_BACKEND`.
+> **A `preview`-profile APK remains the way round a Play block**, and is worth remembering for the
+> next one: `distribution: internal` with no `developmentClient` gives a release-configuration
+> **APK installed from a link** — no Play track, no verification, and no dev launcher owning
+> `pokerkit://`. Two traps if you reach for it: it will **not** install over a Play build (upload
+> keystore against Play's app signing key — uninstall first), and it cannot be promoted to a track,
+> so it is a testing artifact and never the shipped one.
 
 <a id="d8-unconfirmed-dead-end"></a>
 
