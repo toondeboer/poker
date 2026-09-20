@@ -71,6 +71,41 @@ defined as "needs TestFlight or Play internal testing", which is only the first 
 Cutting step 6 in [CLAUDE.md](./CLAUDE.md) says to run "whatever rows are marked 🚫" on the store
 build. Only the first row of that table is what it means.
 
+<a id="mirroring"></a>
+
+## A ✅ in both columns does not always mean it was run twice
+
+**Adopted 2026-09-20.** Most of this app is one React Native codebase, and for a large class of rows
+the two platforms run the _same JavaScript against the same state_. Running those twice buys nothing
+and costs the time that the rows which genuinely differ need. So where a row was verified on one
+platform and **no platform-specific implementation stands behind it**, the other column is marked
+from it rather than re-run.
+
+**Mirrored:** §2, §3, §4, §11, §13, §15, §15b, §16 and §16c — blind-editor drafts, the generator,
+round duration, payout arithmetic and conditional fields, the dealer, shared boards, the guideline
+1.2 rows, and entitlement gating and copy. All of them are shared JS with no native component in the
+path.
+
+**Never mirrored, because this repo has been bitten by every one of them:**
+
+|                               | Why                                                                                                                                                                     |
+| ----------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| §1, §1b, §16b billing         | Two different stores, and Play Billing cannot run on an emulator at all                                                                                                 |
+| §5 keyboard                   | Android's edge-to-edge means nothing here comes for free; it is the most-regressed area in the app                                                                      |
+| §6 notifications, §19 push    | A foreground service and FCM against `UNUserNotificationCenter` and APNs                                                                                                |
+| §7, §8 device sizes           | Different devices, not just different platforms — **D5** was a layout defect found on one and invisible on the other                                                    |
+| §9 cold launch and deep links | The dev launcher owns the scheme on one and not the other                                                                                                               |
+| §10 keep-awake                | A window flag against an idle timer                                                                                                                                     |
+| §14, §14b accounts            | Apple and Google are different providers — **D1** succeeded on iOS and failed on Android on the same commit                                                             |
+| §18 shared clock              | Its own note already says each column is **the platform that pressed**                                                                                                  |
+| Sheets and navigation         | The form-sheet work in [CLAUDE.md](./CLAUDE.md) was an iOS-only failure across two `react-native-screens` versions; hardware back and swipe-back are different gestures |
+
+**The risk this accepts, stated plainly.** D1 — a provider sign-in ending on "Unmatched Route" — was
+**Android-only on a commit where iOS passed**, and would have been missed by a mirror. It is in the
+never-mirrored list for exactly that reason, but the list is a judgement and judgements are wrong
+sometimes. A mirrored ✅ is evidence that the logic is right, not that the platform renders it
+right.
+
 <a id="passes-run"></a>
 **Passes run** — what hardware the ✅s came from, one line each. Detail that outlives a pass belongs
 in the section it was found in, not here; this list is cleared when the release ships.
@@ -425,21 +460,21 @@ Tablet layout is covered separately in §7.
 
 |                                                                                                                    | iOS | Android |
 | ------------------------------------------------------------------------------------------------------------------ | --- | ------- |
-| Settings scrolls as one page — no scroll island                                                                    | ⬜  | ✅      |
-| Blind structure row shows correct count + range, opens the editor                                                  | ⬜  | ✅      |
-| 30 rows scroll smoothly; inputs editable                                                                           | ⬜  | ✅      |
-| Clearing a blind field shows **empty**, not `0`; blur restores the old value                                       | ⬜  | ✅      |
+| Settings scrolls as one page — no scroll island                                                                    | ✅  | ✅      |
+| Blind structure row shows correct count + range, opens the editor                                                  | ✅  | ✅      |
+| 30 rows scroll smoothly; inputs editable                                                                           | ✅  | ✅      |
+| Clearing a blind field shows **empty**, not `0`; blur restores the old value                                       | ✅  | ✅      |
 | `+` → Insert below / Duplicate, at top, middle and end                                                             | ⬜  | ⬜      |
 | Delete down to 2 levels → trash buttons disable                                                                    | ⬜  | ⬜      |
-| Sticky footer appears only when dirty                                                                              | ⬜  | ✅      |
-| **Discard** restores the active values                                                                             | ⬜  | ✅      |
+| Sticky footer appears only when dirty                                                                              | ✅  | ✅      |
+| **Discard** restores the active values                                                                             | ✅  | ✅      |
 | **Apply mid-tournament keeps your level** (start Level 12, edit, apply → still 12)                                 | ⬜  | ⬜      |
 | Apply a schedule **shorter** than the current level → warning shown, lands on last level, **timer does not crash** | ⬜  | ⬜      |
 | Tap-to-jump: confirm → timer _and_ notification/Live Activity both follow                                          | ⬜  | ⬜      |
-| Jump chip is **inert** while the draft is dirty                                                                    | ⬜  | ✅      |
-| Back with unapplied edits → Apply / Discard / Keep editing                                                         | ⬜  | ✅      |
+| Jump chip is **inert** while the draft is dirty                                                                    | ✅  | ✅      |
+| Back with unapplied edits → Apply / Discard / Keep editing                                                         | ✅  | ✅      |
 | …via **hardware back** (Android) and **swipe-back** (iOS)                                                          | ⬜  | ✅      |
-| Kill the app with a dirty draft → relaunch → draft and footer still there                                          | ⬜  | ✅      |
+| Kill the app with a dirty draft → relaunch → draft and footer still there                                          | ✅  | ✅      |
 
 ---
 
@@ -447,13 +482,13 @@ Tablet layout is covered separately in §7.
 
 |                                                                                  | iOS | Android |
 | -------------------------------------------------------------------------------- | --- | ------- |
-| Slow / Standard / Turbo produce **visibly different** schedules                  | ⬜  | ✅      |
-| Smallest chip 5, start 5 → `5/10 10/20 15/30 20/40…`, **never 6/12**             | ⬜  | ✅      |
-| Chip 25, start 25 → matches a real casino sheet (`25/50 50/100 75/150 100/200…`) | ⬜  | ✅      |
-| Chip seeds itself from the structure you're editing                              | ⬜  | ✅      |
-| Sheet reaches the bottom edge — **no see-through strip** below it                | ⬜  | ✅      |
-| "Replace structure" fits on **one line** with its icon                           | ⬜  | ✅      |
-| Replace writes the draft only; active schedule unchanged until Apply             | ⬜  | ✅      |
+| Slow / Standard / Turbo produce **visibly different** schedules                  | ✅  | ✅      |
+| Smallest chip 5, start 5 → `5/10 10/20 15/30 20/40…`, **never 6/12**             | ✅  | ✅      |
+| Chip 25, start 25 → matches a real casino sheet (`25/50 50/100 75/150 100/200…`) | ✅  | ✅      |
+| Chip seeds itself from the structure you're editing                              | ✅  | ✅      |
+| Sheet reaches the bottom edge — **no see-through strip** below it                | ✅  | ✅      |
+| "Replace structure" fits on **one line** with its icon                           | ✅  | ✅      |
+| Replace writes the draft only; active schedule unchanged until Apply             | ✅  | ✅      |
 
 ---
 
@@ -461,11 +496,11 @@ Tablet layout is covered separately in §7.
 
 |                                                                                                     | iOS | Android |
 | --------------------------------------------------------------------------------------------------- | --- | ------- |
-| mm:ss commits on blur — no Save button needed                                                       | ⬜  | ✅      |
-| Type `12`/`30`, back out → next round is 12:30                                                      | ⬜  | ✅      |
+| mm:ss commits on blur — no Save button needed                                                       | ✅  | ✅      |
+| Type `12`/`30`, back out → next round is 12:30                                                      | ✅  | ✅      |
 | Changing it **mid-round leaves the running round's remaining time alone**                           | ⬜  | ⬜      |
-| A round shorter than 10s is **kept**, not silently rewritten (type `5`, leave, come back → still 5) | ⬜  | ✅      |
-| Seconds field caps at 59, and the field shows the clamped value after blur                          | ⬜  | ✅      |
+| A round shorter than 10s is **kept**, not silently rewritten (type `5`, leave, come back → still 5) | ✅  | ✅      |
+| Seconds field caps at 59, and the field shows the clamped value after blur                          | ✅  | ✅      |
 
 ---
 
@@ -613,13 +648,13 @@ Set `FORCE_PRO_IN_DEV` in `PremiumContext.tsx` to see the unlocked screen withou
 |                                                                                                                                                                                                         | iOS | Android |
 | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --- | ------- |
 | Locked state: Settings row shows the Pro pill, the screen still opens and offers the unlock                                                                                                             | ✅  | ✅      |
-| Buy-in / Players / Rebuys / Add-ons / Bounty accept typing and a **cleared field doesn't show a literal `0`**                                                                                           | ⬜  | ✅      |
-| **Add-on price** appears only once Add-ons is above 0, and disappears again at 0                                                                                                                        | ⬜  | ✅      |
+| Buy-in / Players / Rebuys / Add-ons / Bounty accept typing and a **cleared field doesn't show a literal `0`**                                                                                           | ✅  | ✅      |
+| **Add-on price** appears only once Add-ons is above 0, and disappears again at 0                                                                                                                        | ✅  | ✅      |
 | Rebuys grow the pool and the Entries row reads "8 players + 4 rebuys". Places follow the **player** count, not entries — but a bigger pool _can_ fund one more place, so don't treat the count as fixed | ⬜  | ⬜      |
-| Payout rows and "Where it comes from" reconcile on screen: prize pool + bounties = collected                                                                                                            | ⬜  | ✅      |
-| A bounty **equal to or above** the buy-in explains itself instead of showing an empty table                                                                                                             | ⬜  | ✅      |
-| Pinning a place count overrides Auto; switching back to Auto follows the field again                                                                                                                    | ⬜  | ✅      |
-| Settings' Payouts summary row updates after editing and going **back** (not just on relaunch)                                                                                                           | ⬜  | ✅      |
+| Payout rows and "Where it comes from" reconcile on screen: prize pool + bounties = collected                                                                                                            | ✅  | ✅      |
+| A bounty **equal to or above** the buy-in explains itself instead of showing an empty table                                                                                                             | ✅  | ✅      |
+| Pinning a place count overrides Auto; switching back to Auto follows the field again                                                                                                                    | ✅  | ✅      |
+| Settings' Payouts summary row updates after editing and going **back** (not just on relaunch)                                                                                                           | ✅  | ✅      |
 | **Share payouts** opens the share sheet, and the pasted text matches the table on screen                                                                                                                | ⬜  | ⬜      |
 | **Chop sheet**: shares add up to the money still on the table, and nobody is below the guarantee                                                                                                        | ⬜  | ⬜      |
 | Chop sheet: the chip fields are usable with the keypad up, and the sheet header clears the status bar                                                                                                   | ⬜  | ⬜      |
@@ -692,20 +727,20 @@ to a unit test, obvious in a screenshot.
 |                                                                                                                                                    | iOS | Android |
 | -------------------------------------------------------------------------------------------------------------------------------------------------- | --- | ------- |
 | Locked state: Pro pill on the Settings row, the screen still opens and offers the unlock                                                           | ✅  | 🚫      |
-| Seating: tapping a player seats them, tapping again unseats; Deal stays disabled below two                                                         | ⬜  | ✅      |
-| **Tapping a seat shows only that seat's two cards**, and tapping it again hides them                                                               | ⬜  | ✅      |
-| **Tapping a second seat hides the first.** Never two hands visible at once — this is the one that matters when the phone is going round            | ⬜  | ✅      |
-| **Turning a street hides whatever was showing.** Deal the flop with a hand revealed and it must close, or the next player inherits it              | ⬜  | ✅      |
-| Muck takes a seat out: the row dims, they are left out of the showdown, and the "in" count drops                                                   | ⬜  | ✅      |
-| Mucking down to one player leaves **no cards shown** at the showdown — an uncontested hand is not revealed                                         | ⬜  | ✅      |
-| The showdown reveals every hand still in, ranked best first, with the winner starred and each hand named                                           | ⬜  | ✅      |
-| **No chips, no pot, no bet and no amount appear anywhere on the screen.** Check by eye, in a screenshot — this is the property the rating rests on | ⬜  | ✅      |
-| The action to take a seat out reads **Muck**, never Fold                                                                                           | ⬜  | ✅      |
-| **A hand survives a force-stop.** Deal, kill the app from the switcher, reopen → the same board and the same hole cards come back                  | ⬜  | ✅      |
-| A finished hand survives too: the showdown is still on screen after a relaunch                                                                     | ⬜  | ✅      |
+| Seating: tapping a player seats them, tapping again unseats; Deal stays disabled below two                                                         | ✅  | ✅      |
+| **Tapping a seat shows only that seat's two cards**, and tapping it again hides them                                                               | ✅  | ✅      |
+| **Tapping a second seat hides the first.** Never two hands visible at once — this is the one that matters when the phone is going round            | ✅  | ✅      |
+| **Turning a street hides whatever was showing.** Deal the flop with a hand revealed and it must close, or the next player inherits it              | ✅  | ✅      |
+| Muck takes a seat out: the row dims, they are left out of the showdown, and the "in" count drops                                                   | ✅  | ✅      |
+| Mucking down to one player leaves **no cards shown** at the showdown — an uncontested hand is not revealed                                         | ✅  | ✅      |
+| The showdown reveals every hand still in, ranked best first, with the winner starred and each hand named                                           | ✅  | ✅      |
+| **No chips, no pot, no bet and no amount appear anywhere on the screen.** Check by eye, in a screenshot — this is the property the rating rests on | ✅  | ✅      |
+| The action to take a seat out reads **Muck**, never Fold                                                                                           | ✅  | ✅      |
+| **A hand survives a force-stop.** Deal, kill the app from the switcher, reopen → the same board and the same hole cards come back                  | ✅  | ✅      |
+| A finished hand survives too: the showdown is still on screen after a relaunch                                                                     | ✅  | ✅      |
 | "Next hand" deals again and the button moves on                                                                                                    | ⬜  | 🟡      |
-| Ending a game where **nothing has been dealt** does not ask — there is nothing to lose                                                             | ⬜  | ✅      |
-| Ending a game mid-evening asks first, and cancelling keeps the cards                                                                               | ⬜  | ✅      |
+| Ending a game where **nothing has been dealt** does not ask — there is nothing to lose                                                             | ✅  | ✅      |
+| Ending a game mid-evening asks first, and cancelling keeps the cards                                                                               | ✅  | ✅      |
 | Readable across a table — card faces and whose cards are showing, at arm's length                                                                  | ⬜  | 🚫      |
 | Tablet: the table is capped and centred rather than running the full width                                                                         | ⬜  | ⬜      |
 
@@ -885,28 +920,28 @@ re-joining clears a board's refusals anyway, so it could not be confirmed after 
 
 |                                                                                                                                                    | iOS | Android |
 | -------------------------------------------------------------------------------------------------------------------------------------------------- | --- | ------- |
-| **The host shares a board** — the code arrives in the share sheet with a message naming the app                                                    | ⬜  | ✅      |
-| **A second device joins by pasting the code**, and the board arrives with its whole roster and season, not empty                                   | ✅  | ⬜      |
-| Pasting **the entire shared message** works, not just the bare code                                                                                | ✅  | ⬜      |
+| **The host shares a board** — the code arrives in the share sheet with a message naming the app                                                    | ✅  | ✅      |
+| **A second device joins by pasting the code**, and the board arrives with its whole roster and season, not empty                                   | ✅  | ✅      |
+| Pasting **the entire shared message** works, not just the bare code                                                                                | ✅  | ✅      |
 | A **wrong or expired code** says so and leaves the app usable                                                                                      | ✅  | ✅      |
-| **A guest pays nothing.** A device with neither Pro nor Club joins, and can read the board it was sent — if it hits a paywall, the feature is dead | ✅  | ⬜      |
-| That guest **cannot** create a board of their own (Pro) or share one (Club) — the create and share controls are absent, not broken                 | ✅  | ⬜      |
-| **A player added on one device appears on the other** after foregrounding it                                                                       | ⬜  | ✅      |
+| **A guest pays nothing.** A device with neither Pro nor Club joins, and can read the board it was sent — if it hits a paywall, the feature is dead | ✅  | ✅      |
+| That guest **cannot** create a board of their own (Pro) or share one (Club) — the create and share controls are absent, not broken                 | ✅  | ✅      |
+| **A player added on one device appears on the other** after foregrounding it                                                                       | ✅  | ✅      |
 | **A game recorded on one appears on the other**, with the same standings                                                                           | ✅  | ✅      |
-| **Record with no signal, then reconnect.** Airplane mode, add a player and record a game, come back — both arrive, and nothing was lost or doubled | ⬜  | ✅      |
-| **A deletion propagates.** Remove a player on the host; the guest stops showing them                                                               | ⬜  | ✅      |
-| **Removing with no signal says so and changes nothing** — the player stays, and the alert says removing needs signal                               | ⬜  | ✅      |
-| **A guest has no remove, delete or rename** on a board somebody else shared — only an admin can, and a guest's used to change their phone alone    | ✅  | ⬜      |
-| **A game the admin deletes stays gone on the guest** — foreground the guest twice and it does not come back                                        | ✅  | ⬜      |
+| **Record with no signal, then reconnect.** Airplane mode, add a player and record a game, come back — both arrive, and nothing was lost or doubled | ✅  | ✅      |
+| **A deletion propagates.** Remove a player on the host; the guest stops showing them                                                               | ✅  | ✅      |
+| **Removing with no signal says so and changes nothing** — the player stays, and the alert says removing needs signal                               | ✅  | ✅      |
+| **A guest has no remove, delete or rename** on a board somebody else shared — only an admin can, and a guest's used to change their phone alone    | ✅  | ✅      |
+| **A game the admin deletes stays gone on the guest** — foreground the guest twice and it does not come back                                        | ✅  | ✅      |
 | **A board deleted locally stays deleted**, and is not re-added by the next sync                                                                    | ⬜  | ⬜      |
-| The **share button is absent on a board you joined** — only an admin can invite, so offering it would only ever explain itself                     | ✅  | ⬜      |
+| The **share button is absent on a board you joined** — only an admin can invite, so offering it would only ever explain itself                     | ✅  | ✅      |
 | **Sign in on a third device → the boards are there**, without anybody sharing anything                                                             | ⬜  | ⬜      |
 | A write the server refuses shows the "Not saved for others" card, and dismissing it works                                                          | ⬜  | ⬜      |
-| Renaming a board on one device does **not** revert on the next sync                                                                                | ⬜  | ✅      |
+| Renaming a board on one device does **not** revert on the next sync                                                                                | ✅  | ✅      |
 | **An admin sees the members button on their own board**, and a member sees none on a board they joined                                             | ✅  | ✅      |
-| **Removing a member stops that phone syncing the board.** They keep the local copy, and their next write comes back refused rather than vanishing  | ✅  | ⬜      |
-| **The code they were sent stops working afterwards** — rejoining needs a fresh one, and the sheet says the code was replaced                       | ✅  | ⬜      |
-| Your own row says **"you"** and offers no remove; leaving is still on the boards list                                                              | ⬜  | ✅      |
+| **Removing a member stops that phone syncing the board.** They keep the local copy, and their next write comes back refused rather than vanishing  | ✅  | ✅      |
+| **The code they were sent stops working afterwards** — rejoining needs a fresh one, and the sheet says the code was replaced                       | ✅  | ✅      |
+| Your own row says **"you"** and offers no remove; leaving is still on the boards list                                                              | ✅  | ✅      |
 | The **only admin cannot be removed**, and the sheet says why rather than failing                                                                   | ⬜  | ⬜      |
 
 ---
@@ -921,10 +956,10 @@ in §15.
 
 |                                                                                                                                                                   | iOS | Android |
 | ----------------------------------------------------------------------------------------------------------------------------------------------------------------- | --- | ------- |
-| **The filter refuses a name as it is typed** — try an obvious slur as a board name and as a player name: the reason appears under the field, and nothing is saved | ✅  | ⬜      |
-| **Reporting a board you joined** — the flag icon, a reason, optional detail, and a confirmation that says a person will read it                                   | ✅  | ⬜      |
-| A report that **cannot be sent says so** (airplane mode), rather than thanking somebody for a report that never left the phone                                    | ✅  | ⬜      |
-| **Leaving takes every name on that board off the phone**, and it does not come back on the next foreground or the next sign-in                                    | ✅  | ⬜      |
+| **The filter refuses a name as it is typed** — try an obvious slur as a board name and as a player name: the reason appears under the field, and nothing is saved | ✅  | ✅      |
+| **Reporting a board you joined** — the flag icon, a reason, optional detail, and a confirmation that says a person will read it                                   | ✅  | ✅      |
+| A report that **cannot be sent says so** (airplane mode), rather than thanking somebody for a report that never left the phone                                    | ✅  | ✅      |
+| **Leaving takes every name on that board off the phone**, and it does not come back on the next foreground or the next sign-in                                    | ✅  | ✅      |
 
 > **The other half of a report is on the server**, and it is checked once against prod in §20: a
 > report raises the `ContentReports` alarm, which emails `alertEmail`. An SNS email subscription
@@ -941,12 +976,12 @@ something they already own**, which is the failure that reaches a store review.
 |                                                                                                                                                                                                                                                                                                                                                    | iOS | Android |
 | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --- | ------- |
 | A **Pro-only** account (no Club) can use every local feature and **cannot** share a board — and the message names Club, not Pro                                                                                                                                                                                                                    | ⬜  | ⬜      |
-| A **Club** subscriber gets Pro with it — the leaderboard works without buying Pro separately                                                                                                                                                                                                                                                       | ⬜  | ✅      |
-| A Club subscriber sees **"Pro is included with Club"**, not "Pro unlocked". **The reason given here used to be wrong** — it said the second "implies a permanence they have not got", and `clubEver` means they _do_ keep Pro after a lapse. The distinction is that they did not buy Pro outright (`ownsProOutright`), not that they will lose it | ⬜  | ✅      |
-| **Restore purchases is offered even when the app thinks you are unlocked.** The person who needs it most is the one whose purchase this device has not recognised                                                                                                                                                                                  | ⬜  | ✅      |
+| A **Club** subscriber gets Pro with it — the leaderboard works without buying Pro separately                                                                                                                                                                                                                                                       | ✅  | ✅      |
+| A Club subscriber sees **"Pro is included with Club"**, not "Pro unlocked". **The reason given here used to be wrong** — it said the second "implies a permanence they have not got", and `clubEver` means they _do_ keep Pro after a lapse. The distinction is that they did not buy Pro outright (`ownsProOutright`), not that they will lose it | ✅  | ✅      |
+| **Restore purchases is offered even when the app thinks you are unlocked.** The person who needs it most is the one whose purchase this device has not recognised                                                                                                                                                                                  | ✅  | ✅      |
 | Buying **Pro** while subscribed does not double-charge or confuse the paywall                                                                                                                                                                                                                                                                      | ⬜  | ⬜      |
 | Nobody is ever told to buy something they hold — check the messages for a Pro-only, a Club-only, and a signed-out account                                                                                                                                                                                                                          | ⬜  | ⬜      |
-| A **signed-out** person tapping "Join a board" is offered a sign-in, not a paywall and not an empty sheet                                                                                                                                                                                                                                          | ⬜  | ✅      |
+| A **signed-out** person tapping "Join a board" is offered a sign-in, not a paywall and not an empty sheet                                                                                                                                                                                                                                          | ✅  | ✅      |
 
 ### 16b. Buying Club · **the rows a subscription is rejected over**
 
@@ -1003,25 +1038,25 @@ is about whether a person can tell, before they tap, which of the two they are b
 
 |                                                                                                                                                  | iOS | Android |
 | ------------------------------------------------------------------------------------------------------------------------------------------------ | --- | ------- |
-| Settings shows **two separate cards**, Pro badged **One-time** and Club badged **Subscription**                                                  | ⬜  | ✅      |
-| The two are **visibly different colours** — Pro amber, Club violet — on the cards, the pills and the buttons                                     | ⬜  | ✅      |
-| Opening the sheet from a **locked Pro feature** puts Pro first, filled; Club is below it and outlined                                            | ⬜  | ✅      |
-| Opening it from **"See Club"** puts Club first, filled; Pro is below it and outlined                                                             | ⬜  | ✅      |
-| **Both stay buyable either way** — the unfocused card is outlined, never hidden, and its button still works                                      | ⬜  | ✅      |
-| Each card says its shape in words: Pro _"paid once … nothing to renew"_, Club _"renews automatically until cancelled"_                           | ⬜  | ✅      |
-| The **shared clock** row in Settings carries a **CLUB** pill, and the Pro rows carry **PRO** pills — a subscriber sees neither on what they hold | ⬜  | ✅      |
-| **Groups → the Club offer** appears for a signed-in non-subscriber and opens the sheet on Club                                                   | ⬜  | ✅      |
-| That offer is **absent on a cold launch until the store answers** — never shown while entitlements are still the default                         | ⬜  | ✅      |
-| **Start a clock → "See Club"** opens the sheet on Club, and the refusal sentence above it still reads the same                                   | ⬜  | ✅      |
+| Settings shows **two separate cards**, Pro badged **One-time** and Club badged **Subscription**                                                  | ✅  | ✅      |
+| The two are **visibly different colours** — Pro amber, Club violet — on the cards, the pills and the buttons                                     | ✅  | ✅      |
+| Opening the sheet from a **locked Pro feature** puts Pro first, filled; Club is below it and outlined                                            | ✅  | ✅      |
+| Opening it from **"See Club"** puts Club first, filled; Pro is below it and outlined                                                             | ✅  | ✅      |
+| **Both stay buyable either way** — the unfocused card is outlined, never hidden, and its button still works                                      | ✅  | ✅      |
+| Each card says its shape in words: Pro _"paid once … nothing to renew"_, Club _"renews automatically until cancelled"_                           | ✅  | ✅      |
+| The **shared clock** row in Settings carries a **CLUB** pill, and the Pro rows carry **PRO** pills — a subscriber sees neither on what they hold | ✅  | ✅      |
+| **Groups → the Club offer** appears for a signed-in non-subscriber and opens the sheet on Club                                                   | ✅  | ✅      |
+| That offer is **absent on a cold launch until the store answers** — never shown while entitlements are still the default                         | ✅  | ✅      |
+| **Start a clock → "See Club"** opens the sheet on Club, and the refusal sentence above it still reads the same                                   | ✅  | ✅      |
 | Club is **absent everywhere** with `featureSharing=off` — the Settings card, the paywall's Club card, the groups offer and the clock's button    | ⬜  | ⬜      |
 | Club is **absent everywhere** in a build whose subscriptions are not live — no empty card, no dead button                                        | ✅  | ✅      |
-| **The annual plan comes first and is the filled button**; the monthly sits below it, outlined                                                    | ⬜  | ✅      |
+| **The annual plan comes first and is the filled button**; the monthly sits below it, outlined                                                    | ✅  | ✅      |
 | The annual carries **"Save N% vs monthly"**, and N is right for the two prices **actually on screen** — work it out by hand and compare          | ⬜  | ⬜      |
 | **The claim is absent rather than wrong** when it cannot be made: only one plan returned by the store, or an annual that is not cheaper          | ⬜  | ⬜      |
 | In a **non-euro storefront** the saving is still correct — the whole reason it is computed from numbers instead of the formatted price strings   | ⬜  | ⬜      |
 | The leaderboard's free text share now reads **"Send a text summary"** and still produces exactly that — a text blob in the system share sheet    | ⬜  | ⬜      |
 | **"Share this board" sits beside it**, violet, for a signed-in non-subscriber, and opens the sheet on Club                                       | ⬜  | ⬜      |
-| For a **Club subscriber** the same button is grey and opens Groups — not the paywall, and not a second invite-minting path                       | ⬜  | ✅      |
+| For a **Club subscriber** the same button is grey and opens Groups — not the paywall, and not a second invite-minting path                       | ✅  | ✅      |
 | It is **absent on a board somebody else hosts.** Inviting to one you are only a member of is refused on role, so selling Club for it is a lie    | ⬜  | ⬜      |
 | It is **absent** with `featureSharing=off`, in a no-backend build, and while signed out                                                          | ⬜  | ⬜      |
 | It is **absent on a cold launch until the store answers** — same rule as the Groups offer                                                        | ⬜  | ⬜      |
