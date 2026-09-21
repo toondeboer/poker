@@ -617,6 +617,26 @@ Guests are unaffected either way. They never paid.
   any board already on the server, because the other direction silently strands the members reading
   it. Revisit if lapsed hosts turn out to be a real cost.
 
+## Payouts — open question
+
+- ⬜ **The calculator pays at most six places, and a large field cannot change that.** Raised during
+  the 1.2.0 pass by entering a very high player count and noticing the number never moves.
+
+  **It is structural rather than a chosen limit.** `MAX_PAID_PLACES` is `PAYOUT_SPLITS.length`, and
+  `PAYOUT_SPLITS` defines exactly six tables, ending at `[30, 23, 17, 13, 10, 7]`. The field-size
+  rule tops out to match — `MIN_ENTRANTS_FOR_PLACES` ends at 25 — so **25 entrants already reaches
+  the maximum** and everything above it is identical. The reasoning is in the file: _"Beyond six a
+  home game is splitting hairs."_
+
+  **Fine for what this is**, and worth revisiting only if the app stops being a home-game tool. A
+  real tournament pays roughly 10–15% of the field, so 100 players would expect 10–15 places, not
+  six. Raising it is **not a constant change**: every additional place needs its own split table,
+  chosen deliberately, and `distribute()`'s largest-remainder behaviour re-checked against each —
+  the top place absorbs the indivisible part, and that gets more visible as the shares get smaller.
+
+  Recorded so the reasoning is not rediscovered from scratch next time somebody types 100 into the
+  players field.
+
 ## Deal a hand — known gaps
 
 - 🟡 **The game cannot know who finished where, and must not pretend to.** Busting is a chip event;
