@@ -654,6 +654,14 @@ platform-tagged heading (e.g. `## [1.1.3] - 2026-07-20 — Android`) when you cu
 
 ### Changed
 
+- **Pod resource bundles build on Xcode 27.** Several pods still declare a deployment target of
+  12.0 or 13.0 in their podspecs, and their resource bundles inherit it — which Xcode 27 refuses,
+  failing a local build with five errors naming targets like `AsyncStorage-AsyncStorage_resources`.
+  The `post_install` hook now pins those to the same target `platform :ios` declares, alongside the
+  code-signing setting it was already applying to them. Only resource bundles are touched, which
+  hold assets rather than code, so nothing the app runs is affected — and EAS, whose image runs an
+  older Xcode, never saw the problem.
+
 - **The sign-in card leads with the provider that belongs to the device.** Continue with Apple was
   the highlighted option on both platforms, so an Android phone offered Apple as the obvious way in
   and put Google — the account already on the device — underneath it as the secondary choice. Apple

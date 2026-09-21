@@ -66,13 +66,32 @@ target 'PokerTimer' do
       end
     end
 
-    # This is necessary for Xcode 14, because it signs resource bundles by default
-    # when building for devices.
+    # Both of these are about pod *resource bundles* rather than code targets,
+    # which is why they are safe: these hold assets, and nothing the app runs.
+    #
+    # `CODE_SIGNING_ALLOWED` is necessary for Xcode 14, which signs resource
+    # bundles by default when building for devices.
+    #
+    # `IPHONEOS_DEPLOYMENT_TARGET` is necessary for Xcode 27, which refuses a
+    # deployment target below 15.0. Several pods still declare 12.0 or 13.0 in
+    # their podspecs, and their resource bundles inherit it — so a local build
+    # fails with "deployment target ... is set to 13.0, but the range of
+    # supported deployment target versions is 15.0 to 27.0.x" for targets like
+    # `AsyncStorage-AsyncStorage_resources` and `RevenueCat-RevenueCat`. It is
+    # pinned to the same value `platform :ios` declares above rather than a
+    # literal, so the two cannot drift apart.
+    #
+    # **EAS is not affected and never was**, which is the confusing part: its
+    # build image runs an older Xcode, so candidate 5 built from this same
+    # commit while local builds could not. A green EAS build says nothing about
+    # whether `npm run ios` works.
+    deployment_target = podfile_properties['ios.deploymentTarget'] || '15.1'
     installer.target_installation_results.pod_target_installation_results
       .each do |pod_name, target_installation_result|
       target_installation_result.resource_bundle_targets.each do |resource_bundle_target|
         resource_bundle_target.build_configurations.each do |config|
           config.build_settings['CODE_SIGNING_ALLOWED'] = 'NO'
+          config.build_settings['IPHONEOS_DEPLOYMENT_TARGET'] = deployment_target
         end
       end
     end
