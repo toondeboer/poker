@@ -544,6 +544,27 @@ style/Theme.EdgeToEdge`/`Theme.SplashScreen ... not found` during `processDebugR
   which sets `EXPO_USE_PRECOMPILED_MODULES=1` ambiently in its cloud environment. Verify:
   `grep -c React-Core-prebuilt apps/mobile/ios/Podfile.lock` → `0`; if it's non-zero, someone
   removed the Podfile `ENV` lines — restore them rather than just reverting the lock file.
+- **Local iOS builds are blocked on Xcode 27, and it takes two fixes rather than one — the second
+  is upstream and deliberately not applied.** `npm run ios` fails in two layers, and the first hides
+  the second:
+  1. **Pod resource bundles.** Several pods still declare `IPHONEOS_DEPLOYMENT_TARGET` 12.0 or 13.0
+     in their podspecs, and Xcode 27 refuses anything below 15.0 — five errors naming targets like
+     `AsyncStorage-AsyncStorage_resources` and `RevenueCat-RevenueCat`. **Fixed here**, in the
+     `post_install` hook that was already setting `CODE_SIGNING_ALLOWED` on the same targets. Safe
+     because resource bundles hold assets, not code.
+  2. **`expo-modules-jsi@56.0.12` does not compile under Xcode 27's Swift.**
+     `JavaScriptRuntime.swift:219` passes `set == nil ? nil : setter` where a C function pointer is
+     wanted, and the newer compiler accepts those only from a direct `func` reference or a literal
+     closure. An upstream bug, and **not patched here on purpose**: `patch-package` edits
+     `node_modules`, EAS builds from the same `node_modules`, so patching it would change the
+     shipped binary's JSI host-object path for the sake of local dev builds. Wrong patch, silent
+     breakage everywhere, in a release candidate.
+
+  **EAS is unaffected by both** — its image runs an older Xcode, which is the confusing part: a
+  green EAS build proves nothing about whether `npm run ios` works, and candidate 5 built from a
+  commit that could not be built locally. Until Expo ships a fix, iOS dev-client work needs an older
+  Xcode, and anything that only needs shared JS should go to Android instead.
+
 - **Keep `ios.supportsTablet: true`.** The app shipped universal (iPhone + iPad); an update that
   drops iPad is rejected at upload with App Store error 90101.
 - **Keep the `guardReactLifecycle` overrides in `MainActivity.kt`.** React Native's own
