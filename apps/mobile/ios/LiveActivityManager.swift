@@ -58,7 +58,15 @@ import ActivityKit
     }
   }
     
-  @objc public static func updateActivity(id: String, data: [String: Any]) {
+  /// Returns false when no live activity carries `id`, so the JS side can tell
+  /// "updated" from "there was nothing there" — it previously resolved
+  /// successfully either way, which made the caller's recovery path dead code.
+  @objc public static func updateActivity(id: String, data: [String: Any]) -> Bool {
+    guard liveActivities().contains(where: { $0.id == id }) else {
+      print("No active Live Activity found with ID: \(id)")
+      return false
+    }
+
     // Parse endTime properly
     let endTime: Date
     if let endTimeValue = data["endTime"] as? Double {
@@ -83,42 +91,34 @@ import ActivityKit
     )
         
     Task {
-      do {
-        let activities = Activity<PokerTimerWidgetAttributes>.activities
-        guard let activity = activities.first(where: { $0.id == id }) else {
-          print("No active Live Activity found with ID: \(id)")
-          return
-        }
-                
-        let content = ActivityContent(state: contentState, staleDate: nil)
-        await activity.update(content)
-        print("Live Activity updated successfully")
-      } catch {
-        print("Error updating Live Activity: \(error.localizedDescription)")
+      guard let activity = liveActivities().first(where: { $0.id == id }) else {
+        print("Live Activity \(id) disappeared before the update landed")
+        return
       }
+
+      let content = ActivityContent(state: contentState, staleDate: nil)
+      await activity.update(content)
+      print("Live Activity updated successfully")
     }
+
+    return true
   }
     
   @objc public static func endActivity(id: String) {
     Task {
-      do {
-        let activities = Activity<PokerTimerWidgetAttributes>.activities
-        guard let activity = activities.first(where: { $0.id == id }) else {
-          print("No active Live Activity found with ID: \(id)")
-          return
-        }
-                
-        await activity.end(
-          ActivityContent(
-            state: activity.content.state,
-            staleDate: Date()
-          ),
-          dismissalPolicy: .immediate
-        )
-        print("Live Activity ended successfully")
-      } catch {
-        print("Error ending Live Activity: \(error.localizedDescription)")
+      guard let activity = liveActivities().first(where: { $0.id == id }) else {
+        print("No active Live Activity found with ID: \(id)")
+        return
       }
+
+      await activity.end(
+        ActivityContent(
+          state: activity.content.state,
+          staleDate: Date()
+        ),
+        dismissalPolicy: .immediate
+      )
+      print("Live Activity ended successfully")
     }
   }
     
@@ -127,8 +127,20 @@ import ActivityKit
   }
     
   @objc public static func getActiveActivities() -> [String] {
-    let activities = Activity<PokerTimerWidgetAttributes>.activities
-    return activities.map { $0.id }
+    return liveActivities().map { $0.id }
+  }
+
+  /// Activities that are actually **on screen**.
+  ///
+  /// `Activity.activities` keeps returning activities that have already ended
+  /// or been dismissed — including the ones iOS ends by itself at the eight-hour
+  /// limit. Without this filter the app adopts a dead card, `update` silently
+  /// no-ops on it, and the user is left looking at a frozen round while the app
+  /// believes it has a healthy activity.
+  private static func liveActivities() -> [Activity<PokerTimerWidgetAttributes>] {
+    return Activity<PokerTimerWidgetAttributes>.activities.filter {
+      $0.activityState == .active || $0.activityState == .stale
+    }
   }
 }
 

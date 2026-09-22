@@ -1,4 +1,10 @@
-import { ChevronLeft, ChevronRight, Pause, Play, RotateCcw } from "lucide-react";
+import {
+  ChevronLeft,
+  ChevronRight,
+  Pause,
+  Play,
+  RotateCcw,
+} from "lucide-react";
 
 interface TimerControlsProps {
   isRunning: boolean;

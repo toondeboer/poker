@@ -14,7 +14,10 @@ import {
   TABLET_MAX_WIDTH_SETTINGS,
 } from "@/src/theme";
 import { useKeyboardFocusScroll } from "@/src/hooks/useKeyboardFocusScroll";
-import { Paywall } from "@/src/components/paywall/Paywall";
+import { Paywall, type PaywallFocus } from "@/src/components/paywall/Paywall";
+import { AccountCard } from "./AccountCard";
+import { NotificationsBlockedCard } from "./NotificationsBlockedCard";
+import { ClubCard } from "./ClubCard";
 import { ProCard } from "./ProCard";
 import { TournamentCard } from "./TournamentCard";
 import { PresetsCard } from "./PresetsCard";
@@ -26,7 +29,23 @@ export function SettingsScreen() {
   const isTablet = isTabletWidth(width);
 
   const [showPaywall, setShowPaywall] = useState(false);
-  const openPaywall = () => setShowPaywall(true);
+  /**
+   * Which purchase the sheet opens on.
+   *
+   * **Carried from the button that opened it**, because the two are no longer
+   * the same offer: every locked Pro feature on this screen leads to Pro, and
+   * the Club card leads to Club. The sheet shows both either way — this only
+   * decides which one is first and filled.
+   */
+  const [paywallFocus, setPaywallFocus] = useState<PaywallFocus>("pro");
+  const openPaywall = () => {
+    setPaywallFocus("pro");
+    setShowPaywall(true);
+  };
+  const openClub = () => {
+    setPaywallFocus("club");
+    setShowPaywall(true);
+  };
 
   // Owned here (rather than in PresetsCard) because the nudge has to drive the
   // screen's scroller, which lives at this level.
@@ -76,7 +95,19 @@ export function SettingsScreen() {
         // in the manifest, so no wrapper (KeyboardAvoidingView) is needed here.
         automaticallyAdjustKeyboardInsets={true}
       >
+        {/* First, because it is the only card here that means something is
+            broken — and somebody who came to Settings wondering why the timer
+            went quiet should not have to scroll past four working features to
+            find out. Renders nothing at all when notifications are fine. */}
+        <NotificationsBlockedCard />
+
         <ProCard onRequestPro={openPaywall} />
+
+        {/* Directly under Pro, because the question somebody has at this point
+            is "what is the difference between these two" and the answer is only
+            legible when they are side by side. Renders nothing at all in a build
+            where Club cannot be bought. */}
+        <ClubCard onRequestClub={openClub} />
 
         <View style={[styles.pair, isTablet && styles.pairTablet]}>
           <TournamentCard style={isTablet && styles.pairItem} />
@@ -92,9 +123,18 @@ export function SettingsScreen() {
         </View>
 
         <SoundPackCard onRequestPro={openPaywall} />
+
+        {/* Last, because it is optional and everything above it is not — the
+            timer works with no account at all. Renders nothing in a build
+            with no backend. */}
+        <AccountCard />
       </ScrollView>
 
-      <Paywall visible={showPaywall} onClose={() => setShowPaywall(false)} />
+      <Paywall
+        visible={showPaywall}
+        focus={paywallFocus}
+        onClose={() => setShowPaywall(false)}
+      />
     </View>
   );
 }
