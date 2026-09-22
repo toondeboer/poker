@@ -309,6 +309,15 @@ Mobile releases are batched on a short-lived branch per version, not shipped str
        Review" there is the whole of it. Add the Club subscription group and both subscriptions to
        that same submission — Apple approves a first auto-renewable subscription only alongside an
        app version, so waiting for them to be approved first waits for something that cannot happen.
+       - **Each subscription is added separately, and adding the group is not enough.** The draft
+         submission refuses with _"New subscription groups must be submitted with an
+         auto-renewable subscription from within that group"_ — which reads like the group is
+         wrong, and it is not: the group is there and the products are missing. Add
+         `club_monthly` and `club_yearly` as their own items, from within the group.
+       - A subscription can only be added once it reads **Ready to Submit**, which needs a
+         localized name and description, duration and price, **and a review screenshot** — the
+         last is the one usually missing. `store-assets/ios/paywall-club-review.png` serves both,
+         since it is the same purchase UI.
   8. Once the release is actually live: correct the version heading's date in `CHANGELOG.md` to
      the ship date, merge the standing `release/<version>` → `main` PR (update its description one
      last time first), then tag the built commit — not just wherever
