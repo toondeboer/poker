@@ -657,9 +657,10 @@ android.intent.action.VIEW -d "pokerkit://blinds" com.toondeboer.pokerkit` on a 
 ## 10. Screen stays awake
 
 The screen is held on while a round counts down, and released on pause/stop. **The releasing half
-has never been verified on hardware** — see the keep-awake carry-over at the top of
-[ROADMAP.md](./ROADMAP.md#carried-over-from-114--needs-verification) for what shipped untested and
-why it was accepted.
+had never been verified on hardware until 1.2.0** — the 1.1.4 fix routed every transition through
+one module-level queue in `useKeepScreenAwake.ts` and then shipped untested, verified on Android
+but not iOS, and it stayed that way for a release. Both halves are now confirmed on a device, so
+the carry-over entry `ROADMAP.md` kept for it is gone.
 
 **Before testing, check the device isn't the reason.** Set a short auto-lock — iOS
 _Settings → Display & Brightness → Auto-Lock → 30 Seconds_ (it must not be _Never_), Android
@@ -676,12 +677,12 @@ baseline** — force-stop, relaunch, and check the flag is 0 _before_ starting a
 restore a running tournament and re-acquire the lock on its own, which makes the next Start/Pause tap
 land the opposite way round and reads exactly like a broken release.
 
-|                                                                                                                                                                                   | iOS                   | Android |
-| --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------- | ------- |
-| Screen doesn't sleep while a round is running, left untouched past the OS timeout                                                                                                 | ✅                    | ✅      |
-| Pausing releases it — the screen sleeps normally again                                                                                                                            | ⬜ **never verified** | ✅      |
-| Stopping/resetting releases it too                                                                                                                                                | ⬜ **never verified** | ✅      |
-| With a round **running**, leave the timer screen for Settings — the screen should still stay awake (the round is still going), and start sleeping again once you pause from there | ✅                    | ✅      |
+|                                                                                                                                                                                   | iOS | Android |
+| --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --- | ------- |
+| Screen doesn't sleep while a round is running, left untouched past the OS timeout                                                                                                 | ✅  | ✅      |
+| Pausing releases it — the screen sleeps normally again                                                                                                                            | ✅  | ✅      |
+| Stopping/resetting releases it too                                                                                                                                                | ✅  | ✅      |
+| With a round **running**, leave the timer screen for Settings — the screen should still stay awake (the round is still going), and start sleeping again once you pause from there | ✅  | ✅      |
 
 ---
 

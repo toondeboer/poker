@@ -15,31 +15,43 @@ stay because code and other docs cite them.
 
 ## Shipping 1.2.0 — what is left
 
-The release is cut (native versions, changelog heading, this file), and **the backend is deployed**:
-prod ran from `release/1.2.0` carrying the push-token fix, so `POST /me/push-token` accepts a device
-there now. Dev also carries extra push-ticket logging; prod deliberately does not.
+The release is cut, the backend is deployed from `release/1.2.0`, and **candidate 6 is on both
+testing tracks** — iOS build **32** and Android versionCode **21**, both from `9b8cd5f`. Cutting
+steps 1–6 are done.
 
-**Candidates 1 and 2 are both superseded.** Candidate 2 — iOS build 28 and Android versionCode 17,
-from `8b03ac5` — is on TestFlight and Play internal, and running §16b against it is what found #272:
-a Club subscriber could not reach the renewal terms or either legal link from anywhere in the app,
-which is a Guideline 3.1.2 rejection. That fix is on the branch and in no build, so **candidate 3 has
-to be built before anything is submitted for review.** What remains, in order:
+**The testing pass is finished.** 472 of 544 cells pass, and every one of
+[the shortest pass that can ship](./RELEASE_TESTING.md#the-shortest-pass-that-can-ship) is met.
+Six defects were found and fixed on a real build — a provider sign-in ending on "Unmatched Route",
+a restarted host orphaning its own shared clock, prod alerting with no subscribers, the iPad list
+width, the blind editor becoming unreachable, and an interrupted sign-up permanently bricking an
+email address. Two are accepted with write-ups: refunds need RTDN, and there is no password reset.
 
-1. ⬜ **Build and submit candidate 3** — cutting steps 5 and 6: a clean tree on `release/1.2.0`,
-   then TestFlight and Play internal.
-2. ⬜ **Finish the pass** — [the shortest pass that can ship](./RELEASE_TESTING.md#the-shortest-pass-that-can-ship),
-   plus the two §16b rows candidate 2 was marked against before #272 existed. Still unrun on a
-   phone: **Android billing entirely** (§1, §1b, §16b — never once exercised, and reachable only from
-   the Play internal track with a licence tester), a completed provider sign-in against prod
-   (§14, §14b), a notification actually arriving (§19), and the sheet and keyboard rows #265 reopened
-   (§3, §5). Mark anything left unrun 🟡 deliberately rather than by omission.
-3. ⬜ **Console work that cannot delay a build but can delay a review:** paste the store copy from
-   [STORE_LISTING.md](./STORE_LISTING.md) and count the fields in the console; point App Store
-   Connect's License Agreement field at `/terms`; confirm the `ContentReports` SNS email
-   subscription (§20); add the Club group and both subscriptions to the same App Store submission as
-   the app version.
+The eight rows still ⬜ are **not defects** — four need Pro on a tablet, two need a sandbox
+subscription to lapse, and two need a local iOS build, which Xcode 27 blocks upstream.
+
+**What remains, in order:**
+
+1. ✅ **Console work that cannot delay a build but can delay a review — done.** Paste the store copy from
+   [STORE_LISTING.md](./STORE_LISTING.md) and count the fields in the console. **Point App Store
+   Connect's License Agreement field at `/terms`** — the only outstanding item with review risk for
+   a subscription app. Add the Club group and both subscriptions to the **same** App Store
+   submission as the app version, because Apple approves a first auto-renewable subscription only
+   alongside one.
+2. 🟡 **The store listing advertises a pre-1.2.0 app, and 1.2.0 ships anyway — decided.** The
+   screenshots predate the leaderboard, payouts, shared clock, accounts and Club. That is not a
+   rejection risk, and holding a finished, tested release for a photo shoot is the wrong trade: the
+   binary is what users get, and the listing can be replaced any day without a review. **Redone for
+   1.2.1**, properly and probably automated — see
+   [Store listing and assets](#store-listing-and-assets) for why it is harder than it looks. The
+   feature graphic is the exception worth doing now, since it is a single upload of an asset that
+   already exists.
+3. ✅ **§10's two iOS keep-awake rows — done, and they close a 1.1.4 carry-over.** The release
+   half of keep-awake shipped untested in 1.1.4 and had been unverified on iOS ever since. Confirmed
+   on a device: the screen stays on while a round runs and sleeps once paused. The carried-over
+   section this file kept for it is gone.
 4. ⬜ **Ship** — cutting steps 7–9: promote in both consoles, correct the changelog date, merge
-   #147, tag the **built** commit, delete the branch, reset `RELEASE_TESTING.md`.
+   #147, tag the **built** commit (`9b8cd5f`, not the merge), delete the branch, reset
+   `RELEASE_TESTING.md`.
 
 ## Carried into 1.2.1 — from the 1.2.0 release review
 
@@ -692,32 +704,35 @@ provider added as generic OIDC looks identical on the login screen and bills eve
 **A completed sign-in against prod has not been run on either platform** — it is §14b in
 [RELEASE_TESTING.md](./RELEASE_TESTING.md), and part of the shortest pass.
 
-## Carried over from 1.1.4 — needs verification
-
-- 🟡 **Keep-awake release: verified on Android, still unverified on iOS** (was D11). The screen is
-  held while a round counts down and released on pause/stop. The 1.1.4 fix — routing every
-  transition through one module-level queue in `apps/mobile/src/hooks/useKeepScreenAwake.ts` —
-  **shipped untested and does work**: on an API 35 emulator with a 30s timeout, `FLAG_KEEP_SCREEN_ON`
-  goes 0 → 1 on Start and 1 → 0 on both Pause and Reset, and the screen is `Asleep` ~50s after a
-  pause. What's left is the same check on iOS, which **can't be done on the Simulator** (it has no
-  auto-lock) and so needs a real device.
-  - **Measure the flag, don't watch the screen**, and take the reading from a force-stopped
-    baseline — a relaunch can restore a _running_ tournament and re-acquire the lock before you
-    touch anything, which inverts the meaning of the next tap. See §10 of
-    [RELEASE_TESTING.md](./RELEASE_TESTING.md#10-screen-stays-awake).
-
 ## Store listing and assets
 
-- ⬜ **Upload the feature graphic to the Play Console** — the asset exists at
+**This is what stands between a finished 1.2.0 and a store page that represents it.** None of it
+blocks a review; all of it is what a person sees before deciding to install.
+
+- ⬜ **Fresh screenshots for every store and size class — deferred from 1.2.0 deliberately.** The current set predates the cross-device
+  QA pass _and_ 1.2.0 entirely — so the listing advertises an app with no leaderboard, no payouts,
+  no shared clock, no accounts and no Club, and a Settings screen that no longer exists (it now
+  carries separate Pro and Club cards). iOS needs iPhone 6.9"/6.5" plus an iPad set
+  (`supportsTablet: true` means the listing needs its own); Play needs phone plus tablet. Timer,
+  Settings, the paywall, the leaderboard and the dealer at least.
+  - **They cannot all be taken on a simulator**, which is the practical catch: the leaderboard and
+    payouts are Pro, and Play Billing does not exist on an emulator while StoreKit needs a
+    configuration the simulator has no store for. The screens that sell the release are exactly the
+    ones needing a device with an entitlement.
+- ⬜ **Upload the feature graphic to the Play Console.** The asset exists and is tracked at
   [`store-assets/android/feature-graphic.png`](./store-assets/android/feature-graphic.png)
-  (1024×500, no alpha, generated by `store-assets/android/generate-feature-graphic.js`). What's left
-  is the manual console step: upload it and confirm it renders correctly there.
-- ⬜ **Fresh screenshots for every store and size class.** The current ones predate the cross-device
-  QA pass _and_ 1.2.0, whose Settings screen now carries separate Pro and Club cards. iOS needs
-  iPhone 6.9"/6.5" plus an iPad set (`supportsTablet: true` means the listing needs its own); Play
-  needs phone plus tablet. Timer, Settings, the paywall, the leaderboard and the dealer at least.
+  (1024×500, no alpha, generated by `store-assets/android/generate-feature-graphic.js`). Only the
+  manual console step is left.
+- ⬜ **Re-shoot `store-assets/ios/paywall-club-review.png`.** It was last taken for #265 and #276
+  added a line to Club's feature list afterwards, so it is one release behind. **Submitted
+  deliberately as-is for 1.2.0**: every Guideline 3.1.2 element it has to show — plan names, both
+  periods, both prices, the renewal sentence naming the App Store, and both legal links — is
+  unchanged. Needs a non-subscriber view on a device where the products are live, which is the same
+  state §16c's price-claim row is waiting for.
 - ⬜ Decide whether to keep hand-picked simulator/emulator screenshots or invest in an automated
   pipeline (`fastlane snapshot`/`frameit`) given iPhone × iPad × Android phone × Android tablet.
+  The entitlement problem above is the strongest argument for automating it properly rather than
+  re-shooting by hand every release.
 
 ## Cross-device QA
 
