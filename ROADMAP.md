@@ -37,10 +37,14 @@ subscription to lapse, and two need a local iOS build, which Xcode 27 blocks ups
    a subscription app. Add the Club group and both subscriptions to the **same** App Store
    submission as the app version, because Apple approves a first auto-renewable subscription only
    alongside one.
-2. ⬜ **The store listing itself, which currently advertises a pre-1.2.0 app.** See
-   [Store listing and assets](#store-listing-and-assets) — the screenshots predate the leaderboard,
-   payouts, shared clock, accounts and Club, and the Play feature graphic has never been uploaded.
-   Not a rejection risk; it is simply the first thing anyone sees, and it undersells the release.
+2. 🟡 **The store listing advertises a pre-1.2.0 app, and 1.2.0 ships anyway — decided.** The
+   screenshots predate the leaderboard, payouts, shared clock, accounts and Club. That is not a
+   rejection risk, and holding a finished, tested release for a photo shoot is the wrong trade: the
+   binary is what users get, and the listing can be replaced any day without a review. **Redone for
+   1.2.1**, properly and probably automated — see
+   [Store listing and assets](#store-listing-and-assets) for why it is harder than it looks. The
+   feature graphic is the exception worth doing now, since it is a single upload of an asset that
+   already exists.
 3. ⬜ **§10's two iOS keep-awake rows**, which this file and `RELEASE_TESTING.md` disagree about —
    🟡 here, ⬜ there. Five minutes on a real iPhone settles it; see the carried-over entry below.
 4. ⬜ **Ship** — cutting steps 7–9: promote in both consoles, correct the changelog date, merge
@@ -717,7 +721,7 @@ provider added as generic OIDC looks identical on the login screen and bills eve
 **This is what stands between a finished 1.2.0 and a store page that represents it.** None of it
 blocks a review; all of it is what a person sees before deciding to install.
 
-- ⬜ **Fresh screenshots for every store and size class.** The current set predates the cross-device
+- ⬜ **Fresh screenshots for every store and size class — deferred from 1.2.0 deliberately.** The current set predates the cross-device
   QA pass _and_ 1.2.0 entirely — so the listing advertises an app with no leaderboard, no payouts,
   no shared clock, no accounts and no Club, and a Settings screen that no longer exists (it now
   carries separate Pro and Club cards). iOS needs iPhone 6.9"/6.5" plus an iPad set
