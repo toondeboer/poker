@@ -31,7 +31,7 @@ subscription to lapse, and two need a local iOS build, which Xcode 27 blocks ups
 
 **What remains, in order:**
 
-1. ⬜ **Console work that cannot delay a build but can delay a review.** Paste the store copy from
+1. ✅ **Console work that cannot delay a build but can delay a review — done.** Paste the store copy from
    [STORE_LISTING.md](./STORE_LISTING.md) and count the fields in the console. **Point App Store
    Connect's License Agreement field at `/terms`** — the only outstanding item with review risk for
    a subscription app. Add the Club group and both subscriptions to the **same** App Store
@@ -45,8 +45,10 @@ subscription to lapse, and two need a local iOS build, which Xcode 27 blocks ups
    [Store listing and assets](#store-listing-and-assets) for why it is harder than it looks. The
    feature graphic is the exception worth doing now, since it is a single upload of an asset that
    already exists.
-3. ⬜ **§10's two iOS keep-awake rows**, which this file and `RELEASE_TESTING.md` disagree about —
-   🟡 here, ⬜ there. Five minutes on a real iPhone settles it; see the carried-over entry below.
+3. ✅ **§10's two iOS keep-awake rows — done, and they close a 1.1.4 carry-over.** The release
+   half of keep-awake shipped untested in 1.1.4 and had been unverified on iOS ever since. Confirmed
+   on a device: the screen stays on while a round runs and sleeps once paused. The carried-over
+   section this file kept for it is gone.
 4. ⬜ **Ship** — cutting steps 7–9: promote in both consoles, correct the changelog date, merge
    #147, tag the **built** commit (`9b8cd5f`, not the merge), delete the branch, reset
    `RELEASE_TESTING.md`.
@@ -701,20 +703,6 @@ provider added as generic OIDC looks identical on the login screen and bills eve
 
 **A completed sign-in against prod has not been run on either platform** — it is §14b in
 [RELEASE_TESTING.md](./RELEASE_TESTING.md), and part of the shortest pass.
-
-## Carried over from 1.1.4 — needs verification
-
-- 🟡 **Keep-awake release: verified on Android, still unverified on iOS** (was D11). The screen is
-  held while a round counts down and released on pause/stop. The 1.1.4 fix — routing every
-  transition through one module-level queue in `apps/mobile/src/hooks/useKeepScreenAwake.ts` —
-  **shipped untested and does work**: on an API 35 emulator with a 30s timeout, `FLAG_KEEP_SCREEN_ON`
-  goes 0 → 1 on Start and 1 → 0 on both Pause and Reset, and the screen is `Asleep` ~50s after a
-  pause. What's left is the same check on iOS, which **can't be done on the Simulator** (it has no
-  auto-lock) and so needs a real device.
-  - **Measure the flag, don't watch the screen**, and take the reading from a force-stopped
-    baseline — a relaunch can restore a _running_ tournament and re-acquire the lock before you
-    touch anything, which inverts the meaning of the next tap. See §10 of
-    [RELEASE_TESTING.md](./RELEASE_TESTING.md#10-screen-stays-awake).
 
 ## Store listing and assets
 
