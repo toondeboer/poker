@@ -53,13 +53,20 @@ export const metadata: Metadata = {
     siteName: "Poker Blinds Buzzer",
     title: "Poker Blinds Buzzer — Free Poker Tournament Timer",
     description: SITE_DESCRIPTION,
-    images: ["/icon-512x512.png"],
+    images: [
+      {
+        url: "/og-image.png",
+        width: 1200,
+        height: 630,
+        alt: "Poker Blinds Buzzer — free poker tournament timer",
+      },
+    ],
   },
   twitter: {
-    card: "summary",
+    card: "summary_large_image",
     title: "Poker Blinds Buzzer — Free Poker Tournament Timer",
     description: SITE_DESCRIPTION,
-    images: ["/icon-512x512.png"],
+    images: ["/og-image.png"],
   },
 };
 
