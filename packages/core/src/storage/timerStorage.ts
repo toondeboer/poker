@@ -1,7 +1,7 @@
 import { StorageAdapter } from "./StorageAdapter";
 import { DEFAULT_TIMER_DURATION } from "../constants";
 
-const STORAGE_KEYS = {
+export const TIMER_KEYS = {
   TIMER_END_TIME: "timer_end_time",
   TIMER_DURATION: "timer_duration",
   TIMER_PAUSED: "timer_paused",
@@ -33,22 +33,22 @@ export function createTimerStorage(storage: StorageAdapter): TimerStorage {
   return {
     async saveTimerState(state: TimerState): Promise<void> {
       await storage.multiSet([
-        [STORAGE_KEYS.TIMER_END_TIME, state.endTime?.toString() || ""],
-        [STORAGE_KEYS.TIMER_DURATION, state.timerDuration.toString()],
-        [STORAGE_KEYS.TIMER_PAUSED, state.paused.toString()],
-        [STORAGE_KEYS.TIMER_TIME_LEFT, state.timeLeft.toString()],
-        [STORAGE_KEYS.TIMER_COMPLETED, (state.completed || false).toString()],
+        [TIMER_KEYS.TIMER_END_TIME, state.endTime?.toString() || ""],
+        [TIMER_KEYS.TIMER_DURATION, state.timerDuration.toString()],
+        [TIMER_KEYS.TIMER_PAUSED, state.paused.toString()],
+        [TIMER_KEYS.TIMER_TIME_LEFT, state.timeLeft.toString()],
+        [TIMER_KEYS.TIMER_COMPLETED, (state.completed || false).toString()],
       ]);
     },
 
     async loadTimerState(): Promise<TimerState> {
       try {
         const values = await storage.multiGet([
-          STORAGE_KEYS.TIMER_END_TIME,
-          STORAGE_KEYS.TIMER_DURATION,
-          STORAGE_KEYS.TIMER_PAUSED,
-          STORAGE_KEYS.TIMER_TIME_LEFT,
-          STORAGE_KEYS.TIMER_COMPLETED,
+          TIMER_KEYS.TIMER_END_TIME,
+          TIMER_KEYS.TIMER_DURATION,
+          TIMER_KEYS.TIMER_PAUSED,
+          TIMER_KEYS.TIMER_TIME_LEFT,
+          TIMER_KEYS.TIMER_COMPLETED,
         ]);
 
         const endTimeStr = values[0][1];
@@ -82,7 +82,7 @@ export function createTimerStorage(storage: StorageAdapter): TimerStorage {
 
     async markTimerCompleted(): Promise<void> {
       try {
-        await storage.setItem(STORAGE_KEYS.TIMER_COMPLETED, "true");
+        await storage.setItem(TIMER_KEYS.TIMER_COMPLETED, "true");
       } catch {
         // best-effort flag; ignore persistence errors
       }
@@ -90,14 +90,14 @@ export function createTimerStorage(storage: StorageAdapter): TimerStorage {
 
     async clearTimerCompleted(): Promise<void> {
       try {
-        await storage.setItem(STORAGE_KEYS.TIMER_COMPLETED, "false");
+        await storage.setItem(TIMER_KEYS.TIMER_COMPLETED, "false");
       } catch {
         // best-effort flag; ignore persistence errors
       }
     },
 
     async clearTimerState(): Promise<void> {
-      await storage.multiRemove(Object.values(STORAGE_KEYS));
+      await storage.multiRemove(Object.values(TIMER_KEYS));
     },
   };
 }

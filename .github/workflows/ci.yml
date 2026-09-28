@@ -41,5 +41,15 @@ jobs:
       - name: Lint
         run: npm run lint
 
+      # Runs before the tests because a formatting failure is instant and its
+      # fix is `npm run format`, where a test failure wants reading.
+      - name: Format
+        run: npm run format:check
+
+      # Cheap, and it guards the file whose entire value is that its numbers
+      # are right — two of them were wrong before anything checked.
+      - name: Store listing
+        run: npm run check:listing
+
       - name: Test
         run: npm run test

@@ -1,7 +1,7 @@
 import { StorageAdapter } from "./StorageAdapter";
 import { BlindPreset } from "../presets/preset";
 
-const STORAGE_KEY = "blind_presets";
+export const PRESETS_KEY = "blind_presets";
 
 export interface PresetStorage {
   loadPresets(): Promise<BlindPreset[]>;
@@ -17,7 +17,7 @@ export function createPresetStorage(storage: StorageAdapter): PresetStorage {
   return {
     async loadPresets(): Promise<BlindPreset[]> {
       try {
-        const raw = await storage.getItem(STORAGE_KEY);
+        const raw = await storage.getItem(PRESETS_KEY);
         return raw ? (JSON.parse(raw) as BlindPreset[]) : [];
       } catch {
         return [];
@@ -25,11 +25,11 @@ export function createPresetStorage(storage: StorageAdapter): PresetStorage {
     },
 
     async savePresets(presets: BlindPreset[]): Promise<void> {
-      await storage.setItem(STORAGE_KEY, JSON.stringify(presets));
+      await storage.setItem(PRESETS_KEY, JSON.stringify(presets));
     },
 
     async clearPresets(): Promise<void> {
-      await storage.multiRemove([STORAGE_KEY]);
+      await storage.multiRemove([PRESETS_KEY]);
     },
   };
 }

@@ -45,6 +45,13 @@ export function useTimerEngine(
 ) {
   const [state, setState] = useState<TimerMachineState>(createTimerState);
   const [isLoading, setIsLoading] = useState(true);
+  /**
+   * Bumped every time the state below came from storage rather than from a
+   * press. Only the shared clock cares: a rehydrated round is not news, and a
+   * phone that announced one on returning from the background would impose its
+   * own stale state on everybody still at the table.
+   */
+  const [hydrationCount, setHydrationCount] = useState(0);
   const { timerDuration, endTime, timeLeft, paused } = state;
 
   // Side effects: persistence I/O + native (Live Activity) sync.
@@ -75,6 +82,8 @@ export function useTimerEngine(
         expired,
         missedRounds,
       } = hydrateTimerState(savedState);
+
+      setHydrationCount((count) => count + 1);
 
       if (expired && !hasHandledTimerCompleteRef.current) {
         // Timer expired while app was closed. hydrate already produced reset
@@ -139,6 +148,23 @@ export function useTimerEngine(
       paused: true,
       timeLeft: timerDuration,
     });
+  };
+
+  /**
+   * Take timer state from somewhere other than this device.
+   *
+   * Used only by the shared-clock sync, and deliberately the whole state rather
+   * than a set of transitions: what arrives from the table is a snapshot, and
+   * replaying it as pause/resume/set-duration calls would go through this
+   * machine's own transitions and produce something subtly different from what
+   * the other phones are showing.
+   *
+   * The completion flag is cleared because the incoming round is not the one
+   * this device may already have decided had ended.
+   */
+  const applyRemoteState = (remote: TimerMachineState): void => {
+    setState(remote);
+    hasHandledTimerCompleteRef.current = false;
   };
 
   // Set timer duration
@@ -211,5 +237,7 @@ export function useTimerEngine(
     resetTimer,
     isLoading,
     loadTimerState,
+    applyRemoteState,
+    hydrationCount,
   };
 }

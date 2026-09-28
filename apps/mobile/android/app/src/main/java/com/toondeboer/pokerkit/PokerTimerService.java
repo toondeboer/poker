@@ -52,8 +52,20 @@ public class PokerTimerService extends Service {
     // running and then had to hand that change back across a persisted snapshot the app
     // reconciled on next launch. That round trip was removed — the app is the only writer now.
 
-    private static final String CHANNEL_ID = "PokerTimerChannel";
-    private static final String ALERT_CHANNEL_ID = "PokerTimerAlertChannel";
+    // **The "V2" suffixes are load-bearing, not tidying.** An Android
+    // notification channel is immutable once created: everything below —
+    // importance, vibration, and setShowBadge in particular — is read when the
+    // channel is first registered and ignored on every later call for the same
+    // id, because from that point the user's own settings own it. Turning the
+    // badge off under the original ids would therefore have changed nothing for
+    // anybody who had already run the app, and would have looked like the fix
+    // not working. New ids are the only way to ship new defaults. The old two
+    // are deleted in createNotificationChannels so they do not linger in the
+    // system settings list with nothing posting to them.
+    private static final String CHANNEL_ID = "PokerTimerChannelV2";
+    private static final String ALERT_CHANNEL_ID = "PokerTimerAlertChannelV2";
+    private static final String LEGACY_CHANNEL_ID = "PokerTimerChannel";
+    private static final String LEGACY_ALERT_CHANNEL_ID = "PokerTimerAlertChannel";
     private static final String CHANNEL_NAME = "Poker Timer";
     private static final String ALERT_CHANNEL_NAME = "Poker Timer Alerts";
     private static final int NOTIFICATION_ID = 1001;
@@ -383,7 +395,9 @@ public class PokerTimerService extends Service {
                     NotificationManager.IMPORTANCE_LOW
             );
             channel.setDescription("Shows poker timer status while app runs in background");
-            channel.setShowBadge(true);
+            // No badge. An ongoing status notification is not an unread message,
+            // and a permanent dot on the launcher icon reads as one.
+            channel.setShowBadge(false);
             channel.setLightColor(Color.BLUE);
             channel.enableLights(false);
             channel.enableVibration(false);
@@ -400,7 +414,9 @@ public class PokerTimerService extends Service {
             alertChannel.enableVibration(true);
             alertChannel.enableLights(true);
             alertChannel.setLightColor(Color.RED);
-            alertChannel.setShowBadge(true);
+            // The alert already fires with sound, vibration and a heads-up
+            // notification. A badge adds nothing and outlives all three.
+            alertChannel.setShowBadge(false);
             alertChannel.setLockscreenVisibility(Notification.VISIBILITY_PUBLIC);
 
             // Set custom vibration pattern
@@ -409,6 +425,12 @@ public class PokerTimerService extends Service {
             }
 
             notificationManager.createNotificationChannel(alertChannel);
+
+            // Remove the pre-V2 channels. Deleting is safe whether or not they
+            // exist, and without it both stay listed under the app's
+            // notification settings forever with nothing ever posting to them.
+            notificationManager.deleteNotificationChannel(LEGACY_CHANNEL_ID);
+            notificationManager.deleteNotificationChannel(LEGACY_ALERT_CHANNEL_ID);
         }
     }
 

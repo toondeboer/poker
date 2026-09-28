@@ -44,13 +44,17 @@ const isBrokenShim = (p) => {
 const broken = shimPaths.filter(isBrokenShim);
 
 if (broken.length === 0) {
-  console.log("[clean-expo-shims] no broken expo-dev-client/autolinking shims found, skipping.");
+  console.log(
+    "[clean-expo-shims] no broken expo-dev-client/autolinking shims found, skipping.",
+  );
   process.exit(0);
 }
 
 for (const p of broken) {
   fs.rmSync(p, { recursive: true, force: true });
-  console.log(`[clean-expo-shims] removed broken shim: ${path.relative(repoRoot, p)}`);
+  console.log(
+    `[clean-expo-shims] removed broken shim: ${path.relative(repoRoot, p)}`,
+  );
 }
 
 // Gradle caches the resolved autolinking list once it's read it; if that read happened while the
@@ -64,7 +68,9 @@ if (clearGradleCache) {
   for (const dir of gradleCacheDirs) {
     if (fs.existsSync(dir)) {
       fs.rmSync(dir, { recursive: true, force: true });
-      console.log(`[clean-expo-shims] cleared stale Gradle cache: ${path.relative(repoRoot, dir)}`);
+      console.log(
+        `[clean-expo-shims] cleared stale Gradle cache: ${path.relative(repoRoot, dir)}`,
+      );
     }
   }
 }

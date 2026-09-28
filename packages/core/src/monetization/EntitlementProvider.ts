@@ -4,6 +4,22 @@
  */
 export type Entitlements = {
   isPremium: boolean;
+  /**
+   * Whether this person can **host**: make a board of their own and share it.
+   *
+   * **Separate from `isPremium` on purpose**, because it is the only thing here
+   * with a cost that keeps arriving — see `ENTITLEMENT_CLUB`. Joining somebody
+   * else's board needs neither this nor Pro; the host pays.
+   */
+  hasClub: boolean;
+  /**
+   * Whether Pro was **bought outright**, rather than coming with Club.
+   *
+   * The two are not the same promise and should not be told to somebody as
+   * though they were: a subscriber's Pro goes when the subscription does, and
+   * saying "Pro unlocked" implies a permanence they have not got.
+   */
+  ownsProOutright: boolean;
 };
 
 /**

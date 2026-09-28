@@ -47,6 +47,15 @@ apps/web/public/workbox-*.js
 *.mobileprovision
 *.orig.*
 
+# Firebase **service account** keys — real credentials that can send push as
+# this app, and Firebase downloads them with this name into whatever directory
+# you were last in. EAS holds the only copy that needs to exist.
+#
+# Not to be confused with `google-services.json`, which is committed on purpose:
+# it ships inside the APK, is extractable from it, and the build needs it.
+*-firebase-adminsdk-*.json
+**/serviceAccountKey.json
+
 # Env files
 .env*
 !.env.example
@@ -62,3 +71,4 @@ npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 .pnpm-debug.log*
+coverage/

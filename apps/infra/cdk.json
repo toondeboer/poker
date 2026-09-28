@@ -1,0 +1,32 @@
+{
+  "app": "npx tsx bin/app.ts",
+  "watch": {
+    "exclude": ["**/*.test.ts", "node_modules/**"]
+  },
+  "context": {
+    "alertEmail": "poker.blinds.buzzer@gmail.com",
+    "monthlyBudgetUsd": 25,
+    "apiDomain": "poker-api.toondeboer.com",
+    "hostedZoneId": "Z09937423M47OIIZLJ34Y",
+    "hostedZoneName": "toondeboer.com",
+    "mailDomain": "toondeboer.com",
+    "mailVerified": {
+      "dev": true,
+      "prod": true
+    },
+    "googleClientId": {
+      "prod": "297500120995-h5f8t8dqsrkmbvaast1og9p0cmhegrro.apps.googleusercontent.com",
+      "dev": "297500120995-9q1nhlar6ujun5h8av0o6p3b7vng7chb.apps.googleusercontent.com"
+    },
+    "appleServicesId": {
+      "prod": "com.toondeboer.pokerkit.signin",
+      "dev": "com.toondeboer.pokerkit.signin.dev"
+    },
+    "appleTeamId": "T288PUUUC8",
+    "appleKeyId": "93Z7KLR5HP",
+    "idpSecretName": {
+      "prod": "poker/prod/idp",
+      "dev": "poker/dev/idp"
+    }
+  }
+}
