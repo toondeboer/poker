@@ -51,14 +51,14 @@
     "expo-store-review": "~56.0.4",
     "react": "19.2.3",
     "react-native": "0.85.3",
-    "react-native-edge-to-edge": "^1.8.1",
+    "react-native-edge-to-edge": "^1.8.2",
     "react-native-gesture-handler": "~2.31.1",
     "react-native-google-mobile-ads": "^16.3.4",
-    "react-native-purchases": "^10.4.4",
-    "react-native-reanimated": "4.3.1",
-    "react-native-safe-area-context": "~5.7.0",
-    "react-native-screens": "~4.26.0",
-    "react-native-worklets": "0.8.3"
+    "react-native-purchases": "^10.10.2",
+    "react-native-reanimated": "4.7.0",
+    "react-native-safe-area-context": "~5.10.0",
+    "react-native-screens": "~4.28.0",
+    "react-native-worklets": "0.13.0"
   },
   "devDependencies": {
     "@babel/core": "^7.29.7",
