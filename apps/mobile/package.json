@@ -35,7 +35,7 @@
     "@expo/vector-icons": "^15.0.2",
     "@poker/core": "*",
     "@react-native-async-storage/async-storage": "^3.1.1",
-    "expo": "~56.0.20",
+    "expo": "~58.0.22",
     "expo-audio": "~56.0.13",
     "expo-build-properties": "~56.0.26",
     "expo-constants": "~56.0.18",
