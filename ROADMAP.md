@@ -695,16 +695,16 @@ provider added as generic OIDC looks identical on the login screen and bills eve
 **This is what stands between a finished 1.2.0 and a store page that represents it.** None of it
 blocks a review; all of it is what a person sees before deciding to install.
 
-- ⬜ **Fresh screenshots: Android is shot, iOS is not, and nothing is uploaded yet.** The live set
-  predates 1.2.0 entirely, so the listing advertises an app with no leaderboard, no payouts and no
-  dealer.
-  - **Android phone (1080×1920) and tablet (1600×2560) are in
-    [`store-assets/android/screenshots/`](./store-assets/android/screenshots/)**: timer, blind
-    structure, payouts, leaderboard, dealer, each with a caption. **Uploading them to the Play
-    Console is the manual step left.**
-  - **iOS still needs iPhone 6.9" (1320×2868) and iPad 13" (2064×2752)**; `supportsTablet: true`
-    means the listing needs its own iPad set. Local iOS builds are blocked on Xcode 27, so these
-    need a simulator build from EAS or a real device.
+- ⬜ **Fresh screenshots: shot for all four device classes, uploaded to neither store yet.** The
+  live set predates 1.2.0 entirely, so the listing advertises an app with no leaderboard, no payouts
+  and no dealer. Five captioned shots each (timer, blind structure, payouts, leaderboard, dealer):
+  - Android phone (1080×1920) and tablet (1600×2560) in
+    [`store-assets/android/screenshots/`](./store-assets/android/screenshots/).
+  - iPhone 6.9" (1320×2868) and iPad 13" (2064×2752) in
+    [`store-assets/ios/screenshots/`](./store-assets/ios/screenshots/). App Store Connect scales
+    the smaller size classes from these.
+  - **Uploading them to the Play Console and App Store Connect is the manual step left.** On iOS,
+    new screenshots go up with a new app version.
   - **No shared-clock or Club shot, on purpose.** It needs a signed-in account against a backend,
     and the listing leads with what sells Pro.
   - **How they are made**, since it is not obvious: raw captures go in `store-assets/raw/<set>/`
@@ -715,6 +715,12 @@ blocks a review; all of it is what a person sees before deciding to install.
     floating gear (`showFab` false in the app's `expo.modules.devmenu.sharedpreferences.xml`, via
     `adb shell run-as`) and the dev error toast (`LogBox.ignoreAllLogs(true)`, locally, never
     committed). The status bar is cleaned with Android's SystemUI demo mode.
+  - **iOS came off an EAS simulator build**, since local iOS builds are blocked on Xcode 27:
+    `eas build --profile development-simulator --platform ios`, then `xcrun simctl install`. The
+    gear is `defaults write com.toondeboer.pokerkit EXDevMenuShowFloatingActionButton -bool NO`
+    through `xcrun simctl spawn`, the status bar is `xcrun simctl status_bar … override`, and
+    Maestro drives the taps. The data was not re-entered by hand: the Android emulator's
+    AsyncStorage was exported and written back on iOS by a temporary `setMany` at startup.
   - **Start the emulator with `-no-snapshot`** when seeding data for screenshots. An AVD started
     from a quick-boot snapshot throws away everything written since that snapshot the next time it
     boots, which cost the phone's seeded leaderboard once already.

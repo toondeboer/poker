@@ -17,11 +17,11 @@ platform-tagged heading (e.g. `## [1.1.3] - 2026-07-20 — Android`) when you cu
   take it. App Review Guideline 2.5.18 requires apps with ads to let users report inappropriate
   ones, and AdMob's ad-info icon covers some ads but not all, and never reaches us.
 
-- Store listing: **new Android screenshots for phone and tablet**, the first set that shows 1.2.0
-  (timer, blind structure, payouts, leaderboard, dealer), each with a caption. They are tracked
-  under `store-assets/android/screenshots/` and rebuilt from the raw captures by
-  `store-assets/generate-screenshots.js`. Not uploaded to the Play Console yet, and the iOS set is
-  still to be shot.
+- Store listing: **new screenshots for Android phone and tablet, iPhone and iPad**, the first set
+  that shows 1.2.0 (timer, blind structure, payouts, leaderboard, dealer), each with a caption.
+  They are tracked under `store-assets/android/screenshots/` and `store-assets/ios/screenshots/`
+  and rebuilt from the raw captures by `store-assets/generate-screenshots.js`. Not uploaded to
+  either store yet.
 
 ### Changed
 
