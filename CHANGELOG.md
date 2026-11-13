@@ -9,6 +9,19 @@ platform-tagged heading (e.g. `## [1.1.3] - 2026-07-20 — Android`) when you cu
 
 ## [Unreleased]
 
+### Added
+
+- Mobile: a **"Seen an inappropriate ad? Report it"** link under the Pro card in Settings, shown
+  only to users who see ads. It opens a mail draft to the support address, pre-filled with the
+  platform and app version, and falls back to the website's `/support` page when no mail app can
+  take it. App Review Guideline 2.5.18 requires apps with ads to let users report inappropriate
+  ones, and AdMob's ad-info icon covers some ads but not all, and never reaches us.
+
+### Changed
+
+- The support address moved from `apps/web/src/lib/contact.ts` into `@poker/core`
+  (`CONTACT_EMAIL`), since the app links to it now too. The website re-exports it unchanged.
+
 ## [1.2.0] - 2026-09-24 — iOS & Android
 
 ### Release

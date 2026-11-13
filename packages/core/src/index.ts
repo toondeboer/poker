@@ -449,6 +449,7 @@ export {
 
 // Share
 export { SITE_URL, SHARE_MESSAGE } from "./share/links";
+export { CONTACT_EMAIL, adReportMailto } from "./share/contact";
 export {
   formatPayoutSummary,
   formatStandingsSummary,
