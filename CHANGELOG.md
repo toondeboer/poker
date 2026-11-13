@@ -17,6 +17,23 @@ platform-tagged heading (e.g. `## [1.1.3] - 2026-07-20 — Android`) when you cu
   take it. App Review Guideline 2.5.18 requires apps with ads to let users report inappropriate
   ones, and AdMob's ad-info icon covers some ads but not all, and never reaches us.
 
+- Mobile: **a real ad consent flow, replacing the placeholder.** Free users in the EEA, UK and
+  Switzerland are shown Google's consent form (the UMP SDK, through
+  `react-native-google-mobile-ads`' `AdsConsent`) before the first ad is requested, and an **"Ad
+  privacy choices"** link under the Pro card in Settings reopens it. Nobody else sees a form, and
+  Pro and Club users are never asked, since they have no ads to consent to. Serving AdMob there
+  without a certified consent platform was a standing compliance gap.
+  - **Ads stay non-personalized for everyone, whatever the form's answer.** The privacy policy and
+    both store privacy declarations promise that, and there is still no App Tracking Transparency
+    prompt. The form decides whether ads may be requested at all, not which kind.
+  - The ads SDK now starts only once the consent answer allows a request, and app measurement is
+    delayed until then (`GADDelayAppMeasurementInit`, `DELAY_APP_MEASUREMENT_INIT`). It used to
+    start at launch.
+  - **Needs a GDPR message published in AdMob → Privacy & messaging before it does anything.**
+    Without one the SDK has no form to show and reports that ads may not be requested in those
+    regions.
+  - Native config changed (manifest, `Info.plist`, a ProGuard keep rule), so existing dev clients
+    need a rebuild.
 - Store listing: **new screenshots for Android phone and tablet, iPhone and iPad**, the first set
   that shows 1.2.0 (timer, blind structure, payouts, leaderboard, dealer), each with a caption.
   They are tracked under `store-assets/android/screenshots/` and `store-assets/ios/screenshots/`

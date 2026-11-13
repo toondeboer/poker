@@ -10,6 +10,8 @@ import {
 import Constants from "expo-constants";
 import { adReportMailto, SITE_URL } from "@poker/core";
 import { usePremium } from "@/src/contexts/PremiumContext";
+import { useAdsConsent } from "@/src/hooks/useAdsConsent";
+import { showAdPrivacyOptions } from "@/src/services/adsConsent";
 import { colors, space, text } from "@/src/theme";
 import { Badge } from "@/src/components/ui/Badge";
 import { Button } from "@/src/components/ui/Button";
@@ -17,6 +19,7 @@ import { Card, CardContent, CardHeader } from "@/src/components/ui/Card";
 
 export function ProCard({ onRequestPro }: { onRequestPro: () => void }) {
   const { isPremium } = usePremium();
+  const { privacyOptionsRequired } = useAdsConsent();
 
   // Once unlocked there's nothing to act on, so this collapses to a single line
   // rather than keeping a full card's worth of space.
@@ -58,16 +61,30 @@ export function ProCard({ onRequestPro }: { onRequestPro: () => void }) {
             ads is where it belongs. Quiet on purpose: it must be findable, not
             compete with the button above it. */}
         <TouchableOpacity
-          style={styles.reportAd}
+          style={styles.quietLink}
           onPress={reportAd}
           accessibilityRole="link"
           accessibilityLabel="Report an inappropriate ad"
           hitSlop={8}
         >
-          <Text style={styles.reportAdText}>
+          <Text style={styles.quietLinkText}>
             Seen an inappropriate ad? Report it
           </Text>
         </TouchableOpacity>
+        {/* The way back into the consent form, which has to exist wherever the
+            form was shown. Hidden everywhere else: outside those regions it
+            would open nothing. */}
+        {privacyOptionsRequired && (
+          <TouchableOpacity
+            style={styles.quietLink}
+            onPress={() => void showAdPrivacyOptions().catch(() => {})}
+            accessibilityRole="button"
+            accessibilityLabel="Change your ad privacy choices"
+            hitSlop={8}
+          >
+            <Text style={styles.quietLinkText}>Ad privacy choices</Text>
+          </TouchableOpacity>
+        )}
       </CardContent>
     </Card>
   );
@@ -98,8 +115,8 @@ const styles = StyleSheet.create({
   },
   unlockedText: { ...text.body, flex: 1 },
   description: text.body,
-  reportAd: { alignSelf: "center" },
-  reportAdText: {
+  quietLink: { alignSelf: "center" },
+  quietLinkText: {
     ...text.meta,
     color: colors.textMuted,
     textDecorationLine: "underline",

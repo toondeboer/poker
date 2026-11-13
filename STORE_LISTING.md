@@ -649,14 +649,16 @@ server-side.
 **"Used for Tracking": No — and this is load-bearing.** `BannerAdSlot.tsx` sets
 `requestNonPersonalizedAdsOnly: true`, so the app does not ask for personalized ads and does not
 join identifiers across apps. **Do not answer Yes here**, and do not turn personalized ads on
-without first doing the UMP/ATT work below.
+without an ATT prompt on iOS and a rewritten privacy policy; the consent form below does not
+change this.
 
-**The consent gap, stated plainly.** `useAdsConsent.ts` is a placeholder: it resolves immediately
-and requests nothing. There is **no ATT prompt and no `NSUserTrackingUsageDescription`** in
-`Info.plist`, and no Google UMP flow. Non-personalized-only is the reason this is currently
-defensible, and it is the "simplest compliant posture" the hook's own comment claims. It is still a
-live gap for EEA/UK, it is **pre-existing and not 1.2.0's doing**, and it is tracked in `ROADMAP.md`.
-Serving personalized ads without a certified CMP would not be defensible.
+**Consent, as of the release after 1.2.0.** `services/adsConsent.ts` runs Google's UMP flow for
+free users: the consent form is shown where GDPR applies, the ads SDK starts only once the answer
+allows a request, and Settings has an "Ad privacy choices" link to reopen it. There is still **no
+ATT prompt and no `NSUserTrackingUsageDescription`** in `Info.plist`, on purpose: every request
+stays non-personalized whatever the form's answer, which is what keeps the "Used for Tracking: No"
+answer above true. 1.2.0 and earlier shipped a placeholder that resolved immediately and showed no
+form.
 
 ### 4. Club products — sharing is unreachable without these
 

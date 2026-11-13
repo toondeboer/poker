@@ -11,4 +11,8 @@
 -keep class com.swmansion.reanimated.** { *; }
 -keep class com.facebook.react.turbomodule.** { *; }
 
+# Google's UMP consent SDK (the ad consent form), as react-native-google-mobile-ads
+# asks for. Without it a minified release build can strip the form's classes.
+-keep class com.google.android.gms.internal.consent_sdk.** { *; }
+
 # Add any project specific keep options here:
