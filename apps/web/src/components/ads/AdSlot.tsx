@@ -33,12 +33,17 @@ export default function AdSlot({
   const show =
     !!ADSENSE_CLIENT &&
     !!slot &&
-    shouldShowAds({ isPremium: false, consentResolved: consent === "accepted" });
+    shouldShowAds({
+      isPremium: false,
+      consentResolved: consent === "accepted",
+    });
 
   useEffect(() => {
     if (!show || pushed.current) return;
     try {
-      const w = window as unknown as { adsbygoogle?: Record<string, unknown>[] };
+      const w = window as unknown as {
+        adsbygoogle?: Record<string, unknown>[];
+      };
       w.adsbygoogle = w.adsbygoogle || [];
       w.adsbygoogle.push({});
       pushed.current = true;

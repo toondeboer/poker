@@ -11,7 +11,7 @@ const STEPS = [
   },
   {
     name: "Agree on the payout structure before cards are dealt",
-    text: "For a small home game, winner-take-all or a top-two split (e.g. 70/30) keeps things simple. Settle this before the first hand — not when it's down to the final two players.",
+    text: "Settle this before the first hand, not when it's down to the final two. Poker Blinds Buzzer will work it out for you (Pro): enter the buy-in and how many are playing and it splits the pool across the places that should pay — about a third of the field at home-game sizes, which is more generous than a big tournament pays, because a table of eight wants more than one person leaving happy. Pick the smallest note you want to hand over and every place below the winner is a round number you can count straight out of the pot, with the winner taking what's left — so the table adds up to exactly the prize pool and no paid place ends up winning nothing.",
   },
   {
     name: "Start the timer and keep it visible",
@@ -19,7 +19,15 @@ const STEPS = [
   },
   {
     name: "Handle rebuys and breaks up front, not mid-game",
-    text: "If you're allowing rebuys or an add-on, set a cutoff level (e.g. no rebuys after level 6) and announce it before starting. For longer sessions, pause the timer for a break between levels rather than mid-round.",
+    text: "If you're allowing rebuys or an add-on, set a cutoff level (e.g. no rebuys after level 6) and announce it before starting. Enter them as they happen and the payouts follow: a rebuy is another buy-in, so it grows the pool and re-arms that player's bounty, while an add-on buys chips rather than a bounty and can carry its own price. For longer sessions, pause the timer for a break between levels rather than mid-round.",
+  },
+  {
+    name: "Decide how you'd end it early",
+    text: "Most home games don't play to a single winner — someone has work in the morning. Agree in advance that a chop is allowed, and let the app do the maths when it happens (Pro): everyone still in keeps the lowest prize still live, and whatever is above that is split by chip stack. That matters, because a purely chip-proportional split is the obvious version and it's wrong — a short stack can come out below the place they had already locked up, which no table accepts.",
+  },
+  {
+    name: "Keep score if you play regularly",
+    text: "If the same people play most months, a leaderboard turns one night into a record — who has won most and who turns up. Poker Blinds Buzzer keeps one per group (Pro), so the regular Thursday game and the friends you only play with on holiday don't share a list. Recording a night is two taps per player: tap who played, then tap them in the order they finished — winner first.",
   },
 ];
 
@@ -27,7 +35,7 @@ const FAQ = [
   {
     question: "How many blind levels does a home tournament need?",
     answer:
-      "It depends on how long you want to play. At the default 10-minute rounds, the app's built-in 30-level structure covers roughly 5 hours if you play every level — most home games end well before the final levels once players are eliminated. Shorten the round length for a quicker \"turbo\" night, or lengthen it for a deeper, more strategic game.",
+      'It depends on how long you want to play. At the default 10-minute rounds, the app\'s built-in 30-level structure covers roughly 5 hours if you play every level — most home games end well before the final levels once players are eliminated. Shorten the round length for a quicker "turbo" night, or lengthen it for a deeper, more strategic game.',
   },
   {
     question: "Should blinds go up every 10 minutes?",
@@ -43,6 +51,21 @@ const FAQ = [
     question: "What if my group wants a different blind structure every time?",
     answer:
       "Edit the levels and round length in Settings, then save it as a named preset (Pro) so you can load the same structure again next game night without re-entering it.",
+  },
+  {
+    question: "How should we split the prize money?",
+    answer:
+      "For a very small field, winner-take-all or a top-two split (e.g. 70/30) is fine. Beyond about six players it's worth paying around the top third, so more than one person leaves happy — a home game is small, and a tenth of eight players is one person. Poker Blinds Buzzer works the split out from the buy-in and the number of players (Pro), keeping every place below the winner to a note you can hand over while the table still adds up to exactly the prize pool.",
+  },
+  {
+    question: "Should bounties be added on top of the buy-in?",
+    answer:
+      "Usually not. If you advertise a 20 buy-in with a 5 bounty, take 20 from each pocket and carve the bounty out of it — 15 to the prize pool, 5 to knockouts. Adding the bounty on top means you're collecting more than the buy-in you announced, which is the thing people at the table actually mind.",
+  },
+  {
+    question: "Is it OK to end a tournament early and split the money?",
+    answer:
+      "Yes, and most home games do. The fair way is that everyone still in keeps the lowest prize still live, and whatever is above that is divided by chip stack — so the chip leader gets more, but nobody ends up below the place they'd already secured. Agree that a chop is allowed before you start, so it isn't a negotiation at midnight.",
   },
 ];
 
@@ -90,14 +113,12 @@ export function GuideContent() {
           How to Run a Home Poker Tournament
         </h1>
         <p className="mb-10">
-          Five things to settle before the first hand so the game runs
-          itself from there: buy-in, blind structure, payouts, and a timer
-          everyone can see.
+          Settle these before the first hand and the game runs itself from
+          there: buy-in, blind structure, what each place pays, how you&apos;d
+          end it early, and a timer everyone can see.
         </p>
 
-        <h2 className="mb-6 text-2xl font-bold text-white">
-          Step by Step
-        </h2>
+        <h2 className="mb-6 text-2xl font-bold text-white">Step by Step</h2>
         <ol className="mb-4 space-y-6">
           {STEPS.map(({ name, text }, i) => (
             <li key={name}>
@@ -113,26 +134,24 @@ export function GuideContent() {
           Understanding Blind Structures
         </h2>
         <p className="mb-4">
-          The blind structure is what keeps a tournament moving — without
-          rising blinds, a deep-stacked table could play the same level all
-          night. Each level is a small blind / big blind pair (the big blind
-          is conventionally double the small blind), and the round length is
-          how long each level lasts before the blinds step up.
+          The blind structure is what keeps a tournament moving — without rising
+          blinds, a deep-stacked table could play the same level all night. Each
+          level is a small blind / big blind pair (the big blind is
+          conventionally double the small blind), and the round length is how
+          long each level lasts before the blinds step up.
         </p>
         <p className="mb-4">
           A <strong>faster</strong> structure (shorter rounds, bigger jumps
-          between levels) favors an aggressive, short &quot;turbo&quot;
-          session. A <strong>slower</strong> structure (longer rounds,
-          smaller jumps) gives skill more room to matter but takes longer to
-          reach a winner. Poker Blinds Buzzer&apos;s default structure — 30 levels from
-          5/10 up to 800/1600, 10 minutes per level — sits in the middle,
-          and every level and the round length can be edited in Settings to
-          suit your group.
+          between levels) favors an aggressive, short &quot;turbo&quot; session.
+          A <strong>slower</strong> structure (longer rounds, smaller jumps)
+          gives skill more room to matter but takes longer to reach a winner.
+          Poker Blinds Buzzer&apos;s default structure — 30 levels from 5/10 up
+          to 800/1600, 10 minutes per level — sits in the middle, and every
+          level and the round length can be edited in Settings to suit your
+          group.
         </p>
 
-        <h2 className="mb-4 mt-10 text-2xl font-bold text-white">
-          FAQ
-        </h2>
+        <h2 className="mb-4 mt-10 text-2xl font-bold text-white">FAQ</h2>
         <div className="space-y-6">
           {FAQ.map(({ question, answer }) => (
             <div key={question}>

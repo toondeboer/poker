@@ -201,7 +201,12 @@ describe("clampToDuration", () => {
 describe("hydrateTimerState", () => {
   it("restores a running timer with recomputed timeLeft", () => {
     const result = hydrateTimerState(
-      { endTime: NOW + 120_000, timerDuration: 120, paused: false, timeLeft: 0 },
+      {
+        endTime: NOW + 120_000,
+        timerDuration: 120,
+        paused: false,
+        timeLeft: 0,
+      },
       NOW,
     );
     expect(result).toEqual({

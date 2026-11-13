@@ -6,5 +6,6 @@ export {
   TABLET_MIN_WIDTH,
   TABLET_MAX_WIDTH_SETTINGS,
   TABLET_MAX_WIDTH_LIST,
+  TABLET_MAX_WIDTH_SHEET,
   isTabletWidth,
 } from "./layout";

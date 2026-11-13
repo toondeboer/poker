@@ -79,7 +79,10 @@ export function SettingsPanel({
                 value={seconds}
                 onChange={(event) =>
                   setSeconds(
-                    Math.min(59, Math.max(0, parseInt(event.target.value) || 0)),
+                    Math.min(
+                      59,
+                      Math.max(0, parseInt(event.target.value) || 0),
+                    ),
                   )
                 }
                 className={inputClass}
@@ -127,7 +130,11 @@ export function SettingsPanel({
                   min={1}
                   value={level.small}
                   onChange={(event) =>
-                    onUpdateLevel(index, "small", parseInt(event.target.value) || 0)
+                    onUpdateLevel(
+                      index,
+                      "small",
+                      parseInt(event.target.value) || 0,
+                    )
                   }
                   className={inputClass}
                 />
@@ -137,7 +144,11 @@ export function SettingsPanel({
                   min={1}
                   value={level.big}
                   onChange={(event) =>
-                    onUpdateLevel(index, "big", parseInt(event.target.value) || 0)
+                    onUpdateLevel(
+                      index,
+                      "big",
+                      parseInt(event.target.value) || 0,
+                    )
                   }
                   className={inputClass}
                 />

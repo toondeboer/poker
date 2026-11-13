@@ -40,7 +40,9 @@ describe("shouldRequestReview", () => {
   it("stays quiet during the cooldown after a prompt", () => {
     expect(
       shouldRequestReview({
-        state: state({ lastPromptedAt: NOW - REVIEW_PROMPT_COOLDOWN_MS + 1000 }),
+        state: state({
+          lastPromptedAt: NOW - REVIEW_PROMPT_COOLDOWN_MS + 1000,
+        }),
         now: NOW,
         isAvailable: true,
       }),

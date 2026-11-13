@@ -8,11 +8,8 @@ import {
   removePreset,
 } from "@poker/core";
 import { PresetStorage } from "@/src/services/PresetStorage";
+import { generateId } from "@/src/utils/id";
 import { logger } from "@/src/utils/logger";
-
-/** Short, collision-resistant id — core stays clock/crypto-free, so we mint it here. */
-const generateId = () =>
-  Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
 
 /**
  * Saved tournament presets (Pro feature). Loads once, then keeps the list in

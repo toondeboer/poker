@@ -10,7 +10,9 @@ const iconB64 = fs
   .readFileSync(path.join(REPO, "apps/mobile/src/assets/images/icon.png"))
   .toString("base64");
 const fontB64 = fs
-  .readFileSync(path.join(REPO, "apps/mobile/src/assets/fonts/SpaceMono-Regular.ttf"))
+  .readFileSync(
+    path.join(REPO, "apps/mobile/src/assets/fonts/SpaceMono-Regular.ttf"),
+  )
   .toString("base64");
 
 const W = 1024;

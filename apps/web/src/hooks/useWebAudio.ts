@@ -56,7 +56,10 @@ export function useWebAudio() {
       source.connect(gainNode);
       gainNode.connect(context.destination);
       gainNode.gain.setValueAtTime(0.3, context.currentTime);
-      gainNode.gain.exponentialRampToValueAtTime(0.01, context.currentTime + 0.5);
+      gainNode.gain.exponentialRampToValueAtTime(
+        0.01,
+        context.currentTime + 0.5,
+      );
       source.start(context.currentTime);
       source.stop(context.currentTime + 0.5);
     } catch (error) {

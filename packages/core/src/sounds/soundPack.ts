@@ -4,7 +4,8 @@
  * `<id>.wav` in the app bundle) — see `useSounds`/`useTimerNotification` in
  * `@poker/mobile` and `PokerTimerService.java`'s dynamic resource lookup.
  */
-export type SoundPackId = "alarm" | "classic_beep" | "bell_chime" | "double_buzz";
+export type SoundPackId =
+  "alarm" | "classic_beep" | "bell_chime" | "double_buzz";
 
 /** Free default — always available regardless of Pro status. */
 export const DEFAULT_SOUND_PACK_ID: SoundPackId = "alarm";

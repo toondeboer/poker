@@ -10,7 +10,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { colors, radius, space } from "@/src/theme";
 
 export type ButtonVariant =
-  "primary" | "success" | "secondary" | "pro" | "ghost" | "danger";
+  "primary" | "success" | "secondary" | "pro" | "club" | "ghost" | "danger";
 
 export function Button({
   label,
@@ -95,6 +95,12 @@ const TONES: Record<
   pro: {
     container: { backgroundColor: colors.pro, ...glow(colors.pro) },
     label: { color: colors.textOnPro },
+  },
+  // The subscription, kept visually apart from the one-time unlock above — see
+  // `colors.club` for why the two must never look like the same button.
+  club: {
+    container: { backgroundColor: colors.club, ...glow(colors.club) },
+    label: { color: colors.textOnClub },
   },
   ghost: {
     container: {
