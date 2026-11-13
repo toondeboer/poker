@@ -22,8 +22,12 @@ import { Sheet } from "@/src/components/ui/Sheet";
  * **Emphasis, never exclusion.** The other one is still on screen and still
  * buyable — hiding it would mean somebody who tapped the wrong entry point has
  * to back out and find the right one, and there is no right one to find when
- * the two were never distinguished in the first place. Focus only decides which
- * card comes first and which call to action is filled rather than outlined.
+ * the two were never distinguished in the first place. Focus decides which card
+ * comes first and which call to action is filled rather than outlined.
+ *
+ * **The one narrowing: opened for Pro by somebody who has bought nothing, Club
+ * starts as a single row** that expands to the full card. It is still on screen
+ * and one tap from buyable, so the rule above holds. See `clubCollapsed`.
  */
 export type PaywallFocus = "pro" | "club";
 
@@ -138,9 +142,13 @@ export function Paywall({
   // closed→open edge during render (same pattern as GenerateStructureSheet's
   // seeding) so the request is already in flight as the sheet animates in.
   const [wasVisible, setWasVisible] = useState(visible);
+  const [clubExpanded, setClubExpanded] = useState(false);
   if (wasVisible !== visible) {
     setWasVisible(visible);
     if (visible) {
+      // Every open starts from the entry point's own answer, not from whatever
+      // the last visit left expanded.
+      setClubExpanded(false);
       refreshProPrice();
       // Same edge, same reason: the plans are wanted before the sheet has
       // finished animating in, not after somebody has looked at an empty space.
@@ -181,6 +189,26 @@ export function Paywall({
   const showClub =
     hasClub || (accountsAreReal && features.sharing && clubPlans.length > 0);
   const clubFocused = focus === "club" && showClub;
+
+  /**
+   * **Whether Club is one row instead of a card.**
+   *
+   * Somebody who taps "Remove Ads" wants one thing, and 1.2.0 answered with a
+   * sheet whose first sentence was about a subscription and whose second card
+   * was two subscription buttons. The one-time purchase is the simple offer, so
+   * for that person it gets the sheet to itself and Club waits behind "See
+   * Club".
+   *
+   * Only for somebody who has bought nothing. A Pro owner opening this has
+   * exactly one thing left to buy, and a subscriber needs the renewal terms and
+   * the legal links in front of them, so both get the full card.
+   *
+   * **Nothing about Club's own presentation changes.** There is no price and no
+   * purchase button in the row, so Guideline 3.1.2's terms are not owed there;
+   * expanding it shows the same card, with all of them, that a Club entry point
+   * opens on.
+   */
+  const clubCollapsed = showClub && !clubFocused && !isPremium && !clubExpanded;
 
   /**
    * What the annual saves against twelve monthlies, or `null`.
@@ -387,6 +415,23 @@ export function Paywall({
     </View>
   ) : null;
 
+  const clubRow = (
+    <TouchableOpacity
+      key="club-row"
+      style={styles.clubRow}
+      onPress={() => setClubExpanded(true)}
+      activeOpacity={0.7}
+      accessibilityRole="button"
+      accessibilityLabel="See Club, the subscription for sharing a board or a clock"
+    >
+      <Text style={styles.clubRowText}>
+        <Text style={styles.clubRowName}>Club</Text> — share a board or a clock
+        with the table.
+      </Text>
+      <Text style={styles.clubRowLink}>See Club</Text>
+    </TouchableOpacity>
+  );
+
   return (
     <Sheet
       visible={visible}
@@ -401,7 +446,7 @@ export function Paywall({
     >
       <Text style={styles.title}>Poker Blinds Buzzer</Text>
       <Text style={styles.subtitle}>
-        {showClub
+        {showClub && !clubCollapsed
           ? "Two separate purchases. Pro is paid once; Club renews and covers the sharing."
           : "One-time unlock. Yours forever."}
       </Text>
@@ -410,7 +455,9 @@ export function Paywall({
           survives a small screen — whichever card is second is below the fold on
           a phone, and putting the wrong one there is how a person tapping
           "Share this board" lands on a list of things they already own. */}
-      {clubFocused ? [clubCard, proCard] : [proCard, clubCard]}
+      {clubFocused
+        ? [clubCard, proCard]
+        : [proCard, clubCollapsed ? clubRow : clubCard]}
 
       {/**
        * **Always offered, never hidden behind `isPremium`.**
@@ -547,6 +594,24 @@ const styles = StyleSheet.create({
     fontWeight: "600",
     color: colors.successText,
   },
+
+  /**
+   * Club as one row. Bordered in Club's colour so it reads as the same thing
+   * the full card is, and quiet enough not to compete with the button above.
+   */
+  clubRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: space.md,
+    borderWidth: 1,
+    borderColor: colors.club,
+    borderRadius: radius.md,
+    paddingHorizontal: space.lg,
+    paddingVertical: space.md,
+  },
+  clubRowText: { ...text.meta, fontSize: 14, flex: 1 },
+  clubRowName: { color: colors.club, fontWeight: "700" },
+  clubRowLink: { ...text.label, color: colors.club },
 
   clubTerms: { ...text.meta, textAlign: "center" },
   legalRow: {
