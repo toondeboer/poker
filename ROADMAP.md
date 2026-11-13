@@ -13,46 +13,6 @@ stay because code and other docs cite them.
 
 **Legend:** 🚧 in progress · 🔍 investigated, not yet fixed · 🟡 known gap, accepted · ⬜ not started · ✅ met (decision records only)
 
-## Shipping 1.2.0 — what is left
-
-The release is cut, the backend is deployed from `release/1.2.0`, and **candidate 6 is on both
-testing tracks** — iOS build **32** and Android versionCode **21**, both from `9b8cd5f`. Cutting
-steps 1–6 are done.
-
-**The testing pass is finished.** 472 of 544 cells pass, and every one of
-[the shortest pass that can ship](./RELEASE_TESTING.md#the-shortest-pass-that-can-ship) is met.
-Six defects were found and fixed on a real build — a provider sign-in ending on "Unmatched Route",
-a restarted host orphaning its own shared clock, prod alerting with no subscribers, the iPad list
-width, the blind editor becoming unreachable, and an interrupted sign-up permanently bricking an
-email address. Two are accepted with write-ups: refunds need RTDN, and there is no password reset.
-
-The eight rows still ⬜ are **not defects** — four need Pro on a tablet, two need a sandbox
-subscription to lapse, and two need a local iOS build, which Xcode 27 blocks upstream.
-
-**What remains, in order:**
-
-1. ✅ **Console work that cannot delay a build but can delay a review — done.** Paste the store copy from
-   [STORE_LISTING.md](./STORE_LISTING.md) and count the fields in the console. **Point App Store
-   Connect's License Agreement field at `/terms`** — the only outstanding item with review risk for
-   a subscription app. Add the Club group and both subscriptions to the **same** App Store
-   submission as the app version, because Apple approves a first auto-renewable subscription only
-   alongside one.
-2. 🟡 **The store listing advertises a pre-1.2.0 app, and 1.2.0 ships anyway — decided.** The
-   screenshots predate the leaderboard, payouts, shared clock, accounts and Club. That is not a
-   rejection risk, and holding a finished, tested release for a photo shoot is the wrong trade: the
-   binary is what users get, and the listing can be replaced any day without a review. **Redone for
-   1.2.1**, properly and probably automated — see
-   [Store listing and assets](#store-listing-and-assets) for why it is harder than it looks. The
-   feature graphic is the exception worth doing now, since it is a single upload of an asset that
-   already exists.
-3. ✅ **§10's two iOS keep-awake rows — done, and they close a 1.1.4 carry-over.** The release
-   half of keep-awake shipped untested in 1.1.4 and had been unverified on iOS ever since. Confirmed
-   on a device: the screen stays on while a round runs and sleeps once paused. The carried-over
-   section this file kept for it is gone.
-4. ⬜ **Ship** — cutting steps 7–9: promote in both consoles, correct the changelog date, merge
-   #147, tag the **built** commit (`9b8cd5f`, not the merge), delete the branch, reset
-   `RELEASE_TESTING.md`.
-
 ## Carried into 1.2.1 — from the 1.2.0 release review
 
 - ⬜ **Recording a game does not start a new one — the blinds stay where they were.** Raised while
@@ -179,7 +139,7 @@ subscription to lapse, and two need a local iOS build, which Xcode 27 blocks ups
   date rather than by name in the first place. Not a change to make against a release candidate.
 
 - ⬜ **A refund never revokes the entitlement — Google Play RTDN has never been configured.**
-  Found on the 1.2.0 candidate-3 pass (D2 in [RELEASE_TESTING.md](./RELEASE_TESTING.md)). Refunding
+  Found on the 1.2.0 candidate-3 pass (D2 at the time; now under Known-and-accepted in [RELEASE_TESTING.md](./RELEASE_TESTING.md)). Refunding
   a Pro order in Play Console with _revoke access_ ticked leaves RevenueCat showing the entitlement
   active and the app still holding Pro. Play Console → Monetization setup →
   **Real-time developer notifications** has no Pub/Sub topic, so Google's
@@ -467,7 +427,7 @@ release is checked against them rather than re-derived. What is left is accepted
    why it rotates the invite code. Still worth saying in the review notes: no discovery, no feed, no
    messaging, and no way onto a board except by redeeming a code. `/terms` carries the
    zero-tolerance clause 1.2 rejection letters cite most often; App Store Connect's License
-   Agreement field has to point at it (see _Shipping 1.2.0_).
+   Agreement field has to point at it — set for 1.2.0, and worth confirming it still does.
 
    A **per-user block** — as distinct from removal — is still unbuilt, and still only worth building
    if a reviewer asks: it would mean deciding what blocking means on a board somebody else
