@@ -450,6 +450,32 @@ will not say what the app does is worse than one that does. What is not fine is 
 betting the binary no longer has, or describing the dealt game as less than it is to duck a rating:
 both are the same metadata-accuracy failure pointed in opposite directions.
 
+### Raising the rating does not bring betting back — decided 2026-11-13
+
+Asked after 1.2.0 shipped: if the app were rated 13+ or 18+, could the betting engine and money on
+the leaderboard return? **No — and the owner has decided not to take the route that would allow it.**
+Staying clear of legal and store-policy trouble outranks those features.
+
+- **13+ is not enough.** A betting engine used every game night is _frequent_ simulated gambling,
+  which is 18+ on Apple; PEGI rates gambling content 18 on Google Play. See _13+ was never
+  reachable_ above.
+- **The rating is not the blocker; the account is.** The Individual-account rule above applies at
+  any tier. Lifting it means enrolling as an **organization**, which needs a legal entity (Apple
+  directs sole proprietors and one-person businesses to the Individual track) and a D-U-N-S number,
+  then transferring the app. **Not doing this.**
+- **If it is ever revisited, the order is fixed:** legal entity → organization account → app
+  transfer → honest 18+ on both stores → restore from `archive/betting-engine`. Never ship betting
+  from the Individual account, and never under-declare it to keep a lower rating.
+- **What a higher rating can do without any of that** is widen the ads. Guideline 2.5.18 requires
+  ads to be _"appropriate for the app's age rating"_, which is why 1.2.0 caps AdMob at `G` for 4+.
+  An iOS-only **13+** via App Store Connect's _Override to Higher Age Rating_ would allow AdMob's `T`
+  rating, which still excludes `MA`, where gambling ads sit. Optional, and not yet decided. **18+ is
+  rejected**: it hides the app from minors and parental filters, and the only extra it unlocks is
+  `MA` — gambling ads in a poker app.
+- The same guideline requires that apps with ads _"include the ability for users to report any
+  inappropriate or age-inappropriate ads"_. The app has no reporting control of its own beyond
+  AdMob's ad-info icon, and that is open work.
+
 ## Monetization: Pro keeps the phone, Club buys the hosting — decided
 
 **Pro does not change and nobody who bought it loses anything.** Everything it unlocks runs on the
