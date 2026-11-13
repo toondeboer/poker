@@ -29,6 +29,9 @@
           "ios": {
             "deploymentTarget": "16.4",
             "buildReactNativeFromSource": true
+          },
+          "android": {
+            "extraProguardRules": "-keep class com.google.android.gms.internal.consent_sdk.** { *; }"
           }
         }
       ],
@@ -36,7 +39,8 @@
         "react-native-google-mobile-ads",
         {
           "androidAppId": "ca-app-pub-9738048037268359~6681894777",
-          "iosAppId": "ca-app-pub-9738048037268359~7123618601"
+          "iosAppId": "ca-app-pub-9738048037268359~7123618601",
+          "delayAppMeasurementInit": true
         }
       ],
       "react-native-edge-to-edge",

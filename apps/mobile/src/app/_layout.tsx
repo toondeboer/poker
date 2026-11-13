@@ -16,7 +16,6 @@ import { AuthProviderContext } from "@/src/contexts/AuthContext";
 import { SharedSessionProvider } from "@/src/contexts/SharedSessionContext";
 import AppReadyGate from "@/src/components/AppReadyGate";
 import { AppErrorBoundary } from "@/src/components/AppErrorBoundary";
-import { initializeAds } from "@/src/services/ads";
 import { configurePurchases } from "@/src/services/revenueCatProvider";
 
 /**
@@ -35,7 +34,8 @@ void SplashScreen.preventAutoHideAsync();
 export default function RootLayout() {
   useEffect(() => {
     configurePurchases();
-    void initializeAds();
+    // The ads SDK is not started here: the consent flow starts it, once the
+    // user's answer allows an ad request (see `services/adsConsent.ts`).
   }, []);
 
   return (

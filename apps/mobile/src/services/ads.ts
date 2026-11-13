@@ -20,7 +20,10 @@ export const BANNER_AD_UNIT_ID = __DEV__
     }) ?? TestIds.BANNER);
 
 /**
- * Initializes the Google Mobile Ads SDK. Call once at app startup.
+ * Initializes the Google Mobile Ads SDK. Called by the consent flow in
+ * `adsConsent.ts` once the user's answer allows an ad request, never at app
+ * start: before that there is nothing it is allowed to do. Safe to call again;
+ * later calls return the first one's result.
  *
  * **The content cap is the point of this function doing anything at all.**
  * With no request configuration the SDK's default admits `MA` inventory, which
@@ -40,9 +43,14 @@ export const BANNER_AD_UNIT_ID = __DEV__
  * before the first request, or the first banner of a cold launch is the one that
  * ignores it.
  */
-export async function initializeAds() {
-  await mobileAds().setRequestConfiguration({
-    maxAdContentRating: MaxAdContentRating.G,
-  });
-  return mobileAds().initialize();
+export function initializeAds() {
+  initialization ??= (async () => {
+    await mobileAds().setRequestConfiguration({
+      maxAdContentRating: MaxAdContentRating.G,
+    });
+    await mobileAds().initialize();
+  })();
+  return initialization;
 }
+
+let initialization: Promise<void> | null = null;

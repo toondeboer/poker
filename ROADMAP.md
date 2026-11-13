@@ -433,8 +433,21 @@ release is checked against them rather than re-derived. What is left is accepted
    if a reviewer asks: it would mean deciding what blocking means on a board somebody else
    administers.
 
-3. 🟡 **UMP/ATT consent is still a placeholder** (`useAdsConsent.ts`). Serving AdMob to EEA/UK
-   without a certified CMP is a live gap, pre-existing and separate from this work.
+3. 🟡 **UMP consent is wired in code and waiting on the AdMob console.** `services/adsConsent.ts`
+   gathers consent through Google's UMP SDK for free users and gates the ads SDK on the answer.
+   Still open:
+   - **Publish a GDPR message in AdMob → Privacy & messaging** for both apps (owner's console
+     action). Until then there is no form to show. **Do not create an IDFA/ATT message there**: UMP
+     would start raising the tracking prompt, and the app has no `NSUserTrackingUsageDescription`.
+   - Run the consent rows in `RELEASE_TESTING.md` on both platforms once the message exists. iOS
+     can only be checked on an EAS build while local builds are blocked on Xcode 27.
+   - Compare AdMob match rate per version and country afterwards (FR, UK and DE were 20–38% on
+     1.2.0).
+   - **Ads stay non-personalized regardless of the answer**, because the privacy policy and store
+     declarations say so. Personalized ads for consenting Android users would mean rewriting the
+     policy's Advertising section and Play's Data Safety answers first; not planned.
+   - The privacy policy's Advertising section should mention the consent form when the release
+     that carries it ships.
 
 ### Honest declaration is the whole strategy
 

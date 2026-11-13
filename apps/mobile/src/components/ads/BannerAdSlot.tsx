@@ -33,9 +33,10 @@ let observedBannerHeight: number | null = null;
  * A single AdMob banner, gated by the shared `shouldShowAds` policy from
  * @poker/core — the same gate the web ad slots use. Renders nothing for premium
  * users or before the privacy gate resolves, so unlocking Pro in Phase 3 hides it
- * with no change here. Requests non-personalized ads to keep the privacy posture
- * simple until a full UMP/ATT flow is wired. Doesn't handle its own safe-area
- * inset — the caller positions it within the screen and owns that spacing.
+ * with no change here. Always requests non-personalized ads, whatever the
+ * consent form's answer: the privacy policy and the store privacy declarations
+ * promise exactly that. Doesn't handle its own safe-area inset — the caller
+ * positions it within the screen and owns that spacing.
  */
 export function BannerAdSlot({ style }: { style?: ViewStyle }) {
   const { isPremium } = usePremium();
