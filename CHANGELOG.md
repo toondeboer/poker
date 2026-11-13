@@ -17,6 +17,12 @@ platform-tagged heading (e.g. `## [1.1.3] - 2026-07-20 — Android`) when you cu
   take it. App Review Guideline 2.5.18 requires apps with ads to let users report inappropriate
   ones, and AdMob's ad-info icon covers some ads but not all, and never reaches us.
 
+- Store listing: **new screenshots for Android phone and tablet, iPhone and iPad**, the first set
+  that shows 1.2.0 (timer, blind structure, payouts, leaderboard, dealer), each with a caption.
+  They are tracked under `store-assets/android/screenshots/` and `store-assets/ios/screenshots/`
+  and rebuilt from the raw captures by `store-assets/generate-screenshots.js`. Not uploaded to
+  either store yet.
+
 ### Changed
 
 - Mobile: **the paywall leads with the one-time purchase again.** Opened for Pro by somebody who
@@ -28,6 +34,8 @@ platform-tagged heading (e.g. `## [1.1.3] - 2026-07-20 — Android`) when you cu
   still see the full Club card.
 - The support address moved from `apps/web/src/lib/contact.ts` into `@poker/core`
   (`CONTACT_EMAIL`), since the app links to it now too. The website re-exports it unchanged.
+- Tooling: a `development-simulator` EAS build profile, for running the dev client on the local
+  iOS simulators while local iOS builds are blocked on Xcode 27. No change to any shipped build.
 
 ## [1.2.0] - 2026-09-24 — iOS & Android
 
