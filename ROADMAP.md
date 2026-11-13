@@ -473,8 +473,8 @@ Staying clear of legal and store-policy trouble outranks those features.
   rejected**: it hides the app from minors and parental filters, and the only extra it unlocks is
   `MA` — gambling ads in a poker app.
 - The same guideline requires that apps with ads _"include the ability for users to report any
-  inappropriate or age-inappropriate ads"_. The app has no reporting control of its own beyond
-  AdMob's ad-info icon, and that is open work.
+  inappropriate or age-inappropriate ads"_. Covered by the _"Seen an inappropriate ad? Report
+  it"_ link under the Pro card (#327), which mails support. Keep it while the app shows ads.
 
 ## Monetization: Pro keeps the phone, Club buys the hosting — decided
 
