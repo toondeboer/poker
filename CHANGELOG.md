@@ -21,6 +21,8 @@ platform-tagged heading (e.g. `## [1.1.3] - 2026-07-20 — Android`) when you cu
 
 - The support address moved from `apps/web/src/lib/contact.ts` into `@poker/core`
   (`CONTACT_EMAIL`), since the app links to it now too. The website re-exports it unchanged.
+- Tooling: a `development-simulator` EAS build profile, for running the dev client on the local
+  iOS simulators while local iOS builds are blocked on Xcode 27. No change to any shipped build.
 
 ## [1.2.0] - 2026-09-24 — iOS & Android
 
