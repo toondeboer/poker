@@ -19,6 +19,13 @@ platform-tagged heading (e.g. `## [1.1.3] - 2026-07-20 — Android`) when you cu
 
 ### Changed
 
+- Mobile: **the paywall leads with the one-time purchase again.** Opened for Pro by somebody who
+  has bought nothing, the sheet reads "One-time unlock. Yours forever." and shows the Pro card with
+  Club as a single row beneath it; "See Club" expands the full Club card in place, with its plans,
+  renewal terms and legal links unchanged. Since 1.2.0 the same tap opened on a sentence about a
+  subscription with two subscription buttons under the Pro card. Opening the sheet for Club (the
+  Club card, sharing a board, starting a shared clock) is unchanged, and Pro owners and subscribers
+  still see the full Club card.
 - The support address moved from `apps/web/src/lib/contact.ts` into `@poker/core`
   (`CONTACT_EMAIL`), since the app links to it now too. The website re-exports it unchanged.
 
