@@ -1,7 +1,16 @@
 // src/components/settings/ProCard.tsx
-import { StyleSheet, Text, View } from "react-native";
+import {
+  Linking,
+  Platform,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
+} from "react-native";
+import Constants from "expo-constants";
+import { adReportMailto, SITE_URL } from "@poker/core";
 import { usePremium } from "@/src/contexts/PremiumContext";
-import { space, text } from "@/src/theme";
+import { colors, space, text } from "@/src/theme";
 import { Badge } from "@/src/components/ui/Badge";
 import { Button } from "@/src/components/ui/Button";
 import { Card, CardContent, CardHeader } from "@/src/components/ui/Card";
@@ -43,8 +52,40 @@ export function ProCard({ onRequestPro }: { onRequestPro: () => void }) {
           variant="pro"
           onPress={onRequestPro}
         />
+        {/* **Here because this card is shown exactly when ads are.** App Review
+            Guideline 2.5.18 requires a way to report an inappropriate ad, and a
+            Pro or Club user sees none, so the free branch of the one card about
+            ads is where it belongs. Quiet on purpose: it must be findable, not
+            compete with the button above it. */}
+        <TouchableOpacity
+          style={styles.reportAd}
+          onPress={reportAd}
+          accessibilityRole="link"
+          accessibilityLabel="Report an inappropriate ad"
+          hitSlop={8}
+        >
+          <Text style={styles.reportAdText}>
+            Seen an inappropriate ad? Report it
+          </Text>
+        </TouchableOpacity>
       </CardContent>
     </Card>
+  );
+}
+
+/**
+ * Opens a pre-filled email to support. `openURL` rejects when no mail app can
+ * take a `mailto:` link (none installed, or none signed in on Android), and a
+ * report link that silently does nothing is worse than none, so it falls back
+ * to the support page, which shows the same address.
+ */
+function reportAd() {
+  const url = adReportMailto({
+    platform: Platform.OS === "ios" ? "iOS" : "Android",
+    appVersion: Constants.expoConfig?.version,
+  });
+  Linking.openURL(url).catch(
+    () => void Linking.openURL(`${SITE_URL}/support`).catch(() => {}),
   );
 }
 
@@ -57,4 +98,10 @@ const styles = StyleSheet.create({
   },
   unlockedText: { ...text.body, flex: 1 },
   description: text.body,
+  reportAd: { alignSelf: "center" },
+  reportAdText: {
+    ...text.meta,
+    color: colors.textMuted,
+    textDecorationLine: "underline",
+  },
 });
