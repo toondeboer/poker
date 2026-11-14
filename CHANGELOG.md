@@ -30,8 +30,10 @@ platform-tagged heading (e.g. `## [1.1.3] - 2026-07-20 — Android`) when you cu
     delayed until then (`GADDelayAppMeasurementInit`, `DELAY_APP_MEASUREMENT_INIT`). It used to
     start at launch.
   - **Needs a GDPR message published in AdMob → Privacy & messaging before it does anything.**
-    Without one the SDK has no form to show and reports that ads may not be requested in those
-    regions.
+    Without one the SDK has no form to show, and ads go on being requested exactly as before:
+    observed on an Android emulator, the update fails with "no form(s) configured for the input
+    app ID" and `canRequestAds` still comes back `true`, so a banner loads. Shipping without the
+    message is therefore no regression, and no fix either.
   - Native config changed (manifest, `Info.plist`, a ProGuard keep rule), so existing dev clients
     need a rebuild.
 - Store listing: **new screenshots for Android phone and tablet, iPhone and iPad**, the first set

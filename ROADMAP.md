@@ -437,7 +437,11 @@ release is checked against them rather than re-derived. What is left is accepted
    gathers consent through Google's UMP SDK for free users and gates the ads SDK on the answer.
    Still open:
    - **Publish a GDPR message in AdMob → Privacy & messaging** for both apps (owner's console
-     action). Until then there is no form to show. **Do not create an IDFA/ATT message there**: UMP
+     action). Until then there is no form to show, and the gap this closes stays open: checked on
+     an Android emulator on 2026-11-14, the SDK answers "no form(s) configured for the input app
+     ID" and still reports `canRequestAds: true`, so banners load as they did on 1.2.0. A release
+     built before the message exists behaves like 1.2.0 for ads, not worse. **Do not create an
+     IDFA/ATT message there**: UMP
      would start raising the tracking prompt, and the app has no `NSUserTrackingUsageDescription`.
    - Run the consent rows in `RELEASE_TESTING.md` on both platforms once the message exists. iOS
      can only be checked on an EAS build while local builds are blocked on Xcode 27.
