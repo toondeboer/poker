@@ -77,12 +77,18 @@ const PRO_FEATURES = [
  * second reads as a lifetime-licence claim, which is a different promise and a
  * worse one to make beside an auto-renewing subscription.
  *
+ * **"Once you've paid", since the free trial.** A trial that is cancelled
+ * before its first charge leaves nothing behind (`clubPeriodKeepsPro`), so the
+ * unqualified version of this line would promise permanent Pro for starting a
+ * trial. The qualifier is true with or without a trial on offer, so it is not
+ * conditional.
+ *
  * **Deliberately not in the renewal-terms block.** Guideline 3.1.2 wants the
  * title, period, price and cancellation terms legible and unqualified; this
  * belongs with the features, not among them.
  */
 const CLUB_FEATURES = [
-  "Everything in Pro — and Pro stays unlocked even if you cancel",
+  "Everything in Pro — and once you've paid for Club, Pro stays unlocked even if you cancel",
   "Share a leaderboard with the people you play with",
   "Put one clock on every phone at the table",
   "Invite by code — and remove anybody you invited",
@@ -231,6 +237,15 @@ export function Paywall({
    * Needs both plans to say anything, which is the ordinary case — and says
    * nothing rather than guessing when only one came back from the store.
    */
+  /**
+   * The free trial on offer to this user, in words, or `null`.
+   *
+   * Read off whichever plan carries one. The stores are configured with the
+   * same length on both, and the terms sentence below can only name one.
+   */
+  const clubFreeTrial =
+    clubPlans.find((plan) => plan.freeTrial !== null)?.freeTrial ?? null;
+
   const annualSaving = (() => {
     const monthly = clubPlans.find((plan) => plan.period === "monthly");
     const annual = clubPlans.find((plan) => plan.period === "annual");
@@ -434,8 +449,29 @@ export function Paywall({
                   isAnnual ? styles.clubFilledText : styles.clubOutlinedText,
                 ]}
               >
-                {isAnnual ? "Annual" : "Monthly"} · {plan.priceString}
+                {isAnnual ? "Annual" : "Monthly"} ·{" "}
+                {plan.freeTrial ? `${plan.freeTrial} free` : plan.priceString}
               </Text>
+              {/**
+               * **With a trial, the price moves to the line below and gains its
+               * period.** Guideline 3.1.2 wants what the subscription costs
+               * and how often legible wherever it is sold, and "14 days free"
+               * alone is the half of the offer that is not a price. So the
+               * button says both, in the order they happen.
+               */}
+              {plan.freeTrial ? (
+                <Text
+                  style={[
+                    styles.savingText,
+                    !isAnnual && styles.savingTextOutlined,
+                  ]}
+                >
+                  then {plan.priceString} {isAnnual ? "a year" : "a month"}
+                  {isAnnual && annualSaving !== null
+                    ? ` · save ${annualSaving}%`
+                    : ""}
+                </Text>
+              ) : null}
               {/**
                * **Worked out from what the store charges, never hardcoded.**
                *
@@ -446,7 +482,7 @@ export function Paywall({
                * is on screen because a percentage with nothing to compare
                * against is not a statement.
                */}
-              {isAnnual && annualSaving !== null ? (
+              {!plan.freeTrial && isAnnual && annualSaving !== null ? (
                 <Text style={styles.savingText}>
                   Save {annualSaving}% vs monthly
                 </Text>
@@ -458,7 +494,10 @@ export function Paywall({
 
       {/* Required wording: it renews until cancelled, and where to cancel. */}
       <Text style={styles.clubTerms}>
-        Renews automatically until cancelled. Manage or cancel it in your{" "}
+        {clubFreeTrial && !hasClub
+          ? `Free for ${clubFreeTrial}, then it renews automatically at the price shown until cancelled. Cancel at least a day before the trial ends and you are not charged. `
+          : "Renews automatically until cancelled. "}
+        Manage or cancel it in your{" "}
         {Platform.OS === "ios" ? "App Store" : "Play Store"} account settings.
       </Text>
 
@@ -638,6 +677,7 @@ const styles = StyleSheet.create({
     fontWeight: "600",
     marginTop: 2,
   },
+  savingTextOutlined: { color: colors.club },
   proFilled: { backgroundColor: colors.pro, borderColor: colors.pro },
   proFilledText: { color: colors.textOnPro },
   proOutlined: { backgroundColor: "transparent", borderColor: colors.pro },

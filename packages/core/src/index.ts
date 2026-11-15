@@ -171,6 +171,10 @@ export {
 } from "./monetization/clubPolicy";
 export type { ClubContext } from "./monetization/clubPolicy";
 export { annualSavingPercent } from "./monetization/clubSaving";
+export {
+  clubPeriodKeepsPro,
+  freeTrialLengthLabel,
+} from "./monetization/clubTrial";
 export { PRO_TRIAL_DAYS, proTrialState } from "./monetization/proTrial";
 export type { ProTrialState } from "./monetization/proTrial";
 export {

@@ -251,7 +251,9 @@ export const entitlementsFrom = (bought: {
   pro: boolean;
   club: boolean;
   /**
-   * Whether Club has **ever** been held, subscription still running or not.
+   * Whether Club has **ever been paid for**, subscription still running or
+   * not. A free trial that was cancelled does not count; see
+   * `clubPeriodKeepsPro`, which is what the caller derives this from.
    *
    * Read from the receipt rather than remembered on the device, so it survives
    * a reinstall — which matters, because the whole point is that this one does

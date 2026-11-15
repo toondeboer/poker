@@ -11,7 +11,9 @@ import Purchases, {
 import {
   ENTITLEMENT_PRO,
   ENTITLEMENT_CLUB,
+  clubPeriodKeepsPro,
   entitlementsFrom,
+  freeTrialLengthLabel,
   PRODUCT_PRO_LIFETIME,
   PRODUCT_PRO_TRIAL,
   proTrialState,
@@ -49,6 +51,15 @@ export type ClubPlan = {
    * rather than something parsed back out of the string above.
    */
   price: number;
+  /**
+   * The free period this user would get first, in words ("14 days"), or `null`.
+   *
+   * **`null` unless the store says this user is eligible.** Somebody who has
+   * had the trial is charged from the first day, and a button promising them
+   * "14 days free" would be a price claim that is false. Unknown eligibility
+   * is treated as not eligible, which is RevenueCat's own advice.
+   */
+  freeTrial: string | null;
 };
 
 export interface BillingProvider extends EntitlementProvider {
@@ -162,7 +173,13 @@ const toEntitlements = async (info: CustomerInfo): Promise<Entitlements> =>
     // lapsed ones included. Reading it from the receipt rather than a flag on
     // the device is what makes "Pro, once granted, stays granted" survive a
     // reinstall, which is the only way it means anything.
-    clubEver: info.entitlements.all[ENTITLEMENT_CLUB] !== undefined,
+    //
+    // **And only a paid period counts.** A cancelled free trial leaves the
+    // entitlement in `all` with `periodType` "TRIAL"; counting it would hand
+    // out permanent Pro to anybody who started the trial and cancelled.
+    clubEver: clubPeriodKeepsPro(
+      info.entitlements.all[ENTITLEMENT_CLUB]?.periodType,
+    ),
   });
 
 /**
@@ -229,6 +246,55 @@ async function getClubPackages(): Promise<
    * already grants Pro permanently.
    */
   return found.sort((a, b) => (a.period === "annual" ? -1 : 1));
+}
+
+/**
+ * The free trial each Club package would start with for this user, by package
+ * id. Missing means none.
+ *
+ * **The two stores answer differently, so each is asked its own way.**
+ * - Play only returns offers this user is eligible for, so a free phase on the
+ *   default option is already the answer.
+ * - The App Store returns the introductory price to everybody, eligible or
+ *   not, and eligibility is a second question.
+ */
+async function getClubFreeTrials(
+  packages: PurchasesPackage[],
+): Promise<Record<string, string>> {
+  const trials: Record<string, string> = {};
+  if (Platform.OS === "android") {
+    for (const pkg of packages) {
+      const period = pkg.product.defaultOption?.freePhase?.billingPeriod;
+      const label = period
+        ? freeTrialLengthLabel(period.unit, period.value)
+        : null;
+      if (label) trials[pkg.identifier] = label;
+    }
+    return trials;
+  }
+  const withFreeIntro = packages.filter(
+    (pkg) => pkg.product.introPrice?.price === 0,
+  );
+  if (withFreeIntro.length === 0) return trials;
+  const eligibility = await Purchases.checkTrialOrIntroductoryPriceEligibility(
+    withFreeIntro.map((pkg) => pkg.product.identifier),
+  );
+  for (const pkg of withFreeIntro) {
+    const intro = pkg.product.introPrice;
+    if (
+      !intro ||
+      eligibility[pkg.product.identifier]?.status !==
+        Purchases.INTRO_ELIGIBILITY_STATUS.INTRO_ELIGIBILITY_STATUS_ELIGIBLE
+    ) {
+      continue;
+    }
+    const label = freeTrialLengthLabel(
+      intro.periodUnit,
+      intro.periodNumberOfUnits * intro.cycles,
+    );
+    if (label) trials[pkg.identifier] = label;
+  }
+  return trials;
 }
 
 export const revenueCatProvider: BillingProvider = {
@@ -324,11 +390,21 @@ export const revenueCatProvider: BillingProvider = {
     if (!API_KEY) return [];
     configurePurchases();
     try {
-      return (await getClubPackages()).map(({ pkg, period }) => ({
+      const found = await getClubPackages();
+      // A failure here must cost only the trial wording, never the plans: the
+      // price without a trial is still true, just less generous than it is.
+      const trials = await getClubFreeTrials(found.map(({ pkg }) => pkg)).catch(
+        (error) => {
+          logger.warn("Could not load Club trial eligibility:", error);
+          return {} as Record<string, string>;
+        },
+      );
+      return found.map(({ pkg, period }) => ({
         id: pkg.identifier,
         period,
         priceString: pkg.product.priceString,
         price: pkg.product.price,
+        freeTrial: trials[pkg.identifier] ?? null,
       }));
     } catch (error) {
       // Same posture as the Pro price: a paywall that cannot price Club still
