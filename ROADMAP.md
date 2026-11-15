@@ -436,13 +436,13 @@ release is checked against them rather than re-derived. What is left is accepted
 3. 🟡 **UMP consent is wired in code and waiting on the AdMob console.** `services/adsConsent.ts`
    gathers consent through Google's UMP SDK for free users and gates the ads SDK on the answer.
    Still open:
-   - ✅ **The GDPR message is published in AdMob → Privacy & messaging** (2026-11-15), with
+   - **The GDPR message is published in AdMob → Privacy & messaging** (2026-11-15), with
      "Consent", "Do not consent" and "Manage options" on the first screen. **Do not add an IDFA/ATT
      message there**: UMP would start raising the tracking prompt, and the app has no
      `NSUserTrackingUsageDescription`. Before it existed the SDK answered "no form(s) configured for
      the input app ID" and still reported `canRequestAds: true`, so a build without it behaves like
      1.2.0 for ads rather than worse.
-   - ✅ **Checked on an Android emulator against that message** (2026-11-15, `FORCE_EEA_IN_DEV` on):
+   - **Checked on an Android emulator against that message** (2026-11-15, `FORCE_EEA_IN_DEV` on):
      the form shows before any ad; "Do not consent" and "Consent" both close it and a banner loads;
      it does not return on relaunch; "Ad privacy choices" appears in Settings and reopens it.
      On the **iPhone simulator** (2026-11-15, no debug toggle) the form also shows on first launch,
@@ -666,7 +666,7 @@ until they have put a clock on a friend's phone, and it is the purchase that rec
 - **The honest prior**: Club has had one subscriber, who left after a month, and nothing in the
   1.2.0 data pointed at "could not try it" as the reason. The bigger limit may be how few people
   reach the Club offer at all. Cheap to try; do not read much into a small number either way.
-- ✅ **Offers configured 2026-11-15**: a free 2-week introductory offer on `club_yearly` and
+- **Offers configured 2026-11-15**: a free 2-week introductory offer on `club_yearly` and
   `club_monthly` in App Store Connect, and an active 14-day free-trial offer on both base plans in
   Play Console.
 - ⬜ **Untested against a real offer.** The layout was checked on the iPhone simulator with the
