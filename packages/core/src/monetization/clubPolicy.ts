@@ -23,6 +23,9 @@
  * in a store review.
  */
 
+import type { Entitlements } from "./EntitlementProvider";
+import type { ProTrialState } from "./proTrial";
+
 /** Everything a decision here can depend on. */
 export type ClubContext = {
   /** Whether there is a session. Anything shared needs one; nothing else does. */
@@ -255,7 +258,12 @@ export const entitlementsFrom = (bought: {
    * not go away.
    */
   clubEver: boolean;
-}): { isPremium: boolean; hasClub: boolean; ownsProOutright: boolean } => ({
+  /**
+   * Where the Pro trial stands. Left out, nobody has one: the web has no
+   * billing and so no trial to start.
+   */
+  proTrial?: ProTrialState;
+}): Entitlements => ({
   /**
    * **Pro, once granted by Club, stays granted.**
    *
@@ -272,7 +280,14 @@ export const entitlementsFrom = (bought: {
    * consequence next to the prices, because it is a pricing decision, not a
    * code one.
    */
-  isPremium: bought.pro || bought.club || bought.clubEver,
+  isPremium:
+    bought.pro ||
+    bought.club ||
+    bought.clubEver ||
+    // **The only term here that stops being true by itself.** Everything it
+    // unlocks locks again when the trial ends; nothing made during it is
+    // deleted.
+    bought.proTrial?.status === "active",
   hasClub: bought.club,
   /**
    * Kept separately from `isPremium`, which blurs two different *routes* to the
@@ -286,4 +301,5 @@ export const entitlementsFrom = (bought: {
    * §16 justified a copy rule with it, so the mistake had already travelled.
    */
   ownsProOutright: bought.pro,
+  proTrial: bought.proTrial ?? { status: "unused" },
 });

@@ -171,10 +171,13 @@ export {
 } from "./monetization/clubPolicy";
 export type { ClubContext } from "./monetization/clubPolicy";
 export { annualSavingPercent } from "./monetization/clubSaving";
+export { PRO_TRIAL_DAYS, proTrialState } from "./monetization/proTrial";
+export type { ProTrialState } from "./monetization/proTrial";
 export {
   ENTITLEMENT_PRO,
   ENTITLEMENT_CLUB,
   PRODUCT_PRO_LIFETIME,
+  PRODUCT_PRO_TRIAL,
   PRODUCT_CLUB_MONTHLY,
   PRODUCT_CLUB_YEARLY,
 } from "./monetization/products";

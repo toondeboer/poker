@@ -1,6 +1,7 @@
 // src/services/revenueCatProvider.ts
 import { Platform } from "react-native";
 import Constants from "expo-constants";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import { logger } from "@/src/utils/logger";
 import Purchases, {
   PACKAGE_TYPE,
@@ -12,6 +13,8 @@ import {
   ENTITLEMENT_CLUB,
   entitlementsFrom,
   PRODUCT_PRO_LIFETIME,
+  PRODUCT_PRO_TRIAL,
+  proTrialState,
   type EntitlementProvider,
   type Entitlements,
 } from "@poker/core";
@@ -65,6 +68,15 @@ export interface BillingProvider extends EntitlementProvider {
   getClubPlans(): Promise<ClubPlan[]>;
   /** Buy one of them, by the id from `getClubPlans`. */
   purchaseClub(planId: string): Promise<Entitlements>;
+  /**
+   * Whether the Pro trial can be started on this build at all.
+   *
+   * False on iOS until the free trial product exists in App Store Connect, so
+   * the app never shows a button that would fail.
+   */
+  isProTrialAvailable(): Promise<boolean>;
+  /** Start the Pro trial. Resolves with the resulting entitlements. */
+  startProTrial(): Promise<Entitlements>;
 }
 
 /** Nothing owned — the safe answer in both directions, with no billing wired. */
@@ -72,6 +84,7 @@ const NOTHING: Entitlements = {
   isPremium: false,
   hasClub: false,
   ownsProOutright: false,
+  proTrial: { status: "unused" },
 };
 
 // Public RevenueCat SDK keys are safe to ship in the client (set in app.json
@@ -102,8 +115,47 @@ export function configurePurchases() {
  * is applied in `@poker/core` where it is written down and tested, rather than
  * being an undocumented `||` in a mapping function.
  */
-const toEntitlements = (info: CustomerInfo): Entitlements =>
+/**
+ * Where Android keeps the day the Pro trial started.
+ *
+ * **On the device, because Google Play has nothing to keep it in**: there is no
+ * free one-time product to buy. So clearing the app's data or reinstalling
+ * offers the trial again. Accepted knowingly; the alternative is a server-side
+ * record keyed on a device id, which is more data collected to stop somebody
+ * getting a second fortnight of a €2.99 app.
+ */
+const ANDROID_TRIAL_STARTED_AT = "pro_trial_started_at";
+
+/**
+ * When the Pro trial started, as a millisecond timestamp, or `null`.
+ *
+ * **iOS reads the store's own purchase date** for the free trial product, so it
+ * survives a reinstall and comes back with a restore. `allPurchaseDates` rather
+ * than an entitlement: a non-consumable's entitlement would never expire, and
+ * the trial product deliberately grants none.
+ */
+async function trialStartedAt(info: CustomerInfo): Promise<number | null> {
+  if (Platform.OS === "ios") {
+    const purchased = info.allPurchaseDates[PRODUCT_PRO_TRIAL];
+    const parsed = purchased ? Date.parse(purchased) : NaN;
+    return Number.isNaN(parsed) ? null : parsed;
+  }
+  const stored = Number(await AsyncStorage.getItem(ANDROID_TRIAL_STARTED_AT));
+  return Number.isFinite(stored) && stored > 0 ? stored : null;
+}
+
+/** The free trial product from the App Store, or `null` when it is not there. */
+async function getTrialProduct() {
+  const [product] = await Purchases.getProducts(
+    [PRODUCT_PRO_TRIAL],
+    Purchases.PRODUCT_CATEGORY.NON_SUBSCRIPTION,
+  );
+  return product ?? null;
+}
+
+const toEntitlements = async (info: CustomerInfo): Promise<Entitlements> =>
   entitlementsFrom({
+    proTrial: proTrialState(await trialStartedAt(info), Date.now()),
     pro: info.entitlements.active[ENTITLEMENT_PRO] !== undefined,
     club: info.entitlements.active[ENTITLEMENT_CLUB] !== undefined,
     // **`all`, not `active`** — every entitlement the receipt has ever carried,
@@ -186,13 +238,36 @@ export const revenueCatProvider: BillingProvider = {
     // claimed to exist that could be "restored".
     if (!API_KEY) return NOTHING;
     configurePurchases();
-    return toEntitlements(await Purchases.getCustomerInfo());
+    try {
+      return await toEntitlements(await Purchases.getCustomerInfo());
+    } catch (error) {
+      // **An Android trial does not depend on the store, so a store that
+      // cannot be reached must not end it.** The start date is on the device;
+      // without this, somebody mid-trial who opened the app with no network and
+      // no cached customer info would find ads back and everything locked.
+      // Purchases still read as not held, which is what a failure already
+      // meant. iOS has nowhere else to read the date from, so it rethrows.
+      if (Platform.OS === "ios") throw error;
+      const stored = Number(
+        await AsyncStorage.getItem(ANDROID_TRIAL_STARTED_AT),
+      );
+      return entitlementsFrom({
+        pro: false,
+        club: false,
+        clubEver: false,
+        proTrial: proTrialState(
+          Number.isFinite(stored) && stored > 0 ? stored : null,
+          Date.now(),
+        ),
+      });
+    }
   },
 
   onChange: (callback) => {
     if (!API_KEY) return () => {};
     configurePurchases();
-    const listener = (info: CustomerInfo) => callback(toEntitlements(info));
+    const listener = (info: CustomerInfo) =>
+      void toEntitlements(info).then(callback);
     Purchases.addCustomerInfoUpdateListener(listener);
     return () => Purchases.removeCustomerInfoUpdateListener(listener);
   },
@@ -280,6 +355,56 @@ export const revenueCatProvider: BillingProvider = {
     }
     try {
       const { customerInfo } = await Purchases.purchasePackage(match.pkg);
+      return toEntitlements(customerInfo);
+    } catch (e) {
+      // Cancelling is not an error, exactly as for Pro.
+      if (
+        e &&
+        typeof e === "object" &&
+        "userCancelled" in e &&
+        e.userCancelled
+      ) {
+        return toEntitlements(await Purchases.getCustomerInfo());
+      }
+      throw e;
+    }
+  },
+
+  isProTrialAvailable: async () => {
+    if (!API_KEY) return false;
+    // Nothing to buy on Android, so nothing that can be missing.
+    if (Platform.OS !== "ios") return true;
+    configurePurchases();
+    try {
+      return (await getTrialProduct()) !== null;
+    } catch (error) {
+      logger.warn("Could not load the Pro trial product:", error);
+      return false;
+    }
+  },
+
+  startProTrial: async () => {
+    configurePurchases();
+    if (!configured) {
+      throw new Error("Purchases aren't available on this platform yet.");
+    }
+    if (Platform.OS !== "ios") {
+      // **Never overwritten.** Starting twice must not restart the clock, and
+      // a trial that has ended must stay ended.
+      if ((await AsyncStorage.getItem(ANDROID_TRIAL_STARTED_AT)) === null) {
+        await AsyncStorage.setItem(
+          ANDROID_TRIAL_STARTED_AT,
+          String(Date.now()),
+        );
+      }
+      return toEntitlements(await Purchases.getCustomerInfo());
+    }
+    const product = await getTrialProduct();
+    if (!product) {
+      throw new Error("The free trial isn't available right now.");
+    }
+    try {
+      const { customerInfo } = await Purchases.purchaseStoreProduct(product);
       return toEntitlements(customerInfo);
     } catch (e) {
       // Cancelling is not an error, exactly as for Pro.

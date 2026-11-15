@@ -7,7 +7,7 @@ import {
   useRef,
   useState,
 } from "react";
-import type { Entitlements } from "@poker/core";
+import type { Entitlements, ProTrialState } from "@poker/core";
 import {
   revenueCatProvider,
   type ClubPlan,
@@ -78,6 +78,16 @@ type PremiumContextValue = {
   purchaseClub: (planId: string) => Promise<void>;
   /** Restore a previous purchase. Throws on failure for the caller to surface. */
   restore: () => Promise<void>;
+  /**
+   * Where the Pro trial stands. While `active`, {@link isPremium} is true
+   * because of it, so anything *telling* somebody what they have checks this
+   * first and keeps the way to buy Pro on screen.
+   */
+  proTrial: ProTrialState;
+  /** Whether a trial can be started on this build (the store product exists). */
+  proTrialAvailable: boolean;
+  /** Start the Pro trial. Throws on failure for the caller to surface. */
+  startProTrial: () => Promise<void>;
 };
 
 const PremiumContext = createContext<PremiumContextValue | null>(null);
@@ -114,6 +124,8 @@ export function PremiumProvider({
   const [entitlementsKnown, setEntitlementsKnown] = useState(
     FORCE_PRO_IN_DEV || FORCE_FREE_IN_DEV,
   );
+  const [proTrial, setProTrial] = useState<ProTrialState>({ status: "unused" });
+  const [proTrialAvailable, setProTrialAvailable] = useState(false);
   const [purchasing, setPurchasing] = useState(false);
   const [proPriceString, setProPriceString] = useState<string | null>(null);
   const [clubPlans, setClubPlans] = useState<ClubPlan[]>([]);
@@ -184,8 +196,33 @@ export function PremiumProvider({
     setIsPremium(entitlements.isPremium);
     setHasClub(entitlements.hasClub);
     setOwnsProOutright(entitlements.ownsProOutright);
+    setProTrial(entitlements.proTrial);
     setEntitlementsKnown(true);
   }, []);
+
+  /**
+   * **Lock again the moment the trial runs out, not at the next launch.**
+   *
+   * Nothing tells the app a trial has ended; it is a date passing. So while one
+   * is running, ask again when it is due. Somebody who leaves the app open
+   * across that moment would otherwise keep Pro until they next restarted it.
+   * The answer is recomputed by the provider rather than assumed here, so a
+   * purchase made in the meantime is not undone.
+   */
+  const trialEndsAt = proTrial.status === "active" ? proTrial.endsAt : null;
+  useEffect(() => {
+    if (trialEndsAt === null) return;
+    const timer = setTimeout(
+      () => {
+        void revenueCatProvider
+          .getEntitlements()
+          .then(applyEntitlements)
+          .catch(() => {});
+      },
+      Math.max(0, trialEndsAt - Date.now()) + 1000,
+    );
+    return () => clearTimeout(timer);
+  }, [trialEndsAt, applyEntitlements]);
 
   useEffect(() => {
     // The price is fetched either way (see refreshProPrice). Only the
@@ -202,6 +239,10 @@ export function PremiumProvider({
     // so every one of those surfaces would have stayed silent until somebody
     // opened the sheet they were meant to lead to.
     refreshClubPlans();
+    void revenueCatProvider
+      .isProTrialAvailable()
+      .then(setProTrialAvailable)
+      .catch(() => {});
     if (FORCE_PRO_IN_DEV || FORCE_FREE_IN_DEV) return;
     let active = true;
     revenueCatProvider
@@ -243,6 +284,15 @@ export function PremiumProvider({
     }
   }, [applyEntitlements]);
 
+  const startProTrial = useCallback(async () => {
+    setPurchasing(true);
+    try {
+      applyEntitlements(await revenueCatProvider.startProTrial());
+    } finally {
+      setPurchasing(false);
+    }
+  }, [applyEntitlements]);
+
   const restore = useCallback(async () => {
     setPurchasing(true);
     try {
@@ -267,6 +317,9 @@ export function PremiumProvider({
         refreshClubPlans,
         purchaseClub,
         restore,
+        proTrial,
+        proTrialAvailable,
+        startProTrial,
       }}
     >
       {children}

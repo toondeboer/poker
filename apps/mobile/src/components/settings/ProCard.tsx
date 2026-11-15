@@ -18,12 +18,15 @@ import { Button } from "@/src/components/ui/Button";
 import { Card, CardContent, CardHeader } from "@/src/components/ui/Card";
 
 export function ProCard({ onRequestPro }: { onRequestPro: () => void }) {
-  const { isPremium } = usePremium();
+  const { isPremium, proTrial } = usePremium();
   const { privacyOptionsRequired } = useAdsConsent();
+  // **A trial keeps the full card.** `isPremium` is true during one, but there
+  // is still something to act on: the purchase that keeps it.
+  const onTrial = proTrial.status === "active";
 
   // Once unlocked there's nothing to act on, so this collapses to a single line
   // rather than keeping a full card's worth of space.
-  if (isPremium) {
+  if (isPremium && !onTrial) {
     return (
       <Card style={styles.unlockedCard}>
         <View style={styles.unlockedRow}>
@@ -42,7 +45,20 @@ export function ProCard({ onRequestPro }: { onRequestPro: () => void }) {
       {/* **"One-time" said beside the name, not only in the body.** It is the
           one thing that must not be confused with the Club card below, and the
           two badges are the fastest way to read the difference. */}
-      <CardHeader icon="star" title="Pro" right={<Badge label="One-time" />} />
+      <CardHeader
+        icon="star"
+        title="Pro"
+        right={
+          onTrial ? (
+            <Badge
+              label={`Trial · ${proTrial.daysLeft} ${proTrial.daysLeft === 1 ? "day" : "days"} left`}
+              tone="live"
+            />
+          ) : (
+            <Badge label="One-time" />
+          )
+        }
+      />
       <CardContent>
         <Text style={styles.description}>
           Remove ads, work out payouts, keep a leaderboard, save tournament
@@ -60,21 +76,23 @@ export function ProCard({ onRequestPro }: { onRequestPro: () => void }) {
             Pro or Club user sees none, so the free branch of the one card about
             ads is where it belongs. Quiet on purpose: it must be findable, not
             compete with the button above it. */}
-        <TouchableOpacity
-          style={styles.quietLink}
-          onPress={reportAd}
-          accessibilityRole="link"
-          accessibilityLabel="Report an inappropriate ad"
-          hitSlop={8}
-        >
-          <Text style={styles.quietLinkText}>
-            Seen an inappropriate ad? Report it
-          </Text>
-        </TouchableOpacity>
+        {onTrial ? null : (
+          <TouchableOpacity
+            style={styles.quietLink}
+            onPress={reportAd}
+            accessibilityRole="link"
+            accessibilityLabel="Report an inappropriate ad"
+            hitSlop={8}
+          >
+            <Text style={styles.quietLinkText}>
+              Seen an inappropriate ad? Report it
+            </Text>
+          </TouchableOpacity>
+        )}
         {/* The way back into the consent form, which has to exist wherever the
             form was shown. Hidden everywhere else: outside those regions it
             would open nothing. */}
-        {privacyOptionsRequired && (
+        {privacyOptionsRequired && !onTrial && (
           <TouchableOpacity
             style={styles.quietLink}
             onPress={() => void showAdPrivacyOptions().catch(() => {})}

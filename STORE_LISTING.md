@@ -268,6 +268,40 @@ No ads, deal a hand, payouts, leaderboard.
 
 `42` chars.
 
+### App Store Connect — In-App Purchase → `pro_trial_14d` (new in 1.2.1)
+
+**The Pro trial, and it only exists on iOS.** App Review Guideline 3.1.1 allows a time-limited
+trial in a non-subscription app only as a **free non-consumable** named "XX-day Trial". Google Play
+has no free one-time product, so there is nothing to create there; Android records the start date on
+the device.
+
+| Field              | Value                                                              |
+| ------------------ | ------------------------------------------------------------------ |
+| Type               | Non-Consumable                                                     |
+| Product ID         | `pro_trial_14d` — must match `PRODUCT_PRO_TRIAL` in `@poker/core`  |
+| Reference Name     | `Pro 14-day Trial`                                                 |
+| Price              | **Free** (price tier 0)                                            |
+| Display Name (≤30) | `14-day Trial` — the naming convention the guideline requires      |
+| Review screenshot  | The paywall with the "Start 14-day free trial" button and its text |
+
+**Description:**
+
+```
+Try every Pro feature free for 14 days.
+```
+
+- **Until this product exists and is at least Ready to Submit, the app shows no trial button on
+  iOS.** `isProTrialAvailable` asks the store for it and hides the offer when it is not there, so
+  shipping the code before the product is safe.
+- **Add it to the 1.2.1 submission**, the same way the Club subscriptions were added to 1.2.0's: a
+  new in-app purchase is reviewed together with an app version.
+- **RevenueCat: add the product, attach it to no entitlement.** A non-consumable's entitlement
+  never expires, which is the opposite of a trial. The app reads the product's purchase date from
+  `allPurchaseDates` and counts fourteen days itself. It does not need to be in an offering either;
+  the app fetches it by id.
+- **The length is in three places that must agree**: the product id, the display name, and
+  `PRO_TRIAL_DAYS` in `@poker/core`. Changing it means a new product.
+
 ### Google Play — Monetize → Products → `pro_lifetime`
 
 **Name (≤55):** `Pro — Deal, Payouts, Leaderboard & No Ads` — 41

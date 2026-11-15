@@ -639,6 +639,36 @@ Guests are unaffected either way. They never paid.
   any board already on the server, because the other direction silently strands the members reading
   it. Revisit if lapsed hosts turn out to be a real cost.
 
+### The Pro trial — decided 2026-11-15, built for 1.2.1
+
+**Fourteen days of Pro, started by the user, once.** It exists because the locked features are
+ones nobody sees before paying, and at roughly one sale a week it cannot be A/B tested, so it is a
+judgement call and should be read as one.
+
+- **Opt-in, not automatic, on both platforms.** Giving every new user Pro silently from first launch
+  was the original idea and is not available on iOS: Guideline 3.1.1 allows a trial in a
+  non-subscription app only as a free non-consumable named "XX-day Trial", and forbids an app
+  unlocking features by a mechanism of its own. Android could have been automatic; it was kept the
+  same so there is one behaviour to explain and test. The cost is reach: fewer people start a trial
+  than would have been handed one.
+- **Fourteen days, not seven**, because a home game is weekly at best and a trial nobody played a
+  hand in shows them nothing. Apple's route is a day count, so "three game nights" is not on offer.
+- **Nothing is deleted when it ends.** Ads return and the Pro screens lock; a leaderboard or presets
+  made during the trial stay on the phone and come back with Pro.
+- **A trial is never told to anybody as ownership**, and never touches Club: `ownsProOutright`
+  stays false and `hasClub` is unaffected. `proTrial` on `Entitlements` is what UI checks before
+  `isPremium`.
+- **Android's start date is on the device**, so reinstalling offers the trial again. Accepted
+  knowingly: the alternative is a server record keyed on a device id.
+- ⬜ **Owner's console steps**, in `STORE_LISTING.md`: create `pro_trial_14d` in App Store Connect
+  (free, "14-day Trial"), add it to RevenueCat with no entitlement, and add it to the 1.2.1
+  submission. Until then the iOS app shows no trial button.
+- ⬜ **iOS is untested**: it needs the product in the sandbox. Android was checked on an emulator,
+  including the expiry, by moving the device clock.
+- ⬜ **What to watch afterwards**: trials started against Pro purchases. There is no analytics, so
+  the only numbers are RevenueCat's (iOS trial "purchases" appear there as €0 transactions);
+  Android trial starts are invisible.
+
 ## Payouts — open question
 
 - ⬜ **The calculator pays at most six places, and a large field cannot change that.** Raised during

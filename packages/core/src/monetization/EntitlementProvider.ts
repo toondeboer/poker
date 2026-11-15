@@ -1,3 +1,5 @@
+import type { ProTrialState } from "./proTrial";
+
 /**
  * Whether the current user has unlocked the paid "Pro" tier. Pro removes ads
  * and unlocks premium features, and resolves identically on web and mobile.
@@ -20,6 +22,15 @@ export type Entitlements = {
    * saying "Pro unlocked" implies a permanence they have not got.
    */
   ownsProOutright: boolean;
+  /**
+   * Where the Pro trial stands. While it is `active`, `isPremium` is true
+   * because of it.
+   *
+   * **Never a reason to say "Pro unlocked".** A trial is the one route to
+   * `isPremium` that ends, so anything telling somebody what they have must
+   * check this before `isPremium`, and must keep the way to buy Pro on screen.
+   */
+  proTrial: ProTrialState;
 };
 
 /**

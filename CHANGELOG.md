@@ -43,6 +43,19 @@ platform-tagged heading (e.g. `## [1.1.3] - 2026-07-20 — Android`) when you cu
   (1206×2622) is included as well, because App Store Connect's 6.1"/6.3" slot refuses the 6.9"
   files.
 
+- Mobile: **a 14-day free trial of Pro.** The paywall offers "Start 14-day free trial" under the
+  Unlock button to anyone who has bought nothing and has not had a trial. During it everything Pro
+  unlocks works and ads are off; Settings and the paywall show the days left and keep "Unlock Pro"
+  on screen. When it ends, ads return and the Pro features lock again, and nothing made during it is
+  deleted. It can be started once.
+  - **The user starts it; it is never automatic.** On iOS it is a free in-app purchase
+    (`pro_trial_14d`, "14-day Trial"), the form App Review Guideline 3.1.1 requires, and the text
+    above the button states the length, what locks afterwards and what Pro costs. Android has no
+    such product and records the start date on the device.
+  - **Shows nothing on iOS until the product exists in App Store Connect.**
+  - `Entitlements` in `@poker/core` gains `proTrial`; a trial makes `isPremium` true but never
+    `ownsProOutright` or `hasClub`.
+
 ### Changed
 
 - Mobile: **the paywall leads with the one-time purchase again.** Opened for Pro by somebody who
