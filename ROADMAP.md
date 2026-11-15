@@ -718,8 +718,10 @@ blocks a review; all of it is what a person sees before deciding to install.
   - Android phone (1080×1920) and tablet (1600×2560) in
     [`store-assets/android/screenshots/`](./store-assets/android/screenshots/).
   - iPhone 6.9" (1320×2868) and iPad 13" (2064×2752) in
-    [`store-assets/ios/screenshots/`](./store-assets/ios/screenshots/). App Store Connect scales
-    the smaller size classes from these.
+    [`store-assets/ios/screenshots/`](./store-assets/ios/screenshots/), plus an iPhone 6.3" set
+    (1206×2622) composed from the same captures. **Each App Store Connect slot only accepts its own
+    sizes**: dropping the 6.9" files into the 6.1"/6.3" slot is refused with "File dimensions are
+    invalid". Use the 6.9" tab for the 6.9" files, or the 6.3" set where that is the slot shown.
   - **Uploading them to the Play Console and App Store Connect is the manual step left.** On iOS,
     new screenshots go up with a new app version.
   - **No shared-clock or Club shot, on purpose.** It needs a signed-in account against a backend,
