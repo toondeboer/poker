@@ -120,7 +120,7 @@ describe("what a purchase grants", () => {
     // a broken one, sold deliberately.
     expect(
       entitlementsFrom({ pro: false, club: true, clubEver: true }),
-    ).toEqual({
+    ).toMatchObject({
       isPremium: true,
       hasClub: true,
       // Not bought, only included — and it goes when the subscription does.
@@ -132,7 +132,7 @@ describe("what a purchase grants", () => {
     // The rule runs one way only. Pro has never included hosting.
     expect(
       entitlementsFrom({ pro: true, club: false, clubEver: false }),
-    ).toEqual({
+    ).toMatchObject({
       isPremium: true,
       hasClub: false,
       ownsProOutright: true,
@@ -142,7 +142,7 @@ describe("what a purchase grants", () => {
   it("grants nothing to somebody who has bought nothing", () => {
     expect(
       entitlementsFrom({ pro: false, club: false, clubEver: false }),
-    ).toEqual({
+    ).toMatchObject({
       isPremium: false,
       hasClub: false,
       ownsProOutright: false,
@@ -155,7 +155,11 @@ describe("what a purchase grants", () => {
     // those boards carry on syncing for the members still reading them.
     expect(
       entitlementsFrom({ pro: false, club: false, clubEver: true }),
-    ).toEqual({ isPremium: true, hasClub: false, ownsProOutright: false });
+    ).toMatchObject({
+      isPremium: true,
+      hasClub: false,
+      ownsProOutright: false,
+    });
   });
 
   it("does not keep hosting after it lapses", () => {
@@ -167,14 +171,14 @@ describe("what a purchase grants", () => {
 
   it("lets somebody hold both without contradiction", () => {
     // Somebody who bought Pro years ago and later subscribes.
-    expect(entitlementsFrom({ pro: true, club: true, clubEver: true })).toEqual(
-      {
-        isPremium: true,
-        hasClub: true,
-        // Their Pro survives the subscription ending; that is what they paid for.
-        ownsProOutright: true,
-      },
-    );
+    expect(
+      entitlementsFrom({ pro: true, club: true, clubEver: true }),
+    ).toMatchObject({
+      isPremium: true,
+      hasClub: true,
+      // Their Pro survives the subscription ending; that is what they paid for.
+      ownsProOutright: true,
+    });
   });
 });
 
@@ -357,5 +361,55 @@ describe("joining a clock", () => {
     expect(clockJoinRefusal({ signedIn: false })).toBe(
       "Sign in to join a clock.",
     );
+  });
+});
+
+describe("entitlementsFrom with a Pro trial", () => {
+  const nothing = { pro: false, club: false, clubEver: false };
+  const active = {
+    status: "active",
+    endsAt: 1_800_000_000_000,
+    daysLeft: 9,
+  } as const;
+  const ended = { status: "ended", endedAt: 1_800_000_000_000 } as const;
+
+  it("unlocks Pro while the trial is running", () => {
+    expect(entitlementsFrom({ ...nothing, proTrial: active })).toEqual({
+      isPremium: true,
+      hasClub: false,
+      // A trial is not a purchase, and must never be told to anybody as one.
+      ownsProOutright: false,
+      proTrial: active,
+    });
+  });
+
+  it("locks again once the trial has ended", () => {
+    expect(entitlementsFrom({ ...nothing, proTrial: ended })).toEqual({
+      isPremium: false,
+      hasClub: false,
+      ownsProOutright: false,
+      proTrial: ended,
+    });
+  });
+
+  it("never grants hosting", () => {
+    expect(entitlementsFrom({ ...nothing, proTrial: active }).hasClub).toBe(
+      false,
+    );
+  });
+
+  it("leaves a buyer exactly as they were when their old trial has ended", () => {
+    expect(
+      entitlementsFrom({
+        pro: true,
+        club: false,
+        clubEver: false,
+        proTrial: ended,
+      }),
+    ).toMatchObject({ isPremium: true, ownsProOutright: true });
+  });
+
+  it("reports an unused trial when none is passed", () => {
+    expect(entitlementsFrom(nothing).proTrial).toEqual({ status: "unused" });
   });
 });

@@ -11,6 +11,21 @@ export const ENTITLEMENT_PRO = "pro";
 export const PRODUCT_PRO_LIFETIME = "pro_lifetime";
 
 /**
+ * Store product id for the Pro trial: a **free** non-consumable on the App
+ * Store, which is the only form App Review Guideline 3.1.1 allows a
+ * time-limited trial to take in an app that is not a subscription.
+ *
+ * **The length is in the id because Apple requires it in the name** ("14-day
+ * Trial"), and the two must not drift: see `PRO_TRIAL_DAYS`. It grants no
+ * RevenueCat entitlement. A non-consumable's entitlement never expires, so the
+ * app reads when it was bought and does the arithmetic itself.
+ *
+ * iOS only. Google Play has no free one-time product, so Android records the
+ * start date on the device instead.
+ */
+export const PRODUCT_PRO_TRIAL = "pro_trial_14d";
+
+/**
  * The entitlement for hosting: **the Club**.
  *
  * **A second entitlement, not a second tier**, and the distinction is the whole

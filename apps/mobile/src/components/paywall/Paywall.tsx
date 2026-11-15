@@ -9,7 +9,7 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
-import { annualSavingPercent, SITE_URL } from "@poker/core";
+import { annualSavingPercent, PRO_TRIAL_DAYS, SITE_URL } from "@poker/core";
 import { colors, radius, space, text } from "@/src/theme";
 import { usePremium } from "@/src/contexts/PremiumContext";
 import { useFeatures } from "@/src/contexts/FeaturesContext";
@@ -131,6 +131,9 @@ export function Paywall({
     refreshClubPlans,
     purchaseClub,
     restore,
+    proTrial,
+    proTrialAvailable,
+    startProTrial,
   } = usePremium();
   const features = useFeatures();
   const [error, setError] = useState<string | null>(null);
@@ -162,6 +165,18 @@ export function Paywall({
   const buyLabel = proPriceString
     ? `Unlock Pro · ${proPriceString}`
     : "Unlock Pro";
+
+  /**
+   * **A trial is not ownership, and the sheet must not say it is.**
+   *
+   * `isPremium` is true during a trial, and everything here that used to key on
+   * it ("Pro unlocked — thank you!", hiding the buy button, "Done") would be
+   * wrong for somebody who has bought nothing. Whether Pro is *held* is this.
+   */
+  const onTrial = proTrial.status === "active";
+  const holdsPro = isPremium && !onTrial;
+  const canStartTrial =
+    !isPremium && proTrial.status === "unused" && proTrialAvailable;
 
   const run = async (action: () => Promise<void>) => {
     setError(null);
@@ -208,7 +223,7 @@ export function Paywall({
    * expanding it shows the same card, with all of them, that a Club entry point
    * opens on.
    */
-  const clubCollapsed = showClub && !clubFocused && !isPremium && !clubExpanded;
+  const clubCollapsed = showClub && !clubFocused && !holdsPro && !clubExpanded;
 
   /**
    * What the annual saves against twelve monthlies, or `null`.
@@ -246,7 +261,21 @@ export function Paywall({
         ))}
       </View>
 
-      {isPremium ? (
+      {onTrial ? (
+        <Text style={styles.trialStatus}>
+          Free trial — {proTrial.daysLeft}{" "}
+          {proTrial.daysLeft === 1 ? "day" : "days"} left. Unlock Pro to keep it
+          all when the trial ends.
+        </Text>
+      ) : null}
+      {proTrial.status === "ended" && !isPremium ? (
+        <Text style={styles.trialStatus}>
+          Your free trial has ended. Everything you made is still here, and
+          unlocks again with Pro.
+        </Text>
+      ) : null}
+
+      {holdsPro ? (
         <View style={styles.ownedBox}>
           <Text style={styles.ownedText}>
             {hasClub && !ownsProOutright
@@ -281,6 +310,43 @@ export function Paywall({
           )}
         </TouchableOpacity>
       )}
+
+      {/**
+       * **The trial, and the three things Apple requires said before it
+       * starts** (Guideline 3.1.1): how long it lasts, what stops being
+       * available when it ends, and what the full unlock costs. They sit
+       * directly above the button so they cannot be scrolled past on the way
+       * to it. Shown only while a trial can actually be started; see
+       * `isProTrialAvailable`.
+       */}
+      {canStartTrial ? (
+        <>
+          <Text style={styles.trialTerms}>
+            Or try everything free for {PRO_TRIAL_DAYS} days. No payment, and
+            nothing renews. When the trial ends, ads come back and the Pro
+            features above lock again — nothing you made is deleted. Keeping
+            them is{" "}
+            {proPriceString
+              ? `a one-time ${proPriceString}`
+              : "a one-time purchase"}
+            .
+          </Text>
+          <TouchableOpacity
+            style={[
+              styles.cta,
+              styles.proOutlined,
+              purchasing && styles.disabled,
+            ]}
+            onPress={() => run(startProTrial)}
+            disabled={purchasing}
+            activeOpacity={0.85}
+          >
+            <Text style={[styles.ctaText, styles.proOutlinedText]}>
+              Start {PRO_TRIAL_DAYS}-day free trial
+            </Text>
+          </TouchableOpacity>
+        </>
+      ) : null}
     </View>
   );
 
@@ -481,7 +547,7 @@ export function Paywall({
 
       <TouchableOpacity style={styles.closeButton} onPress={onClose}>
         <Text style={styles.closeText}>
-          {isPremium ? "Done" : "Maybe later"}
+          {holdsPro ? "Done" : "Maybe later"}
         </Text>
       </TouchableOpacity>
     </Sheet>
@@ -613,6 +679,8 @@ const styles = StyleSheet.create({
   clubRowName: { color: colors.club, fontWeight: "700" },
   clubRowLink: { ...text.label, color: colors.club },
 
+  trialStatus: { ...text.body, color: colors.pro, fontWeight: "600" },
+  trialTerms: { ...text.meta, fontSize: 13 },
   clubTerms: { ...text.meta, textAlign: "center" },
   legalRow: {
     flexDirection: "row",
