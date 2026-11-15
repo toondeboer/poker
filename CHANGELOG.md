@@ -43,6 +43,11 @@ platform-tagged heading (e.g. `## [1.1.3] - 2026-07-20 — Android`) when you cu
   (1206×2622) is included as well, because App Store Connect's 6.1"/6.3" slot refuses the 6.9"
   files.
 
+- Mobile: **the paywall shows Club's free trial when the store offers one.** An eligible user sees
+  "Annual · 14 days free" with "then €19.99 a year" beneath (and the same for monthly), and the terms
+  line says it renews at that price unless cancelled a day before the trial ends. The trial itself is
+  an introductory offer configured in App Store Connect and Play Console; with none configured, or
+  for somebody who has already had it, the sheet shows the ordinary prices as before.
 - Mobile: **a 14-day free trial of Pro.** The paywall offers "Start 14-day free trial" under the
   Unlock button to anyone who has bought nothing and has not had a trial. During it everything Pro
   unlocks works and ads are off; Settings and the paywall show the days left and keep "Unlock Pro"
@@ -58,6 +63,11 @@ platform-tagged heading (e.g. `## [1.1.3] - 2026-07-20 — Android`) when you cu
 
 ### Changed
 
+- Mobile: **Club keeps Pro unlocked afterwards only once it has been paid for.** Pro used to stay
+  with anyone who had ever held Club. A free trial that is cancelled before its first charge now
+  leaves nothing behind, since otherwise starting and cancelling a trial would be a free permanent
+  Pro. Nobody who has paid for Club is affected. The paywall line now reads "once you've paid for
+  Club, Pro stays unlocked even if you cancel".
 - Mobile: **the paywall leads with the one-time purchase again.** Opened for Pro by somebody who
   has bought nothing, the sheet reads "One-time unlock. Yours forever." and shows the Pro card with
   Club as a single row beneath it; "See Club" expands the full Club card in place, with its plans,

@@ -419,6 +419,39 @@ introducing a second convention.
 
 **Both stores or neither** — one platform able to subscribe and the other not is worse than neither.
 
+### Club free trial — the introductory offer (new in 1.2.1)
+
+**A free trial on a subscription is the store's own offer, set on the product, in both consoles.**
+The app has no length of its own: it shows whatever the store returns for this user, and nothing
+when the store returns no offer. So this can be configured before or after the code ships.
+
+**App Store Connect** → Subscriptions → the Club group → `club_yearly`, then again for
+`club_monthly`:
+
+1. **Subscription Prices** → **+** → **Create Introductory Offer**.
+2. Countries: all. Start date: today, no end date.
+3. Type: **Free**. Duration: **2 weeks**.
+4. Save. An introductory offer does not need its own review.
+
+Apple gives each customer one introductory offer **per subscription group**, so somebody who has
+tried the monthly cannot try the annual afterwards. That is the behaviour wanted.
+
+**Play Console** → Monetize → Subscriptions → `club` → for the monthly base plan, then the annual:
+
+1. **Add offer**. Offer ID: `free-trial-14d`.
+2. Eligibility: **New customer acquisition** → **Never had this subscription**.
+3. Add phase → **Free trial** → **14 days**.
+4. **Activate** the offer. A saved offer that is not activated is not returned to the app.
+
+**RevenueCat needs nothing.** It reads the offers from the stores. On Play it selects the
+free-trial offer as the default option automatically; if the dashboard has a specific offer pinned
+for the product, unpin it.
+
+**What the app does with it**, so the result can be recognised: an eligible user sees
+"Annual · 14 days free" with "then €19.99 a year" beneath, the same for monthly, and a terms line
+saying it renews at that price unless cancelled a day before the trial ends. Somebody who has had
+the trial sees the ordinary prices.
+
 ### RevenueCat
 
 **The four product identifiers, which do not match across stores and are not meant to:**

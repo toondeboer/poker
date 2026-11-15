@@ -445,7 +445,9 @@ release is checked against them rather than re-derived. What is left is accepted
    - ✅ **Checked on an Android emulator against that message** (2026-11-15, `FORCE_EEA_IN_DEV` on):
      the form shows before any ad; "Do not consent" and "Consent" both close it and a banner loads;
      it does not return on relaunch; "Ad privacy choices" appears in Settings and reopens it.
-     **iOS is not checked**, and neither is a real device.
+     On the **iPhone simulator** (2026-11-15, no debug toggle) the form also shows on first launch,
+     and "Do not consent" closes it and a banner loads; the relaunch and Settings-link checks were
+     not repeated there. A real device is still unchecked.
    - **The form's wording is Google's and asks for more than the app uses**: it names "personalised
      advertising" and precise geolocation, while every request stays non-personalized. It also
      calls the app "Poker Timer", the name AdMob has on file. Trimming the purposes in AdMob is
@@ -625,6 +627,13 @@ the leaderboard, and that is what Pro is — but it takes the sight of every boa
 those boards carry on syncing for the members still reading them. Nothing is destroyed and it all
 returns on resubscribing, but somebody would reasonably call that the app eating their season.
 
+**Only a paid period counts — changed 2026-11-15 for the free trial.** `clubEver` used to be "the
+entitlement has ever existed". With a free trial on Club that hands out permanent Pro to anybody who
+starts one and cancels, so it is now "the last period was not a trial" (`clubPeriodKeepsPro`, read
+from RevenueCat's `periodType`). During a trial Pro is unlocked because Club is active; a trial
+cancelled before its first charge leaves nothing behind. The paywall line says "once you've paid for
+Club" for the same reason.
+
 **One month of Club is a permanent Pro — and at parity that costs nothing.** Pro is €2.99, and so is
 the Club monthly, so subscribing-and-cancelling costs exactly what buying Pro costs and the
 arbitrage disappears by construction: no receipt logic, no minimum-months rule.
@@ -638,6 +647,31 @@ Guests are unaffected either way. They never paid.
 - 🟡 **Whether a lapsed host's boards should keep syncing is open.** `boardSyncs` keeps sending for
   any board already on the server, because the other direction silently strands the members reading
   it. Revisit if lapsed hosts turn out to be a real cost.
+
+### The Club free trial — decided 2026-11-15, built for 1.2.1
+
+**Fourteen days free on both Club plans, as a store introductory offer.** The owner's reasoning: Pro
+is easy to imagine before paying (the ads go away), while Club is the thing nobody can picture
+until they have put a clock on a friend's phone, and it is the purchase that recurs.
+
+- **It has to be the store's offer**, not something the app grants. A free period on an
+  auto-renewing subscription is an introductory offer on that product in both stores; the Pro
+  trial's free non-consumable is Apple's route for a one-time unlock and does not extend to a
+  subscription. It also converts by default, which an app-granted trial would not.
+- **The app shows it only to somebody the store says is eligible.** Unknown eligibility is shown the
+  ordinary price, since "14 days free" to somebody who will be charged today is a false price claim.
+- **Kept alongside the Pro trial, by decision.** The paywall can therefore offer two different free
+  trials. Watch for confusion; if one has to go, the Pro one is the one the owner thinks is needed
+  less.
+- **The honest prior**: Club has had one subscriber, who left after a month, and nothing in the
+  1.2.0 data pointed at "could not try it" as the reason. The bigger limit may be how few people
+  reach the Club offer at all. Cheap to try; do not read much into a small number either way.
+- ⬜ **Owner's console steps**, in `STORE_LISTING.md`: the introductory offer in App Store Connect
+  and the free-trial offer in Play Console, on both plans.
+- ⬜ **Untested against a real offer.** The layout was checked on the iPhone simulator with the
+  trial label forced; eligibility, the Play free phase and the purchase itself need the offers live.
+- ⬜ **Hosting given away**: a trial user can share boards and run clocks for a fortnight. What
+  happens to those boards afterwards is the same open question as for any lapsed host, above.
 
 ### The Pro trial — decided 2026-11-15, built for 1.2.1
 
