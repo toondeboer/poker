@@ -666,8 +666,9 @@ until they have put a clock on a friend's phone, and it is the purchase that rec
 - **The honest prior**: Club has had one subscriber, who left after a month, and nothing in the
   1.2.0 data pointed at "could not try it" as the reason. The bigger limit may be how few people
   reach the Club offer at all. Cheap to try; do not read much into a small number either way.
-- ⬜ **Owner's console steps**, in `STORE_LISTING.md`: the introductory offer in App Store Connect
-  and the free-trial offer in Play Console, on both plans.
+- ✅ **Offers configured 2026-11-15**: a free 2-week introductory offer on `club_yearly` and
+  `club_monthly` in App Store Connect, and an active 14-day free-trial offer on both base plans in
+  Play Console.
 - ⬜ **Untested against a real offer.** The layout was checked on the iPhone simulator with the
   trial label forced; eligibility, the Play free phase and the purchase itself need the offers live.
 - ⬜ **Hosting given away**: a trial user can share boards and run clocks for a fortnight. What
@@ -694,9 +695,12 @@ judgement call and should be read as one.
   `isPremium`.
 - **Android's start date is on the device**, so reinstalling offers the trial again. Accepted
   knowingly: the alternative is a server record keyed on a device id.
-- ⬜ **Owner's console steps**, in `STORE_LISTING.md`: create `pro_trial_14d` in App Store Connect
-  (free, "14-day Trial"), add it to RevenueCat with no entitlement, and add it to the 1.2.1
-  submission. Until then the iOS app shows no trial button.
+- 🟡 **`pro_trial_14d` exists (2026-11-15) and must be attached to the 1.2.1 submission.** Created
+  in App Store Connect as a free non-consumable, "14-day Trial", and added to RevenueCat with no
+  entitlement. It was submitted for review on its own at first and then pulled back to Ready to
+  Submit: reviewed against 1.2.0, which has no trial button, it risks "we could not find this
+  in-app purchase in your app". **Select it on the 1.2.1 version page before submitting.** The
+  review screenshot is `store-assets/ios/paywall-pro-trial-review.png`.
 - ⬜ **iOS is untested**: it needs the product in the sandbox. Android was checked on an emulator,
   including the expiry, by moving the device clock.
 - ⬜ **What to watch afterwards**: trials started against Pro purchases. There is no analytics, so
