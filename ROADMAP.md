@@ -436,15 +436,22 @@ release is checked against them rather than re-derived. What is left is accepted
 3. 🟡 **UMP consent is wired in code and waiting on the AdMob console.** `services/adsConsent.ts`
    gathers consent through Google's UMP SDK for free users and gates the ads SDK on the answer.
    Still open:
-   - **Publish a GDPR message in AdMob → Privacy & messaging** for both apps (owner's console
-     action). Until then there is no form to show, and the gap this closes stays open: checked on
-     an Android emulator on 2026-11-14, the SDK answers "no form(s) configured for the input app
-     ID" and still reports `canRequestAds: true`, so banners load as they did on 1.2.0. A release
-     built before the message exists behaves like 1.2.0 for ads, not worse. **Do not create an
-     IDFA/ATT message there**: UMP
-     would start raising the tracking prompt, and the app has no `NSUserTrackingUsageDescription`.
-   - Run the consent rows in `RELEASE_TESTING.md` on both platforms once the message exists. iOS
-     can only be checked on an EAS build while local builds are blocked on Xcode 27.
+   - ✅ **The GDPR message is published in AdMob → Privacy & messaging** (2026-11-15), with
+     "Consent", "Do not consent" and "Manage options" on the first screen. **Do not add an IDFA/ATT
+     message there**: UMP would start raising the tracking prompt, and the app has no
+     `NSUserTrackingUsageDescription`. Before it existed the SDK answered "no form(s) configured for
+     the input app ID" and still reported `canRequestAds: true`, so a build without it behaves like
+     1.2.0 for ads rather than worse.
+   - ✅ **Checked on an Android emulator against that message** (2026-11-15, `FORCE_EEA_IN_DEV` on):
+     the form shows before any ad; "Do not consent" and "Consent" both close it and a banner loads;
+     it does not return on relaunch; "Ad privacy choices" appears in Settings and reopens it.
+     **iOS is not checked**, and neither is a real device.
+   - **The form's wording is Google's and asks for more than the app uses**: it names "personalised
+     advertising" and precise geolocation, while every request stays non-personalized. It also
+     calls the app "Poker Timer", the name AdMob has on file. Trimming the purposes in AdMob is
+     possible and not investigated.
+   - Run the consent rows in `RELEASE_TESTING.md` on both platforms during the 1.2.1 pass. iOS can
+     only be checked on an EAS build while local builds are blocked on Xcode 27.
    - Compare AdMob match rate per version and country afterwards (FR, UK and DE were 20–38% on
      1.2.0).
    - **Ads stay non-personalized regardless of the answer**, because the privacy policy and store
