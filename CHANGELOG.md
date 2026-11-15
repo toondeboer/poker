@@ -39,8 +39,9 @@ platform-tagged heading (e.g. `## [1.1.3] - 2026-07-20 — Android`) when you cu
 - Store listing: **new screenshots for Android phone and tablet, iPhone and iPad**, the first set
   that shows 1.2.0 (timer, blind structure, payouts, leaderboard, dealer), each with a caption.
   They are tracked under `store-assets/android/screenshots/` and `store-assets/ios/screenshots/`
-  and rebuilt from the raw captures by `store-assets/generate-screenshots.js`. Not uploaded to
-  either store yet.
+  and rebuilt from the raw captures by `store-assets/generate-screenshots.js`. An iPhone 6.3" set
+  (1206×2622) is included as well, because App Store Connect's 6.1"/6.3" slot refuses the 6.9"
+  files.
 
 ### Changed
 

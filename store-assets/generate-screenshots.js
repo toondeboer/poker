@@ -43,6 +43,14 @@ const SETS = {
   "android-phone": { store: "android", width: 1080, height: 1920 },
   "android-tablet": { store: "android", width: 1600, height: 2560 },
   "ios-iphone-6.9": { store: "ios", width: 1320, height: 2868 },
+  // App Store Connect's 6.3" slot does not accept the 6.9" files. The aspect
+  // ratio is the same to three decimals, so it reuses the 6.9" captures.
+  "ios-iphone-6.3": {
+    store: "ios",
+    width: 1206,
+    height: 2622,
+    raw: "ios-iphone-6.9",
+  },
   "ios-ipad-13": { store: "ios", width: 2064, height: 2752 },
 };
 
@@ -135,7 +143,12 @@ async function main() {
   let written = 0;
   for (const [set, spec] of Object.entries(SETS)) {
     for (const { slug, caption } of SHOTS) {
-      const rawPath = path.join(__dirname, "raw", set, `${slug}.png`);
+      const rawPath = path.join(
+        __dirname,
+        "raw",
+        spec.raw ?? set,
+        `${slug}.png`,
+      );
       if (!fs.existsSync(rawPath)) continue;
       const outPath = path.join(
         __dirname,
