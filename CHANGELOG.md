@@ -71,6 +71,11 @@ platform-tagged heading (e.g. `## [1.1.3] - 2026-07-20 — Android`) when you cu
 
 ### Changed
 
+- Mobile: **Club's prices show before its trial wording is known.** Trial eligibility is a second,
+  slower question to the store, and waiting for it kept the whole Club offer off the paywall for
+  several seconds after a cold start. The plans now appear with their prices straight away and
+  switch to "14 days free" when the answer arrives. Found testing the release branch on the iPhone
+  simulator.
 - Mobile: **Club keeps Pro unlocked afterwards only once it has been paid for.** Pro used to stay
   with anyone who had ever held Club. A free trial that is cancelled before its first charge now
   leaves nothing behind, since otherwise starting and cancelling a trial would be a free permanent
