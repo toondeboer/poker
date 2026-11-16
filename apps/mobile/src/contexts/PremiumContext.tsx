@@ -175,7 +175,29 @@ export function PremiumProvider({
         // Same rule as the Pro price: never replace plans already on screen
         // with an empty list, or a flaky refresh blanks a section somebody is
         // looking at.
-        if (plans.length > 0) setClubPlans(plans);
+        if (plans.length === 0) return;
+        // **Keep trial wording already on screen.** The plans come back without
+        // it (see below), and dropping it for the moment the second answer
+        // takes would flip a button from "14 days free" to a price and back.
+        setClubPlans((current) =>
+          plans.map((plan) => ({
+            ...plan,
+            freeTrial:
+              current.find((shown) => shown.id === plan.id)?.freeTrial ?? null,
+          })),
+        );
+        // **Then the trials, as their own step.** Eligibility is a second,
+        // slower question to the store; waiting for it before showing anything
+        // kept the whole Club offer off the paywall for seconds after a cold
+        // start. The prices are true without it, so they go up first.
+        return revenueCatProvider.getClubFreeTrials().then((trials) => {
+          setClubPlans((current) =>
+            current.map((plan) => ({
+              ...plan,
+              freeTrial: trials[plan.id] ?? null,
+            })),
+          );
+        });
       })
       .finally(() => {
         clubFetchInFlightRef.current = false;
