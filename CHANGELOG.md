@@ -71,6 +71,10 @@ platform-tagged heading (e.g. `## [1.1.3] - 2026-07-20 — Android`) when you cu
 
 ### Changed
 
+- Mobile: **a Pro trial is recorded on the RevenueCat customer** as a `pro_trial_started` attribute
+  holding the start date. RevenueCat's trial charts only count subscription trials, and an Android
+  Pro trial never reaches the store, so this is the one place Pro trial starts can be listed and
+  counted. Best effort: failing to tag never fails the trial.
 - Mobile: **Club's prices show before its trial wording is known.** Trial eligibility is a second,
   slower question to the store, and waiting for it kept the whole Club offer off the paywall for
   several seconds after a cold start. The plans now appear with their prices straight away and

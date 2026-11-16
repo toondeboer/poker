@@ -14,6 +14,7 @@ import {
   clubPeriodKeepsPro,
   entitlementsFrom,
   freeTrialLengthLabel,
+  PRO_TRIAL_DAYS,
   PRODUCT_PRO_LIFETIME,
   PRODUCT_PRO_TRIAL,
   proTrialState,
@@ -306,6 +307,32 @@ async function readClubFreeTrials(
   return trials;
 }
 
+/**
+ * Marks the RevenueCat customer as having started a Pro trial, with the day it
+ * began.
+ *
+ * **The only place a Pro trial is countable.** RevenueCat's trial charts count
+ * subscription trials; an iOS Pro trial is a free one-off purchase that shows
+ * only in a customer's history, and an Android one never touches the store at
+ * all. A customer attribute is what makes "how many people started one" a list
+ * that can be filtered and counted in the dashboard.
+ *
+ * A date and nothing else, on a customer RevenueCat already knows. Best
+ * effort: failing to tag must never fail the trial itself.
+ */
+async function tagProTrialStart(entitlements: Entitlements) {
+  if (entitlements.proTrial.status !== "active") return;
+  const startedAt =
+    entitlements.proTrial.endsAt - PRO_TRIAL_DAYS * 24 * 60 * 60 * 1000;
+  try {
+    await Purchases.setAttributes({
+      pro_trial_started: new Date(startedAt).toISOString().slice(0, 10),
+    });
+  } catch (error) {
+    logger.warn("Could not tag the Pro trial in RevenueCat:", error);
+  }
+}
+
 export const revenueCatProvider: BillingProvider = {
   getEntitlements: async () => {
     // No billing configured at all: nothing is owned, which is the safe answer
@@ -488,7 +515,9 @@ export const revenueCatProvider: BillingProvider = {
           String(Date.now()),
         );
       }
-      return toEntitlements(await Purchases.getCustomerInfo());
+      const started = await toEntitlements(await Purchases.getCustomerInfo());
+      await tagProTrialStart(started);
+      return started;
     }
     const product = await getTrialProduct();
     if (!product) {
@@ -496,7 +525,9 @@ export const revenueCatProvider: BillingProvider = {
     }
     try {
       const { customerInfo } = await Purchases.purchaseStoreProduct(product);
-      return toEntitlements(customerInfo);
+      const started = await toEntitlements(customerInfo);
+      await tagProTrialStart(started);
+      return started;
     } catch (e) {
       // Cancelling is not an error, exactly as for Pro.
       if (
