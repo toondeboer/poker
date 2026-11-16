@@ -71,6 +71,8 @@ platform-tagged heading (e.g. `## [1.1.3] - 2026-07-20 — Android`) when you cu
 
 ### Changed
 
+- Store listing: **release notes for 1.2.1** drafted in `STORE_LISTING.md` for both stores, ready to
+  paste. The iOS notes carry no emoji; the Play notes are 325 of 500 characters.
 - Mobile: **a Pro trial is recorded on the RevenueCat customer** as a `pro_trial_started` attribute
   holding the start date. RevenueCat's trial charts only count subscription trials, and an Android
   Pro trial never reaches the store, so this is the one place Pro trial starts can be listed and

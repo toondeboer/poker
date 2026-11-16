@@ -16,6 +16,7 @@ and the ones that sit exactly on a limit say so.
 - [App Store Connect](#app-store-connect--every-field)
 - [Google Play](#google-play--every-field)
 - [In-app purchases and subscriptions](#in-app-purchases-and-subscriptions)
+- [Release notes — v1.2.1](#release-notes--v121)
 - [Release notes — v1.2.0](#release-notes--v120)
 - [Notes for Review](#notes-for-review-app-store-connect)
 
@@ -476,6 +477,50 @@ because a name would work on one platform and silently return nothing on the oth
 - The `pro_lifetime` product description mirrors the store; if you keep an
   internal description/notes field, match the copy above so the dashboard reads
   the same.
+
+## Release notes — v1.2.1
+
+**Both platforms together.** A small release next to 1.2.0: two free trials, a calmer upgrade
+screen, and the two ad-related controls the stores and the law ask for.
+
+**The trial bullets depend on store setup that is done, and on one review that is not.** Club's
+14-day trial is an introductory offer that is already live in both stores. Pro's trial on iOS is the
+free in-app purchase `pro_trial_14d`, which is reviewed together with this version. **If Apple
+rejects that product, take the Pro trial bullet out of the iOS notes before resubmitting**: the app
+hides the offer when the product is not there, and a note promising it would be the only place it
+exists.
+
+### iOS — "What's New in This Version" (App Store Connect)
+
+No emoji, bullets are `•`, and nothing about Android, as for 1.2.0.
+
+```
+• Try Pro free for 14 days. Everything unlocks and the ads go. Nothing is charged, nothing renews, and what you make during the trial is kept.
+
+• Club has a 14-day free trial too, on both the monthly and the annual plan. Cancel before it ends and you pay nothing.
+
+• A simpler upgrade screen. If you only want the ads gone, the one-time purchase is the first thing you see.
+
+• Report an ad. If an ad turns up that should not be there, a link in Settings sends it to us.
+
+• Ad privacy choices. Where the law asks for it, the app asks before showing ads, and you can change your answer in Settings at any time.
+
+Thanks for playing — feedback always welcome.
+```
+
+Re-count in App Store Connect before saving; the limit is 4000 characters and this is well inside it.
+
+### Android — "Release notes" (Play Console, ≤500 chars per language)
+
+```
+🎁 Try Pro free for 14 days: everything unlocked, no ads, nothing charged.
+👥 Club has a 14-day free trial too. Cancel before it ends and you pay nothing.
+⭐ A simpler upgrade screen: the one-time purchase comes first.
+🚩 Report an ad that shouldn't be there, from Settings.
+🔒 Ad privacy choices, where the law asks for them.
+```
+
+`325` chars by the UTF-16 measure the console uses — inside the 500-char limit.
 
 ## Release notes — v1.2.0
 
