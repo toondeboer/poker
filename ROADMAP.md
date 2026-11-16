@@ -703,9 +703,16 @@ judgement call and should be read as one.
   review screenshot is `store-assets/ios/paywall-pro-trial-review.png`.
 - ⬜ **iOS is untested**: it needs the product in the sandbox. Android was checked on an emulator,
   including the expiry, by moving the device clock.
-- ⬜ **What to watch afterwards**: trials started against Pro purchases. There is no analytics, so
-  the only numbers are RevenueCat's (iOS trial "purchases" appear there as €0 transactions);
-  Android trial starts are invisible.
+- ⬜ **What to watch afterwards**: trials started against Pro purchases. A trial start sets a
+  `pro_trial_started` attribute (the date) on the RevenueCat customer on both platforms, so starters
+  can be listed and counted there; RevenueCat's own trial charts only cover Club's.
+- 🟡 **Reinstalling on Android offers the trial again — raised by the owner 2026-11-16, accepted.**
+  It is self-limiting: the start date sits in the same storage as the leaderboard, presets and blind
+  structure, so a reinstall that clears one clears the rest, and a backup that restores the data
+  restores the date. The alternatives weighed were a sign-in requirement (backend change, fewer
+  trials started), a device record on the server (a device identifier to collect and declare), and
+  no Pro trial on Android at all. **The attribute above cannot show repeats**: a reinstall is a new
+  anonymous RevenueCat customer, so the same person starting twice looks like two people.
 
 ## Payouts — open question
 
