@@ -436,13 +436,13 @@ release is checked against them rather than re-derived. What is left is accepted
 3. 🟡 **UMP consent is wired in code and waiting on the AdMob console.** `services/adsConsent.ts`
    gathers consent through Google's UMP SDK for free users and gates the ads SDK on the answer.
    Still open:
-   - ✅ **The GDPR message is published in AdMob → Privacy & messaging** (2026-11-15), with
+   - **The GDPR message is published in AdMob → Privacy & messaging** (2026-11-15), with
      "Consent", "Do not consent" and "Manage options" on the first screen. **Do not add an IDFA/ATT
      message there**: UMP would start raising the tracking prompt, and the app has no
      `NSUserTrackingUsageDescription`. Before it existed the SDK answered "no form(s) configured for
      the input app ID" and still reported `canRequestAds: true`, so a build without it behaves like
      1.2.0 for ads rather than worse.
-   - ✅ **Checked on an Android emulator against that message** (2026-11-15, `FORCE_EEA_IN_DEV` on):
+   - **Checked on an Android emulator against that message** (2026-11-15, `FORCE_EEA_IN_DEV` on):
      the form shows before any ad; "Do not consent" and "Consent" both close it and a banner loads;
      it does not return on relaunch; "Ad privacy choices" appears in Settings and reopens it.
      On the **iPhone simulator** (2026-11-15, no debug toggle) the form also shows on first launch,
@@ -459,8 +459,6 @@ release is checked against them rather than re-derived. What is left is accepted
    - **Ads stay non-personalized regardless of the answer**, because the privacy policy and store
      declarations say so. Personalized ads for consenting Android users would mean rewriting the
      policy's Advertising section and Play's Data Safety answers first; not planned.
-   - The privacy policy's Advertising section should mention the consent form when the release
-     that carries it ships.
 
 ### Honest declaration is the whole strategy
 
@@ -666,7 +664,7 @@ until they have put a clock on a friend's phone, and it is the purchase that rec
 - **The honest prior**: Club has had one subscriber, who left after a month, and nothing in the
   1.2.0 data pointed at "could not try it" as the reason. The bigger limit may be how few people
   reach the Club offer at all. Cheap to try; do not read much into a small number either way.
-- ✅ **Offers configured 2026-11-15**: a free 2-week introductory offer on `club_yearly` and
+- **Offers configured 2026-11-15**: a free 2-week introductory offer on `club_yearly` and
   `club_monthly` in App Store Connect, and an active 14-day free-trial offer on both base plans in
   Play Console.
 - ⬜ **Untested against a real offer.** The layout was checked on the iPhone simulator with the
@@ -703,9 +701,16 @@ judgement call and should be read as one.
   review screenshot is `store-assets/ios/paywall-pro-trial-review.png`.
 - ⬜ **iOS is untested**: it needs the product in the sandbox. Android was checked on an emulator,
   including the expiry, by moving the device clock.
-- ⬜ **What to watch afterwards**: trials started against Pro purchases. There is no analytics, so
-  the only numbers are RevenueCat's (iOS trial "purchases" appear there as €0 transactions);
-  Android trial starts are invisible.
+- ⬜ **What to watch afterwards**: trials started against Pro purchases. A trial start sets a
+  `pro_trial_started` attribute (the date) on the RevenueCat customer on both platforms, so starters
+  can be listed and counted there; RevenueCat's own trial charts only cover Club's.
+- 🟡 **Reinstalling on Android offers the trial again — raised by the owner 2026-11-16, accepted.**
+  It is self-limiting: the start date sits in the same storage as the leaderboard, presets and blind
+  structure, so a reinstall that clears one clears the rest, and a backup that restores the data
+  restores the date. The alternatives weighed were a sign-in requirement (backend change, fewer
+  trials started), a device record on the server (a device identifier to collect and declare), and
+  no Pro trial on Android at all. **The attribute above cannot show repeats**: a reinstall is a new
+  anonymous RevenueCat customer, so the same person starting twice looks like two people.
 
 ## Payouts — open question
 
@@ -880,6 +885,13 @@ blocks a review; all of it is what a person sees before deciding to install.
   - **Start the emulator with `-no-snapshot`** when seeding data for screenshots. An AVD started
     from a quick-boot snapshot throws away everything written since that snapshot the next time it
     boots, which cost the phone's seeded leaderboard once already.
+- ✅ **App Store creative asset uploaded 2026-11-18** by the owner, ahead of 1.2.1 and judged good in
+  App Store Connect's preview. Apple added these optional assets in October 2026: a product page
+  header and a search results image, shown on iOS 27 and later, submitted from the **Asset Library**
+  without a new app version and reviewed against the latest version.
+  `store-assets/ios/creative/universal.png` is one universal asset (5244 × 2950 PNG, no alpha)
+  covering both placements, rebuilt by `node store-assets/ios/generate-creative-asset.js`. **If it
+  is rejected because the latest live version is still 1.2.0**, resubmit it once 1.2.1 is approved.
 - ⬜ **Re-shoot `store-assets/ios/paywall-club-review.png`.** It was last taken for #265 and #276
   added a line to Club's feature list afterwards, so it is one release behind. **Submitted
   deliberately as-is for 1.2.0**: every Guideline 3.1.2 element it has to show — plan names, both
