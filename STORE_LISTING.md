@@ -86,11 +86,6 @@ basic plane count twice, and this number already does.
 
 ### After both are live
 
-Then, in App Store Connect → **Asset Library**: upload
-`store-assets/ios/creative/universal.png` as a **universal** creative asset, check it in the
-preview tool, and submit it. It is optional, shown on iOS 27 and later, and reviewed against the
-latest app version, which is why it waits until 1.2.1 is approved.
-
 Correct the date on `CHANGELOG.md`'s 1.2.1 heading to the ship date, merge the release PR into
 `main`, and tag the built commit: `git tag -a v1.2.1 0651755`. The full list is step 8 of the release
 process in `CLAUDE.md`.

@@ -73,8 +73,8 @@ platform-tagged heading (e.g. `## [1.1.3] - 2026-07-20 — Android`) when you cu
 
 - Store listing: **an App Store creative asset** for the new product page header and search
   results placements (iOS 27 and later), in `store-assets/ios/creative/universal.png`, built by
-  `store-assets/ios/generate-creative-asset.js`. Uploaded separately from the app, after 1.2.1 is
-  approved.
+  `store-assets/ios/generate-creative-asset.js`. Uploaded from App Store Connect's Asset Library on
+  2026-11-18, separately from the app.
 - Store listing: **`STORE_LISTING.md` opens with "Submitting 1.2.1 — everything to paste"**: the
   steps for each console with the release notes and the App Review note inline. The iOS notes carry
   no emoji; the Play notes are 325 of 500 characters. The 1.2.0 release notes and the
