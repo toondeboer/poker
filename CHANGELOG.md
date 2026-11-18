@@ -71,8 +71,11 @@ platform-tagged heading (e.g. `## [1.1.3] - 2026-07-20 — Android`) when you cu
 
 ### Changed
 
-- Store listing: **release notes for 1.2.1** drafted in `STORE_LISTING.md` for both stores, ready to
-  paste. The iOS notes carry no emoji; the Play notes are 325 of 500 characters.
+- Store listing: **`STORE_LISTING.md` opens with "Submitting 1.2.1 — everything to paste"**: the
+  steps for each console with the release notes and the App Review note inline. The iOS notes carry
+  no emoji; the Play notes are 325 of 500 characters. The 1.2.0 release notes and the
+  "stale / drafted replacement" pairs for the promotional text and description are gone, since the
+  1.2.0 copy is what is live; git keeps the history.
 - Website: **the privacy policy describes the consent form and the Pro trial.** The Advertising
   section says where the consent form appears, that the answer never makes ads personalized, and
   where to change it; the RevenueCat entry says it receives the date a Pro trial started. "Last
