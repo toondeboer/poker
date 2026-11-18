@@ -782,6 +782,69 @@ provider added as generic OIDC looks identical on the login screen and bills eve
 **A completed sign-in against prod has not been run on either platform** — it is §14b in
 [RELEASE_TESTING.md](./RELEASE_TESTING.md), and part of the shortest pass.
 
+## Monitoring — decided 2026-11-18: Sentry first, in 1.2.2
+
+**Where it stood when 1.2.1 was submitted.** The backend is watched; the app is not.
+
+- **Backend:** nine CloudWatch alarms in prod (API 5xx/4xx, identity errors, content reports, mail
+  bounce and complaint, three DynamoDB health checks) to an SNS topic with one confirmed email
+  subscriber, a `poker-prod` dashboard and a cost budget. All nine read OK on 2026-11-18. The two
+  gaps are the items under "Backend — open items": the subscription can vanish silently, and push
+  receipts are never read.
+- **App:** no crash reporting, no analytics, and `logger` is a no-op in release builds, so every
+  `logger.warn` in production goes nowhere. What exists comes free from the platforms:
+  - App Store Connect crashes and App Analytics (opted-in users only);
+  - Play's Android vitals;
+  - RevenueCat (purchases, Club trials, and the `pro_trial_started` attribute);
+  - AdMob (impressions and match rate by country and version).
+
+**The real blind spot is JavaScript errors.** A screen that throws is caught by
+`AppErrorBoundary` and never crashes, so neither store sees it. A fatal JS error does crash, but the
+store shows a native stack with no source line. A one-off "app left the foreground" seen on the
+iPhone simulator while testing 1.2.1 was never explained, and in production it would leave no
+trace.
+
+### ⬜ Sentry, for 1.2.2
+
+Chosen over Crashlytics because it maps JS errors to source lines through Expo's tooling, and
+because it has an EU data region.
+
+- **Setup:**
+  - `@sentry/react-native` with its Expo config plugin.
+  - Source maps uploaded from the EAS build.
+  - The DSN in `app.json` `extra`, like the RevenueCat keys.
+  - A native module, so it needs `npm run pods` and new dev clients on both platforms (see the
+    native-module note in `CLAUDE.md`).
+- **Conservative configuration, because that is the line this project holds:**
+  - EU region (`de.sentry.io`).
+  - `sendDefaultPii: false`, no session replay, no performance tracing to start with.
+  - No user id attached, and `beforeSend` scrubbing anything that looks like an email.
+  - Errors from release builds only; dev builds keep the console.
+- **`logger.error` becomes a Sentry event and `logger.warn` a breadcrumb** in release builds, so the
+  warnings already written throughout the app start meaning something. `AppErrorBoundary` reports
+  what it catches.
+- **Declarations, in the same release, before submitting:**
+  - App Store Connect App Privacy: **Crash Data** and **Other Diagnostic Data**, used for App
+    Functionality, not linked to the user, not used for tracking. "Used for Tracking: No" stands.
+  - Play Data Safety: **App info and performance → Crash logs and Diagnostics**, collected, not
+    shared, for app functionality. Sentry is a processor here, not a third party the data is shared
+    with, but check the form's wording at the time.
+  - Privacy policy: a "Crash reports" entry naming Sentry, the EU region, what a report contains
+    (device model, OS and app version, the error and its stack, recent in-app steps), and that it
+    holds no account, email or board content.
+- **Done when** a deliberate test error in a release build shows in Sentry with a readable source
+  line, and the declarations above are live.
+
+### Later, and only if a question needs it
+
+- **Usage analytics stays out for now.** An identifier stored on the device generally needs consent
+  in the EU, it changes the privacy labels, and at about one sale a week the numbers are too small
+  to act on. Read the store dashboards, RevenueCat and AdMob after 1.2.1 first. If one specific
+  question cannot be answered there, a minimal anonymous count sent to our own backend is the
+  lowest-risk route; it needs a route and a prod deploy.
+- **Before 1.2.1 ships, no cost:** confirm App Store Connect and Play Console send crash and vitals
+  emails to an address that is read. It is the only crash alerting 1.2.1 has.
+
 ## Store listing and assets
 
 **This is what stands between a finished 1.2.0 and a store page that represents it.** None of it
