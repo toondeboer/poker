@@ -822,6 +822,15 @@ blocks a review; all of it is what a person sees before deciding to install.
   - **Start the emulator with `-no-snapshot`** when seeding data for screenshots. An AVD started
     from a quick-boot snapshot throws away everything written since that snapshot the next time it
     boots, which cost the phone's seeded leaderboard once already.
+- ⬜ **Upload the App Store creative asset after 1.2.1 is approved.** Apple added optional
+  "creative assets" in October 2026: a product page header and a search results image, shown on
+  iOS 27 and later. They are submitted from the **Asset Library** on their own, without a new app
+  version, and **reviewed against the latest version**, which is why this waits for 1.2.1.
+  `store-assets/ios/creative/universal.png` is one universal asset (5244 × 2950 PNG, no alpha)
+  covering both placements: the timer and "The blinds clock for poker night" inside Apple's art
+  safe area, the blind editor and leaderboard dimmed outside it. Rebuilt by
+  `node store-assets/ios/generate-creative-asset.js`. **Check it in App Store Connect's preview tool
+  before submitting**; the crops have not been seen on a real device.
 - ⬜ **Re-shoot `store-assets/ios/paywall-club-review.png`.** It was last taken for #265 and #276
   added a line to Club's feature list afterwards, so it is one release behind. **Submitted
   deliberately as-is for 1.2.0**: every Guideline 3.1.2 element it has to show — plan names, both
