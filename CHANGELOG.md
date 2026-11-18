@@ -73,6 +73,10 @@ platform-tagged heading (e.g. `## [1.1.3] - 2026-07-20 — Android`) when you cu
 
 - Store listing: **release notes for 1.2.1** drafted in `STORE_LISTING.md` for both stores, ready to
   paste. The iOS notes carry no emoji; the Play notes are 325 of 500 characters.
+- Website: **the privacy policy describes the consent form and the Pro trial.** The Advertising
+  section says where the consent form appears, that the answer never makes ads personalized, and
+  where to change it; the RevenueCat entry says it receives the date a Pro trial started. "Last
+  updated" moves to November 2026. Lands with the release, since it describes 1.2.1.
 - Mobile: **a Pro trial is recorded on the RevenueCat customer** as a `pro_trial_started` attribute
   holding the start date. RevenueCat's trial charts only count subscription trials, and an Android
   Pro trial never reaches the store, so this is the one place Pro trial starts can be listed and

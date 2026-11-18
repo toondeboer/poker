@@ -18,7 +18,7 @@ const PrivacyPolicy: React.FC = () => {
   const appName = "Poker Blinds Buzzer";
   const companyName = "Poker Blinds Buzzer";
   const contactEmail = CONTACT_EMAIL;
-  const lastUpdated = "September 2026";
+  const lastUpdated = "November 2026";
   const sections = [
     {
       id: "information-collection",
@@ -260,6 +260,15 @@ const PrivacyPolicy: React.FC = () => {
               across other apps and websites — because it does not do that.
             </p>
           </div>
+          <p className="text-gray-600">
+            <strong>Where the law requires consent</strong> — in the European
+            Economic Area, the UK and Switzerland — the app shows Google&apos;s
+            consent form before the first ad is requested, and asks nobody else.
+            Your answer decides whether ads may be shown at all; it never makes
+            them personalized. You can change it at any time from{" "}
+            <strong>Settings → Ad privacy choices</strong> in the app. Pro and
+            Club users see no ads, so they are never asked.
+          </p>
           <ul className="list-disc list-inside space-y-1 text-gray-600">
             <li>
               To serve and measure an ad, and to prevent fraud, Google may
@@ -377,7 +386,9 @@ const PrivacyPolicy: React.FC = () => {
               <p className="text-gray-600 text-sm mt-1">
                 Checks whether a purchase entitles you to Pro. It receives an
                 app-generated identifier and the receipt from the app store —
-                not your email address, and no board content.
+                not your email address, and no board content. If you start the
+                free Pro trial, it also receives the date you started it, so we
+                can count how many trials are started.
               </p>
             </div>
             <div className="bg-gray-50 p-4 rounded-lg">
