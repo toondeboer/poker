@@ -459,8 +459,6 @@ release is checked against them rather than re-derived. What is left is accepted
    - **Ads stay non-personalized regardless of the answer**, because the privacy policy and store
      declarations say so. Personalized ads for consenting Android users would mean rewriting the
      policy's Advertising section and Play's Data Safety answers first; not planned.
-   - The privacy policy's Advertising section should mention the consent form when the release
-     that carries it ships.
 
 ### Honest declaration is the whole strategy
 
