@@ -22,7 +22,7 @@ let roundsSinceLastAd = 0;
 let ad: InterstitialAd | null = null;
 
 function getAd() {
-  if (ad || !INTERSTITIAL_AD_UNIT_ID) return ad;
+  if (ad) return ad;
   ad = InterstitialAd.createForAdRequest(INTERSTITIAL_AD_UNIT_ID, {
     requestNonPersonalizedAdsOnly: true,
   });
@@ -39,7 +39,7 @@ function getAd() {
  * `shouldShowAds` is true — before the consent gate the SDK isn't initialized.
  */
 export function preloadInterstitial() {
-  getAd()?.load();
+  getAd().load();
 }
 
 /**
@@ -50,7 +50,6 @@ export function preloadInterstitial() {
 export function onRoundChanged(adPolicy: AdPolicyInput) {
   roundsSinceLastAd += 1;
   const current = getAd();
-  if (!current) return;
   if (!current.loaded) {
     // An earlier load failed, or this one is still in flight: try again so the
     // next round change has one.

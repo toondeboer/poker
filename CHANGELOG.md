@@ -16,8 +16,7 @@ platform-tagged heading (e.g. `## [1.1.3] - 2026-07-20 — Android`) when you cu
   full-screen ad then opens over it; the clock keeps correct time underneath. `shouldShowInterstitial`
   in `@poker/core` refuses one for Pro and Club, before the consent gate, and in the first 3 minutes
   after launch. Preloaded, so it appears at once or that round gets none. Non-personalized like the
-  banner, so the privacy policy and store declarations are unchanged. Release builds request none
-  until real AdMob interstitial unit ids are set in `services/ads.ts`.
+  banner, so the privacy policy and store declarations are unchanged.
 
 ## [1.2.1] - 2026-11-20 — iOS & Android
 
