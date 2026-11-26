@@ -3,7 +3,10 @@ name: CI
 on:
   pull_request:
   push:
-    branches: [main]
+    # `release/**` too: PR runs only test each change against a *proposed* merge,
+    # so without this the merged release branch — what actually becomes the
+    # binary — was tested by nobody unless someone remembered to run the suite.
+    branches: [main, "release/**"]
 
 # **Read the repository, and nothing else.** With no block at all the
 # `GITHUB_TOKEN` takes the repository's default, which on a public repo can be

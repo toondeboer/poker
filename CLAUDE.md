@@ -220,13 +220,12 @@ Mobile releases are batched on a short-lived branch per version, not shipped str
   small release; 1.2.0's section passed GitHub's 65,536-character body limit, so for a large one
   summarise the shape and link the changelog. Keep its status lines — which candidate is built,
   from which commit, what superseded it — current, because that is what the PR is read for.
-- **CI never runs on the release branch itself.** `.github/workflows/ci.yml` triggers on
-  `pull_request` and on `push` to `main`, so every run you see against `release/<version>` is a PR
-  run against a _proposed_ merge. The merged combination that actually becomes the binary is tested
-  by nobody — four PRs that each passed alone can still be broken together, and the first thing to
-  find out would be an EAS build failing twenty minutes in. Run the suite on the release branch
-  before building: `npm run typecheck && npm run lint && npm run test && npm run format:check`.
-  (Adding `release/**` to the workflow's push branches is tracked in `ROADMAP.md`.)
+- **CI runs on every push to `release/**`**, not only on PRs into it (added 2026-11-26). PR runs
+  test each change against a _proposed_ merge, so four PRs that each passed alone can still be broken
+  together; the push run is what tests the merged branch that becomes the binary. **Check it is
+  green on the release branch's tip before `eas build`** — a red push run there is the cheap way to
+  find what would otherwise be an EAS build failing twenty minutes in. The release-prep commits made
+  directly on the branch (cutting steps 4 and 8) are pushes too, so they get a run of their own.
 - **Cutting the release**, once everything intended for it is merged into `release/<version>`:
   1. Bump native version files for whichever platform(s) are shipping. The marketing version
      lives in **`apps/mobile/ios/PokerTimer/Info.plist`** (`CFBundleShortVersionString`,
