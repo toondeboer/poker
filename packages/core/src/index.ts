@@ -159,6 +159,12 @@ export type {
 export { shouldShowAds } from "./monetization/adPolicy";
 export type { AdPolicyInput } from "./monetization/adPolicy";
 export {
+  INTERSTITIAL_EVERY_N_ROUNDS,
+  INTERSTITIAL_LAUNCH_GRACE_MS,
+  shouldShowInterstitial,
+} from "./monetization/interstitialPolicy";
+export type { InterstitialPolicyInput } from "./monetization/interstitialPolicy";
+export {
   boardBelongsToAnotherAccount,
   boardOwnershipUnknown,
   boardIsVisible,

@@ -20,6 +20,20 @@ export const BANNER_AD_UNIT_ID = __DEV__
     }) ?? TestIds.BANNER);
 
 /**
+ * Interstitial (full-screen) ad unit id, or `null` where none is configured —
+ * in which case no interstitial is ever requested. Google's test unit in
+ * development.
+ *
+ * TODO before a release: create an Interstitial unit per platform in the AdMob
+ * console and replace the `null` below with a `Platform.select` of them, as
+ * `BANNER_AD_UNIT_ID` does. Until then release builds simply have no
+ * interstitials, rather than serving Google's test ads (which earn nothing).
+ */
+export const INTERSTITIAL_AD_UNIT_ID: string | null = __DEV__
+  ? TestIds.INTERSTITIAL
+  : null;
+
+/**
  * Initializes the Google Mobile Ads SDK. Called by the consent flow in
  * `adsConsent.ts` once the user's answer allows an ad request, never at app
  * start: before that there is nothing it is allowed to do. Safe to call again;
