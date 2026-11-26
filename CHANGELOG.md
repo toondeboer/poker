@@ -9,7 +9,7 @@ platform-tagged heading (e.g. `## [1.1.3] - 2026-07-20 — Android`) when you cu
 
 ## [Unreleased]
 
-## [1.2.1] - 2026-11-15 — iOS & Android
+## [1.2.1] - 2026-11-20 — iOS & Android
 
 ### Release
 
