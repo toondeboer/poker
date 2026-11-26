@@ -20,6 +20,13 @@ platform-tagged heading (e.g. `## [1.1.3] - 2026-07-20 — Android`) when you cu
 
 ### Changed
 
+- Mobile: **recording a game from the end-of-game prompt starts the next one at level 1.** Resetting
+  after the blinds have climbed asks "Record this game?"; once that record is saved, the blinds go
+  back to level 1, and the prompt now says so. Reset on its own still keeps the level, so re-clocking
+  a round after an interruption never loses your place, and a game recorded from the leaderboard's
+  own button (which may be an old one, with a tournament running) never moves the blinds. Pro only,
+  like the leaderboard.
+
 - Tooling: **CI runs on every push to `release/**`**, not only on pull requests into it. PR runs
   test each change against a proposed merge; the push run tests the merged branch that becomes the
   binary.

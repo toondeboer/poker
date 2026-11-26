@@ -18,17 +18,18 @@ stay because code and other docs cite them.
 Kept lean so the full-screen ads start earning (they only do once they are in the stores):
 
 - ✅ **Full-screen ads at every round change** — #346, on `main`.
-- ⬜ **The round-end alert says rounds ran out "while the app was closed" when an ad was open.** An
-  ad left open longer than a whole round triggers the missed-rounds wording; the app was not closed.
-- ⬜ **Blinds back to level 1 after recording a game** — the first item under _Carried into 1.2.2_.
+- ✅ **The round-end alert says rounds ran out "while the app was closed" when an ad was open.**
+  Fixed in #347: it now says "while the timer wasn't on screen".
+- ✅ **Blinds back to level 1 after recording a game** — #349; the first item under _Carried into 1.2.2_.
 - ✅ **CI on `release/**` pushes** — `ci.yml` now runs on pushes to `release/**` (tooling, on `main`).
 
 Sentry moved to 1.2.3 (see _Monitoring_).
 
 ## Carried into 1.2.2 — still open from the 1.2.0 release review
 
-- ⬜ **Recording a game does not start a new one — the blinds stay where they were.** Raised while
-  running §12 on TestFlight build 30, as a question: reset only re-clocks the round, so after a
+- ✅ **Recording a game does not start a new one — the blinds stay where they were.** Done in
+  #349: saving the prompted record returns the blinds to level 1. Raised while running §12 on
+  TestFlight build 30, as a question: reset only re-clocks the round, so after a
   tournament ends on level 12 the next one starts on level 12.
 
   **Reset's behaviour is right and should not change.** A blinds timer has no "tournament over"

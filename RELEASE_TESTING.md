@@ -690,6 +690,8 @@ it**.
 | Resetting on **level 1** does _not_ prompt (it's a mis-tap, not a finished game)                                                                                                                                                                                                                                                                                                                | ⬜  | ⬜      |
 | No prompt with an **empty roster**, or when Pro is locked — the sheet would have nothing to offer                                                                                                                                                                                                                                                                                               | ⬜  | ⬜      |
 | Back from a prompt-opened leaderboard returns to the **timer**, and the header says "Back"                                                                                                                                                                                                                                                                                                      | ⬜  | ⬜      |
+| **Saving the prompted record starts the next game at level 1.** The prompt's message says the blinds go back to level 1 once it's saved; record and save → back on the timer it shows **Level 1** with level 1's blinds, round paused at full time                                                                                                                                              | ⬜  | ⬜      |
+| **Nothing else moves the blinds:** "Not now" on the prompt, closing the prompt-opened sheet without saving, and recording a game from the leaderboard's own **Record a game** button all leave the level where it was                                                                                                                                                                           | ⬜  | ⬜      |
 | Record sheet: header clears the status bar and the footer clears the keypad (the §5 failure mode)                                                                                                                                                                                                                                                                                               | ⬜  | ⬜      |
 | Group row shows the current board and opens the sheet; switching groups swaps the standings **and** the roster                                                                                                                                                                                                                                                                                  | ⬜  | ⬜      |
 | Creating a group makes it active and empty; the previous group's players and games are untouched when you switch back                                                                                                                                                                                                                                                                           | ⬜  | ⬜      |
@@ -709,8 +711,8 @@ it**.
 > who resets to re-clock a level after an interruption must not lose their place in the structure.
 > See `useEndOfGamePrompt.ts` and the `CHANGELOG.md` entry for the prompt. **The practical
 > consequence for testing:** to run the "resetting on level 1 does not prompt" row you have to get
-> back to level 1 yourself — use tap-to-jump in the blind structure screen — since reset will not
-> take you there.
+> back to level 1 yourself — use tap-to-jump in the blind structure screen, or record a game from
+> the prompt, which starts the next one at level 1 — since reset alone will not take you there.
 
 ---
 
