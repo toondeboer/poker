@@ -24,6 +24,13 @@ platform-tagged heading (e.g. `## [1.1.3] - 2026-07-20 — Android`) when you cu
   test each change against a proposed merge; the push run tests the merged branch that becomes the
   binary.
 
+### Fixed
+
+- Mobile: **the round-end alert no longer says the app "was closed" when it wasn't.** When more
+  than a round's worth of time has passed, it now says the level ran out "while the timer wasn't on
+  screen". A full-screen ad left open for a whole round counts as the app being away on Android
+  (the ad is its own activity), and the old wording described something that had not happened.
+
 ## [1.2.1] - 2026-11-20 — iOS & Android
 
 ### Release

@@ -22,7 +22,10 @@ interface TimerExpirationAlertProps {
   };
   /**
    * Rounds' worth of time that passed beyond the one that ran out, before the
-   * app was reopened. Only ever non-zero when the app was away — nothing counts
+   * timer was back on screen. Only ever non-zero when the app was away — closed,
+   * in the background, or covered by a full-screen ad that was left open (on
+   * Android an ad is its own activity, so the app counts as away). The wording
+   * says "wasn't on screen" rather than "was closed" for that reason. Nothing counts
    * rounds while it isn't running, so the level still advances by exactly one and
    * this is what stops a 40-minute absence from looking like a normal round
    * change.
@@ -164,8 +167,8 @@ export function TimerExpirationAlert({
                 <Text style={styles.missedRoundsText}>
                   This level ran out about {missedRounds + 1}{" "}
                   {missedRounds + 1 === 1 ? "round" : "rounds"} ago, while the
-                  app was closed. Blinds only go up here, so the tournament
-                  picks up from the next level.
+                  timer wasn&apos;t on screen. Blinds only go up here, so the
+                  tournament picks up from the next level.
                 </Text>
               </View>
             )}
