@@ -18,6 +18,12 @@ platform-tagged heading (e.g. `## [1.1.3] - 2026-07-20 — Android`) when you cu
   after launch. Preloaded, so it appears at once or that round gets none. Non-personalized like the
   banner, so the privacy policy and store declarations are unchanged.
 
+### Changed
+
+- Tooling: **CI runs on every push to `release/**`**, not only on pull requests into it. PR runs
+  test each change against a proposed merge; the push run tests the merged branch that becomes the
+  binary.
+
 ## [1.2.1] - 2026-11-20 — iOS & Android
 
 ### Release

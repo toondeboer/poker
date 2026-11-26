@@ -21,7 +21,7 @@ Kept lean so the full-screen ads start earning (they only do once they are in th
 - ⬜ **The round-end alert says rounds ran out "while the app was closed" when an ad was open.** An
   ad left open longer than a whole round triggers the missed-rounds wording; the app was not closed.
 - ⬜ **Blinds back to level 1 after recording a game** — the first item under _Carried into 1.2.2_.
-- ⬜ **CI on `release/**` pushes** — the last item under _Carried into 1.2.2_; goes to `main`.
+- ✅ **CI on `release/**` pushes** — `ci.yml` now runs on pushes to `release/**` (tooling, on `main`).
 
 Sentry moved to 1.2.3 (see _Monitoring_).
 
@@ -263,9 +263,6 @@ Sentry moved to 1.2.3 (see _Monitoring_).
   user-facing changelog entries of a few lines each, with the reasoning left in the commit — which
   is what this file already says about itself. Don't write counts or line totals into any of them;
   `npm run testing:status` measures the one that matters.
-- ⬜ **CI should run on `release/**` pushes.** It triggers on `pull_request` and pushes to `main`
-  only, so the merged combination that becomes the binary is tested by whoever remembers to run the
-  suite locally. Cutting step 5 says to; a workflow would not forget.
 
 ## Gambling classification — the rating record
 
