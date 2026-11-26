@@ -9,6 +9,14 @@ platform-tagged heading (e.g. `## [1.1.3] - 2026-07-20 — Android`) when you cu
 
 ## [Unreleased]
 
+## [1.2.1] - 2026-11-20 — iOS & Android
+
+### Release
+
+- **Cut for 1.2.1.** The accumulated `[Unreleased]` entries are rolled into this heading; the date is
+  the cut date and is corrected to the ship date when the release goes live. Native versions bumped
+  to 1.2.1 in `Info.plist`, `build.gradle` and `app.json`.
+
 ### Added
 
 - Mobile: a **"Seen an inappropriate ad? Report it"** link under the Pro card in Settings, shown
@@ -63,6 +71,28 @@ platform-tagged heading (e.g. `## [1.1.3] - 2026-07-20 — Android`) when you cu
 
 ### Changed
 
+- Store listing: **an App Store creative asset** for the new product page header and search
+  results placements (iOS 27 and later), in `store-assets/ios/creative/universal.png`, built by
+  `store-assets/ios/generate-creative-asset.js`. Uploaded from App Store Connect's Asset Library on
+  2026-11-18, separately from the app.
+- Store listing: **`STORE_LISTING.md` opens with "Submitting 1.2.1 — everything to paste"**: the
+  steps for each console with the release notes and the App Review note inline. The iOS notes carry
+  no emoji; the Play notes are 325 of 500 characters. The 1.2.0 release notes and the
+  "stale / drafted replacement" pairs for the promotional text and description are gone, since the
+  1.2.0 copy is what is live; git keeps the history.
+- Website: **the privacy policy describes the consent form and the Pro trial.** The Advertising
+  section says where the consent form appears, that the answer never makes ads personalized, and
+  where to change it; the RevenueCat entry says it receives the date a Pro trial started. "Last
+  updated" moves to November 2026. Lands with the release, since it describes 1.2.1.
+- Mobile: **a Pro trial is recorded on the RevenueCat customer** as a `pro_trial_started` attribute
+  holding the start date. RevenueCat's trial charts only count subscription trials, and an Android
+  Pro trial never reaches the store, so this is the one place Pro trial starts can be listed and
+  counted. Best effort: failing to tag never fails the trial.
+- Mobile: **Club's prices show before its trial wording is known.** Trial eligibility is a second,
+  slower question to the store, and waiting for it kept the whole Club offer off the paywall for
+  several seconds after a cold start. The plans now appear with their prices straight away and
+  switch to "14 days free" when the answer arrives. Found testing the release branch on the iPhone
+  simulator.
 - Mobile: **Club keeps Pro unlocked afterwards only once it has been paid for.** Pro used to stay
   with anyone who had ever held Club. A free trial that is cancelled before its first charge now
   leaves nothing behind, since otherwise starting and cancelling a trial would be a free permanent
@@ -1930,7 +1960,8 @@ _Before Android's launch. Reconstructed from build history — approximate._
 - Initial App Store release: a poker tournament timer with configurable blind levels, a
   per-round countdown, background timing, iOS Live Activities, and an Android foreground service.
 
-[Unreleased]: https://github.com/toondeboer/poker/compare/v1.2.0...HEAD
+[Unreleased]: https://github.com/toondeboer/poker/compare/v1.2.1...HEAD
+[1.2.1]: https://github.com/toondeboer/poker/compare/v1.2.0...v1.2.1
 [1.2.0]: https://github.com/toondeboer/poker/compare/v1.1.4...v1.2.0
 [1.1.4]: https://github.com/toondeboer/poker/compare/v1.1.3...v1.1.4
 [1.1.3]: https://github.com/toondeboer/poker/compare/v1.1.2...v1.1.3

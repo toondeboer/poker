@@ -9,23 +9,109 @@ and the ones that sit exactly on a limit say so.
 > The on-device name stays short — `app.json` `name: "Poker Timer"`. The name and subtitle below are
 > the **store-listing** ones, which are separate fields.
 
+## Submitting 1.2.1 — everything to paste
+
+**Candidate 2:** iOS **1.2.1 (35)** and Android **1.2.1 (23)**, built from `0651755`. Candidate 1
+(iOS 34, Android 22) is superseded; do not pick it.
+
+**Only the fields below change.** Name, subtitle, keywords, promotional text, descriptions, age
+rating, App Privacy and Data Safety all stay as they are; they are recorded further down for
+reference.
+
+### iOS — App Store Connect, on the 1.2.1 version page
+
+1. **Build:** select **1.2.1 (35)**.
+2. **In-App Purchases and Subscriptions:** click **+** and add **14-day Trial** (`pro_trial_14d`).
+   It is reviewed together with this version. If it is not offered, check that it still reads
+   _Ready to Submit_ on its own page.
+3. **Screenshots:** the iPhone 6.9", iPhone 6.3" and iPad 13" sets uploaded on 2026-11-15 should
+   already be there.
+4. **What's New in This Version:** paste this. No emoji, on purpose (see
+   [Field rules](#field-rules-what-each-store-actually-accepts)).
+
+```
+• Try Pro free for 14 days. Everything unlocks and the ads go. Nothing is charged, nothing renews, and what you make during the trial is kept.
+
+• Club has a 14-day free trial too, on both the monthly and the annual plan. Cancel before it ends and you pay nothing.
+
+• A simpler upgrade screen. If you only want the ads gone, the one-time purchase is the first thing you see.
+
+• Report an ad. If an ad turns up that should not be there, a link in Settings sends it to us.
+
+• Ad privacy choices. Where the law asks for it, the app asks before showing ads, and you can change your answer in Settings at any time.
+
+Thanks for playing — feedback always welcome.
+```
+
+`655` chars, against a 4,000 limit.
+
+5. **App Review Information → Notes:** keep the paragraph about money that is already there, and
+   replace the "New in this version" part below it with this:
+
+```
+New in this version:
+
+- A free 14-day trial of Pro. Settings > "Unlock Pro / Remove Ads" opens the paywall; the trial is the "Start 14-day free trial" button under "Unlock Pro". It is the free non-consumable "14-day Trial" (pro_trial_14d), submitted with this version, as Guideline 3.1.1 describes. The text above the button states the trial length, what locks again when it ends, and the price of the full unlock. Nothing is charged and nothing renews. It is only offered to an account that has bought nothing and has not had a trial.
+- A 14-day free trial on both Club subscriptions, as a standard introductory offer. The paywall shows it to eligible accounts with the price that follows and the renewal terms; "See Club" on the paywall expands it.
+- Google's consent form (UMP) before the first ad in the EEA, UK and Switzerland, and "Ad privacy choices" in Settings to change the answer. Ads stay non-personalized for everyone; there is no tracking and no App Tracking Transparency prompt.
+- "Seen an inappropriate ad? Report it" under the Pro card in Settings (Guideline 2.5.18).
+```
+
+6. **Add for Review**, then **Submit for Review**.
+
+**If Apple rejects the 14-day Trial but not the app:** delete the first bullet ("Try Pro free for
+14 days…") from What's New before resubmitting. The app hides the offer when the product is not
+there, so the note would be the only place it exists.
+
+### Android — Play Console
+
+1. **Test and release → Testing → Internal testing**, on release **1.2.1 (23)**: **Promote release
+   → Production**.
+2. **Release notes:** paste this.
+
+```
+🎁 Try Pro free for 14 days: everything unlocked, no ads, nothing charged.
+👥 Club has a 14-day free trial too. Cancel before it ends and you pay nothing.
+⭐ A simpler upgrade screen: the one-time purchase comes first.
+🚩 Report an ad that shouldn't be there, from Settings.
+🔒 Ad privacy choices, where the law asks for them.
+```
+
+`325` chars, against a 500 limit. The console counts UTF-16 code units; emoji outside the
+basic plane count twice, and this number already does.
+
+3. **Rollout:** 100%, or start lower and raise it.
+4. **Next → Save → Send for review.** Managed publishing holds the approved release at _Ready to
+   publish_; it goes live when you click **Publish** on the Publishing overview.
+
+### After both are live
+
+Correct the date on `CHANGELOG.md`'s 1.2.1 heading to the ship date, merge the release PR into
+`main`, and tag the built commit: `git tag -a v1.2.1 0651755`. The full list is step 8 of the release
+process in `CLAUDE.md`.
+
+---
+
 ## Contents
 
-**What to paste**
+**This release**
 
+- [Submitting 1.2.1 — everything to paste](#submitting-121--everything-to-paste)
+
+**What is live, field by field** — unchanged in 1.2.1
+
+- [At a glance — the short fields](#at-a-glance--the-short-fields)
 - [App Store Connect](#app-store-connect--every-field)
 - [Google Play](#google-play--every-field)
 - [In-app purchases and subscriptions](#in-app-purchases-and-subscriptions)
-- [Release notes — v1.2.0](#release-notes--v120)
-- [Notes for Review](#notes-for-review-app-store-connect)
 
-**What to answer**
+**The answers recorded for review and privacy**
 
-- [Submission checklist — every console step](#submission-checklist--every-console-step)
+- [Submission checklist — age rating, privacy, review notes](#submission-checklist--every-console-step)
+- [Age rating, and the review note](#age-rating-and-the-review-note)
 
-**Why the copy is what it is** — read once, not every release
+**Rules and upkeep**
 
-- [Age rating, and the gambling question](#age-rating-and-the-gambling-question)
 - [Field rules: what each store accepts](#field-rules-what-each-store-actually-accepts)
 - [Housekeeping](#housekeeping)
 
@@ -89,50 +175,17 @@ and describe features the app actually has.
 
 ### Promotional text (≤170 chars, editable anytime without review)
 
-**Stale as of 1.2.0** — it describes the 1.1.x app. Replacement:
+**Live since 1.2.0, unchanged in 1.2.1.** Can be edited at any time without a new version.
 
 ```
 The blinds clock for home poker night — and now it deals, too. Big readable timer, custom levels, payouts worked out, and a leaderboard for your group.
 ```
 
-`151` chars. Re-count in the console before saving.
-
-Previous, kept as the record of what was live:
-
-```
-The dead-simple blinds clock for home poker night. Big readable timer, custom blind levels, and a loud buzzer when it's time to raise. Live Activities on the Lock Screen.
-```
+`151` chars.
 
 ### Description (≤4000 chars)
 
-**Currently live** (stale, and more so with every release — no Pro, no presets, no Sound Packs, and
-now no dealt game, accounts or boards either. Same root cause as the `pro_lifetime` IAP copy gap
-above), `790` chars. **Replace it with the draft below when 1.2.0 goes up**; this block is kept only
-as the record of what was live:
-
-```
-Make every poker night a professional experience. Poker Blinds Buzzer is designed for players and hosts who want to focus on the game, not the clock. Whether you're running a friendly home game or a competitive tournament, Poker Blinds Buzzer keeps the action flowing and everyone on the same page.
-
-Features:
-Customizable blind levels – Set duration, small blind and big blind values to fit your game.
-
-Automatic blind increases – Blinds update seamlessly without interrupting gameplay.
-
-Clear audio alerts – Know exactly when it's time to raise the stakes or take a break.
-
-Optimized for iPhone – Clean, intuitive design that's quick to set up.
-
-No more arguments about when blinds should go up or when the next break starts — Poker Blinds Buzzer handles it all so you can enjoy the game.
-```
-
-**Drafted replacement** — mirrors the Play long description's structure (glanceable timer, custom
-blinds, background alerts, Pro bullets, CTA), swapping in Live Activities for the iOS-specific
-Lock Screen bullet already promised in the promotional text above.
-
-**Rewritten for 1.2.0.** The previous draft described an app with no dealt game and told people
-there was "no account, no sign-up" — both false by the time this ships, and the second one is the
-kind of false that reads as a bait-and-switch when the app then asks for an email. `2864` chars,
-against a 4,000 limit:
+**Live since 1.2.0, unchanged in 1.2.1.** `2864` chars, against a 4,000 limit:
 
 ```
 The simple poker timer & tournament clock for home poker night. A big, easy-to-read blinds timer and a loud buzzer mean nobody has to squint at their phone mid-hand to know when it's time to raise. And when nobody brought a deck, it deals.
@@ -477,138 +530,12 @@ because a name would work on one platform and silently return nothing on the oth
   internal description/notes field, match the copy above so the dashboard reads
   the same.
 
-## Release notes — v1.2.0
-
-**Both platforms together**, as in 1.1.4.
-
-This is a much bigger release than 1.1.4, and **most of it is behind the paywall**: dealing a hand,
-payouts, the chop calculator, leaderboards, groups and sharing are all Pro. The long description and
-the Pro feature lists in both stores need updating too, not just these notes — the in-app paywall
-was found still selling the 1.1.4 feature set during this cycle, and the store copy has exactly the
-same failure mode one level out. See `ROADMAP.md`'s Play listing item.
-
-**Accounts and shared boards are now in scope**, which they were not when the notes below were
-drafted — so the bullets need a pass before they go in. What changed is a decision, not a
-capability: the code shipped switched off because there was no production backend to point it at,
-and now there is going to be. Three things gate it, and **none of them is code**:
-
-- **SES production access.** Cognito's own sender is capped and lands in spam, so real sign-up
-  depends on it. It is a support request with a queue, and until it is granted SES delivers only to
-  addresses that have themselves been verified. **This is the one that cannot be patched afterwards**
-  — shipping before it is granted means account creation is broken and a store update does not fix
-  it, because the wait is on AWS either way.
-- **`PokerBackend-prod` deployed**, and `backendConfig` pointed at it. A 1.2.0 build must never put
-  real accounts in the development pool, which exists to be thrown away.
-- **The Club subscription created in both stores.** Sharing is unreachable without it, so the
-  bullets must not promise it until the products exist.
-
-**There is a kill switch**, and it is worth knowing about before writing anything that promises
-these features: `GET /config` on the backend turns accounts or sharing off in about ninety seconds,
-without a store release. If something misbehaves after submission, that is the recovery — not a
-patch.
-
-**The shared clock is in the notes now, and the reason it used to be out has gone.** This section
-said it "still has no transport", which was true right up until 1.2.0 gave it one — three HTTP
-routes and a polling transport, Club to host and free to join. Push notifications arrived in the
-same stretch. Both are real features a person can use, so both are described below; leaving them out
-would undersell the release for a reason that expired.
-
-**Sign in with Apple and Google are out of the notes, but not for the reason this used to give.**
-It said they "need credentials nobody has created". They exist: `apps/infra/cdk.json` carries a
-Google client id, an Apple Services ID, a Team ID and a Key ID for **both** stages, and the two real
-secrets sit in Secrets Manager, so `socialSignInFor` returns a configuration and the prod pool is
-deployed with both providers on it. The buttons in `AccountScreen` are the first two on the sign-in
-card, ahead of email.
-
-**What is missing is a pass over them on a real build** — §14b of `RELEASE_TESTING.md`, unrun. They
-stay out of the release notes until somebody has signed in with each on a device, because a bullet
-promising a sign-in that fails is a Guideline 2.1 rejection rather than a missing feature. That is a
-testing decision now, not a credentials one, and it is the first thing to settle in the pass: the
-buttons ship whether or not the notes mention them, so if either is broken the fix is not a copy
-edit.
-
-**Notes are editable until the moment of submission** — in App Store Connect right up to _Submit for
-Review_, in Play Console right up to rollout. §18 and §19 of `RELEASE_TESTING.md` have not been run
-on two devices yet; if either feature does not survive that pass, these bullets come back out before
-anything is submitted rather than being discovered by a reviewer.
-
-### iOS — "What's New in This Version" (App Store Connect)
-
-**No emoji in this field** — see [the note below](#ios-metadata-emoji). Bullets are the typographic
-`•` (U+2022), which is punctuation rather than emoji and renders everywhere.
-
-**Nothing about Android goes in this field.** It said "Android no longer asks twice for notification
-permission, and stale Live Activities are cleared away" — one bullet naming the other platform, and
-naming it first. The two halves are different fixes on different operating systems; Live Activities
-are iOS-only, so only that half belongs here. The Android notes below are their own field and can
-say the other half if they ever have room.
-
-```
-• Deal a hand (Pro). When you have chips but no cards — or nobody can find the deck — pass the phone round the table and the app deals: two cards each, then the flop, turn and river when you are ready, and it reads the showdown at the end. Your own two cards stay hidden until you tap. You play with the chips already in front of you.
-
-• A leaderboard for every group you play with (Pro). Thursdays and the office game are kept apart, each with their own players and history.
-
-• Share a board with the people you play with (Club). Send them a code, they paste it in, and the board — every player, every night already on it — is on their phone too. Whoever recorded the game does not have to be the one who reads it out. Joining is free: only the person who shares a board subscribes.
-
-• One clock on every phone at the table (Club). Start a shared clock and the app gives you a code; everybody else types it in and watches the same countdown, with the same blinds and the same level. Anybody at the table can pause it or skip a level, because whoever is nearest the phone should not have to be the one who runs the game. Joining is free: only the person who starts the clock subscribes.
-
-• Your boards follow your account, not your phone (Club). Sign in somewhere else, or reinstall, and they come back. Record a night with no signal and it is kept and sent when there is some, so the pub with one bar of reception stops being a problem.
-
-• A buzz when somebody adds a game night to a board you are on. It names the board and nothing else, and it never goes to whoever just recorded the result — they were holding the phone.
-
-• An account, if you want one. Email and a password, a code to confirm it, and you can delete the account and everything on our servers from inside the app.
-
-• Payouts and the chop (Pro). Set a buy-in and see exactly what each place wins, bounties, rebuys and add-ons included. When the table agrees to end it early, the chop splits what is left by chip stack without anybody dropping below the place they had already locked up.
-
-• Share the payouts or the standings straight to your group chat.
-
-• A game in progress now survives the app closing. Shut it between hands, or have the phone die mid-evening, and reopening puts you back at the same table with the same stacks.
-
-• Stale Live Activities are cleared away instead of piling up on your Lock Screen.
-
-Thanks for playing — feedback always welcome.
-```
-
-Re-count in App Store Connect before saving; the limit is 4000 characters and this is well inside it.
-
-### Android — "Release notes" (Play Console, ≤500 chars per language)
-
-```
-🃏 Deal a hand (Pro): no cards? The app deals. Flop, turn, river and the showdown.
-👥 A leaderboard per group — Thursdays and the office game kept apart.
-🔗 Share a board with your table (Club). Joining one is free.
-⏱️ Run one clock on every phone at the table (Club) — same blinds, same countdown.
-🔔 A buzz when somebody adds a game night to a board you're on.
-♻️ Games survive the app closing, and sync when you have signal again.
-```
-
-`433` chars — inside the 500-char Play Console limit, with 67 to spare.
-
-**433 and not 429, and the difference is the whole reason to state it.** A store counts UTF-16 code
-units; four of those emoji (🃏 👥 🔗 🔔) are one code point each and two units each, so counting
-characters the obvious way undercounts by four. The other two (⏱️ ♻️) are a BMP character plus a
-variation selector and count the same either way, which is exactly why "count the emoji" is not a
-rule that works. Every number in this file is the UTF-16 one, because that is the number the console
-is comparing against its limit. A block that is 497 by one measure and 503 by the other is rejected.
-`npm run check:listing` does this counting in node, whose `String.length` is UTF-16 — python's `len`
-is code points and will disagree.
-
-**"Joining one is free" earns its place in 500 characters**, because the misunderstanding most
-likely to kill the feature is a table assuming all six of them need a subscription. One line, and it
-is the line that decides whether anybody tries it.
-
-**Deliberately not mentioned:** Sign in with Apple and Google, which need credentials nobody has
-created; and the record-a-game prompt's conditions. Those nuances belong in the app, not in 500
-characters of store copy. The shared clock used to be on this list for a reason that has since
-expired — it has a transport now, and a line of its own above.
-
----
-
 ## Submission checklist — every console step
 
-**Nothing in this section has been entered anywhere yet.** It exists so the answers are decided
-once, from the built binary and the code, and **recorded** — ROADMAP item 10 asks for exactly that,
-so the next release can be checked against these rather than re-deriving them under time pressure.
+**The answers given for 1.2.0, and still the answers for 1.2.1.** Nothing in sections 1–3 needs
+re-entering for 1.2.1; they are recorded so each release can be checked against them rather than
+re-derived. For what to do _this_ release, see
+[Submitting 1.2.1](#submitting-121--everything-to-paste) at the top.
 
 Derived on 2026-09-08 from the code, not copied from a PR description. Where an answer turns on
 something in the repo, the file is named so it can be re-checked.
@@ -727,120 +654,12 @@ stays non-personalized whatever the form's answer, which is what keeps the "Used
 answer above true. 1.2.0 and earlier shipped a placeholder that resolved immediately and showed no
 form.
 
-### 4. Club products — sharing is unreachable without these
+### 4. Notes for Review (App Store Connect)
 
-**The paywall currently sells something that cannot be bought.** Create in both stores, then map in
-RevenueCat. Ids are in `packages/core/src/monetization/products.ts` and must match exactly:
-
-| Product        | Type                        | Where                                                    |
-| -------------- | --------------------------- | -------------------------------------------------------- |
-| `pro_lifetime` | Non-consumable              | Already exists                                           |
-| `club_monthly` | Auto-renewable subscription | ASC → Subscriptions, and Play → Monetize → Subscriptions |
-| `club_yearly`  | Auto-renewable subscription | Same, same group as monthly                              |
-
-**Both Club products must grant `club` _and_ `pro` entitlements in RevenueCat.** A shared board is a
-leaderboard, so Club without Pro is a broken state. `entitlementsFrom` in `clubPolicy.ts` defends
-against a missed checkbox, so it is survivable rather than shipped — but set it correctly.
-
-**Both stores or neither.** One platform able to buy Club and the other not is worse than neither.
-
-### 5. Store console copy
-
-Everything above the age-rating section in this file, typed in as-is: name, subtitle, keywords,
-promotional text, description — plus the **IAP descriptions in all three consoles** (ASC, Play, and
-RevenueCat), which are the ones most often forgotten.
-
-Android also still wants the feature graphic uploaded — `store-assets/android/feature-graphic.png`,
-see `ROADMAP.md`.
-
-### 6. Notes for Review (App Store Connect)
-
-**Guideline 2.3.1 requires new functionality to be described with specificity** — "generic
-descriptions will be rejected" — and this release changed a great deal. Paste the money paragraph
-from _Paste-ready review note_ above, then this:
-
-```
-New in this version:
-
-- Accounts (optional). Email/password, Sign in with Apple, and Sign in with Google, backed by Amazon
-  Cognito. Everything works signed out; an account only keeps boards across devices.
-- Shared leaderboards. A host invites others with a one-time code, replaced each time it is shared.
-  Members see the board's player names and its games: who played, who won, finishing positions. No
-  monetary amount is stored or shared.
-- Reporting a board, leaving one, and — for a board's admin — seeing who is on it and removing
-  somebody, which also replaces the invite code. Board and player names are user-generated, visible
-  to other members, and filtered on entry.
-- A shared tournament clock. The host starts a session and the app shows a short code; others type
-  it in and see the same countdown, level and structure. The server holds one short-lived row per
-  session: clock state, no names, no amounts, no cards. It expires after six hours.
-- Push notifications, through Expo's push service, to members of a board somebody else just recorded
-  a game on. They carry the board's name and a fixed sentence — never a player name or an amount.
-- A card dealer. The phone shuffles, deals two cards each, turns the flop, turn and river when the
-  host taps, and reads the showdown. Each player's cards stay hidden until they tap, and hide again
-  when the phone moves on. It holds no chips and has no betting controls.
-- A payout calculator and a chop calculator, both one-shot and for money that changes hands away
-  from the phone. Neither settles nor stores anything. There is no wagering anywhere in this app.
-
-Pro unlocks the dealer; Club hosts a shared board or clock. Neither can be attached to a demo
-account: purchases belong to the App Store account on the device, not to the app's own login.
-Please buy them in the review sandbox, where they cost nothing — Settings has a card for each.
-
-Where things are: Settings → Tournament holds Deal a hand, Payouts, Leaderboard and Shared clock;
-Settings → Account holds sign-in and account deletion; Leaderboard → Groups holds sharing a board,
-joining one by code, reporting one, and who is on a board you administer.
-
-Two demo accounts are below: a shared board and a shared clock each need one device to start and
-another to join.
-```
-
-**The three blocks together are 3,889 characters against a 4,000-character field** — the money note
-860, this one 2,302, the user-generated-content paragraph 723, plus a blank line between each.
-**That leaves 111 characters**, so anything added from now on largely has to come out of something
-else.
-
-**Re-measure rather than estimate.** This said 3,442 until the blocks were rewritten against the
-binary, and the rewrite took the total to 4,498 — over the limit, with nothing to say so until it
-was counted. `String.length` in node is the UTF-16 measure the console compares against; python's
-`len` is code points and will disagree.
-
-The rewrite is also where _"Removed in this version: an earlier build contained a betting engine"_
-went. App Review never saw such a build — they existed on the release branch and on internal
-TestFlight, neither of which is reviewed — so it raised a question about something that is not
-there, and its load-bearing sentence ("There is no wagering anywhere in this app") is kept on the
-calculator bullet instead.
-
-**Add this too, because Guideline 1.2 will otherwise be asked about.** The app declares
-user-generated content, and 1.2 wants a way to block abusive users. Say the argument rather than
-waiting for the question:
-
-```
-On user-generated content: the only content one person can put in front of another is a board name
-or a player name, both filtered on entry and both limited to 40 characters. Boards are invite-only.
-There is no discovery, no feed, no messaging, and no way onto a board except by redeeming a code
-somebody sent. Any member can leave a board at any time, which removes every name on it from their
-device. An admin can see everyone on their board and remove somebody outright, which also replaces
-the board's invite code, so the code that person holds stops working rather than letting them
-straight back on. Offensive content can be reported from inside the app, and reports are monitored
-and answered — see the Support page.
-```
-
-**The EULA gap is closed, bar one console field.**
-[`/terms`](https://poker-timer.toondeboer.com/terms) is published and live, with the zero-tolerance
-clause that 1.2 rejection letters cite most often. What is left is to point App Store Connect's
-**License Agreement** field at it (Apple's standard EULA is also accepted). That is console only —
-**it needs no new binary**, so it cannot delay the build.
-
-**Leave two demo accounts and their passwords in the review notes**, made against the **production**
-pool — a reviewer who cannot sign in cannot see a shared board at all, and that is a rejection with
-nothing to do with the app. Two, because a shared board and a shared clock both need somebody to
-join what somebody else started.
-
-**Do not promise them entitlements.** This file used to say to grant Pro and Club to the demo
-account in RevenueCat, and there is no way to do it: `revenueCatProvider.ts` calls
-`Purchases.configure` with no `appUserID` and never calls `logIn`, so an entitlement belongs to the
-App Store account on the device rather than to a Cognito login. A reviewer told they already have
-Club, who then meets a paywall, files the rejection this was meant to prevent. Tell them to buy both
-in the sandbox instead, where it costs nothing and is the flow reviewers already use.
+The notes field has two parts: the **money paragraph** from
+[Paste-ready review note](#paste-ready-review-note) below, which stays the same every release, and
+a **"New in this version"** part, which changes. The 1.2.1 version of the second part is in
+[Submitting 1.2.1](#submitting-121--everything-to-paste).
 
 ## Age rating, and the review note
 

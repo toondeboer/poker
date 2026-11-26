@@ -14,6 +14,7 @@ import {
   clubPeriodKeepsPro,
   entitlementsFrom,
   freeTrialLengthLabel,
+  PRO_TRIAL_DAYS,
   PRODUCT_PRO_LIFETIME,
   PRODUCT_PRO_TRIAL,
   proTrialState,
@@ -77,6 +78,15 @@ export interface BillingProvider extends EntitlementProvider {
    * product was missing would take Pro down with it.
    */
   getClubPlans(): Promise<ClubPlan[]>;
+  /**
+   * The free trial each plan would start with for this user, in words, keyed by
+   * plan id. A plan with none is simply absent.
+   *
+   * **Asked separately from the plans, because it is slower.** Eligibility is a
+   * second question to the store, and on a cold start it took seconds. Folded
+   * into `getClubPlans` it held the whole Club offer back until it answered.
+   */
+  getClubFreeTrials(): Promise<Record<string, string>>;
   /** Buy one of them, by the id from `getClubPlans`. */
   purchaseClub(planId: string): Promise<Entitlements>;
   /**
@@ -258,7 +268,7 @@ async function getClubPackages(): Promise<
  * - The App Store returns the introductory price to everybody, eligible or
  *   not, and eligibility is a second question.
  */
-async function getClubFreeTrials(
+async function readClubFreeTrials(
   packages: PurchasesPackage[],
 ): Promise<Record<string, string>> {
   const trials: Record<string, string> = {};
@@ -295,6 +305,32 @@ async function getClubFreeTrials(
     if (label) trials[pkg.identifier] = label;
   }
   return trials;
+}
+
+/**
+ * Marks the RevenueCat customer as having started a Pro trial, with the day it
+ * began.
+ *
+ * **The only place a Pro trial is countable.** RevenueCat's trial charts count
+ * subscription trials; an iOS Pro trial is a free one-off purchase that shows
+ * only in a customer's history, and an Android one never touches the store at
+ * all. A customer attribute is what makes "how many people started one" a list
+ * that can be filtered and counted in the dashboard.
+ *
+ * A date and nothing else, on a customer RevenueCat already knows. Best
+ * effort: failing to tag must never fail the trial itself.
+ */
+async function tagProTrialStart(entitlements: Entitlements) {
+  if (entitlements.proTrial.status !== "active") return;
+  const startedAt =
+    entitlements.proTrial.endsAt - PRO_TRIAL_DAYS * 24 * 60 * 60 * 1000;
+  try {
+    await Purchases.setAttributes({
+      pro_trial_started: new Date(startedAt).toISOString().slice(0, 10),
+    });
+  } catch (error) {
+    logger.warn("Could not tag the Pro trial in RevenueCat:", error);
+  }
 }
 
 export const revenueCatProvider: BillingProvider = {
@@ -390,21 +426,13 @@ export const revenueCatProvider: BillingProvider = {
     if (!API_KEY) return [];
     configurePurchases();
     try {
-      const found = await getClubPackages();
-      // A failure here must cost only the trial wording, never the plans: the
-      // price without a trial is still true, just less generous than it is.
-      const trials = await getClubFreeTrials(found.map(({ pkg }) => pkg)).catch(
-        (error) => {
-          logger.warn("Could not load Club trial eligibility:", error);
-          return {} as Record<string, string>;
-        },
-      );
-      return found.map(({ pkg, period }) => ({
+      return (await getClubPackages()).map(({ pkg, period }) => ({
         id: pkg.identifier,
         period,
         priceString: pkg.product.priceString,
         price: pkg.product.price,
-        freeTrial: trials[pkg.identifier] ?? null,
+        // Filled in by `getClubFreeTrials` once the store has answered.
+        freeTrial: null,
       }));
     } catch (error) {
       // Same posture as the Pro price: a paywall that cannot price Club still
@@ -413,6 +441,20 @@ export const revenueCatProvider: BillingProvider = {
       // absent section.
       logger.warn("Could not load the Club plans:", error);
       return [];
+    }
+  },
+
+  getClubFreeTrials: async () => {
+    if (!API_KEY) return {};
+    configurePurchases();
+    try {
+      const found = await getClubPackages();
+      return await readClubFreeTrials(found.map(({ pkg }) => pkg));
+    } catch (error) {
+      // Costs only the trial wording. The price without a trial is still true,
+      // just less generous than what is on offer.
+      logger.warn("Could not load Club trial eligibility:", error);
+      return {};
     }
   },
 
@@ -473,7 +515,9 @@ export const revenueCatProvider: BillingProvider = {
           String(Date.now()),
         );
       }
-      return toEntitlements(await Purchases.getCustomerInfo());
+      const started = await toEntitlements(await Purchases.getCustomerInfo());
+      await tagProTrialStart(started);
+      return started;
     }
     const product = await getTrialProduct();
     if (!product) {
@@ -481,7 +525,9 @@ export const revenueCatProvider: BillingProvider = {
     }
     try {
       const { customerInfo } = await Purchases.purchaseStoreProduct(product);
-      return toEntitlements(customerInfo);
+      const started = await toEntitlements(customerInfo);
+      await tagProTrialStart(started);
+      return started;
     } catch (e) {
       // Cancelling is not an error, exactly as for Pro.
       if (
