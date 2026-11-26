@@ -13,7 +13,7 @@ stay because code and other docs cite them.
 
 **Legend:** 🚧 in progress · 🔍 investigated, not yet fixed · 🟡 known gap, accepted · ⬜ not started · ✅ met (decision records only)
 
-## Carried into 1.2.1 — from the 1.2.0 release review
+## Carried into 1.2.2 — still open from the 1.2.0 release review
 
 - ⬜ **Recording a game does not start a new one — the blinds stay where they were.** Raised while
   running §12 on TestFlight build 30, as a question: reset only re-clocks the round, so after a
@@ -382,7 +382,7 @@ everything else:
 - **Entitlements cannot cross platforms.** `revenueCatProvider.ts` configures RevenueCat with no
   `appUserID` and never calls `logIn()`, so an entitlement belongs to the App Store / Play account
   on the device. Tying it to the app account was built for 1.2.0 and deferred — see _Carried into
-  1.2.1_.
+  1.2.2_.
 - **The web app has no billing at all** — no Stripe, no RevenueCat Web. The `pro`/`premium` strings
   in `apps/web` are marketing copy about the mobile purchase. Charging for it means a second payment
   integration plus account linking; not charging for it undercuts the mobile paywall, where dealing
@@ -584,7 +584,7 @@ looked when this file wrote Club's future off, and it is a far better reason to 
 synced countdown.
 
 **A web view of your board needs two things that do not exist:** RevenueCat knowing which account
-subscribes (deferred — see _Carried into 1.2.1_), and a way to charge on the web at all — no Stripe,
+subscribes (deferred — see _Carried into 1.2.2_), and a way to charge on the web at all — no Stripe,
 no RevenueCat Web. Ordinary work once the first is done, not something the architecture forbids.
 
 **None of these touches the rating.** It turns on betting, wagering and accumulating money across
@@ -693,12 +693,6 @@ judgement call and should be read as one.
   `isPremium`.
 - **Android's start date is on the device**, so reinstalling offers the trial again. Accepted
   knowingly: the alternative is a server record keyed on a device id.
-- 🟡 **`pro_trial_14d` exists (2026-11-15) and must be attached to the 1.2.1 submission.** Created
-  in App Store Connect as a free non-consumable, "14-day Trial", and added to RevenueCat with no
-  entitlement. It was submitted for review on its own at first and then pulled back to Ready to
-  Submit: reviewed against 1.2.0, which has no trial button, it risks "we could not find this
-  in-app purchase in your app". **Select it on the 1.2.1 version page before submitting.** The
-  review screenshot is `store-assets/ios/paywall-pro-trial-review.png`.
 - ⬜ **iOS is untested**: it needs the product in the sandbox. Android was checked on an emulator,
   including the expiry, by moving the device clock.
 - ⬜ **What to watch afterwards**: trials started against Pro purchases. A trial start sets a
@@ -847,18 +841,17 @@ because it has an EU data region.
   to act on. Read the store dashboards, RevenueCat and AdMob after 1.2.1 first. If one specific
   question cannot be answered there, a minimal anonymous count sent to our own backend is the
   lowest-risk route; it needs a route and a prod deploy.
-- **Before 1.2.1 ships, no cost:** confirm App Store Connect and Play Console send crash and vitals
-  emails to an address that is read. It is the only crash alerting 1.2.1 has.
+- **No cost, do now:** confirm App Store Connect and Play Console send crash and vitals emails to an
+  address that is read. Until Sentry ships, it is the only crash alerting the live version has.
 
 ## Store listing and assets
 
 **This is what stands between a finished 1.2.0 and a store page that represents it.** None of it
 blocks a review; all of it is what a person sees before deciding to install.
 
-- 🟡 **Fresh screenshots: uploaded to both stores on 2026-11-15, and the iOS set is not live
-  yet.** Play's went up as a listing change (with the feature graphic). App Store Connect only
-  takes screenshots on a new version, so the iPhone and iPad sets sit under **1.2.1** and go live
-  when that version is submitted and approved. Five captioned shots each (timer, blind structure, payouts, leaderboard, dealer):
+- **Screenshots: live on both stores** — Play's since 2026-11-15 as a listing change (with the
+  feature graphic), the App Store's with 1.2.1 on 2026-11-20, since App Store Connect only takes
+  screenshots on a new version. Kept here for how they are made. Five captioned shots each (timer, blind structure, payouts, leaderboard, dealer):
   - Android phone (1080×1920) and tablet (1600×2560) in
     [`store-assets/android/screenshots/`](./store-assets/android/screenshots/).
   - iPhone 6.9" (1320×2868) and iPad 13" (2064×2752) in
@@ -885,13 +878,6 @@ blocks a review; all of it is what a person sees before deciding to install.
   - **Start the emulator with `-no-snapshot`** when seeding data for screenshots. An AVD started
     from a quick-boot snapshot throws away everything written since that snapshot the next time it
     boots, which cost the phone's seeded leaderboard once already.
-- ✅ **App Store creative asset uploaded 2026-11-18** by the owner, ahead of 1.2.1 and judged good in
-  App Store Connect's preview. Apple added these optional assets in October 2026: a product page
-  header and a search results image, shown on iOS 27 and later, submitted from the **Asset Library**
-  without a new app version and reviewed against the latest version.
-  `store-assets/ios/creative/universal.png` is one universal asset (5244 × 2950 PNG, no alpha)
-  covering both placements, rebuilt by `node store-assets/ios/generate-creative-asset.js`. **If it
-  is rejected because the latest live version is still 1.2.0**, resubmit it once 1.2.1 is approved.
 - ⬜ **Re-shoot `store-assets/ios/paywall-club-review.png`.** It was last taken for #265 and #276
   added a line to Club's feature list afterwards, so it is one release behind. **Submitted
   deliberately as-is for 1.2.0**: every Guideline 3.1.2 element it has to show — plan names, both
