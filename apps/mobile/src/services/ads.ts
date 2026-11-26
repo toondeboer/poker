@@ -20,6 +20,18 @@ export const BANNER_AD_UNIT_ID = __DEV__
     }) ?? TestIds.BANNER);
 
 /**
+ * Interstitial (full-screen) ad unit id, shown at round changes (see
+ * `services/interstitial.ts`). Google's always-fill TEST unit in development.
+ */
+export const INTERSTITIAL_AD_UNIT_ID = __DEV__
+  ? TestIds.INTERSTITIAL
+  : (Platform.select({
+      ios: "ca-app-pub-9738048037268359/5602035134",
+      android: "ca-app-pub-9738048037268359/2021882773",
+      default: TestIds.INTERSTITIAL,
+    }) ?? TestIds.INTERSTITIAL);
+
+/**
  * Initializes the Google Mobile Ads SDK. Called by the consent flow in
  * `adsConsent.ts` once the user's answer allows an ad request, never at app
  * start: before that there is nothing it is allowed to do. Safe to call again;

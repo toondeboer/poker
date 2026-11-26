@@ -20,6 +20,7 @@ import { isTabletWidth } from "@/src/theme";
 import { useRouter } from "expo-router";
 import { TimerExpirationAlert } from "./TimerExpirationAlert";
 import { BannerAdSlot } from "./ads/BannerAdSlot";
+import { useRoundChangeInterstitial } from "@/src/hooks/useRoundChangeInterstitial";
 import { useAppReady } from "./AppReadyGate";
 import { useEndOfGamePrompt } from "@/src/hooks/useEndOfGamePrompt";
 
@@ -70,6 +71,8 @@ export default function PokerTimer() {
     dismissTimerAlert,
     handleNextBlinds,
   } = useTimer();
+
+  const withRoundChangeAd = useRoundChangeInterstitial();
 
   const { revealed, reportContentSettled } = useAppReady();
   const promptToRecordGame = useEndOfGamePrompt();
@@ -425,8 +428,8 @@ export default function PokerTimer() {
         currentLevel={currentBlindIndex + 1}
         nextBlindLevel={nextBlindLevel}
         missedRounds={missedRounds}
-        onDismiss={dismissTimerAlert}
-        onNextBlinds={handleNextBlinds}
+        onDismiss={withRoundChangeAd(dismissTimerAlert)}
+        onNextBlinds={withRoundChangeAd(handleNextBlinds)}
       />
     </View>
   );
