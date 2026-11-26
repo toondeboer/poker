@@ -13,6 +13,18 @@ stay because code and other docs cite them.
 
 **Legend:** 🚧 in progress · 🔍 investigated, not yet fixed · 🟡 known gap, accepted · ⬜ not started · ✅ met (decision records only)
 
+## 1.2.2 — scope decided 2026-11-26
+
+Kept lean so the full-screen ads start earning (they only do once they are in the stores):
+
+- ✅ **Full-screen ads at every round change** — #346, on `main`.
+- ⬜ **The round-end alert says rounds ran out "while the app was closed" when an ad was open.** An
+  ad left open longer than a whole round triggers the missed-rounds wording; the app was not closed.
+- ⬜ **Blinds back to level 1 after recording a game** — the first item under _Carried into 1.2.2_.
+- ⬜ **CI on `release/**` pushes** — the last item under _Carried into 1.2.2_; goes to `main`.
+
+Sentry moved to 1.2.3 (see _Monitoring_).
+
 ## Carried into 1.2.2 — still open from the 1.2.0 release review
 
 - ⬜ **Recording a game does not start a new one — the blinds stay where they were.** Raised while
@@ -781,7 +793,7 @@ provider added as generic OIDC looks identical on the login screen and bills eve
 **A completed sign-in against prod has not been run on either platform** — it is §14b in
 [RELEASE_TESTING.md](./RELEASE_TESTING.md), and part of the shortest pass.
 
-## Monitoring — decided 2026-11-18: Sentry first, in 1.2.2
+## Monitoring — decided 2026-11-18: Sentry first, now in 1.2.3
 
 **Where it stood when 1.2.1 was submitted.** The backend is watched; the app is not.
 
@@ -803,7 +815,10 @@ store shows a native stack with no source line. A one-off "app left the foregrou
 iPhone simulator while testing 1.2.1 was never explained, and in production it would leave no
 trace.
 
-### ⬜ Sentry, for 1.2.2
+### ⬜ Sentry, for 1.2.3
+
+**Moved out of 1.2.2 on 2026-11-26** so the full-screen ads ship sooner: Sentry brings a native
+module, new dev clients and new store privacy declarations, which is a release of its own.
 
 Chosen over Crashlytics because it maps JS errors to source lines through Expo's tooling, and
 because it has an EU data region.
