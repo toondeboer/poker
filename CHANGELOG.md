@@ -9,6 +9,14 @@ platform-tagged heading (e.g. `## [1.1.3] - 2026-07-20 — Android`) when you cu
 
 ## [Unreleased]
 
+## [1.2.2] - 2026-11-27 — iOS & Android
+
+### Release
+
+- **Cut for 1.2.2.** The accumulated `[Unreleased]` entries are rolled into this heading; the date is
+  the cut date and is corrected to the ship date when the release goes live. Native versions bumped
+  to 1.2.2 in `Info.plist`, `build.gradle` and `app.json`.
+
 ### Added
 
 - Mobile: **full-screen (interstitial) ads for free users, at every round change.** Answering the
@@ -20,9 +28,23 @@ platform-tagged heading (e.g. `## [1.1.3] - 2026-07-20 — Android`) when you cu
 
 ### Changed
 
+- Mobile: **recording a game from the end-of-game prompt starts the next one at level 1.** Resetting
+  after the blinds have climbed asks "Record this game?"; once that record is saved, the blinds go
+  back to level 1, and the prompt now says so. Reset on its own still keeps the level, so re-clocking
+  a round after an interruption never loses your place, and a game recorded from the leaderboard's
+  own button (which may be an old one, with a tournament running) never moves the blinds. Pro only,
+  like the leaderboard.
+
 - Tooling: **CI runs on every push to `release/**`**, not only on pull requests into it. PR runs
   test each change against a proposed merge; the push run tests the merged branch that becomes the
   binary.
+
+### Fixed
+
+- Mobile: **the round-end alert no longer says the app "was closed" when it wasn't.** When more
+  than a round's worth of time has passed, it now says the level ran out "while the timer wasn't on
+  screen". A full-screen ad left open for a whole round counts as the app being away on Android
+  (the ad is its own activity), and the old wording described something that had not happened.
 
 ## [1.2.1] - 2026-11-20 — iOS & Android
 
@@ -1975,7 +1997,8 @@ _Before Android's launch. Reconstructed from build history — approximate._
 - Initial App Store release: a poker tournament timer with configurable blind levels, a
   per-round countdown, background timing, iOS Live Activities, and an Android foreground service.
 
-[Unreleased]: https://github.com/toondeboer/poker/compare/v1.2.1...HEAD
+[Unreleased]: https://github.com/toondeboer/poker/compare/v1.2.2...HEAD
+[1.2.2]: https://github.com/toondeboer/poker/compare/v1.2.1...v1.2.2
 [1.2.1]: https://github.com/toondeboer/poker/compare/v1.2.0...v1.2.1
 [1.2.0]: https://github.com/toondeboer/poker/compare/v1.1.4...v1.2.0
 [1.1.4]: https://github.com/toondeboer/poker/compare/v1.1.3...v1.1.4

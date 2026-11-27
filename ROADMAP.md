@@ -13,43 +13,7 @@ stay because code and other docs cite them.
 
 **Legend:** 🚧 in progress · 🔍 investigated, not yet fixed · 🟡 known gap, accepted · ⬜ not started · ✅ met (decision records only)
 
-## 1.2.2 — scope decided 2026-11-26
-
-Kept lean so the full-screen ads start earning (they only do once they are in the stores):
-
-- ✅ **Full-screen ads at every round change** — #346, on `main`.
-- ⬜ **The round-end alert says rounds ran out "while the app was closed" when an ad was open.** An
-  ad left open longer than a whole round triggers the missed-rounds wording; the app was not closed.
-- ⬜ **Blinds back to level 1 after recording a game** — the first item under _Carried into 1.2.2_.
-- ✅ **CI on `release/**` pushes** — `ci.yml` now runs on pushes to `release/**` (tooling, on `main`).
-
-Sentry moved to 1.2.3 (see _Monitoring_).
-
-## Carried into 1.2.2 — still open from the 1.2.0 release review
-
-- ⬜ **Recording a game does not start a new one — the blinds stay where they were.** Raised while
-  running §12 on TestFlight build 30, as a question: reset only re-clocks the round, so after a
-  tournament ends on level 12 the next one starts on level 12.
-
-  **Reset's behaviour is right and should not change.** A blinds timer has no "tournament over"
-  button, and a host who resets to re-clock a level after an interruption must not lose their place
-  in the structure — that would be destructive with no undo. `useEndOfGamePrompt.ts` says as much,
-  and the end-of-game prompt is built on exactly that reasoning: resetting _after progressing_ is
-  the closest honest proxy for a finished game.
-
-  **The seam is one step later.** Tapping **Record** and completing the sheet is the only
-  unambiguous "this game is over" signal the app has — the host has just said so in as many words.
-  That is the moment where returning the blinds to level 1 is both safe and expected, and nothing
-  does it. So the app asks whether the game finished, is told yes, and then leaves the next game
-  starting mid-structure.
-
-  Not changed in 1.2.0: it is timer behaviour reached through the leaderboard, so it would reopen
-  rows in both §2 and §12 that the pass has already closed. Worth deciding properly rather than
-  late.
-
-  A side effect worth keeping in mind for the next pass: §12's _"resetting on level 1 does not
-  prompt"_ row cannot be reached by resetting at all — you have to navigate back to level 1 by hand
-  first.
+## Carried into 1.2.3 — still open from the 1.2.0 release review
 
 - ⬜ **There is no password reset, and this file assumed there was.** Found on the 1.2.0 TestFlight
   pass of §14, by looking for the button. `cognitoAuthProvider` has no `forgotPassword` or
@@ -391,7 +355,7 @@ everything else:
 - **Entitlements cannot cross platforms.** `revenueCatProvider.ts` configures RevenueCat with no
   `appUserID` and never calls `logIn()`, so an entitlement belongs to the App Store / Play account
   on the device. Tying it to the app account was built for 1.2.0 and deferred — see _Carried into
-  1.2.2_.
+  1.2.3_.
 - **The web app has no billing at all** — no Stripe, no RevenueCat Web. The `pro`/`premium` strings
   in `apps/web` are marketing copy about the mobile purchase. Charging for it means a second payment
   integration plus account linking; not charging for it undercuts the mobile paywall, where dealing
@@ -593,7 +557,7 @@ looked when this file wrote Club's future off, and it is a far better reason to 
 synced countdown.
 
 **A web view of your board needs two things that do not exist:** RevenueCat knowing which account
-subscribes (deferred — see _Carried into 1.2.2_), and a way to charge on the web at all — no Stripe,
+subscribes (deferred — see _Carried into 1.2.3_), and a way to charge on the web at all — no Stripe,
 no RevenueCat Web. Ordinary work once the first is done, not something the architecture forbids.
 
 **None of these touches the rating.** It turns on betting, wagering and accumulating money across

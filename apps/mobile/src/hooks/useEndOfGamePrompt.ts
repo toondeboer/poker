@@ -16,6 +16,9 @@ import { useLeaderboard } from "@/src/contexts/LeaderboardContext";
  * last game finished. Resetting on level 1 is a mis-tap or a false start and is
  * left alone.
  *
+ * Saving the record it leads to is what returns the blinds to level 1 — see
+ * `LeaderboardScreen`. The message says so, so it isn't a surprise.
+ *
  * Three conditions keep it from nagging. It only fires when the blinds
  * progressed, when Pro is unlocked (the leaderboard is a Pro feature, and
  * advertising it here would be a prompt with nowhere to go), and when there is
@@ -33,7 +36,7 @@ export function useEndOfGamePrompt() {
       if (!blindsProgressed || !isPremium || players.length === 0) return;
       Alert.alert(
         "Record this game?",
-        "Add the result to your leaderboard while everyone is still at the table.",
+        "Add the result to your leaderboard while everyone is still at the table. Once it's saved, the blinds go back to level 1 for the next game.",
         [
           { text: "Not now", style: "cancel" },
           {

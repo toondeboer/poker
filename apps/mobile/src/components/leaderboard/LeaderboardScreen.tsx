@@ -23,6 +23,7 @@ import {
 } from "@poker/core";
 import { usePremium } from "@/src/contexts/PremiumContext";
 import { useLeaderboard } from "@/src/contexts/LeaderboardContext";
+import { useBlinds } from "@/src/contexts/BlindsContext";
 import { accountsAreReal, useAuth } from "@/src/contexts/AuthContext";
 import { useFeatures } from "@/src/contexts/FeaturesContext";
 import { useKeyboardFocusScroll } from "@/src/hooks/useKeyboardFocusScroll";
@@ -90,6 +91,30 @@ export function LeaderboardScreen() {
    *  the board-sharing button. See `PaywallFocus`. */
   const [paywallFocus, setPaywallFocus] = useState<PaywallFocus>("pro");
   const [showRecord, setShowRecord] = useState(record === "1");
+
+  /**
+   * **Saving the game the end-of-game prompt asked about starts the next one
+   * at level 1.** That save is the only unambiguous "this game is over" the app
+   * gets: the host reset after the blinds had climbed, was asked whether the
+   * game finished, and has just recorded its result. Reset itself deliberately
+   * keeps the level (re-clocking a round after an interruption must not lose
+   * your place), so without this the next tournament started wherever the last
+   * one ended.
+   *
+   * Only the first save after arriving from the prompt, and only a save that
+   * worked. Recording from this screen any other way may be last week's game,
+   * possibly with a tournament running, so it never touches the blinds.
+   */
+  const { selectBlind } = useBlinds();
+  const [resetBlindsOnSave, setResetBlindsOnSave] = useState(record === "1");
+  const recordFromSheet: typeof recordResult = (params) => {
+    const saved = recordResult(params);
+    if (saved && resetBlindsOnSave) {
+      selectBlind(0);
+      setResetBlindsOnSave(false);
+    }
+    return saved;
+  };
   const [showGroups, setShowGroups] = useState(false);
   /**
    * Which half of `GroupsSheet` to lead with — see `GroupsFocus`.
@@ -612,7 +637,7 @@ export function LeaderboardScreen() {
           visible={showRecord}
           onClose={() => setShowRecord(false)}
           players={players}
-          onRecord={recordResult}
+          onRecord={recordFromSheet}
         />
       )}
       {/* **Not gated on `canView`, unlike the record sheet.** This is the only
